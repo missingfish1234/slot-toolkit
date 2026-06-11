@@ -8,6 +8,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
@@ -95,6 +96,14 @@ class GitHubClient:
             f"{encoded_path}?ref={encoded_branch}"
         )
 
+    def archive_url(self) -> str:
+        encoded_branch = urllib.parse.quote(self.config.github_branch, safe="/")
+        return (
+            f"https://codeload.github.com/"
+            f"{self.config.github_owner}/{self.config.github_repo}/zip/refs/heads/"
+            f"{encoded_branch}"
+        )
+
     def fetch_index(self) -> ToolIndex:
         if not self.is_configured:
             raise RuntimeError("尚未設定 GitHub owner/repo。")
@@ -106,27 +115,35 @@ class GitHubClient:
             raise RuntimeError("尚未設定 GitHub owner/repo。")
         destination.parent.mkdir(parents=True, exist_ok=True)
         temp_dir = destination.with_name(destination.name + ".download")
+        zip_path = destination.with_name(destination.name + ".zipdownload")
         if temp_dir.exists():
             shutil.rmtree(temp_dir)
+        if zip_path.exists():
+            zip_path.unlink()
         temp_dir.mkdir(parents=True)
 
-        files = self._list_files(tool.path)
-        total = max(len(files), 1)
-        for index, file_info in enumerate(files, start=1):
-            rel_path = file_info["path"][len(tool.path):].strip("/")
-            target = temp_dir / rel_path
-            target.parent.mkdir(parents=True, exist_ok=True)
-            download_url = file_info.get("download_url")
-            if not download_url:
-                continue
-            download_file(download_url, target)
+        try:
             if progress:
-                progress(f"下載 {rel_path}", int(index / total * 100))
+                progress("下載 GitHub 壓縮包", 5)
+            download_file(self.archive_url(), zip_path)
 
-        ensure_safe_child(destination.parent, destination)
-        if destination.exists():
-            shutil.rmtree(destination)
-        temp_dir.rename(destination)
+            if progress:
+                progress("解壓工具檔案", 45)
+            extracted = extract_tool_from_archive(zip_path, tool.path, temp_dir, progress)
+            if extracted == 0:
+                raise RuntimeError(f"GitHub 壓縮包中找不到工具路徑：{tool.path}")
+
+            ensure_safe_child(destination.parent, destination)
+            if destination.exists():
+                shutil.rmtree(destination)
+            temp_dir.rename(destination)
+        except Exception:
+            if temp_dir.exists():
+                shutil.rmtree(temp_dir)
+            raise
+        finally:
+            if zip_path.exists():
+                zip_path.unlink()
 
     def _list_files(self, path: str) -> list[dict]:
         items = request_json(self.api_contents_url(path))
@@ -208,8 +225,53 @@ def request_json(url: str) -> dict | list:
 def download_file(url: str, target: Path) -> None:
     url = encode_url(url)
     request = urllib.request.Request(url, headers={"User-Agent": "ToolkitManager/1.0"})
-    with urllib.request.urlopen(request, timeout=60) as response:
+    with urllib.request.urlopen(request, timeout=300) as response:
         target.write_bytes(response.read())
+
+
+def extract_tool_from_archive(
+    zip_path: Path,
+    tool_path: str,
+    destination: Path,
+    progress: ProgressCallback | None = None,
+) -> int:
+    normalized_tool_path = tool_path.replace("\\", "/").strip("/")
+    extracted = 0
+    with zipfile.ZipFile(zip_path) as archive:
+        members = [
+            info for info in archive.infolist()
+            if not info.is_dir() and archive_inner_path(info.filename, normalized_tool_path)
+        ]
+        total = max(len(members), 1)
+        for index, info in enumerate(members, start=1):
+            rel_path = archive_inner_path(info.filename, normalized_tool_path)
+            if not rel_path:
+                continue
+            target = destination / Path(rel_path)
+            ensure_safe_child(destination, target)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with archive.open(info) as source, target.open("wb") as output:
+                shutil.copyfileobj(source, output)
+            extracted += 1
+            if progress:
+                progress(f"解壓 {rel_path}", 45 + int(index / total * 50))
+    if progress:
+        progress("下載完成", 100)
+    return extracted
+
+
+def archive_inner_path(filename: str, tool_path: str) -> str:
+    normalized = filename.replace("\\", "/").strip("/")
+    parts = normalized.split("/", 1)
+    if len(parts) != 2:
+        return ""
+    inner = parts[1]
+    if inner == tool_path:
+        return ""
+    prefix = tool_path + "/"
+    if not inner.startswith(prefix):
+        return ""
+    return inner[len(prefix):]
 
 
 def encode_url(url: str) -> str:
