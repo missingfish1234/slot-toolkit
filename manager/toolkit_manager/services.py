@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime
 from pathlib import Path
@@ -77,17 +78,21 @@ class GitHubClient:
         return bool(self.config.github_owner and self.config.github_repo)
 
     def raw_url(self, path: str) -> str:
+        encoded_path = urllib.parse.quote(path.strip("/"), safe="/")
+        encoded_branch = urllib.parse.quote(self.config.github_branch, safe="")
         return (
             f"https://raw.githubusercontent.com/"
             f"{self.config.github_owner}/{self.config.github_repo}/"
-            f"{self.config.github_branch}/{path.strip('/')}"
+            f"{encoded_branch}/{encoded_path}"
         )
 
     def api_contents_url(self, path: str) -> str:
+        encoded_path = urllib.parse.quote(path.strip("/"), safe="/")
+        encoded_branch = urllib.parse.quote(self.config.github_branch, safe="")
         return (
             f"https://api.github.com/repos/"
             f"{self.config.github_owner}/{self.config.github_repo}/contents/"
-            f"{path.strip('/')}?ref={self.config.github_branch}"
+            f"{encoded_path}?ref={encoded_branch}"
         )
 
     def fetch_index(self) -> ToolIndex:
@@ -189,6 +194,7 @@ def app_data_dir() -> Path:
 
 
 def request_json(url: str) -> dict | list:
+    url = encode_url(url)
     request = urllib.request.Request(url, headers={"User-Agent": "ToolkitManager/1.0"})
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
@@ -200,9 +206,17 @@ def request_json(url: str) -> dict | list:
 
 
 def download_file(url: str, target: Path) -> None:
+    url = encode_url(url)
     request = urllib.request.Request(url, headers={"User-Agent": "ToolkitManager/1.0"})
     with urllib.request.urlopen(request, timeout=60) as response:
         target.write_bytes(response.read())
+
+
+def encode_url(url: str) -> str:
+    parts = urllib.parse.urlsplit(url)
+    path = urllib.parse.quote(parts.path, safe="/%")
+    query = urllib.parse.quote(parts.query, safe="=&%")
+    return urllib.parse.urlunsplit((parts.scheme, parts.netloc, path, query, parts.fragment))
 
 
 def compare_versions(left: str, right: str) -> int:
