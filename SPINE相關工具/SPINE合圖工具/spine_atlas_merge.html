@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Spine Atlas 合併工具 - 拖曳版 Alias輸出版</title>
+<style>
+:root{
+  --bg:#10131a;--panel:#171b25;--panel2:#202636;--line:#30384c;
+  --text:#edf2ff;--muted:#aab4cf;--good:#4ee38b;--warn:#ffca5f;
+  --bad:#ff6b7a;--accent:#7cc7ff;--accent2:#a98bff;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;min-height:100vh;background:
+  radial-gradient(circle at 20% 0%,rgba(124,199,255,.18),transparent 32%),
+  radial-gradient(circle at 85% 15%,rgba(169,139,255,.16),transparent 34%),
+  var(--bg);color:var(--text);
+  font-family:"Microsoft JhengHei","PingFang TC",system-ui,sans-serif;
+}
+header,main{max-width:1180px;margin:0 auto}
+header{padding:28px 28px 12px}
+h1{margin:0 0 8px;font-size:30px}
+.subtitle{margin:0;color:var(--muted);line-height:1.65;font-size:15px}
+main{padding:16px 28px 40px;display:grid;grid-template-columns:1.05fr .95fr;gap:18px}
+@media(max-width:920px){main{grid-template-columns:1fr}}
+.card{
+  background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.015)),var(--panel);
+  border:1px solid rgba(255,255,255,.08);border-radius:20px;overflow:hidden;
+  box-shadow:0 18px 40px rgba(0,0,0,.35)
+}
+.card-header{
+  padding:18px 20px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;gap:12px
+}
+.card-title{font-size:18px;font-weight:800}.card-body{padding:18px 20px 20px}
+.dropzone{
+  border:2px dashed rgba(124,199,255,.5);border-radius:18px;min-height:230px;
+  display:grid;place-items:center;padding:22px;background:rgba(124,199,255,.055);
+  transition:.18s;cursor:pointer;text-align:center
+}
+.dropzone.dragover{transform:translateY(-2px);border-color:var(--accent);background:rgba(124,199,255,.14)}
+.drop-icon{font-size:48px;margin-bottom:12px}.drop-title{font-size:20px;font-weight:800;margin-bottom:8px}
+.drop-desc{color:var(--muted);line-height:1.65;font-size:14px}
+input[type=file]{display:none}
+.settings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}
+@media(max-width:560px){.settings{grid-template-columns:1fr}}
+label.field{display:grid;gap:6px;color:var(--muted);font-size:13px}
+input[type=text],input[type=number],select{
+  width:100%;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+  border-radius:12px;padding:11px 12px;outline:none;font-size:14px
+}
+.check-row{
+  display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(255,255,255,.035);
+  border:1px solid var(--line);border-radius:12px;color:var(--muted);font-size:13px
+}
+.buttons{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+button{
+  border:0;border-radius:13px;padding:11px 16px;font-weight:800;color:#07111d;cursor:pointer;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 10px 24px rgba(124,199,255,.2)
+}
+button.secondary{color:var(--text);background:#2a3144;box-shadow:none;border:1px solid var(--line)}
+button:disabled{opacity:.45;cursor:not-allowed}.hint,.section-note{margin-top:14px;color:var(--muted);font-size:13px;line-height:1.6}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.stat{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px;padding:12px}
+.stat b{display:block;font-size:22px;margin-bottom:4px}.stat span{color:var(--muted);font-size:12px}
+.list{display:grid;gap:9px;max-height:310px;overflow:auto;padding-right:4px}
+.file-item{border:1px solid var(--line);background:rgba(255,255,255,.035);border-radius:13px;padding:10px 12px;display:grid;gap:4px}
+.file-name{font-weight:800;word-break:break-all}.file-meta{color:var(--muted);font-size:12px}
+.badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800;background:rgba(124,199,255,.13);color:var(--accent);border:1px solid rgba(124,199,255,.24)}
+.badge.good{color:var(--good);background:rgba(78,227,139,.12);border-color:rgba(78,227,139,.24)}
+.badge.warn{color:var(--warn);background:rgba(255,202,95,.12);border-color:rgba(255,202,95,.24)}
+.badge.bad{color:var(--bad);background:rgba(255,107,122,.12);border-color:rgba(255,107,122,.24)}
+.log{white-space:pre-wrap;font-family:Consolas,"Courier New",monospace;background:#0c0f16;border:1px solid var(--line);border-radius:14px;padding:14px;line-height:1.55;color:#d9e4ff;min-height:220px;max-height:360px;overflow:auto;font-size:12px}
+.download-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:14px}
+@media(max-width:560px){.download-grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr}}
+a.download{display:block;text-align:center;text-decoration:none;border-radius:13px;padding:11px 12px;background:#2a3144;border:1px solid var(--line);color:var(--text);font-weight:800}
+canvas{width:100%;max-height:320px;background:
+  linear-gradient(45deg,rgba(255,255,255,.06) 25%,transparent 25%),
+  linear-gradient(-45deg,rgba(255,255,255,.06) 25%,transparent 25%),
+  linear-gradient(45deg,transparent 75%,rgba(255,255,255,.06) 75%),
+  linear-gradient(-45deg,transparent 75%,rgba(255,255,255,.06) 75%);
+  background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0;
+  border:1px solid var(--line);border-radius:14px;margin-top:14px;object-fit:contain
+}
+.good-text{color:var(--good)}.warn-text{color:var(--warn)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Spine Atlas 合併工具 - 拖曳版 Alias 輸出版</h1>
+  <p class="subtitle">
+    合併多個 Spine <b>.atlas + .png</b>。工具不修改 .skel / .json。
+    可額外輸出「原 atlas 檔名的別名 atlas」，讓 Unity / Cocos / 其他匯入流程比較容易照原本檔名自動配對，但實際貼圖共用同一張 PNG。 目前也支援 Spine 4.0 常見的 <b>.atlas.txt</b> 命名格式。
+  </p>
+</header>
+
+<main>
+<section class="card">
+  <div class="card-header"><div class="card-title">1. 拖曳檔案</div><span id="statusBadge" class="badge">等待檔案</span></div>
+  <div class="card-body">
+    <div id="dropzone" class="dropzone">
+      <div>
+        <div class="drop-icon">📦</div>
+        <div class="drop-title">拖曳多個 .atlas / .atlas.txt 與 .png 到這裡</div>
+        <div class="drop-desc">也可以點擊選擇檔案。請放入每個 atlas 引用到的 png。</div>
+      </div>
+    </div>
+    <input id="fileInput" type="file" multiple accept=".atlas,.atlas.txt,.txt,.png,image/png" />
+
+    <div class="settings">
+      <label class="field">輸出名稱<input id="outputName" type="text" value="shared_spine" /></label>
+      <label class="field">最大寬度上限<input id="maxWidth" type="number" min="256" step="128" value="2048" /></label>
+      <label class="field">Padding 像素<input id="padding" type="number" min="0" max="32" value="2" /></label>
+      <label class="field">輸出尺寸模式
+        <select id="sizeMode">
+          <option value="pot" selected>Power of Two，建議引擎用</option>
+          <option value="square-pot">正方形 + Power of Two，最保守相容</option>
+          <option value="square">正方形，不補 2 次方</option>
+          <option value="tight">緊密尺寸，不補 2 次方</option>
+        </select>
+      </label>
+      <label class="check-row"><input id="allowIdenticalDuplicate" type="checkbox" checked />允許同名且圖片完全相同的 region 自動去重</label>
+      <label class="check-row"><input id="exportAliasAtlases" type="checkbox" checked />產生原始 atlas 檔名別名檔，方便引擎自動配對</label>
+      <label class="check-row"><input id="exportMainAtlas" type="checkbox" />另外輸出主 shared_spine.atlas，手動指定或檢查用</label>
+    </div>
+
+    <div class="buttons">
+      <button id="mergeBtn" disabled>開始合併</button>
+      <button id="chooseFolderBtn" class="secondary">選擇輸出資料夾</button>
+      <button id="saveToFolderBtn" class="secondary" disabled>存到指定資料夾</button>
+      <button id="clearBtn" class="secondary">清空</button>
+    </div>
+
+    <div id="folderStatus" class="hint">輸出資料夾：尚未選擇。Chrome / Edge 可直接寫入指定資料夾；其他瀏覽器請使用下載按鈕。</div>
+    <div class="hint">正式專案建議使用「存到指定資料夾」，因為 alias atlas 可能有多份。</div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-header"><div class="card-title">2. 檔案與統計</div><span id="fileCountBadge" class="badge">0 個檔案</span></div>
+  <div class="card-body">
+    <div class="stats">
+      <div class="stat"><b id="atlasCount">0</b><span>Atlas</span></div>
+      <div class="stat"><b id="pngCount">0</b><span>PNG</span></div>
+      <div class="stat"><b id="regionCount">0</b><span>Regions</span></div>
+    </div>
+    <div id="fileList" class="list"></div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-header"><div class="card-title">3. 合併紀錄</div><span id="resultBadge" class="badge">尚未合併</span></div>
+  <div class="card-body"><div id="log" class="log">請先拖曳 .atlas / .atlas.txt 與 .png 檔案。</div></div>
+</section>
+
+<section class="card">
+  <div class="card-header"><div class="card-title">4. 預覽與下載</div><span id="previewBadge" class="badge">無輸出</span></div>
+  <div class="card-body">
+    <div class="section-note">已選擇輸出資料夾時，按「開始合併」會自動寫入指定資料夾。下方下載按鈕只是備用方案，按了才會進瀏覽器下載資料夾。</div>
+    <canvas id="previewCanvas" width="512" height="256"></canvas>
+    <div class="download-grid">
+      <a id="downloadAtlas" class="download" href="#" download style="display:none;">下載主 .atlas（選配）</a>
+      <a id="downloadPng" class="download" href="#" download style="display:none;">下載 .png</a>
+      <a id="downloadReport" class="download" href="#" download style="display:none;">下載 report.txt</a>
+      <a id="downloadAliasReadme" class="download" href="#" download style="display:none;">下載 alias 說明</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+(() => {
+  const state = {
+    files: new Map(),
+    imageBitmaps: new Map(),
+    parsedAtlases: [],
+    lastUrls: [],
+    outputDirHandle: null,
+    lastOutput: null
+  };
+
+  const $ = id => document.getElementById(id);
+  const dropzone = $("dropzone");
+  const fileInput = $("fileInput");
+  const mergeBtn = $("mergeBtn");
+  const chooseFolderBtn = $("chooseFolderBtn");
+  const saveToFolderBtn = $("saveToFolderBtn");
+  const clearBtn = $("clearBtn");
+  const logEl = $("log");
+
+  function log(msg, mode = "normal") {
+    if (mode === "reset") logEl.textContent = msg;
+    else logEl.textContent += "\n" + msg;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function setBadge(el, text, cls = "") {
+    el.className = "badge" + (cls ? " " + cls : "");
+    el.textContent = text;
+  }
+
+  function normalizePath(name) {
+    return String(name || "").replace(/\\/g, "/").split("/").pop();
+  }
+
+  function safeName(name) {
+    return String(name || "shared_spine").trim().replace(/[^\w\-\.\u4e00-\u9fa5]/g, "_") || "shared_spine";
+  }
+
+  function isAtlasFileName(name) {
+    const n = normalizePath(name).toLowerCase();
+    return n.endsWith(".atlas") || n.endsWith(".atlas.txt");
+  }
+
+  function nextPowerOfTwo(v) {
+    let n = 1;
+    while (n < v) n <<= 1;
+    return n;
+  }
+
+  function parsePair(v) {
+    const p = v.split(",").map(s => parseInt(s.trim(), 10));
+    if (p.length !== 2 || p.some(Number.isNaN)) throw new Error("pair 解析失敗: " + v);
+    return [p[0], p[1]];
+  }
+
+  function parseQuad(v) {
+    const p = v.split(",").map(s => parseInt(s.trim(), 10));
+    if (p.length !== 4 || p.some(Number.isNaN)) throw new Error("quad 解析失敗: " + v);
+    return [p[0], p[1], p[2], p[3]];
+  }
+
+  function makeRegion(name, page, atlasFileName) {
+    return {
+      name, page, atlasFileName,
+      rotate: "false",
+      xy: [0, 0],
+      size: [0, 0],
+      orig: null,
+      offset: [0, 0],
+      index: -1,
+      splits: null,
+      pads: null
+    };
+  }
+
+  function parseAtlas(text, atlasFileName) {
+    const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
+    const pages = [];
+    const regions = [];
+    let currentPage = null;
+    let currentRegion = null;
+    let mode = null;
+
+    function commit() {
+      if (currentRegion) {
+        if (!currentRegion.orig) currentRegion.orig = [...currentRegion.size];
+        if (!currentRegion.offset) currentRegion.offset = [0, 0];
+        regions.push(currentRegion);
+        currentRegion = null;
+      }
+    }
+
+    function isKV(line) {
+      return /^\s*[^:]+:\s*/.test(line);
+    }
+
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line) {
+        commit();
+        currentPage = null;
+        mode = null;
+        continue;
+      }
+
+      if (!currentPage) {
+        currentPage = {
+          name: normalizePath(line),
+          size: null,
+          format: "RGBA8888",
+          filter: "Linear,Linear",
+          repeat: "none",
+          pma: null,
+          atlasFileName
+        };
+        pages.push(currentPage);
+        mode = "page";
+        continue;
+      }
+
+      if (mode === "page") {
+        if (isKV(line)) {
+          const i = line.indexOf(":");
+          const key = line.slice(0, i).trim().toLowerCase();
+          const val = line.slice(i + 1).trim();
+          if (key === "size") currentPage.size = parsePair(val);
+          else if (key === "format") currentPage.format = val;
+          else if (key === "filter") currentPage.filter = val;
+          else if (key === "repeat") currentPage.repeat = val;
+          else if (key === "pma") currentPage.pma = val;
+          continue;
+        }
+        mode = "region";
+        currentRegion = makeRegion(line, currentPage, atlasFileName);
+        continue;
+      }
+
+      if (mode === "region") {
+        if (isKV(line)) {
+          const i = line.indexOf(":");
+          const key = line.slice(0, i).trim().toLowerCase();
+          const val = line.slice(i + 1).trim();
+          if (!currentRegion) throw new Error("Atlas 格式錯誤: " + atlasFileName);
+          if (key === "rotate") currentRegion.rotate = val;
+          else if (key === "xy") currentRegion.xy = parsePair(val);
+          else if (key === "size") currentRegion.size = parsePair(val);
+          else if (key === "orig") currentRegion.orig = parsePair(val);
+          else if (key === "offset") currentRegion.offset = parsePair(val);
+          else if (key === "index") currentRegion.index = parseInt(val, 10);
+          else if (key === "split" || key === "splits") currentRegion.splits = parseQuad(val);
+          else if (key === "pad" || key === "pads") currentRegion.pads = parseQuad(val);
+          continue;
+        }
+        commit();
+        currentRegion = makeRegion(line, currentPage, atlasFileName);
+      }
+    }
+
+    commit();
+    return { atlasFileName, pages, regions };
+  }
+
+  async function addFiles(list) {
+    for (const f of Array.from(list || [])) state.files.set(normalizePath(f.name), f);
+    await refreshLoadedFiles();
+  }
+
+  async function refreshLoadedFiles() {
+    state.imageBitmaps.clear();
+    state.parsedAtlases = [];
+
+    const atlasFiles = [];
+    const pngFiles = [];
+
+    for (const [name, file] of state.files) {
+      const l = name.toLowerCase();
+      if (isAtlasFileName(l)) atlasFiles.push(file);
+      if (l.endsWith(".png")) pngFiles.push(file);
+    }
+
+    for (const f of atlasFiles) {
+      try {
+        state.parsedAtlases.push(parseAtlas(await f.text(), normalizePath(f.name)));
+      } catch (e) {
+        log(`[解析失敗] ${f.name}: ${e.message}`, "reset");
+      }
+    }
+
+    for (const f of pngFiles) {
+      try {
+        state.imageBitmaps.set(normalizePath(f.name), await createImageBitmap(f));
+      } catch (e) {
+        log(`[圖片讀取失敗] ${f.name}: ${e.message}`, "reset");
+      }
+    }
+
+    updateUI();
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]));
+  }
+
+  function findMissingImages() {
+    const missing = [];
+    for (const parsed of state.parsedAtlases) {
+      for (const page of parsed.pages) {
+        if (!state.imageBitmaps.has(normalizePath(page.name))) missing.push({ atlas: parsed.atlasFileName, image: page.name });
+      }
+    }
+    return missing;
+  }
+
+  function updateUI() {
+    const entries = [...state.files.entries()];
+    const atlasCount = entries.filter(([n]) => isAtlasFileName(n)).length;
+    const pngCount = entries.filter(([n]) => n.toLowerCase().endsWith(".png")).length;
+    const regionCount = state.parsedAtlases.reduce((s, a) => s + a.regions.length, 0);
+
+    $("atlasCount").textContent = atlasCount;
+    $("pngCount").textContent = pngCount;
+    $("regionCount").textContent = regionCount;
+    $("fileCountBadge").textContent = `${entries.length} 個檔案`;
+    mergeBtn.disabled = atlasCount === 0 || pngCount === 0;
+
+    if (atlasCount && pngCount) setBadge($("statusBadge"), "可合併", "good");
+    else if (atlasCount || pngCount) setBadge($("statusBadge"), "缺少配對檔", "warn");
+    else setBadge($("statusBadge"), "等待檔案");
+
+    const list = $("fileList");
+    list.innerHTML = "";
+    if (!entries.length) {
+      list.innerHTML = '<div class="section-note">尚未加入檔案。</div>';
+      logEl.textContent = "請先拖曳 .atlas / .atlas.txt 與 .png 檔案。";
+      return;
+    }
+
+    for (const [name, file] of entries.sort((a, b) => a[0].localeCompare(b[0]))) {
+      const type = isAtlasFileName(name) ? "Atlas" : name.toLowerCase().endsWith(".png") ? "PNG" : "其他";
+      const item = document.createElement("div");
+      item.className = "file-item";
+      item.innerHTML = `<div class="file-name">${escapeHtml(name)}</div><div class="file-meta">${type} / ${(file.size / 1024).toFixed(1)} KB</div>`;
+      list.appendChild(item);
+    }
+
+    const missing = findMissingImages();
+    logEl.textContent = [
+      `已加入檔案：${entries.length}`,
+      `Atlas(.atlas / .atlas.txt)：${atlasCount}`,
+      `PNG：${pngCount}`,
+      `Regions：${regionCount}`,
+      missing.length
+        ? `\n[警告] 有 atlas 找不到引用的圖片：\n${missing.map(m => `- ${m.atlas} -> ${m.image}`).join("\n")}`
+        : "\n圖片引用檢查：OK"
+    ].join("\n");
+  }
+
+  function cropRegionToCanvas(region) {
+    const bmp = state.imageBitmaps.get(normalizePath(region.page.name));
+    if (!bmp) throw new Error(`找不到圖片：${region.page.name}，來源 atlas：${region.atlasFileName}`);
+
+    const rotated = String(region.rotate).toLowerCase() === "true" || String(region.rotate).toLowerCase() === "90";
+    const [rw, rh] = region.size;
+    const cropW = rotated ? rh : rw;
+    const cropH = rotated ? rw : rh;
+    const [x, y] = region.xy;
+
+    if (x < 0 || y < 0 || x + cropW > bmp.width || y + cropH > bmp.height) {
+      throw new Error(`Region 超出圖片範圍：${region.name} / ${region.page.name}`);
+    }
+
+    const c = document.createElement("canvas");
+    c.width = rw;
+    c.height = rh;
+    const ctx = c.getContext("2d");
+
+    if (rotated) {
+      ctx.save();
+      ctx.translate(rw, 0);
+      ctx.rotate(Math.PI / 2);
+      ctx.drawImage(bmp, x, y, cropW, cropH, 0, 0, cropW, cropH);
+      ctx.restore();
+    } else {
+      ctx.drawImage(bmp, x, y, cropW, cropH, 0, 0, rw, rh);
+    }
+    return c;
+  }
+
+  function canvasHash(canvas) {
+    const data = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+    let h = 2166136261;
+    function fnv(v) {
+      h ^= v;
+      h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+      h >>>= 0;
+    }
+    fnv(canvas.width);
+    fnv(canvas.height);
+    for (let i = 0; i < data.length; i++) fnv(data[i]);
+    return String(h >>> 0);
+  }
+
+  function prepareUniqueRegions() {
+    const allow = $("allowIdenticalDuplicate").checked;
+    const byName = new Map();
+    const unique = [];
+    const skipped = [];
+    const conflicts = [];
+
+    for (const parsed of state.parsedAtlases) {
+      for (const region of parsed.regions) {
+        const crop = cropRegionToCanvas(region);
+        const hash = canvasHash(crop);
+        const old = byName.get(region.name);
+
+        if (old) {
+          if (allow && old.hash === hash) {
+            skipped.push({ name: region.name, from: region.atlasFileName, sameAs: old.region.atlasFileName });
+            continue;
+          }
+          conflicts.push({ name: region.name, a: old.region.atlasFileName, b: region.atlasFileName });
+          continue;
+        }
+
+        byName.set(region.name, { region, crop, hash });
+        unique.push({ region, crop, hash });
+      }
+    }
+
+    if (conflicts.length) {
+      throw new Error("發現同名 region 但圖片內容不同，為避免貼錯圖，已停止合併。\n" +
+        conflicts.map(c => `- ${c.name}: ${c.a} / ${c.b}`).join("\n"));
+    }
+
+    return { unique, skipped };
+  }
+
+  function packShelfAtWidth(sortedItems, padding, packWidth) {
+    const packed = [];
+    let x = padding, y = padding, shelfH = 0, usedW = 0;
+
+    for (const item of sortedItems) {
+      const w = item.crop.width;
+      const h = item.crop.height;
+
+      if (w + padding * 2 > packWidth) {
+        return null;
+      }
+
+      if (x + w + padding > packWidth && x > padding) {
+        y += shelfH + padding;
+        x = padding;
+        shelfH = 0;
+      }
+
+      packed.push({ ...item, x, y, w, h });
+      x += w + padding;
+      shelfH = Math.max(shelfH, h);
+      usedW = Math.max(usedW, x);
+    }
+
+    const usedHeight = Math.max(1, y + shelfH + padding);
+    const usedWidth = Math.max(1, usedW + padding);
+    return { packed, usedWidth, usedHeight };
+  }
+
+  function comparePackCandidate(a, b) {
+    if (!b) return a;
+    if (!a) return b;
+
+    // 優先選面積小的，其次選較接近正方形的，最後選寬高較小的。
+    const areaA = a.width * a.height;
+    const areaB = b.width * b.height;
+    if (areaA !== areaB) return areaA < areaB ? a : b;
+
+    const ratioA = Math.abs(a.width - a.height);
+    const ratioB = Math.abs(b.width - b.height);
+    if (ratioA !== ratioB) return ratioA < ratioB ? a : b;
+
+    const maxA = Math.max(a.width, a.height);
+    const maxB = Math.max(b.width, b.height);
+    return maxA <= maxB ? a : b;
+  }
+
+  function buildPackCandidate(basePack, sizeMode) {
+    if (!basePack) return null;
+
+    let width = basePack.usedWidth;
+    let height = basePack.usedHeight;
+
+    if (sizeMode === "pot" || sizeMode === "square-pot") {
+      width = nextPowerOfTwo(width);
+      height = nextPowerOfTwo(height);
+    }
+
+    if (sizeMode === "square" || sizeMode === "square-pot") {
+      const side = Math.max(width, height);
+      width = side;
+      height = side;
+    }
+
+    return {
+      packed: basePack.packed,
+      width,
+      height,
+      usedWidth: basePack.usedWidth,
+      usedHeight: basePack.usedHeight
+    };
+  }
+
+  function packShelf(items, padding, maxWidth, sizeMode) {
+    const sorted = [...items].sort((a, b) => b.crop.height - a.crop.height);
+
+    // maxWidth 現在只當作「上限」，不是固定寬度。
+    // 會自動嘗試 64,128,256,512,1024,2048... 等寬度，選最小且合理的包圖。
+    const minItemWidth = Math.max(...sorted.map(i => i.crop.width), 1) + padding * 2;
+    const upper = Math.max(256, maxWidth);
+    const candidates = [];
+
+    let w = nextPowerOfTwo(Math.max(64, minItemWidth));
+    while (w <= upper) {
+      candidates.push(w);
+      w *= 2;
+    }
+
+    if (!candidates.includes(upper)) candidates.push(upper);
+
+    let best = null;
+
+    for (const candidateWidth of candidates) {
+      const basePack = packShelfAtWidth(sorted, padding, candidateWidth);
+      const candidate = buildPackCandidate(basePack, sizeMode);
+      best = comparePackCandidate(candidate, best);
+    }
+
+    // 若 maxWidth 太小導致完全放不下，最後用最小必要寬度再試一次，避免直接失敗。
+    if (!best) {
+      const fallbackWidth = nextPowerOfTwo(minItemWidth);
+      const basePack = packShelfAtWidth(sorted, padding, fallbackWidth);
+      best = buildPackCandidate(basePack, sizeMode);
+    }
+
+    if (!best) {
+      throw new Error("包圖失敗：有單張 region 寬度超過可用輸出尺寸，請提高最大寬度。");
+    }
+
+    return { packed: best.packed, width: best.width, height: best.height };
+  }
+
+  function buildAtlasText(outputPngName, packed, width, height) {
+    const first = state.parsedAtlases[0]?.pages?.[0] || {};
+    const lines = [
+      outputPngName,
+      `size: ${width},${height}`,
+      `format: ${first.format || "RGBA8888"}`,
+      `filter: ${first.filter || "Linear,Linear"}`,
+      `repeat: ${first.repeat || "none"}`
+    ];
+    if (first.pma !== null && first.pma !== undefined) lines.push(`pma: ${first.pma}`);
+
+    for (const pr of packed) {
+      const r = pr.region;
+      lines.push(r.name);
+      lines.push("  rotate: false");
+      lines.push(`  xy: ${pr.x}, ${pr.y}`);
+      lines.push(`  size: ${pr.w}, ${pr.h}`);
+      lines.push(`  orig: ${r.orig[0]}, ${r.orig[1]}`);
+      lines.push(`  offset: ${r.offset[0]}, ${r.offset[1]}`);
+      lines.push(`  index: ${Number.isFinite(r.index) ? r.index : -1}`);
+      if (r.splits) lines.push(`  split: ${r.splits[0]}, ${r.splits[1]}, ${r.splits[2]}, ${r.splits[3]}`);
+      if (r.pads) lines.push(`  pad: ${r.pads[0]}, ${r.pads[1]}, ${r.pads[2]}, ${r.pads[3]}`);
+    }
+    return lines.join("\n") + "\n";
+  }
+
+  function buildAliasAtlasFiles(atlasText, mainAtlasName) {
+    if (!$("exportAliasAtlases").checked) return [];
+    const aliases = [];
+    const seen = new Set();
+
+    for (const parsed of state.parsedAtlases) {
+      const n = normalizePath(parsed.atlasFileName);
+      if (!n || seen.has(n) || n === mainAtlasName) continue;
+      seen.add(n);
+      aliases.push({ fileName: n, text: atlasText, blob: new Blob([atlasText], { type: "text/plain;charset=utf-8" }) });
+    }
+    return aliases;
+  }
+
+  function buildAliasReadme(outputPngName, aliases) {
+    return [
+      "Spine Atlas Alias 說明",
+      "======================",
+      "",
+      "這些 alias atlas 使用原始 atlas 檔名，但內容都指向合併後的共用 PNG。",
+      "用途是讓 Unity / Cocos / 其他匯入流程可依原本 atlas 檔名自動配對，同時實際貼圖共用同一張 PNG。",
+      "",
+      `共用 PNG：${outputPngName}`,
+      "",
+      "產生的 alias atlas：",
+      aliases.length ? aliases.map(a => `- ${a.fileName} -> ${outputPngName}`).join("\n") : "無",
+      "",
+      "建議：",
+      "1. 將 alias atlas 放在原本 atlas 會被配對的位置。",
+      "2. 將共用 PNG 放在 alias atlas 第一行指定的相對路徑位置。",
+      "3. Unity 若已經建立 SkeletonDataAsset，通常仍要 Reimport 或重新產生一次資源。"
+    ].join("\n");
+  }
+
+  function buildReport({ outputName, packed, width, height, skipped, aliases, atlasText, exportMainAtlas, sizeMode }) {
+    return [
+      "Spine Atlas 合併報告",
+      "======================",
+      `輸出名稱：${outputName}`,
+      `輸出尺寸：${width}x${height}`,
+      `輸出尺寸模式：${sizeMode}`,
+      `輸入 Atlas(.atlas / .atlas.txt)：${state.parsedAtlases.map(a => a.atlasFileName).join(", ")}`,
+      `輸入 PNG：${[...state.imageBitmaps.keys()].join(", ")}`,
+      `輸出 Region 數：${packed.length}`,
+      `同名相同圖去重：${skipped.length}`,
+      `是否輸出主 atlas：${exportMainAtlas ? "是" : "否"}`,
+      `Alias atlas 數：${aliases.length}`,
+      "",
+      "Alias atlas 清單：",
+      aliases.length ? aliases.map(a => `- ${a.fileName}`).join("\n") : "無",
+      "",
+      "去重清單：",
+      skipped.length ? skipped.map(s => `- ${s.name}: ${s.from} same as ${s.sameAs}`).join("\n") : "無",
+      "",
+      "Region 清單：",
+      packed.map(p => `- ${p.region.name} | xy=${p.x},${p.y} size=${p.w},${p.h} from=${p.region.atlasFileName}`).join("\n"),
+      "",
+      "注意事項：",
+      "1. 本工具不修改 .skel / .json。",
+      "2. 若使用 alias atlas，檔名維持原本 atlas 名稱，但圖片會共用合併後 PNG。",
+      "3. 若執行後貼圖錯誤，優先檢查同名不同圖、PMA、載入路徑、Unity reference 是否未刷新。",
+      "",
+      "Atlas 預覽：",
+      atlasText
+    ].join("\n");
+  }
+
+  function revokeOldUrls() {
+    for (const u of state.lastUrls) URL.revokeObjectURL(u);
+    state.lastUrls = [];
+  }
+
+  function makeDownloadLink(el, blob, fileName) {
+    const url = URL.createObjectURL(blob);
+    state.lastUrls.push(url);
+    el.href = url;
+    el.download = fileName;
+    el.style.display = "block";
+  }
+
+  async function chooseOutputFolder() {
+    if (!window.showDirectoryPicker) {
+      log("[提示] 目前瀏覽器不支援直接選擇輸出資料夾。請使用 Chrome / Edge，或使用下載按鈕。", "reset");
+      $("folderStatus").innerHTML = "輸出資料夾：<span class='warn-text'>目前瀏覽器不支援資料夾寫入，請改用下載按鈕。</span>";
+      return;
+    }
+
+    try {
+      const h = await window.showDirectoryPicker({ mode: "readwrite" });
+      state.outputDirHandle = h;
+      $("folderStatus").innerHTML = `輸出資料夾：<span class='good-text'>${escapeHtml(h.name)}</span>`;
+      saveToFolderBtn.disabled = !state.lastOutput;
+      log(`[資料夾] 已選擇輸出資料夾：${h.name}`);
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+      log(`[資料夾選擇失敗] ${e.message}`, "reset");
+    }
+  }
+
+  async function writeBlobToDirectory(dir, fileName, blob) {
+    const fh = await dir.getFileHandle(fileName, { create: true });
+    const w = await fh.createWritable();
+    await w.write(blob);
+    await w.close();
+  }
+
+  async function saveLastOutputToFolder() {
+    if (!state.lastOutput) {
+      log("[提示] 尚未合併輸出，請先按『開始合併』。", "reset");
+      return;
+    }
+    if (!state.outputDirHandle) {
+      await chooseOutputFolder();
+      if (!state.outputDirHandle) return;
+    }
+
+    try {
+      const o = state.lastOutput;
+      const files = [];
+
+      // 主 shared_spine.atlas 改成可選。未勾選時不寫入。
+      if (o.exportMainAtlas) {
+        files.push({ name: o.atlasFileName, blob: o.atlasBlob });
+      }
+
+      files.push(
+        { name: o.pngFileName, blob: o.pngBlob },
+        { name: o.reportFileName, blob: o.reportBlob },
+        { name: o.aliasReadmeFileName, blob: o.aliasReadmeBlob },
+        ...(o.aliasAtlasFiles || []).map(a => ({ name: a.fileName, blob: a.blob }))
+      );
+
+      for (const f of files) await writeBlobToDirectory(state.outputDirHandle, f.name, f.blob);
+
+      log(`[完成] 已存到指定資料夾：${state.outputDirHandle.name}\n` + files.map(f => `- ${f.name}`).join("\n"));
+      setBadge($("resultBadge"), "已存到資料夾", "good");
+    } catch (e) {
+      log(`[寫入資料夾失敗] ${e.message}`, "reset");
+      setBadge($("resultBadge"), "寫入失敗", "bad");
+    }
+  }
+
+  async function merge() {
+    revokeOldUrls();
+    for (const id of ["downloadAtlas", "downloadPng", "downloadReport", "downloadAliasReadme"]) $(id).style.display = "none";
+    setBadge($("resultBadge"), "合併中", "warn");
+    setBadge($("previewBadge"), "產生中", "warn");
+
+    try {
+      const missing = findMissingImages();
+      if (missing.length) throw new Error("有 atlas 找不到引用圖片：\n" + missing.map(m => `- ${m.atlas} -> ${m.image}`).join("\n"));
+
+      const outputName = safeName($("outputName").value);
+      const maxWidth = Math.max(256, parseInt($("maxWidth").value, 10) || 2048);
+      const padding = Math.max(0, parseInt($("padding").value, 10) || 0);
+      const sizeMode = $("sizeMode").value;
+
+      log("開始合併...", "reset");
+      const { unique, skipped } = prepareUniqueRegions();
+      log(`可輸出 region：${unique.length}`);
+      if (skipped.length) log(`同名相同圖片已去重：${skipped.length}`);
+
+      const { packed, width, height } = packShelf(unique, padding, maxWidth, sizeMode);
+      log(`自動判斷包圖尺寸：${width}x${height}`);
+
+      const outCanvas = document.createElement("canvas");
+      outCanvas.width = width;
+      outCanvas.height = height;
+      const outCtx = outCanvas.getContext("2d");
+      for (const pr of packed) outCtx.drawImage(pr.crop, pr.x, pr.y);
+
+      const exportMainAtlas = $("exportMainAtlas").checked;
+      const atlasFileName = `${outputName}.atlas`;
+      const pngFileName = `${outputName}.png`;
+      const reportFileName = `${outputName}_report.txt`;
+      const aliasReadmeFileName = `${outputName}_alias_readme.txt`;
+
+      const atlasText = buildAtlasText(pngFileName, packed, width, height);
+      const aliasAtlasFiles = buildAliasAtlasFiles(atlasText, atlasFileName);
+      const aliasReadmeText = buildAliasReadme(pngFileName, aliasAtlasFiles);
+      const reportText = buildReport({ outputName, packed, width, height, skipped, aliases: aliasAtlasFiles, atlasText, exportMainAtlas, sizeMode });
+
+      const pngBlob = await new Promise(res => outCanvas.toBlob(res, "image/png"));
+      const atlasBlob = new Blob([atlasText], { type: "text/plain;charset=utf-8" });
+      const reportBlob = new Blob([reportText], { type: "text/plain;charset=utf-8" });
+      const aliasReadmeBlob = new Blob([aliasReadmeText], { type: "text/plain;charset=utf-8" });
+
+      if (exportMainAtlas) {
+        makeDownloadLink($("downloadAtlas"), atlasBlob, atlasFileName);
+      }
+      makeDownloadLink($("downloadPng"), pngBlob, pngFileName);
+      makeDownloadLink($("downloadReport"), reportBlob, reportFileName);
+      makeDownloadLink($("downloadAliasReadme"), aliasReadmeBlob, aliasReadmeFileName);
+
+      state.lastOutput = {
+        atlasFileName, pngFileName, reportFileName, aliasReadmeFileName,
+        atlasBlob, pngBlob, reportBlob, aliasReadmeBlob, aliasAtlasFiles, exportMainAtlas
+      };
+      saveToFolderBtn.disabled = !state.outputDirHandle;
+
+      // 若已選擇輸出資料夾，合併完成後直接寫入該資料夾。
+      // 下載按鈕只作為瀏覽器不支援資料夾寫入時的備用方案。
+      if (state.outputDirHandle) {
+        await saveLastOutputToFolder();
+      } else {
+        log("尚未選擇輸出資料夾；若你按下下載按鈕，檔案會依瀏覽器設定進入下載資料夾。");
+      }
+
+      const prev = $("previewCanvas");
+      prev.width = Math.min(width, 1024);
+      prev.height = Math.max(1, Math.round(height * (prev.width / width)));
+      prev.getContext("2d").drawImage(outCanvas, 0, 0, prev.width, prev.height);
+
+      if (aliasAtlasFiles.length) log(`已產生 alias atlas：${aliasAtlasFiles.length} 份。請用「存到指定資料夾」一次輸出全部檔案。`);
+      log("完成。請下載或存到指定資料夾，並在引擎內測試 Spine 是否正常。");
+      setBadge($("resultBadge"), "合併成功", "good");
+      setBadge($("previewBadge"), `${width}x${height}`, "good");
+    } catch (e) {
+      log(`[失敗]\n${e.message}`, "reset");
+      setBadge($("resultBadge"), "合併失敗", "bad");
+      setBadge($("previewBadge"), "無輸出", "bad");
+    }
+  }
+
+  function clearAll() {
+    revokeOldUrls();
+    state.files.clear();
+    state.imageBitmaps.clear();
+    state.parsedAtlases = [];
+    state.lastOutput = null;
+    saveToFolderBtn.disabled = true;
+    fileInput.value = "";
+
+    for (const id of ["downloadAtlas", "downloadPng", "downloadReport", "downloadAliasReadme"]) $(id).style.display = "none";
+
+    const c = $("previewCanvas");
+    c.getContext("2d").clearRect(0, 0, c.width, c.height);
+    setBadge($("resultBadge"), "尚未合併");
+    setBadge($("previewBadge"), "無輸出");
+    updateUI();
+  }
+
+  dropzone.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", e => addFiles(e.target.files));
+
+  ["dragenter", "dragover"].forEach(t => dropzone.addEventListener(t, e => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropzone.classList.add("dragover");
+  }));
+
+  ["dragleave", "drop"].forEach(t => dropzone.addEventListener(t, e => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropzone.classList.remove("dragover");
+  }));
+
+  dropzone.addEventListener("drop", e => addFiles(e.dataTransfer.files));
+  mergeBtn.addEventListener("click", merge);
+  chooseFolderBtn.addEventListener("click", chooseOutputFolder);
+  saveToFolderBtn.addEventListener("click", saveLastOutputToFolder);
+  clearBtn.addEventListener("click", clearAll);
+
+  updateUI();
+})();
+</script>
+</body>
+</html>

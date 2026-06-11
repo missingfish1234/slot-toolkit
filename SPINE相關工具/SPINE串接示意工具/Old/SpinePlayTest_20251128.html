@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>Spine Director V71 (Fixed Clean)</title>
+    
+    <script src="https://unpkg.com/vis-timeline/standalone/umd/vis-timeline-graph2d.min.js"></script>
+    <link href="https://unpkg.com/vis-timeline/styles/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
+
+    <style>
+        :root {
+            --bg-app: #1e1e1e;
+            --bg-panel: rgba(35, 35, 35, 0.95);
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --accent: #0A84FF;
+            --accent-hover: #0077ED;
+            --text-main: #F5F5F7;
+            --text-sub: #98989D;
+            --border: rgba(255, 255, 255, 0.1);
+            --radius: 8px;
+        }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Microsoft JhengHei", "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-app); 
+            color: var(--text-main); 
+            margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none; 
+        }
+        
+        #workspace { height: 65%; display: flex; overflow: hidden; min-height: 200px; }
+        #canvas-container { flex: 1; background: #1c1c1e; position: relative; overflow: hidden; box-shadow: inset 0 0 50px rgba(0,0,0,0.5); }
+
+        /* Inspector */
+        #inspector { width: 340px; background: var(--bg-panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; z-index: 20; }
+        .panel-header { padding: 12px 16px; font-size: 13px; font-weight: 600; color: var(--text-main); display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+        .panel-body { padding: 16px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px; }
+        .section-label { font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block; }
+        .card { background: var(--bg-card); border-radius: var(--radius); padding: 12px; border: 1px solid var(--border); }
+
+        /* Controls */
+        .segmented-control { display: flex; background: rgba(0,0,0,0.3); padding: 2px; border-radius: 6px; margin-bottom: 10px; }
+        .segmented-control button { flex: 1; background: transparent; border: none; padding: 6px; font-size: 12px; color: var(--text-sub); border-radius: 4px; margin: 0; }
+        .segmented-control button.active { background: #666; color: white; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .segmented-control button.active.v3 { background: var(--accent); }
+        .segmented-control button.active.v4 { background: var(--accent); }
+
+        button { background: rgba(255,255,255,0.1); color: var(--text-main); border: 1px solid transparent; padding: 6px 12px; cursor: pointer; border-radius: 6px; font-size: 13px; transition: 0.2s; font-family: inherit; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+        button:hover { background: rgba(255,255,255,0.2); }
+        button.primary { background: var(--accent); color: white; }
+        button.danger { background: rgba(255, 69, 58, 0.15); color: #FF453A; border-color: rgba(255, 69, 58, 0.3); }
+        button.icon-btn { padding: 4px; background: transparent; color: var(--text-sub); font-size: 16px; }
+        button.icon-btn:hover { color: white; background: rgba(255,255,255,0.1); }
+
+        input[type="number"], select { background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: var(--text-main); padding: 6px 8px; border-radius: 6px; width: 100%; box-sizing: border-box; font-size: 12px; outline: none; }
+        input[type="number"]:focus, select:focus { border-color: var(--accent); }
+        input[type="range"] { -webkit-appearance: none; width: 100%; background: transparent; margin: 10px 0; cursor: pointer; }
+        input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #fff; margin-top: -6px; box-shadow: 0 2px 4px rgba(0,0,0,0.4); }
+
+        .file-drop-zone { border: 1px dashed var(--border); padding: 15px; text-align: center; color: var(--text-sub); cursor: pointer; border-radius: var(--radius); background: rgba(255,255,255,0.02); transition: 0.2s; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .file-drop-zone:hover { border-color: var(--accent); background: rgba(10, 132, 255, 0.1); color: white; }
+
+        /* Timeline */
+        #timeline-area { flex: 1; background: #151515; display: flex; flex-direction: column; border-top: 1px solid var(--border); }
+        #timeline-toolbar { height: 40px; background: #1e1e1e; display: flex; align-items: center; padding: 0 15px; gap: 15px; border-bottom: 1px solid var(--border); flex-shrink: 0; font-size: 13px; }
+        #visualization { flex: 1; width: 100%; overflow: hidden; }
+        #splitter { height: 2px; background: #000; border-top: 1px solid #333; cursor: row-resize; z-index: 100; }
+
+        /* Vis Overrides */
+        .vis-timeline { border: none; background: #151515; }
+        .vis-time-axis .vis-text { color: #888 !important; }
+        .vis-item { border-color: rgba(255,255,255,0.3); border-radius: 4px; font-size: 12px; color: white !important; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+        .vis-item.vis-selected { border-color: white !important; box-shadow: 0 0 0 2px #fff; z-index: 2; }
+        .scene-group { background-color: #2c2c2e !important; color: #ff9f0a !important; border-bottom: 1px solid #333; }
+        .default-group { color: #ccc; border-left: 3px solid transparent; }
+        .group-highlight { background-color: rgba(10, 132, 255, 0.15) !important; border-left: 3px solid var(--accent) !important; color: #fff !important; }
+        
+        .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+        .col { flex: 1; }
+        label { font-size: 11px; color: var(--text-sub); display: block; margin-bottom: 4px; }
+        .value-display { font-family: monospace; font-size: 11px; color: var(--accent); }
+        
+        /* Scene List */
+        #scene-list { max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 6px; border: 1px solid var(--border); }
+        .scene-list-item { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+        .scene-list-item:hover { background: rgba(255,255,255,0.1); }
+        .scene-list-item.active { background: var(--accent); color: white; }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+    </style>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const isV3 = (urlParams.get('v') === '3.8');
+        if (isV3) {
+            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.3.10/pixi.min.js"><\/script>');
+            document.write('<script src="https://cdn.jsdelivr.net/npm/pixi-spine@2.1.11/dist/pixi-spine.js"><\/script>');
+        } else {
+            document.write('<script src="https://d157l7jdn8e5sf.cloudfront.net/v7.2.4/pixi.min.js"><\/script>');
+            document.write('<script src="https://cdn.jsdelivr.net/npm/pixi-spine@4.0.3/dist/pixi-spine.js"><\/script>');
+        }
+    </script>
+</head>
+<body>
+
+    <div id="workspace">
+        <div id="canvas-container">
+            <div style="position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.6); backdrop-filter:blur(4px); padding: 4px 10px; border-radius: 4px; font-size: 11px; color: var(--accent); pointer-events: none; border:1px solid rgba(255,255,255,0.1);">
+                <span id="ver-tag">Engine Loading...</span>
+            </div>
+        </div>
+        
+        <div id="inspector">
+            <div class="panel-header">
+                <span>Spine Director</span>
+                <button class="icon-btn" onclick="saveProject()" title="儲存專案">💾</button>
+            </div>
+            
+            <div class="panel-body">
+                <div>
+                    <span class="section-label">專案設定 (Project Setup)</span>
+                    <div class="segmented-control">
+                        <button id="btn-38" onclick="switchVersion('3.8')">Spine 3.8</button>
+                        <button id="btn-40" onclick="switchVersion('4.0')">Spine 4.0/4.1</button>
+                    </div>
+                    <div class="file-drop-zone" onclick="document.getElementById('fileInput').click()">
+                        <div style="font-size: 24px;">📥</div>
+                        <div style="font-weight: 600;">匯入素材 (Import)</div>
+                        <div style="font-size: 10px; opacity: 0.7;">.json/.skel + .atlas + .png</div>
+                        <input type="file" id="fileInput" multiple accept=".json,.skel,.atlas,.txt,.png,.jpg" style="display:none" onchange="handleFiles(this)">
+                    </div>
+                </div>
+
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span class="section-label" style="margin:0;">場景管理 (Scene)</span>
+                        <div style="display:flex; gap:5px;">
+                            <button class="icon-btn" style="font-size:12px;" onclick="document.getElementById('bg1Input').click()">BG1</button>
+                            <button class="icon-btn" style="font-size:12px;" onclick="document.getElementById('bg2Input').click()">BG2</button>
+                        </div>
+                    </div>
+                    <input type="file" id="bg1Input" accept="image/*" style="display:none" onchange="loadBackground(this.files[0], 1)">
+                    <input type="file" id="bg2Input" accept="image/*" style="display:none" onchange="loadBackground(this.files[0], 2)">
+                    <div id="scene-list">
+                        <div style="padding:20px; color:var(--text-sub); text-align:center; font-size:11px; font-style:italic;">(尚未加入物件)</div>
+                    </div>
+                    <button onclick="addSceneClip()" style="width:100%; margin-top:8px; font-size:11px; color:#ff9f0a; border-color:rgba(255,159,10,0.3);">+ 增加背景轉場 (BG Fade)</button>
+                </div>
+
+                <div id="char-settings" style="display:none;">
+                    <span class="section-label">物件編輯 (Selected)</span>
+                    <div class="card">
+                        <div class="card-title">
+                            變形 (Transform)
+                            <button class="icon-btn" style="font-size:10px;" onclick="resetTransform()" title="重置">↺</button>
+                        </div>
+                        <div class="row">
+                            <div class="col">
+                                <div style="display:flex; justify-content:space-between;"><label>縮放</label><span id="scaleVal" class="value-display">1.0</span></div>
+                                <input type="range" id="charScale" min="0.1" max="2.5" step="0.05" value="1" oninput="updateCharTransform()" style="margin:5px 0;">
+                            </div>
+                            <div class="col">
+                                <div style="display:flex; justify-content:space-between;"><label>旋轉</label><span id="rotVal" class="value-display">0°</span></div>
+                                <input type="range" id="charRotation" min="-180" max="180" step="1" value="0" oninput="updateCharTransform()" style="margin:5px 0;">
+                            </div>
+                        </div>
+                        <button id="btn-flip" onclick="toggleFlip()" style="width:100%;">↔ 水平翻轉 (Flip X)</button>
+                    </div>
+
+                    <div class="card" style="margin-top:12px;">
+                        <div class="card-title">屬性 (Properties)</div>
+                        <div class="row">
+                            <div class="col"><label>外觀 (Skin)</label><select id="skinSelect" onchange="changeSkin()"></select></div>
+                        </div>
+                        <div style="margin-top:8px;">
+                            <label>層級排序 (Order)</label>
+                            <div class="row">
+                                <button class="col" onclick="moveLayer(-1)">上移一層 ▲</button>
+                                <button class="col" onclick="moveLayer(1)">下移一層 ▼</button>
+                            </div>
+                        </div>
+                        <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
+                            <button class="danger" style="width:100%" onclick="removeSelectedCharacter()">🗑️ 刪除此角色</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:12px;">
+                        <label>新增動作 (Add Clip)</label>
+                        <div style="display:flex; gap:5px;">
+                            <select id="nextAnimSelect"></select>
+                            <button class="primary" style="white-space:nowrap;" onclick="addClipToSelectedTrack()">+ 加入</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="clip-editor" style="display:none; margin-top:12px;">
+                    <span class="section-label" style="color:#ff9f0a;">片段設定 (Clip Settings)</span>
+                    <div class="card" style="border-color:rgba(255,159,10,0.3);">
+                        <select id="clipAnimSelect" onchange="updateSelectedClip()" style="margin-bottom:8px;"></select>
+                        <div class="row">
+                            <div class="col"><label>開始</label><input type="number" id="clipStart" step="0.01" oninput="updateSelectedClip()"></div>
+                            <div class="col"><label>長度</label><input type="number" id="clipDuration" step="0.01" oninput="updateSelectedClip()"></div>
+                        </div>
+                        <div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border);">
+                            <label style="display:flex; align-items:center; cursor:pointer; color:var(--accent);">
+                                <input type="checkbox" id="dropEnable" onchange="updateSelectedClip()" style="margin-right:6px;"> 啟用物理掉落
+                            </label>
+                            <div id="physics-controls" style="margin-top:8px; padding-left:10px; border-left:2px solid var(--accent);">
+                                <label>高度: <span id="dropHeightVal" class="value-display">500</span></label>
+                                <input type="range" id="dropHeight" min="0" max="1500" step="10" oninput="updateSelectedClip()">
+                                <label>彈性: <span id="dropBounceVal" class="value-display">0.5</span></label>
+                                <input type="range" id="dropBounce" min="0" max="1.0" step="0.05" oninput="updateSelectedClip()">
+                            </div>
+                        </div>
+                        <button class="danger" style="margin-top:10px; width:100%;" onclick="deleteSelectedClip()">刪除片段</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="splitter"></div>
+
+    <div id="timeline-area">
+        <div id="timeline-toolbar">
+            <button class="primary" id="play-btn" onclick="togglePlay()" style="width:40px; border-radius:20px;">▶</button>
+            <button onclick="stop()" style="width:40px; border-radius:20px;">■</button>
+            <span id="time-display" style="font-family:monospace; color:var(--accent); font-weight:bold; margin-left:10px;">0.00s</span>
+            <div style="flex:1"></div>
+            <label style="font-size:12px; display:flex; align-items:center; margin-right:10px;">
+                <input type="checkbox" id="loop-playback-check" style="margin-right:5px;"> 循環播放
+            </label>
+            <button onclick="fitTimeline()">Fit View</button>
+        </div>
+        <div id="visualization"></div>
+    </div>
+
+<script>
+    let app, worldContainer, bgContainer, debugGraphics;
+    let bg1Sprite = null, bg2Sprite = null;
+    let characters = []; 
+    let timeline, timelineData, timelineGroups;
+    let isPlaying = false;
+    let currentTime = 0;
+    let selectedGroupId = null;
+    let selectedClipId = null;
+    let clipClipboard = null;
+    let savedBg1Name = null, savedBg2Name = null;
+    
+    const SCENE_TRACK_ID = 'scene_track';
+    const ACCENT_COLOR = '#0A84FF';
+    
+    // V71: REGISTRY + SNAPSHOT
+    const clipRegistry = {}; 
+    function generateUUID() { return 'clip_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9); }
+
+    // V71: SELF-HEALING (CLEAN VERSION)
+    function getSafeDuration(item) {
+        // 1. 優先：檢查註冊表 (Registry)
+        if (clipRegistry[item.id]) return clipRegistry[item.id];
+
+        // 2. 次要：檢查原始資料 (Source Data)
+        if (item.group !== SCENE_TRACK_ID) {
+            const char = characters.find(c => c.id === item.group);
+            if (char) {
+                const rawName = item.content.split(' (')[0];
+                if (char.animDurations[rawName]) {
+                    return char.animDurations[rawName] * 1000;
+                }
+            }
+        }
+
+        // 3. 最後手段：計算當前長度
+        // 使用 valueOf() 確保處理的是數字，避免 [object Date] 造成計算錯誤
+        let s = (item.start && item.start.valueOf) ? item.start.valueOf() : item.start;
+        let e = (item.end && item.end.valueOf) ? item.end.valueOf() : item.end;
+        let currDur = e - s;
+        
+        // 如果長度合理 (>100ms) 則回傳，否則回傳預設 1秒
+        if (currDur > 100) return currDur;
+        return 1000; 
+    }
+
+    document.getElementById('ver-tag').innerText = isV3 ? "Engine: Spine 3.8 (V71 Fixed)" : "Engine: Spine 4.0/4.1 (V71 Fixed)";
+    if(isV3) document.getElementById('btn-38').classList.add('active', 'v3');
+    else document.getElementById('btn-40').classList.add('active', 'v4');
+
+    window.onload = function() {
+        app = new PIXI.Application({ backgroundColor: 0x1c1c1e, resizeTo: document.getElementById('canvas-container'), antialias: true });
+        document.getElementById('canvas-container').appendChild(app.view);
+        worldContainer = new PIXI.Container(); worldContainer.sortableChildren = true; app.stage.addChild(worldContainer);
+        bgContainer = new PIXI.Container(); bgContainer.sortableChildren = true; bgContainer.zIndex = -99999; worldContainer.addChild(bgContainer);
+        debugGraphics = new PIXI.Graphics(); debugGraphics.zIndex = 99999; worldContainer.addChild(debugGraphics);
+
+        resetView();
+        setupInteractions();
+        app.ticker.add(onTick);
+        initTimeline();
+        setupKeyboardShortcuts();
+    };
+
+    function initTimeline() {
+        timelineData = new vis.DataSet(); 
+        timelineGroups = new vis.DataSet();
+        const options = {
+            start: 0, end: 5000, min: 0, max: 600000,
+            showCurrentTime: false, orientation: 'top', stack: false,
+            editable: { add: false, updateTime: true, remove: true },
+            groupOrder: 'order',
+            multiselect: true, multiselectPerGroup: true,
+            width: '100%', height: '100%', verticalScroll: true, zoomKey: 'ctrlKey',
+            snap: function (date, scale, step) {
+                const timeMs = date.getTime(); 
+                if (timeMs < 150) return 0; 
+                return Math.round(timeMs / 10) * 10;
+            },
+            
+            // V71: LOCK DURATION ON DRAG (FIXED DATE MATH)
+            onMoving: function(item, callback) {
+                const safeDur = getSafeDuration(item);
+                // 修正：將 Date 轉為數值 (ms) 再運算
+                const startMs = item.start.valueOf(); 
+                item.end = new Date(startMs + safeDur); 
+                callback(item);
+            },
+
+            // V71: REPACK ON DROP (FIXED DATE MATH)
+            onMove: function (item, callback) {
+                let startMs = item.start.valueOf();
+                if (startMs < 150) startMs = 0;
+                
+                // Update start/end safely
+                item.start = new Date(startMs);
+                const safeDur = getSafeDuration(item);
+                item.end = new Date(startMs + safeDur);
+
+                const items = timelineData.get({ filter: i => i.group === item.group });
+                const myIndex = items.findIndex(i => i.id === item.id);
+                if (myIndex !== -1) items[myIndex] = item; 
+
+                items.sort((a, b) => a.start.valueOf() - b.start.valueOf());
+
+                const updates = [];
+                let cursor = 0; 
+
+                items.forEach(curr => {
+                    let dur = getSafeDuration(curr);
+                    let currStart = curr.start.valueOf();
+                    
+                    if (currStart < cursor) {
+                        updates.push({ id: curr.id, start: new Date(cursor), end: new Date(cursor + dur) });
+                        cursor += dur;
+                    } else {
+                        cursor = currStart + dur;
+                    }
+                });
+
+                if(updates.length > 0) timelineData.update(updates);
+                callback(item);
+            },
+            format: { minorLabels: (d) => (d/1000).toFixed(2)+'s', majorLabels: (d) => (d/1000).toFixed(0)+'s' },
+            groupTemplate: (g) => `<div style="padding:2px;">${g.content}</div>`
+        };
+        timeline = new vis.Timeline(document.getElementById('visualization'), timelineData, timelineGroups, options);
+        timeline.addCustomTime(0, 'playhead');
+        timelineGroups.add({ id: SCENE_TRACK_ID, content: '🎬 場景 (Scene)', className: 'scene-group', order: -999 });
+        
+        // V71: SNAPSHOT ON SELECT
+        timeline.on('select', (p) => {
+            if (p.items.length > 0) {
+                p.items.forEach(id => {
+                    const item = timelineData.get(id);
+                    if (item && (item.end - item.start) > 100) {
+                        clipRegistry[item.id] = item.end - item.start;
+                    }
+                });
+            }
+            
+            selectedClipId = (p.items.length > 0) ? p.items[0] : null;
+            if (selectedClipId) { const item = timelineData.get(selectedClipId); if (item.group !== SCENE_TRACK_ID) selectGroup(item.group); }
+            renderInspector();
+        });
+
+        timeline.on('timechange', (p) => { if (p.id === 'playhead') { currentTime = p.time.getTime(); updateTimeDisplay(); if(isPlaying) togglePlay(); syncSpineToTime(currentTime); } });
+        timeline.on('click', (p) => {
+            if (p.group && p.group !== SCENE_TRACK_ID) selectGroup(p.group);
+            if (p.time && !p.item) { currentTime = p.time.getTime(); timeline.setCustomTime(currentTime, 'playhead'); updateTimeDisplay(); syncSpineToTime(currentTime); }
+        });
+        timeline.on('doubleClick', () => togglePlay());
+    }
+
+    function onTick() {
+        if (isPlaying) {
+            currentTime += app.ticker.deltaMS;
+            const loop = document.getElementById('loop-playback-check').checked;
+            let maxEnd = 0; timelineData.forEach(i => { if(i.end > maxEnd) maxEnd = i.end; });
+            const loopPoint = Math.max(2000, maxEnd + 500); 
+            if (loop && currentTime > loopPoint) { currentTime = 0; characters.forEach(c => { c.lastClipId = null; }); }
+            timeline.setCustomTime(currentTime, 'playhead'); updateTimeDisplay(); syncSpineToTime(currentTime);
+        }
+        drawPhysicsDebug();
+    }
+
+    function syncSpineToTime(time) {
+        if (bg2Sprite) {
+            const sceneClips = timelineData.get({ filter: i => i.group === SCENE_TRACK_ID && (time >= i.start && time <= i.end) });
+            bg2Sprite.alpha = sceneClips.length > 0 ? 1 : 0; 
+        }
+        characters.forEach(char => {
+            char.spine.scale.set(char.scaleX * (char.flipX ? -1 : 1), char.scaleY);
+            char.spine.rotation = char.rotation * (Math.PI / 180);
+            const clips = timelineData.get({ filter: (item) => item.group === char.id && time >= item.start && time < item.end });
+            
+            let finalY = char.baseY;
+            
+            if (clips.length > 0) {
+                char.spine.visible = char.visible; char.spine.alpha = 1;
+                const clip = clips[0]; 
+                const localTime = (time - clip.start) / 1000;
+                const animName = clip.content.split(' (')[0]; 
+                const playDelay = clip.playDelay || 0;
+                let trackTime = Math.max(0, localTime - playDelay);
+                if (char.lastClipId !== clip.id) { char.spine.stateData.defaultMix = clip.mix || 0.2; char.spine.state.setAnimation(0, animName, true); char.lastClipId = clip.id; }
+                const track = char.spine.state.getCurrent(0);
+                if (track) { track.trackTime = trackTime; if(!isPlaying) char.spine.update(0); }
+                if (clip.dropEnable) {
+                    const dropDur = clip.dropDuration || 0.5;
+                    if (localTime < dropDur) {
+                        const t = localTime / dropDur; const height = clip.dropHeight || 500; const bounce = (clip.dropBounce !== undefined) ? clip.dropBounce : 0.5;
+                        let progress = (bounce <= 0.05) ? (t*t*t) : customBounce(t, bounce);
+                        finalY = char.baseY - height + (height * progress);
+                    }
+                }
+            } else {
+                if (char.lastClipId !== null) { char.spine.state.setEmptyAnimation(0, 0.1); char.lastClipId = null; }
+                char.spine.visible = false; 
+            }
+            
+            if (isNaN(finalY)) finalY = char.baseY;
+            char.spine.y = finalY;
+        });
+    }
+    function customBounce(t, b) { const n1=7.5625,d1=2.75; if(t<1/d1)return n1*t*t; else if(t<2/d1)return n1*(t-=1.5/d1)*t+0.75; else if(t<2.5/d1)return n1*(t-=2.25/d1)*t+0.9375; else return n1*(t-=2.625/d1)*t+0.984375; }
+
+    function drawPhysicsDebug() {
+        debugGraphics.clear();
+        if (!selectedClipId) return;
+        const item = timelineData.get(selectedClipId);
+        if (!item.dropEnable || item.group === SCENE_TRACK_ID) return;
+        const char = characters.find(c => c.id === item.group);
+        if (!char) return;
+        const charX = char.spine.x;
+        const startY = char.baseY - item.dropHeight;
+        const endY = char.baseY;
+        debugGraphics.lineStyle(2, 0xaaaaaa, 0.5);
+        debugGraphics.moveTo(charX, startY); debugGraphics.lineTo(charX, endY);
+        debugGraphics.lineStyle(0); debugGraphics.beginFill(0xff3333, 0.8); debugGraphics.drawCircle(charX, char.spine.y, 5); debugGraphics.endFill();
+    }
+
+    async function handleFiles(input) {
+        const files = Array.from(input.files); if(files.length===0) return;
+        const textureMap = {}; 
+        const images = files.filter(f => f.name.match(/\.(jpg|png)$/i));
+        await Promise.all(images.map(f => new Promise(r => {
+            const rd = new FileReader(); rd.onload = e => { 
+                const img = new Image(); img.src = e.target.result; 
+                img.onload = () => { const b = new PIXI.BaseTexture(img); textureMap[f.name] = b; textureMap[f.name.toLowerCase()] = b; r(); }; 
+            }; rd.readAsDataURL(f);
+        })));
+        const skels = files.filter(f => f.name.match(/\.(json|skel)$/i));
+        const atlases = files.filter(f => f.name.match(/\.atlas|\.txt$/i));
+        for (let skel of skels) {
+            try {
+                const baseName = skel.name.replace(/\.(json|skel)$/i, '');
+                const atlas = atlases.find(a => a.name.includes(baseName)) || atlases[0];
+                const atlasText = await readFile(atlas, 'text');
+                let rawData, isBinary = false;
+                if(skel.name.endsWith('.skel')) { rawData = await readFile(skel, 'buffer'); isBinary = true; }
+                else { rawData = JSON.parse(await readFile(skel, 'text')); }
+                createSpine(rawData, atlasText, textureMap, isBinary, baseName);
+            } catch(e) { console.error(e); alert("匯入錯誤: " + e.message); }
+        }
+        input.value = '';
+    }
+
+    function createSpine(rawData, atlasText, textureMap, isBinary, name, reuseId=null, reuseConfig=null) {
+        const spineAtlas = new PIXI.spine.core.TextureAtlas(atlasText, (line, cb) => cb(textureMap[line]||textureMap[line.toLowerCase()]||PIXI.Texture.WHITE.baseTexture));
+        const loader = new PIXI.spine.core.AtlasAttachmentLoader(spineAtlas);
+        let spineData;
+        if (isBinary) {
+            const parser = new PIXI.spine.core.SkeletonBinary(loader); parser.scale = 1;
+            spineData = parser.readSkeletonData(new Uint8Array(rawData));
+        } else {
+            const parser = new PIXI.spine.core.SkeletonJson(loader);
+            spineData = parser.readSkeletonData(rawData);
+        }
+        const spine = new PIXI.spine.Spine(spineData);
+        if(isV3) { spine.update(0); spine.autoUpdate = true; }
+        const id = reuseId || ('char_' + Date.now());
+        const baseY = reuseConfig ? reuseConfig.y : (app.screen.height/2 + 150);
+        spine.x = reuseConfig ? reuseConfig.x : (app.screen.width/2); spine.y = baseY;
+        enableDrag(spine); spine.charId = id; worldContainer.addChild(spine);
+
+        const charObj = {
+            id, spine, name: reuseConfig ? reuseConfig.name : name,
+            animations: spineData.animations, animDurations: {}, skins: spineData.skins.map(s => s.name),
+            lastClipId: null, order: reuseConfig ? reuseConfig.order : characters.length,
+            baseY: baseY, scaleX: reuseConfig?(reuseConfig.scaleX||1):1, scaleY: reuseConfig?(reuseConfig.scaleY||1):1, flipX: reuseConfig?(reuseConfig.flipX||false):false, rotation: reuseConfig?(reuseConfig.rotation||0):0, visible: true
+        };
+        spineData.animations.forEach(a => charObj.animDurations[a.name] = a.duration);
+        if(reuseConfig && reuseConfig.skin) { try { spine.skeleton.setSkinByName(reuseConfig.skin); spine.skeleton.setSlotsToSetupPose(); } catch(e){} }
+        characters.push(charObj);
+        if(!reuseId) {
+            timelineGroups.add({ id, content: charObj.name, className: 'default-group', order: charObj.order });
+            selectGroup(id);
+            if(spineData.animations.length > 0) {
+                 const anim = spineData.animations[0].name; const dur = spineData.animations[0].duration;
+                 const color = stringToColor(anim);
+                 const clipId = generateUUID(); 
+                 
+                 // V71: REGISTER INITIAL
+                 clipRegistry[clipId] = dur * 1000;
+
+                 timelineData.add({ 
+                     id: clipId,
+                     group: id, content: `${anim} (${dur.toFixed(2)}s)`, start:0, end: dur*1000, 
+                     style: `background-color:${color}; border-color:${color}; color:white;`
+                 });
+            }
+            setTimeout(() => timeline.redraw(), 200); 
+        }
+        renderSceneList(); refreshZIndex();
+    }
+
+    function stringToColor(str) { let h=0; for(let i=0;i<str.length;i++) h=str.charCodeAt(i)+((h<<5)-h); return `hsl(${Math.abs(h)%360}, 70%, 35%)`; }
+    function renderSceneList() {
+        const list = document.getElementById('scene-list'); list.innerHTML = '';
+        if (characters.length === 0) { list.innerHTML = '<div style="padding:20px; color:#666; text-align:center; font-size:11px; font-style:italic;">(尚未加入物件)</div>'; return; }
+        characters.forEach(c => {
+            const el = document.createElement('div'); el.className = `scene-list-item ${selectedGroupId === c.id ? 'active' : ''}`;
+            el.innerHTML = `<span>${c.name}</span> <span onclick="toggleVis('${c.id}', event)">${c.visible?'👁️':'❌'}</span>`;
+            el.onclick = () => selectGroup(c.id); list.appendChild(el);
+        });
+    }
+    window.toggleVis = (id, e) => { e.stopPropagation(); const c=characters.find(x=>x.id===id); c.visible=!c.visible; syncSpineToTime(currentTime); renderSceneList(); };
+    function selectGroup(id) {
+        if (selectedGroupId === id) return;
+        const updates = [];
+        if (selectedGroupId && timelineGroups.get(selectedGroupId)) updates.push({ id: selectedGroupId, className: 'default-group' });
+        if (id && timelineGroups.get(id)) updates.push({ id: id, className: 'group-highlight' });
+        if (updates.length > 0) timelineGroups.update(updates);
+        selectedGroupId = id; renderInspector();
+    }
+    function renderInspector() {
+        document.getElementById('clip-editor').style.display = selectedClipId ? 'block' : 'none';
+        document.getElementById('char-settings').style.display = selectedGroupId ? 'block' : 'none';
+        if (selectedClipId) {
+            const item = timelineData.get(selectedClipId);
+            if (item.group === SCENE_TRACK_ID) {
+                document.getElementById('clip-editor').style.display = 'none'; 
+            } else {
+                const char = characters.find(c => c.id === item.group);
+                const sel = document.getElementById('clipAnimSelect'); sel.innerHTML = '';
+                char.animations.forEach(a => { const opt = document.createElement('option'); opt.value = a.name; opt.innerText = a.name; if(item.content.startsWith(a.name)) opt.selected=true; sel.appendChild(opt); });
+                document.getElementById('dropEnable').checked = item.dropEnable;
+                document.getElementById('physics-controls').style.display = item.dropEnable ? 'block' : 'none';
+                document.getElementById('dropHeight').value = item.dropHeight||500; document.getElementById('dropHeightVal').innerText = item.dropHeight||500;
+                document.getElementById('dropBounce').value = item.dropBounce||0.5; document.getElementById('dropBounceVal').innerText = item.dropBounce||0.5;
+                document.getElementById('clipStart').value = (item.start/1000).toFixed(2);
+                document.getElementById('clipDuration').value = ((item.end-item.start)/1000).toFixed(2);
+            }
+        }
+        if (selectedGroupId) {
+            const char = characters.find(c => c.id === selectedGroupId);
+            document.getElementById('charScale').value = char.scaleX; document.getElementById('scaleVal').innerText = char.scaleX.toFixed(2);
+            document.getElementById('charRotation').value = char.rotation; document.getElementById('rotVal').innerText = char.rotation + "°";
+            document.getElementById('btn-flip').style.background = char.flipX ? ACCENT_COLOR : 'rgba(255,255,255,0.1)';
+            const animSelect = document.getElementById('nextAnimSelect'); animSelect.innerHTML = '';
+            char.animations.forEach(a => { const opt = document.createElement('option'); opt.value = a.name; opt.innerText = a.name; animSelect.appendChild(opt); });
+            const skinSelect = document.getElementById('skinSelect'); skinSelect.innerHTML = '';
+            char.skins.forEach(s => { const opt = document.createElement('option'); opt.value = s; opt.innerText = s; if (char.spine.skeleton.skin && char.spine.skeleton.skin.name === s) opt.selected = true; skinSelect.appendChild(opt); });
+        }
+        renderSceneList();
+    }
+    function updateSelectedClip() {
+        if (!selectedClipId) return;
+        const item = timelineData.get(selectedClipId);
+        const s = parseFloat(document.getElementById('clipStart').value)*1000;
+        const d = parseFloat(document.getElementById('clipDuration').value)*1000;
+        const updates = { id: selectedClipId, start: s, end: s+d };
+        if (item.group !== SCENE_TRACK_ID) {
+            const anim = document.getElementById('clipAnimSelect').value;
+            const char = characters.find(c => c.id === item.group);
+            const dur = char.animDurations[anim] || 1.0;
+            
+            // V71: Update Registry manually
+            clipRegistry[selectedClipId] = d;
+
+            updates.content = `${anim} (${dur.toFixed(2)}s)`;
+            updates.dropEnable = document.getElementById('dropEnable').checked;
+            updates.dropHeight = parseInt(document.getElementById('dropHeight').value);
+            updates.dropBounce = parseFloat(document.getElementById('dropBounce').value);
+            updates.style = `background-color: ${stringToColor(anim)}; border-color: ${stringToColor(anim)}; color: white;`;
+        }
+        timelineData.update(updates); renderInspector(); drawPhysicsDebug(); syncSpineToTime(currentTime);
+    }
+    function updateCharTransform() {
+        if (!selectedGroupId) return;
+        const char = characters.find(c => c.id === selectedGroupId);
+        char.scaleX = char.scaleY = parseFloat(document.getElementById('charScale').value);
+        char.rotation = parseInt(document.getElementById('charRotation').value);
+        renderInspector(); syncSpineToTime(currentTime);
+    }
+    function toggleFlip() { if (!selectedGroupId) return; const char = characters.find(c => c.id === selectedGroupId); char.flipX = !char.flipX; renderInspector(); syncSpineToTime(currentTime); }
+    function resetTransform() { if (!selectedGroupId) return; const char = characters.find(c => c.id === selectedGroupId); char.scaleX = 1; char.scaleY = 1; char.rotation = 0; char.flipX = false; renderInspector(); syncSpineToTime(currentTime); }
+    function saveProject() {
+        const d = { version: "V71", bg1: savedBg1Name, bg2: savedBg2Name, timeline: timelineData.get(), groups: timelineGroups.get(), 
+            characters: characters.map(c => ({ id:c.id, name:c.name, order:c.order, x:c.spine.x, y:c.baseY, scaleX:c.scaleX, scaleY:c.scaleY, flipX:c.flipX, rotation:c.rotation, skin:c.spine.skeleton.skin?.name })) 
+        };
+        const a = document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(d)], {type:"application/json"})); a.download="spine_v71.json"; a.click();
+    }
+    function readFile(f, t) { return new Promise((r,j)=>{ const d=new FileReader(); d.onload=e=>r(e.target.result); if(t==='buffer') d.readAsArrayBuffer(f); else d.readAsText(f); }); }
+    function loadBackground(f, slot) { if(!f)return; const r=new FileReader(); r.onload=e=>{ const img=new Image(); img.src=e.target.result; img.onload=()=>{ const s=new PIXI.Sprite(new PIXI.Texture(new PIXI.BaseTexture(img))); s.anchor.set(0.5); if(slot===1){ if(bg1Sprite){bgContainer.removeChild(bg1Sprite);bg1Sprite.destroy();} bg1Sprite=s; savedBg1Name=f.name; } else { if(bg2Sprite){bgContainer.removeChild(bg2Sprite);bg2Sprite.destroy();} bg2Sprite=s; bg2Sprite.alpha=0; savedBg2Name=f.name; } bgContainer.addChild(s); bgContainer.sortChildren(); }; }; r.readAsDataURL(f); }
+    function enableDrag(obj) {
+        obj.interactive = true; obj.cursor = 'move';
+        obj.on('pointerdown', function(e) { this.alpha = 0.7; this.dragging = true; this.dragData = e.data; const loc = this.parent.toLocal(e.data.global); this.dragOff = { x: loc.x - this.x, y: loc.y - characters.find(c=>c.id===this.charId).baseY }; selectGroup(this.charId); })
+           .on('pointerup', endDrag).on('pointerupoutside', endDrag).on('pointermove', function() { if(this.dragging) { const loc = this.parent.toLocal(this.dragData.global); this.x = loc.x - this.dragOff.x; characters.find(c=>c.id===this.charId).baseY = loc.y - this.dragOff.y; syncSpineToTime(currentTime); } });
+        function endDrag() { this.alpha = 1; this.dragging = false; this.dragData = null; }
+    }
+    function setupInteractions() { 
+        let drag=false, start={x:0,y:0}, cam={x:0,y:0};
+        document.getElementById('canvas-container').addEventListener('wheel', e=>{ e.preventDefault(); worldContainer.scale.set(Math.max(0.1, worldContainer.scale.x + (e.deltaY*-0.001))); });
+        app.stage.interactive=true; app.stage.hitArea=new PIXI.Rectangle(-1e4,-1e4,2e4,2e4);
+        app.stage.on('pointerdown', e=>{ if(e.target===app.stage||e.target.parent===bgContainer){ drag=true; start={x:e.data.global.x,y:e.data.global.y}; cam={x:worldContainer.x,y:worldContainer.y}; }})
+                 .on('pointermove', e=>{ if(drag){ worldContainer.x=cam.x+(e.data.global.x-start.x); worldContainer.y=cam.y+(e.data.global.y-start.y); }})
+                 .on('pointerup', ()=>drag=false).on('pointerupoutside', ()=>drag=false);
+    }
+    function resetView() { if(worldContainer){ worldContainer.position.set(app.screen.width/2, 0); worldContainer.scale.set(0.6); } }
+    function refreshZIndex() { characters.sort((a,b)=>a.order-b.order); characters.forEach((c,i)=>c.spine.zIndex=i); worldContainer.sortChildren(); }
+    function moveLayer(dir) { if(!selectedGroupId) return; const c=characters.find(x=>x.id===selectedGroupId); c.order+=dir; timelineGroups.update({id:c.id, order:c.order}); refreshZIndex(); }
+    function removeSelectedCharacter() { if(!selectedGroupId) return; const idx=characters.findIndex(c=>c.id===selectedGroupId); worldContainer.removeChild(characters[idx].spine); timelineGroups.remove(selectedGroupId); timelineData.remove(timelineData.get({filter: i=>i.group===selectedGroupId})); characters.splice(idx, 1); selectedGroupId=null; renderInspector(); }
+    function togglePlay() { isPlaying=!isPlaying; document.getElementById('play-btn').innerText = isPlaying?"⏸":"▶"; }
+    function stop() { isPlaying=false; currentTime=0; timeline.setCustomTime(0,'playhead'); updateTimeDisplay(); syncSpineToTime(0); document.getElementById('play-btn').innerText="▶"; }
+    function updateTimeDisplay() { document.getElementById('time-display').innerText = (currentTime/1000).toFixed(2)+"s"; }
+    function fitTimeline() { timeline.fit(); }
+    function switchVersion(v) { const u = new URL(window.location); u.searchParams.set('v', v); window.location.href = u.toString(); }
+    function setupKeyboardShortcuts() {
+        window.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+            switch(e.code) {
+                case 'Space': e.preventDefault(); togglePlay(); break;
+                case 'Delete': case 'Backspace': if (selectedClipId) deleteSelectedClip(); else if (selectedGroupId) removeSelectedCharacter(); break;
+                case 'Escape': timeline.setSelection([]); selectedClipId = null; selectedGroupId = null; renderInspector(); break;
+                case 'KeyC': if (e.ctrlKey || e.metaKey) copyClip(); break;
+                case 'KeyV': if (e.ctrlKey || e.metaKey) pasteClip(); break;
+            }
+        });
+    }
+    function copyClip() { if (!selectedClipId) return; clipClipboard = JSON.parse(JSON.stringify(timelineData.get(selectedClipId))); delete clipClipboard.id; }
+    function pasteClip() { 
+        if (!clipClipboard || !selectedGroupId) return; 
+        const n = JSON.parse(JSON.stringify(clipClipboard)); 
+        const dur = n.end - n.start;
+        
+        // V71: Registry for Paste
+        const newId = generateUUID();
+        clipRegistry[newId] = dur;
+        
+        n.id = newId;
+        n.start = currentTime; 
+        n.end = currentTime + dur; 
+        n.group = selectedGroupId; 
+        timelineData.add(n); 
+    }
+    function deleteSelectedClip() { if(!selectedClipId) return; timelineData.remove(selectedClipId); delete clipRegistry[selectedClipId]; selectedClipId = null; renderInspector(); }
+    function addClipToSelectedTrack() { 
+        if(!selectedGroupId) return; 
+        const anim=document.getElementById('nextAnimSelect').value; 
+        const dur=characters.find(c=>c.id===selectedGroupId).animDurations[anim]||1; 
+        const items=timelineData.get({filter:i=>i.group===selectedGroupId}); 
+        const start=items.length>0?Math.max(...items.map(i=>i.end)):0; 
+        const color=stringToColor(anim); 
+        
+        // V71: Registry for Add
+        const clipId = generateUUID();
+        clipRegistry[clipId] = dur * 1000;
+
+        timelineData.add({
+            id: clipId,
+            group:selectedGroupId, content:`${anim} (${dur.toFixed(2)}s)`, 
+            start:start, end:start+dur*1000, 
+            style:`background-color:${color}; border-color:${color}; color:white;`
+        }); 
+    }
+    function addSceneClip() { const items=timelineData.get({filter:i=>i.group===SCENE_TRACK_ID}); const start=items.length>0?Math.max(...items.map(i=>i.end)):0; timelineData.add({group:SCENE_TRACK_ID, content:'顯示 BG2', start:start, end:start+2000, className:'scene-item'}); }
+    function changeSkin() { const skinName = document.getElementById('skinSelect').value; const char = characters.find(c => c.id === selectedGroupId); if(char) { char.spine.skeleton.setSkinByName(skinName); char.spine.skeleton.setSlotsToSetupPose(); } }
+</script>
+</body>
+</html>

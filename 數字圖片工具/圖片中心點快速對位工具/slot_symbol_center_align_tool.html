@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>老虎機圖騰中心對齊工具｜作者：小魚骨頭</title>
+  <style>
+    :root {
+      --bg: #11151d;
+      --panel: #1a2030;
+      --panel2: #232b3d;
+      --line: #374057;
+      --text: #eef3ff;
+      --muted: #9ca8c3;
+      --accent: #65d6ff;
+      --good: #8dffb0;
+      --warn: #ffd36a;
+      --danger: #ff7b7b;
+      --shadow: rgba(0, 0, 0, 0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top, #24304a 0%, var(--bg) 45%, #07090d 100%);
+    }
+
+    header {
+      padding: 24px 28px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 26px;
+      letter-spacing: 0.04em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 18px;
+      padding: 18px;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 18px;
+      box-shadow: 0 14px 40px var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-title {
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      font-weight: 700;
+    }
+
+    .panel-body { padding: 16px; }
+
+    .dropzone {
+      min-height: 140px;
+      border: 2px dashed rgba(101, 214, 255, 0.55);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 18px;
+      color: var(--muted);
+      background: rgba(101, 214, 255, 0.045);
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .dropzone:hover,
+    .dropzone.dragover {
+      border-color: var(--accent);
+      background: rgba(101, 214, 255, 0.11);
+      color: var(--text);
+    }
+
+    input[type="file"] { display: none; }
+
+    .form-grid {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    input[type="number"], select, input[type="text"] {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 11px;
+      color: var(--text);
+      background: #111827;
+      outline: none;
+    }
+
+    input[type="range"] { width: 100%; }
+
+    .row2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 11px 14px;
+      font-weight: 700;
+      color: #071019;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 8px 18px rgba(101, 214, 255, 0.18);
+    }
+
+    button.secondary {
+      color: var(--text);
+      background: var(--panel2);
+      box-shadow: none;
+      border: 1px solid var(--line);
+    }
+
+    button.warn {
+      background: var(--warn);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .stats {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(0,0,0,0.22);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .preview-wrap {
+      min-height: calc(100vh - 150px);
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .file-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 14px;
+      padding: 16px;
+    }
+
+    .card {
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.035);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .checker {
+      position: relative;
+      aspect-ratio: 1 / 1;
+      display: grid;
+      place-items: center;
+      background-color: #2a2f3b;
+      background-image:
+        linear-gradient(45deg, rgba(255,255,255,0.09) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255,255,255,0.09) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.09) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.09) 75%);
+      background-size: 22px 22px;
+      background-position: 0 0, 0 11px, 11px -11px, -11px 0px;
+      overflow: hidden;
+    }
+
+    .checker canvas {
+      max-width: 92%;
+      max-height: 92%;
+      image-rendering: auto;
+      filter: drop-shadow(0 6px 12px rgba(0,0,0,0.35));
+    }
+
+    .crosshair::before,
+    .crosshair::after {
+      content: "";
+      position: absolute;
+      background: rgba(101,214,255,0.75);
+      pointer-events: none;
+    }
+
+    .crosshair::before {
+      left: 50%; top: 0;
+      width: 1px; height: 100%;
+    }
+
+    .crosshair::after {
+      top: 50%; left: 0;
+      height: 1px; width: 100%;
+    }
+
+    .card-info {
+      padding: 10px 12px 12px;
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--muted);
+    }
+
+    .file-name {
+      color: var(--text);
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 5px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 9px;
+      background: rgba(255,255,255,0.08);
+      color: var(--muted);
+    }
+
+    .ok { color: var(--good); }
+    .bad { color: var(--danger); }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>老虎機圖騰中心對齊工具</h1>
+    <div class="subtitle">
+      拖入多張透明 PNG，自動偵測圖騰實際內容範圍，將內容中心對齊到統一畫布中心，重新導出相同尺寸 PNG。作者：小魚骨頭
+    </div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="panel-title">設定</div>
+      <div class="panel-body">
+        <div id="dropzone" class="dropzone">
+          <div>
+            <strong>拖曳 PNG 到這裡</strong><br />
+            或點擊選擇多張圖片<br />
+            <span class="hint">建議使用已去背的圖騰 PNG</span>
+          </div>
+        </div>
+        <input id="fileInput" type="file" accept="image/png,image/webp,image/jpeg" multiple />
+
+        <div class="form-grid">
+          <label>
+            對齊模式
+            <select id="alignMode">
+              <option value="visualCenter">視覺中心：以非透明像素包圍盒中心對齊</option>
+              <option value="bottomCenter">底部中心：適合有共同落地線的圖騰</option>
+              <option value="originalCenter">原圖中心：只補成同尺寸，不重新置中內容</option>
+            </select>
+          </label>
+
+          <label>
+            輸出畫布尺寸模式
+            <select id="canvasMode">
+              <option value="maxContentSquare">自動：以最大內容尺寸做正方形畫布</option>
+              <option value="maxOriginal">自動：以最大原圖寬高做統一畫布</option>
+              <option value="custom">自訂寬高</option>
+            </select>
+          </label>
+
+          <div class="row2">
+            <label>
+              自訂寬度 px
+              <input id="customW" type="number" min="1" value="512" />
+            </label>
+            <label>
+              自訂高度 px
+              <input id="customH" type="number" min="1" value="512" />
+            </label>
+          </div>
+
+          <div class="row2">
+            <label>
+              內容內距 px
+              <input id="padding" type="number" min="0" value="20" />
+            </label>
+            <label>
+              Alpha 偵測門檻
+              <input id="alphaThreshold" type="number" min="1" max="255" value="8" />
+            </label>
+          </div>
+
+          <div class="row2">
+            <label>
+              X 微調 px
+              <input id="offsetX" type="number" value="0" />
+            </label>
+            <label>
+              Y 微調 px
+              <input id="offsetY" type="number" value="0" />
+            </label>
+          </div>
+
+          <label>
+            檔名前綴
+            <input id="prefix" type="text" value="centered_" />
+          </label>
+
+          <label>
+            預覽縮放
+            <input id="previewScale" type="range" min="60" max="160" value="100" />
+          </label>
+
+          <label style="display:flex; grid-template-columns:none; gap:8px; align-items:center; color:var(--muted);">
+            <input id="showCrosshair" type="checkbox" checked style="width:auto;" />
+            顯示中心輔助線
+          </label>
+        </div>
+
+        <div class="buttons">
+          <button id="processBtn">重新計算預覽</button>
+          <button id="downloadAllBtn" class="warn" disabled>全部下載</button>
+          <button id="clearBtn" class="secondary">清空</button>
+          <button id="downloadZipBtn" class="secondary" disabled>下載 ZIP</button>
+        </div>
+
+        <div id="stats" class="stats">尚未載入圖片。</div>
+
+        <div class="hint" style="margin-top:12px;">
+          使用建議：一般 SLOT 圖騰選「視覺中心」；如果所有物件都有明確底座、腳、台座，選「底部中心」會更穩。Alpha 門檻可排除半透明雜點。
+        </div>
+      </div>
+    </section>
+
+    <section class="panel preview-wrap">
+      <div class="toolbar">
+        <span class="pill">預覽區</span>
+        <span id="countText">0 張圖片</span>
+        <span>所有導出圖都會保留透明區塊，並使用相同畫布尺寸。</span>
+      </div>
+      <div id="fileList" class="file-list"></div>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    const state = {
+      items: [],
+      outputs: [],
+      outputW: 0,
+      outputH: 0,
+    };
+
+    const dropzone = $('dropzone');
+    const fileInput = $('fileInput');
+    const fileList = $('fileList');
+
+    dropzone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => addFiles([...e.target.files]));
+
+    ['dragenter', 'dragover'].forEach(type => {
+      dropzone.addEventListener(type, (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(type => {
+      dropzone.addEventListener(type, (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+      });
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+      addFiles(files);
+    });
+
+    ['alignMode','canvasMode','customW','customH','padding','alphaThreshold','offsetX','offsetY','prefix','showCrosshair','previewScale'].forEach(id => {
+      $(id).addEventListener('input', () => processImages());
+      $(id).addEventListener('change', () => processImages());
+    });
+
+    $('processBtn').addEventListener('click', processImages);
+    $('clearBtn').addEventListener('click', clearAll);
+    $('downloadAllBtn').addEventListener('click', downloadAllSeparately);
+    $('downloadZipBtn').addEventListener('click', downloadZip);
+
+    async function addFiles(files) {
+      if (!files.length) return;
+      const loaded = await Promise.all(files.map(loadImageFile));
+      state.items.push(...loaded.filter(Boolean));
+      processImages();
+    }
+
+    function loadImageFile(file) {
+      return new Promise((resolve) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          ctx.drawImage(img, 0, 0);
+          URL.revokeObjectURL(url);
+          resolve({ file, name: file.name, img, sourceCanvas: canvas, width: img.width, height: img.height });
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          resolve(null);
+        };
+        img.src = url;
+      });
+    }
+
+    function getSettings() {
+      return {
+        alignMode: $('alignMode').value,
+        canvasMode: $('canvasMode').value,
+        customW: Math.max(1, parseInt($('customW').value || '1', 10)),
+        customH: Math.max(1, parseInt($('customH').value || '1', 10)),
+        padding: Math.max(0, parseInt($('padding').value || '0', 10)),
+        alphaThreshold: Math.min(255, Math.max(1, parseInt($('alphaThreshold').value || '8', 10))),
+        offsetX: parseFloat($('offsetX').value || '0'),
+        offsetY: parseFloat($('offsetY').value || '0'),
+        prefix: $('prefix').value || '',
+        showCrosshair: $('showCrosshair').checked,
+        previewScale: parseInt($('previewScale').value || '100', 10) / 100,
+      };
+    }
+
+    function detectBounds(canvas, alphaThreshold) {
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const { width, height } = canvas;
+      const data = ctx.getImageData(0, 0, width, height).data;
+      let minX = width, minY = height, maxX = -1, maxY = -1;
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const a = data[(y * width + x) * 4 + 3];
+          if (a >= alphaThreshold) {
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      if (maxX < 0 || maxY < 0) {
+        return { empty: true, minX: 0, minY: 0, maxX: 0, maxY: 0, w: 0, h: 0, cx: width / 2, cy: height / 2 };
+      }
+
+      const w = maxX - minX + 1;
+      const h = maxY - minY + 1;
+      return {
+        empty: false,
+        minX, minY, maxX, maxY,
+        w, h,
+        cx: minX + w / 2,
+        cy: minY + h / 2,
+        bottomCenterX: minX + w / 2,
+        bottomY: maxY,
+      };
+    }
+
+    function decideOutputSize(items, settings) {
+      if (settings.canvasMode === 'custom') {
+        return { w: settings.customW, h: settings.customH };
+      }
+
+      if (settings.canvasMode === 'maxOriginal') {
+        let maxW = 1, maxH = 1;
+        items.forEach(item => {
+          maxW = Math.max(maxW, item.width);
+          maxH = Math.max(maxH, item.height);
+        });
+        return { w: maxW + settings.padding * 2, h: maxH + settings.padding * 2 };
+      }
+
+      let maxContentW = 1, maxContentH = 1;
+      items.forEach(item => {
+        maxContentW = Math.max(maxContentW, item.bounds.w);
+        maxContentH = Math.max(maxContentH, item.bounds.h);
+      });
+      const size = Math.ceil(Math.max(maxContentW, maxContentH) + settings.padding * 2);
+      return { w: size, h: size };
+    }
+
+    function processImages() {
+      const settings = getSettings();
+      if (!state.items.length) {
+        render();
+        return;
+      }
+
+      state.items.forEach(item => {
+        item.bounds = detectBounds(item.sourceCanvas, settings.alphaThreshold);
+      });
+
+      const size = decideOutputSize(state.items, settings);
+      state.outputW = size.w;
+      state.outputH = size.h;
+
+      state.outputs = state.items.map((item, index) => renderCentered(item, index, settings, size.w, size.h));
+      render();
+    }
+
+    function renderCentered(item, index, settings, outW, outH) {
+      const b = item.bounds;
+      const out = document.createElement('canvas');
+      out.width = outW;
+      out.height = outH;
+      const ctx = out.getContext('2d');
+      ctx.clearRect(0, 0, outW, outH);
+
+      let drawX = 0;
+      let drawY = 0;
+
+      if (settings.alignMode === 'originalCenter' || b.empty) {
+        drawX = (outW - item.width) / 2 + settings.offsetX;
+        drawY = (outH - item.height) / 2 + settings.offsetY;
+      } else if (settings.alignMode === 'bottomCenter') {
+        const targetX = outW / 2 + settings.offsetX;
+        const targetBottomY = outH - settings.padding + settings.offsetY;
+        drawX = targetX - b.bottomCenterX;
+        drawY = targetBottomY - b.bottomY;
+      } else {
+        const targetX = outW / 2 + settings.offsetX;
+        const targetY = outH / 2 + settings.offsetY;
+        drawX = targetX - b.cx;
+        drawY = targetY - b.cy;
+      }
+
+      ctx.drawImage(item.sourceCanvas, Math.round(drawX), Math.round(drawY));
+
+      return {
+        index,
+        name: item.name,
+        fileName: makeOutputName(item.name, settings.prefix),
+        canvas: out,
+        bounds: b,
+        drawX: Math.round(drawX),
+        drawY: Math.round(drawY),
+      };
+    }
+
+    function makeOutputName(name, prefix) {
+      const dot = name.lastIndexOf('.');
+      const base = dot >= 0 ? name.slice(0, dot) : name;
+      return `${prefix}${base}.png`;
+    }
+
+    function render() {
+      const settings = getSettings();
+      $('downloadAllBtn').disabled = !state.outputs.length;
+      $('downloadZipBtn').disabled = !state.outputs.length;
+      $('countText').textContent = `${state.items.length} 張圖片`;
+
+      if (!state.items.length) {
+        $('stats').textContent = '尚未載入圖片。';
+        fileList.innerHTML = '';
+        return;
+      }
+
+      const emptyCount = state.items.filter(i => i.bounds?.empty).length;
+      $('stats').innerHTML = `
+        載入圖片：<span class="ok">${state.items.length}</span> 張<br>
+        輸出尺寸：<span class="ok">${state.outputW} × ${state.outputH}</span> px<br>
+        對齊模式：${$('alignMode').selectedOptions[0].textContent}<br>
+        ${emptyCount ? `<span class="bad">警告：${emptyCount} 張可能沒有可偵測的不透明像素。</span>` : 'Alpha 偵測正常。'}
+      `;
+
+      fileList.innerHTML = '';
+      state.outputs.forEach((output) => {
+        const item = state.items[output.index];
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const checker = document.createElement('div');
+        checker.className = `checker ${settings.showCrosshair ? 'crosshair' : ''}`;
+        const clone = document.createElement('canvas');
+        clone.width = output.canvas.width;
+        clone.height = output.canvas.height;
+        clone.getContext('2d').drawImage(output.canvas, 0, 0);
+        clone.style.width = `${Math.min(output.canvas.width, 180) * settings.previewScale}px`;
+        clone.style.height = `${Math.min(output.canvas.height, 180) * settings.previewScale}px`;
+        checker.appendChild(clone);
+
+        const info = document.createElement('div');
+        info.className = 'card-info';
+        info.innerHTML = `
+          <div class="file-name" title="${escapeHtml(output.name)}">${escapeHtml(output.name)}</div>
+          原圖：${item.width} × ${item.height}<br>
+          內容框：${output.bounds.w} × ${output.bounds.h}<br>
+          放置偏移：x ${output.drawX}, y ${output.drawY}<br>
+          <button class="secondary" style="width:100%; margin-top:8px;" data-download="${output.index}">下載這張</button>
+        `;
+
+        card.appendChild(checker);
+        card.appendChild(info);
+        fileList.appendChild(card);
+      });
+
+      fileList.querySelectorAll('[data-download]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const index = parseInt(btn.getAttribute('data-download'), 10);
+          const output = state.outputs.find(o => o.index === index);
+          downloadCanvas(output.canvas, output.fileName);
+        });
+      });
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>"]/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[s]));
+    }
+
+    function downloadCanvas(canvas, name) {
+      canvas.toBlob(blob => {
+        const a = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, 'image/png');
+    }
+
+    function downloadAllSeparately() {
+      state.outputs.forEach((output, i) => {
+        setTimeout(() => downloadCanvas(output.canvas, output.fileName), i * 180);
+      });
+    }
+
+    async function downloadZip() {
+      if (!state.outputs.length) return;
+
+      // 不依賴外部套件的簡易 ZIP 實作，使用 STORE 無壓縮格式。
+      const files = [];
+      for (const output of state.outputs) {
+        const blob = await new Promise(resolve => output.canvas.toBlob(resolve, 'image/png'));
+        const data = new Uint8Array(await blob.arrayBuffer());
+        files.push({ name: output.fileName, data });
+      }
+
+      const zipBlob = createSimpleZip(files);
+      const a = document.createElement('a');
+      const url = URL.createObjectURL(zipBlob);
+      a.href = url;
+      a.download = 'centered_slot_symbols.zip';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function createSimpleZip(files) {
+      const encoder = new TextEncoder();
+      const chunks = [];
+      const central = [];
+      let offset = 0;
+
+      for (const file of files) {
+        const nameBytes = encoder.encode(file.name);
+        const crc = crc32(file.data);
+        const local = new Uint8Array(30 + nameBytes.length);
+        const view = new DataView(local.buffer);
+        view.setUint32(0, 0x04034b50, true);
+        view.setUint16(4, 20, true);
+        view.setUint16(6, 0, true);
+        view.setUint16(8, 0, true);
+        view.setUint16(10, 0, true);
+        view.setUint16(12, 0, true);
+        view.setUint32(14, crc, true);
+        view.setUint32(18, file.data.length, true);
+        view.setUint32(22, file.data.length, true);
+        view.setUint16(26, nameBytes.length, true);
+        view.setUint16(28, 0, true);
+        local.set(nameBytes, 30);
+        chunks.push(local, file.data);
+
+        const c = new Uint8Array(46 + nameBytes.length);
+        const cv = new DataView(c.buffer);
+        cv.setUint32(0, 0x02014b50, true);
+        cv.setUint16(4, 20, true);
+        cv.setUint16(6, 20, true);
+        cv.setUint16(8, 0, true);
+        cv.setUint16(10, 0, true);
+        cv.setUint16(12, 0, true);
+        cv.setUint16(14, 0, true);
+        cv.setUint32(16, crc, true);
+        cv.setUint32(20, file.data.length, true);
+        cv.setUint32(24, file.data.length, true);
+        cv.setUint16(28, nameBytes.length, true);
+        cv.setUint16(30, 0, true);
+        cv.setUint16(32, 0, true);
+        cv.setUint16(34, 0, true);
+        cv.setUint16(36, 0, true);
+        cv.setUint32(38, 0, true);
+        cv.setUint32(42, offset, true);
+        c.set(nameBytes, 46);
+        central.push(c);
+
+        offset += local.length + file.data.length;
+      }
+
+      const centralStart = offset;
+      central.forEach(c => { chunks.push(c); offset += c.length; });
+      const centralSize = offset - centralStart;
+
+      const end = new Uint8Array(22);
+      const ev = new DataView(end.buffer);
+      ev.setUint32(0, 0x06054b50, true);
+      ev.setUint16(4, 0, true);
+      ev.setUint16(6, 0, true);
+      ev.setUint16(8, files.length, true);
+      ev.setUint16(10, files.length, true);
+      ev.setUint32(12, centralSize, true);
+      ev.setUint32(16, centralStart, true);
+      ev.setUint16(20, 0, true);
+      chunks.push(end);
+
+      return new Blob(chunks, { type: 'application/zip' });
+    }
+
+    function crc32(data) {
+      let c = ~0;
+      for (let i = 0; i < data.length; i++) {
+        c ^= data[i];
+        for (let k = 0; k < 8; k++) {
+          c = (c >>> 1) ^ (0xEDB88320 & -(c & 1));
+        }
+      }
+      return ~c >>> 0;
+    }
+
+    function clearAll() {
+      state.items = [];
+      state.outputs = [];
+      state.outputW = 0;
+      state.outputH = 0;
+      fileInput.value = '';
+      render();
+    }
+
+    render();
+  </script>
+</body>
+</html>

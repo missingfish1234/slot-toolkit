@@ -1,0 +1,9 @@
+{
+  "github_owner": "",
+  "github_repo": "",
+  "github_branch": "main",
+  "install_root": "%USERPROFILE%\\Documents\\ToolkitManager\\Tools",
+  "admin_tools_root": "..",
+  "auto_check_on_start": true,
+  "auto_check_minutes": 30
+}

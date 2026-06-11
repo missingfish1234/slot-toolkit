@@ -1,0 +1,396 @@
+{
+  "updatedAt": "2026-06-11 17:26:44",
+  "tools": [
+    {
+      "id": "sharder-cocos-4e00822c5716724763835149",
+      "name": "一般圖片掃光",
+      "category": "Sharder",
+      "description": "",
+      "version": "1.0.0",
+      "path": "Sharder/COCOS/一般圖片掃光",
+      "entry": "",
+      "icon": "",
+      "tags": [
+        "Sharder",
+        "一般圖片掃光"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "5.4 KB",
+      "changelog": []
+    },
+    {
+      "id": "sharder-cocos-5f69867963835149",
+      "name": "彩虹掃光",
+      "category": "Sharder",
+      "description": "",
+      "version": "1.0.0",
+      "path": "Sharder/COCOS/彩虹掃光",
+      "entry": "",
+      "icon": "",
+      "tags": [
+        "Sharder",
+        "彩虹掃光"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "3.4 MB",
+      "changelog": []
+    },
+    {
+      "id": "sharder-cocos-6f385c64906e7f69",
+      "name": "漸層遮罩",
+      "category": "Sharder",
+      "description": "",
+      "version": "1.0.0",
+      "path": "Sharder/COCOS/漸層遮罩",
+      "entry": "",
+      "icon": "",
+      "tags": [
+        "Sharder",
+        "漸層遮罩"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "7.4 KB",
+      "changelog": []
+    },
+    {
+      "id": "sharder-cocos-7c925b506de151656de151fa-767c5149",
+      "name": "粒子淡入淡出_發光",
+      "category": "Sharder",
+      "description": "",
+      "version": "1.0.0",
+      "path": "Sharder/COCOS/粒子淡入淡出_發光",
+      "entry": "",
+      "icon": "",
+      "tags": [
+        "Sharder",
+        "粒子淡入淡出_發光"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "3.4 MB",
+      "changelog": []
+    },
+    {
+      "id": "sharder-unity-unity-5f698679shader",
+      "name": "UNITY_彩虹Shader",
+      "category": "Sharder",
+      "description": "",
+      "version": "1.0.0",
+      "path": "Sharder/Unity/UNITY_彩虹Shader",
+      "entry": "",
+      "icon": "",
+      "tags": [
+        "Sharder",
+        "UNITY_彩虹Shader"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "140.5 KB",
+      "changelog": []
+    },
+    {
+      "id": "sharder-unity-unity-6eb689e3sharder",
+      "name": "Unity_溶解SHARDER",
+      "category": "Sharder",
+      "description": "",
+      "version": "1.0.0",
+      "path": "Sharder/Unity/Unity_溶解SHARDER",
+      "entry": "",
+      "icon": "",
+      "tags": [
+        "Sharder",
+        "Unity_溶解SHARDER"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "27.4 KB",
+      "changelog": []
+    },
+    {
+      "id": "sharder-unity-unity-756b9762958352d56b985f716548679c",
+      "name": "Unity_畫面閃動殘影效果",
+      "category": "Sharder",
+      "description": "",
+      "version": "1.0.0",
+      "path": "Sharder/Unity/Unity_畫面閃動殘影效果",
+      "entry": "",
+      "icon": "",
+      "tags": [
+        "Sharder",
+        "Unity_畫面閃動殘影效果"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "48.1 KB",
+      "changelog": []
+    },
+    {
+      "id": "sharder-unity-unity-906e7f69sharder-91dd5c0dspinegraphic",
+      "name": "Unity_遮罩SHARDER_針對SPINEGRAPHIC",
+      "category": "Sharder",
+      "description": "",
+      "version": "1.0.0",
+      "path": "Sharder/Unity/Unity_遮罩SHARDER_針對SPINEGRAPHIC",
+      "entry": "",
+      "icon": "",
+      "tags": [
+        "Sharder",
+        "Unity_遮罩SHARDER_針對SPINEGRAPHIC"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "12.9 KB",
+      "changelog": []
+    },
+    {
+      "id": "sharder-unity-unity51676efe52066e2c8a665de55177-unity63-numberrollertool",
+      "name": "Unity63_NumberRollerTool",
+      "category": "Sharder",
+      "description": "",
+      "version": "1.0.0",
+      "path": "Sharder/Unity/Unity內滾分測試工具/Unity63_NumberRollerTool",
+      "entry": "",
+      "icon": "",
+      "tags": [
+        "Sharder",
+        "Unity63_NumberRollerTool"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "42.8 KB",
+      "changelog": []
+    },
+    {
+      "id": "sharder-unity-unity87a25e55626d66f26548679c",
+      "name": "UNITY螢幕扭曲效果",
+      "category": "Sharder",
+      "description": "",
+      "version": "1.0.0",
+      "path": "Sharder/Unity/UNITY螢幕扭曲效果",
+      "entry": "",
+      "icon": "",
+      "tags": [
+        "Sharder",
+        "UNITY螢幕扭曲效果"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "6.2 KB",
+      "changelog": []
+    },
+    {
+      "id": "spine76f895dc5de55177-spine4e3263a5793a610f5de55177",
+      "name": "SPINE串接示意工具",
+      "category": "SPINE相關工具",
+      "description": "",
+      "version": "1.0.0",
+      "path": "SPINE相關工具/SPINE串接示意工具",
+      "entry": "SpinePlayTest.html",
+      "icon": "",
+      "tags": [
+        "SPINE相關工具",
+        "SPINE串接示意工具"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "9.7 MB",
+      "changelog": []
+    },
+    {
+      "id": "spine76f895dc5de55177-spine540857165de55177",
+      "name": "SPINE合圖工具",
+      "category": "SPINE相關工具",
+      "description": "",
+      "version": "1.0.0",
+      "path": "SPINE相關工具/SPINE合圖工具",
+      "entry": "spine_atlas_merge.html",
+      "icon": "",
+      "tags": [
+        "SPINE相關工具",
+        "SPINE合圖工具"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "35.8 KB",
+      "changelog": []
+    },
+    {
+      "id": "spine76f895dc5de55177-spine8cc78a0a6aa26e2c5de55177",
+      "name": "SPINE資訊檢測工具",
+      "category": "SPINE相關工具",
+      "description": "",
+      "version": "1.0.0",
+      "path": "SPINE相關工具/SPINE資訊檢測工具",
+      "entry": "checkspine_gui.py",
+      "icon": "",
+      "tags": [
+        "SPINE相關工具",
+        "SPINE資訊檢測工具"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "31.3 MB",
+      "changelog": []
+    },
+    {
+      "id": "spine76f895dc5de55177-spine8f496a945de55177",
+      "name": "SPINE轉檔工具",
+      "category": "SPINE相關工具",
+      "description": "",
+      "version": "1.0.0",
+      "path": "SPINE相關工具/SPINE轉檔工具",
+      "entry": "spine_converter_gui.py",
+      "icon": "",
+      "tags": [
+        "SPINE相關工具",
+        "SPINE轉檔工具"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "21.8 KB",
+      "changelog": []
+    },
+    {
+      "id": "65785b57571672475de55177-54084f7565785b57571662c652065de55177",
+      "name": "合併數字圖拆分工具",
+      "category": "數字圖片工具",
+      "description": "",
+      "version": "1.0.0",
+      "path": "數字圖片工具/合併數字圖拆分工具",
+      "entry": "split_glyph_tool_dragdrop_v5.html",
+      "icon": "",
+      "tags": [
+        "數字圖片工具",
+        "合併數字圖拆分工具"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "199.2 KB",
+      "changelog": []
+    },
+    {
+      "id": "65785b57571672475de55177-571672474e2d5fc39ede5feb901f5c0d4f4d5de55177",
+      "name": "圖片中心點快速對位工具",
+      "category": "數字圖片工具",
+      "description": "",
+      "version": "1.0.0",
+      "path": "數字圖片工具/圖片中心點快速對位工具",
+      "entry": "slot_symbol_center_align_tool.html",
+      "icon": "",
+      "tags": [
+        "數字圖片工具",
+        "圖片中心點快速對位工具"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "23.9 KB",
+      "changelog": []
+    },
+    {
+      "id": "65785b57571672475de55177-65785b57530557165de55177",
+      "name": "數字包圖工具",
+      "category": "數字圖片工具",
+      "description": "",
+      "version": "1.0.0",
+      "path": "數字圖片工具/數字包圖工具",
+      "entry": "makefont.html",
+      "icon": "",
+      "tags": [
+        "數字圖片工具",
+        "數字包圖工具"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "767.1 KB",
+      "changelog": []
+    },
+    {
+      "id": "6e2c8a665de55177-photoshop5167639b4ef6",
+      "name": "Photoshop內掛件",
+      "category": "測試工具",
+      "description": "",
+      "version": "1.0.0",
+      "path": "測試工具/Photoshop內掛件",
+      "entry": "PSDExportManager.exe",
+      "icon": "",
+      "tags": [
+        "測試工具",
+        "Photoshop內掛件"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "97.7 KB",
+      "changelog": []
+    },
+    {
+      "id": "6e2c8a665de55177-59278f4976e46e2c8a665de55177",
+      "name": "大轉盤測試工具",
+      "category": "測試工具",
+      "description": "",
+      "version": "1.0.0",
+      "path": "測試工具/大轉盤測試工具",
+      "entry": "wheel_tester.html",
+      "icon": "",
+      "tags": [
+        "測試工具",
+        "大轉盤測試工具"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "8.8 MB",
+      "changelog": []
+    },
+    {
+      "id": "6e2c8a665de55177-5f717247865574065de55177-webm8f4993045de55177",
+      "name": "Webm轉錄工具",
+      "category": "測試工具",
+      "description": "",
+      "version": "1.0.0",
+      "path": "測試工具/影片處理工具/Webm轉錄工具",
+      "entry": "TG_WebM_Converter.html",
+      "icon": "",
+      "tags": [
+        "測試工具",
+        "Webm轉錄工具"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "37.8 KB",
+      "changelog": []
+    },
+    {
+      "id": "6e2c8a665de55177-5f717247865574065de55177-5f7172475c0e51fa90237e8c57168ddf53bb80cc5de55177",
+      "name": "影片導出連續圖跟去背工具",
+      "category": "測試工具",
+      "description": "",
+      "version": "1.0.0",
+      "path": "測試工具/影片處理工具/影片導出連續圖跟去背工具",
+      "entry": "video_sequence_bgremover_tool.html",
+      "icon": "",
+      "tags": [
+        "測試工具",
+        "影片導出連續圖跟去背工具"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "19.3 KB",
+      "changelog": []
+    },
+    {
+      "id": "6e2c8a665de55177-6efe52066e2c8a665de55177",
+      "name": "滾分測試工具",
+      "category": "測試工具",
+      "description": "",
+      "version": "1.0.0",
+      "path": "測試工具/滾分測試工具",
+      "entry": "ScoreRollTest.html",
+      "icon": "",
+      "tags": [
+        "測試工具",
+        "滾分測試工具"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "17.9 KB",
+      "changelog": []
+    },
+    {
+      "id": "6e2c8a665de55177-8f498f2a6e2c8a665de55177",
+      "name": "轉輪測試工具",
+      "category": "測試工具",
+      "description": "",
+      "version": "1.0.0",
+      "path": "測試工具/轉輪測試工具",
+      "entry": "啟動本地伺服器.bat",
+      "icon": "",
+      "tags": [
+        "測試工具",
+        "轉輪測試工具"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "172.0 MB",
+      "changelog": []
+    }
+  ]
+}

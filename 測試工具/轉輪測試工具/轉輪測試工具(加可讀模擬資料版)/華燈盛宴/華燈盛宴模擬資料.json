@@ -1,0 +1,156 @@
+{
+  "symbol_id_map": {
+    "1": "LanternBanquet_MG_Symbol_Wil_Long",
+    "2": "LanternBanquet_FG_Symbol_Link",
+    "3": "LanternBanquet_MG_Symbol_Trigger_Collect",
+    "4": "LanternBanquet_MG_Symbol_Trigger_Jackpot",
+    "5": "LanternBanquet_MG_Symbol_Trigger_Boost",
+    "11": "LanternBanquet_MG_Symbol_001",
+    "12": "LanternBanquet_MG_Symbol_002",
+    "13": "LanternBanquet_MG_Symbol_003",
+    "14": "LanternBanquet_MG_Symbol_004",
+    "21": "LanternBanquet_MG_Symbol_005",
+    "22": "LanternBanquet_MG_Symbol_006",
+    "23": "LanternBanquet_MG_Symbol_007",
+    "24": "LanternBanquet_MG_Symbol_008",
+    "25": "LanternBanquet_MG_Symbol_009",
+    "26": "LanternBanquet_MG_Symbol_010"
+  },
+  "spin_emulator_data": [
+    [
+      [
+        1,
+        1,
+        24
+      ],
+      [
+        24,
+        24,
+        1
+      ],
+      [
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        24,
+        24
+      ],
+      [
+        24,
+        1,
+        1
+      ]
+    ],
+    [
+      [
+        21,
+        21,
+        21
+      ],
+      [
+        21,
+        21,
+        21
+      ],
+      [
+        21,
+        21,
+        21
+      ],
+      [
+        21,
+        21,
+        21
+      ],
+      [
+        21,
+        21,
+        21
+      ]
+    ],
+    [
+      [
+        22,
+        22,
+        22
+      ],
+      [
+        22,
+        22,
+        22
+      ],
+      [
+        22,
+        22,
+        22
+      ],
+      [
+        22,
+        22,
+        22
+      ],
+      [
+        22,
+        22,
+        22
+      ]
+    ],
+    [
+      [
+        23,
+        23,
+        23
+      ],
+      [
+        23,
+        23,
+        23
+      ],
+      [
+        23,
+        23,
+        23
+      ],
+      [
+        23,
+        23,
+        23
+      ],
+      [
+        23,
+        23,
+        23
+      ]
+    ],
+    [
+      [
+        1,
+        1,
+        24
+      ],
+      [
+        24,
+        24,
+        1
+      ],
+      [
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        24,
+        24
+      ],
+      [
+        24,
+        1,
+        1
+      ]
+    ]
+  ]
+}

@@ -1,0 +1,112 @@
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: sprite-vs:vert
+      frag: sprite-fs:frag
+      depthStencilState:
+        depthTest: false
+        depthWrite: false
+      blendState:
+        targets:
+        - blend: true
+          blendSrc: src_alpha
+          blendDst: one_minus_src_alpha
+          blendDstAlpha: one_minus_src_alpha
+      rasterizerState:
+        cullMode: none
+      properties:
+        alphaThreshold: { value: 0.5 }
+        fadeParams: { value: [0.2, 0.8, 1.5, 0.0] }
+        startTint:  { value: [1.0, 0.82, 0.20, 1.0], editor: { type: color } }
+        endTint:    { value: [1.0, 0.45, 0.08, 1.0], editor: { type: color } }
+}%
+
+CCProgram sprite-vs %{
+  precision highp float;
+  #include <builtin/uniforms/cc-global>
+  #if USE_LOCAL
+    #include <builtin/uniforms/cc-local>
+  #endif
+  #if SAMPLE_FROM_RT
+    #include <common/common-define>
+  #endif
+
+  in vec3 a_position;
+  in vec2 a_texCoord;
+  in vec4 a_color;
+
+  out vec4 v_color;
+  out vec2 v_uv0;
+
+  vec4 vert () {
+    vec4 pos = vec4(a_position, 1.0);
+    #if USE_LOCAL
+      pos = cc_matWorld * pos;
+    #endif
+    #if USE_PIXEL_ALIGNMENT
+      pos = cc_matView * pos;
+      pos.xyz = floor(pos.xyz);
+      pos = cc_matProj * pos;
+    #else
+      pos = cc_matViewProj * pos;
+    #endif
+
+    v_uv0 = a_texCoord;
+    #if SAMPLE_FROM_RT
+      CC_HANDLE_RT_SAMPLE_FLIP(v_uv0);
+    #endif
+    v_color = a_color;
+    return pos;
+  }
+}%
+
+CCProgram sprite-fs %{
+  precision highp float;
+
+  #include <builtin/internal/embedded-alpha>
+  #include <builtin/internal/alpha-test>
+
+  in vec4 v_color;
+  in vec2 v_uv0;
+
+  #if USE_TEXTURE
+    #pragma builtin(local)
+    layout(set = 2, binding = 12) uniform sampler2D cc_spriteTexture;
+  #endif
+
+  uniform Constant {
+    vec4 fadeParams;
+    vec4 startTint;
+    vec4 endTint;
+  };
+
+  vec4 frag () {
+    vec4 tex = vec4(1.0);
+    #if USE_TEXTURE
+      tex = CCSampleWithAlphaSeparated(cc_spriteTexture, v_uv0);
+    #endif
+
+    // 用 alpha 推生命進度
+    float life = clamp(1.0 - v_color.a, 0.0, 1.0);
+
+    // 明確做顏色插值：起始色 -> 結束色
+    vec4 tint = mix(startTint, endTint, life);
+
+    // 淡入 / 淡出包絡
+    float fadeIn = smoothstep(0.0, fadeParams.x, life);
+    float fadeOut = 1.0 - smoothstep(fadeParams.y, 1.0, life);
+    float fadeEnvelope = clamp(fadeIn * fadeOut, 0.0, 1.0);
+
+    vec4 o = tex;
+    o.rgb *= tint.rgb;
+    o.rgb *= fadeParams.z;
+
+    o.a *= tint.a;
+    o.a *= v_color.a;
+    o.a *= fadeEnvelope;
+    o.a = clamp(o.a, 0.0, 1.0);
+
+    ALPHA_TEST(o);
+    return o;
+  }
+}%

@@ -1,0 +1,321 @@
+
+scatter.png
+size: 1750,400
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+A
+  rotate: false
+  xy: 1152, 2
+  size: 34, 45
+  orig: 34, 45
+  offset: 0, 0
+  index: -1
+A_Color
+  rotate: false
+  xy: 207, 55
+  size: 34, 45
+  orig: 34, 45
+  offset: 0, 0
+  index: -1
+Back_Glow
+  rotate: false
+  xy: 777, 212
+  size: 179, 186
+  orig: 181, 187
+  offset: 0, 1
+  index: -1
+Back_shadow
+  rotate: true
+  xy: 1115, 267
+  size: 131, 137
+  orig: 133, 139
+  offset: 2, 0
+  index: -1
+C
+  rotate: false
+  xy: 861, 39
+  size: 37, 47
+  orig: 37, 47
+  offset: 0, 0
+  index: -1
+C_Color
+  rotate: true
+  xy: 56, 8
+  size: 37, 47
+  orig: 37, 47
+  offset: 0, 0
+  index: -1
+Circle_01
+  rotate: true
+  xy: 543, 2
+  size: 162, 161
+  orig: 163, 163
+  offset: 0, 2
+  index: -1
+E
+  rotate: false
+  xy: 1703, 225
+  size: 37, 48
+  orig: 37, 48
+  offset: 0, 0
+  index: -1
+E_Color
+  rotate: false
+  xy: 902, 162
+  size: 37, 48
+  orig: 37, 48
+  offset: 0, 0
+  index: -1
+Fx_Wipe
+  rotate: false
+  xy: 706, 27
+  size: 63, 137
+  orig: 63, 137
+  offset: 0, 0
+  index: -1
+Glow_02
+  rotate: false
+  xy: 543, 166
+  size: 232, 232
+  orig: 232, 232
+  offset: 0, 0
+  index: -1
+Lollipop
+  rotate: false
+  xy: 1254, 270
+  size: 122, 128
+  orig: 123, 128
+  offset: 1, 0
+  index: -1
+Lollipop_Glint_01
+  rotate: false
+  xy: 1378, 275
+  size: 122, 123
+  orig: 123, 123
+  offset: 1, 0
+  index: -1
+Lollipop_Glint_02
+  rotate: false
+  xy: 1502, 275
+  size: 122, 123
+  orig: 123, 123
+  offset: 1, 0
+  index: -1
+Lollipop_Glint_03
+  rotate: false
+  xy: 1626, 275
+  size: 122, 123
+  orig: 123, 123
+  offset: 1, 0
+  index: -1
+Lollipop_Glint_04
+  rotate: true
+  xy: 958, 138
+  size: 122, 123
+  orig: 123, 123
+  offset: 1, 0
+  index: -1
+Lollipop_Glint_05
+  rotate: true
+  xy: 777, 88
+  size: 122, 123
+  orig: 123, 123
+  offset: 1, 0
+  index: -1
+Lollipop_Glint_06
+  rotate: true
+  xy: 285, 18
+  size: 122, 123
+  orig: 123, 123
+  offset: 1, 0
+  index: -1
+Lollipop_Glint_07
+  rotate: true
+  xy: 410, 18
+  size: 122, 123
+  orig: 123, 123
+  offset: 1, 0
+  index: -1
+Lollipop_Glint_08
+  rotate: false
+  xy: 1083, 137
+  size: 122, 123
+  orig: 123, 123
+  offset: 1, 0
+  index: -1
+Lollipop_Glint_09
+  rotate: false
+  xy: 1207, 142
+  size: 122, 123
+  orig: 123, 123
+  offset: 1, 0
+  index: -1
+Lollipop_Glint_10
+  rotate: false
+  xy: 1331, 145
+  size: 122, 123
+  orig: 123, 123
+  offset: 1, 0
+  index: -1
+Lollipop_Glint_11
+  rotate: false
+  xy: 1455, 150
+  size: 122, 123
+  orig: 123, 123
+  offset: 1, 0
+  index: -1
+Lollipop_Glint_12
+  rotate: false
+  xy: 1579, 150
+  size: 122, 123
+  orig: 123, 123
+  offset: 1, 0
+  index: -1
+Lollipop_Glint_13
+  rotate: true
+  xy: 1455, 26
+  size: 122, 123
+  orig: 123, 123
+  offset: 1, 0
+  index: -1
+Lollipop_Glint_14
+  rotate: false
+  xy: 1580, 25
+  size: 122, 123
+  orig: 123, 123
+  offset: 1, 0
+  index: -1
+Lollipop_Glint_15
+  rotate: false
+  xy: 1331, 20
+  size: 122, 123
+  orig: 123, 123
+  offset: 1, 0
+  index: -1
+Lollipop_Glint_16
+  rotate: false
+  xy: 1207, 17
+  size: 122, 123
+  orig: 123, 123
+  offset: 1, 0
+  index: -1
+Lollipop_Glint_17
+  rotate: true
+  xy: 902, 14
+  size: 122, 123
+  orig: 123, 123
+  offset: 1, 0
+  index: -1
+Lollipop_Glint_18
+  rotate: true
+  xy: 1027, 13
+  size: 122, 123
+  orig: 123, 123
+  offset: 1, 0
+  index: -1
+Lollipop_shadow
+  rotate: false
+  xy: 2, 47
+  size: 159, 53
+  orig: 159, 53
+  offset: 0, 0
+  index: -1
+R
+  rotate: true
+  xy: 2, 3
+  size: 42, 52
+  orig: 42, 52
+  offset: 0, 0
+  index: -1
+R_Color
+  rotate: false
+  xy: 163, 48
+  size: 42, 52
+  orig: 42, 52
+  offset: 0, 0
+  index: -1
+S
+  rotate: true
+  xy: 1152, 93
+  size: 42, 53
+  orig: 42, 53
+  offset: 0, 0
+  index: -1
+S_Color
+  rotate: true
+  xy: 1152, 49
+  size: 42, 53
+  orig: 42, 53
+  offset: 0, 0
+  index: -1
+ScatterLight02
+  rotate: false
+  xy: 958, 262
+  size: 155, 136
+  orig: 155, 136
+  offset: 0, 0
+  index: -1
+Star_01
+  rotate: false
+  xy: 706, 5
+  size: 18, 20
+  orig: 21, 21
+  offset: 1, 1
+  index: -1
+T_1
+  rotate: false
+  xy: 243, 56
+  size: 32, 44
+  orig: 32, 44
+  offset: 0, 0
+  index: -1
+T_1_Color
+  rotate: false
+  xy: 163, 2
+  size: 32, 44
+  orig: 32, 44
+  offset: 0, 0
+  index: -1
+T_2
+  rotate: false
+  xy: 1703, 178
+  size: 34, 45
+  orig: 34, 45
+  offset: 0, 0
+  index: -1
+T_2_Color
+  rotate: true
+  xy: 105, 11
+  size: 34, 45
+  orig: 34, 45
+  offset: 0, 0
+  index: -1
+bg
+  rotate: true
+  xy: 771, 2
+  size: 84, 88
+  orig: 99, 103
+  offset: 8, 8
+  index: -1
+explode_light
+  rotate: false
+  xy: 861, 5
+  size: 32, 32
+  orig: 32, 32
+  offset: 0, 0
+  index: -1
+ray0016
+  rotate: false
+  xy: 285, 142
+  size: 256, 256
+  orig: 256, 256
+  offset: 0, 0
+  index: -1
+yq
+  rotate: false
+  xy: 2, 102
+  size: 281, 296
+  orig: 281, 296
+  offset: 0, 0
+  index: -1

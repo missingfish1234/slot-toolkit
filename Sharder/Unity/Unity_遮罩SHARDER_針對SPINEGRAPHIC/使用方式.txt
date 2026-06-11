@@ -1,0 +1,53 @@
+1. 建立遮罩控制物件
+
+在 Canvas 底下建立一個空物件：
+
+SpineMaskRoot
+
+底下放：
+
+SpineMaskRoot
+ ├─ MaskArea
+ └─ SpineCharacter
+
+其中：
+
+MaskArea = RectTransform，用來控制遮罩範圍
+SpineCharacter = 掛 SkeletonGraphic 的物件
+2. 掛上 Driver
+
+選取你的 SpineCharacter，也就是有 SkeletonGraphic 的物件。
+
+新增元件：
+
+SpineSkeletonGraphicMaskDriver
+
+然後設定：
+
+Mask Texture：你的遮罩圖
+Mask Rect Transform：MaskArea
+Mask Channel：Alpha
+Softness：0 ~ 0.1 先測
+Invert Mask：關閉
+Use Rect Clamp：開啟
+Mask Shader：Custom/Spine/SkeletonGraphic Alpha Mask
+四、遮罩圖設定
+
+你的遮罩圖建議這樣設定：
+
+Texture Type：Sprite (2D and UI) 或 Default
+Alpha Source：Input Texture Alpha
+Alpha Is Transparency：打勾
+Wrap Mode：Clamp
+Filter Mode：Bilinear
+Compression：None 或 High Quality
+
+如果你的遮罩圖是黑白圖，沒有透明通道，那就把：
+
+Mask Channel
+
+改成：
+
+Red
+
+通常白色區域顯示，黑色區域隱藏。

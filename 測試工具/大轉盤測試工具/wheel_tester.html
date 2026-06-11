@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8" />
+    <title>轉盤工具 v4.6.4 (移除消線變形模式)</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; }
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #111;
+            color: #eee;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* --- Sidebar --- */
+        .sidebar {
+            width: 380px;
+            background: #1e1e1e;
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            z-index: 30;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+        }
+        .sidebar-header {
+            padding: 12px 16px;
+            background: #252525;
+            border-bottom: 1px solid #333;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .sidebar-header h1 { margin: 0; font-size: 16px; color: #fff; }
+        .version-tag { font-size: 10px; background: #2196F3; padding: 2px 6px; border-radius: 4px; color: #fff; }
+
+        /* Tabs */
+        .tabs-nav {
+            display: flex;
+            background: #252525;
+            border-bottom: 1px solid #333;
+        }
+        .tab-btn {
+            flex: 1; padding: 10px 0; background: transparent; border: none;
+            color: #888; font-size: 13px; font-weight: 600; cursor: pointer;
+            border-bottom: 2px solid transparent; transition: all 0.2s;
+        }
+        .tab-btn:hover { color: #ccc; background: #2a2a2a; }
+        .tab-btn.active { color: #ffd54f; border-bottom: 2px solid #ffd54f; background: #2d2d2d; }
+
+        .sidebar-content { flex: 1; overflow-y: auto; padding: 16px; position: relative; }
+        .tab-pane { display: none; animation: fadeIn 0.3s; }
+        .tab-pane.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Components */
+        .group {
+            background: #2a2a2a; padding: 12px; border-radius: 6px;
+            margin-bottom: 12px; border: 1px solid #383838;
+        }
+        .group-title {
+            font-size: 11px; font-weight: 700; color: #888; margin-bottom: 8px;
+            text-transform: uppercase; letter-spacing: 1px;
+            border-bottom: 1px solid #444; padding-bottom: 4px;
+        }
+        .field { margin-bottom: 10px; }
+        .field:last-child { margin-bottom: 0; }
+        .field label {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 12px; color: #ccc; margin-bottom: 4px;
+        }
+        .field input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+        input[type="number"], input[type="text"], textarea, select {
+            width: 100%; padding: 6px; background: #111;
+            border: 1px solid #444; color: #fff; border-radius: 4px; font-size: 13px;
+        }
+        input[type="range"] { width: 100%; cursor: pointer; margin-top: 4px; }
+        
+        input[type="number"].inline-num {
+            width: 65px;
+            padding: 2px 4px;
+            font-size: 12px;
+            background: #1a1a1a;
+            border: 1px solid #555;
+            color: #ffd54f;
+            text-align: right;
+            border-radius: 3px;
+            margin-left: 8px;
+        }
+        input[type="number"].inline-num:focus {
+            outline: none;
+            border-color: #2196F3;
+            background: #222;
+        }
+
+        /* Footer */
+        .sidebar-footer {
+            padding: 16px; background: #252525; border-top: 1px solid #333;
+            display: flex; gap: 10px;
+        }
+        button.action-btn {
+            flex: 1; padding: 10px; border: none; border-radius: 4px;
+            font-weight: 700; cursor: pointer; font-size: 14px;
+        }
+        button.sm-btn {
+            width: 100%; padding: 8px; background: #444; border:none; border-radius:4px;
+            color:#eee; font-size:13px; cursor:pointer; margin-top:8px; display:flex; justify-content:center; align-items:center; gap:5px;
+        }
+        button.sm-btn:hover { background: #555; }
+        button.primary-btn { background: #2196F3; color: white; }
+        button.primary-btn:hover { background: #1976D2; }
+        button.danger-btn { background: #ef5350; color: white; }
+        button.danger-btn:hover { background: #c62828; }
+        
+        #spinBtn { background: linear-gradient(135deg, #ffb347, #ff6b6b); color: #111; }
+        #spinBtn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
+        #resetBtn { background: #444; color: #fff; }
+
+        /* Main Stage */
+        .main {
+            flex: 1; position: relative;
+            background: radial-gradient(circle at center, #222 0%, #000 90%);
+            overflow: hidden; cursor: grab;
+        }
+        .main:active { cursor: grabbing; }
+
+        .stage-transform-layer {
+            width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            transform-origin: center center;
+            will-change: transform;
+            transition: transform 0.1s ease-out; /* 讓滑鼠滾輪縮放較平滑 */
+        }
+        .stage-inner { position: relative; width: 800px; height: 800px; }
+        
+        /* Layers */
+        #bgContainer { position: absolute; top: 50%; left: 50%; width: 0; height: 0; z-index: 0; }
+        #bgImage { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: block; pointer-events: none; }
+        
+        .wheel-container { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; }
+        .wheel-rotator { width: 100%; height: 100%; position: relative; transform-origin: 50% 50%; }
+        #wheelImage { width: 100%; height: 100%; position: absolute; top: 0; left: 0; filter: drop-shadow(0 0 15px rgba(0,0,0,0.5)); }
+        
+        #wheelSegments { width: 100%; height: 100%; position: absolute; top: 0; left: 0; pointer-events: none; display: none; }
+        #seamLineImage { width: 100%; height: 100%; position: absolute; top: 0; left: 0; pointer-events: none; display: none; z-index: 12; }
+        .segment-slice {
+            position: absolute; left: 50%; top: 50%;
+            transform-origin: 50% 100%; transform: translate(-50%, -100%);
+            height: 50%; display: flex; justify-content: center; align-items: flex-end;
+        }
+        .segment-slice img { display: block; height: 100%; width: auto; transform-origin: 50% 100%; }
+
+        #overlayImage { width: 100%; height: 100%; position: absolute; top: 0; left: 0; opacity: 0.6; pointer-events: none; z-index: 11; display: none; mix-blend-mode: hard-light; }
+
+        .pointer-wrapper { position: absolute; z-index: 100; display: flex; justify-content: center; align-items: flex-start; }
+        #uiContainer { position: absolute; top: 50%; left: 50%; width: 0; height: 0; z-index: 150; }
+        #uiImage { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; pointer-events: none; }
+
+        .clicker-anim-target { transform-origin: 50% 0%; position: relative; display: flex; justify-content: center; }
+        .pivot-dot {
+            position: absolute; width: 6px; height: 6px; background: red; border-radius: 50%;
+            transform: translate(-50%, -50%); pointer-events: none; z-index: 999;
+            box-shadow: 0 0 2px #fff; opacity: 0.8; left: 50%; top: 0%; 
+        }
+        #pointerImg { display: none; width: 120px; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5)); }
+        .default-pointer { width: 50px; height: 60px; position: relative; transform-origin: top center; }
+        .dp-body { width: 100%; height: 100%; background: radial-gradient(circle at top, #ffd54f, #ffb347); clip-path: polygon(0 0, 100% 0, 50% 100%); filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3)); }
+        .dp-cap { position: absolute; top: -5px; left: 10px; right: 10px; height: 10px; background: #fff; border-radius: 5px; }
+        .hitting { animation: hit-anim 0.15s ease-out; }
+        @keyframes hit-anim { 0% { transform: rotate(0deg); } 30% { transform: rotate(-30deg); } 60% { transform: rotate(15deg); } 100% { transform: rotate(0deg); } }
+
+        /* Win FX */
+        .win-display {
+            position: absolute; top: 50%; left: 50%;
+            --wx: 0px; --wy: -40px; --wscale: 1;
+            transform: translate(calc(-50% + var(--wx)), calc(-50% + var(--wy))) scale(0.5);
+            z-index: 200; text-align: center;
+            opacity: 0; pointer-events: none; transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .win-display.show { 
+            opacity: 1; 
+            transform: translate(calc(-50% + var(--wx)), calc(-50% + var(--wy))) scale(var(--wscale)); 
+        }
+        .win-text {
+            font-size: 64px; font-weight: 900; color: #fff;
+            background: linear-gradient(to bottom, #ffffff 0%, #ffdf85 50%, #ff9a00 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 4px 0px rgba(0,0,0,0.5)); white-space: nowrap;
+        }
+        #winImageEl {
+            max-width: 400px; 
+            max-height: 400px;
+            object-fit: contain;
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.6));
+        }
+        .win-glow {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 300px; height: 300px;
+            background: radial-gradient(circle, rgba(255,213,79,0.4) 0%, rgba(0,0,0,0) 70%);
+            z-index: -1; opacity: 0; transition: opacity 0.5s;
+        }
+        .win-display.show .win-glow { opacity: 1; }
+
+        .hud {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); padding: 6px 14px; border-radius: 20px;
+            border: 1px solid #444; font-size: 13px; color: #ffd54f; text-align: center; pointer-events: none; z-index: 300;
+        }
+        
+        /* View Controls */
+        .view-controls { 
+            position: absolute; bottom: 20px; right: 20px; z-index: 300; 
+            display: flex; gap: 6px; 
+        }
+        .view-btn { 
+            background: #333; color: #eee; border: 1px solid #555; 
+            padding: 8px 12px; border-radius: 4px; cursor: pointer; 
+            font-size: 12px; font-weight: bold; transition: background 0.2s;
+        }
+        .view-btn:hover { background: #444; border-color: #666; }
+        
+        .progress-bar { height: 4px; background: #333; border-radius: 2px; margin-top: 5px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #4caf50; width: 0%; transition: width 0.3s; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h1>轉盤工具</h1>
+        <span class="version-tag">v4.6.4</span>
+    </div>
+
+    <div class="tabs-nav">
+        <button class="tab-btn active" data-tab="tab-appearance">外觀</button>
+        <button class="tab-btn" data-tab="tab-pointer">指針</button>
+        <button class="tab-btn" data-tab="tab-ui">介面</button>
+        <button class="tab-btn" data-tab="tab-system">系統</button>
+    </div>
+
+    <div class="sidebar-content">
+        
+        <div id="tab-appearance" class="tab-pane active">
+            <div class="group">
+                <div class="group-title">轉盤模式 (Wheel Mode)</div>
+                <div class="field" style="background: #333; padding: 6px; border-radius:4px;">
+                    <label style="margin:0; cursor:pointer;"><span style="color:#fff;">啟用切片拼接模式</span><input type="checkbox" id="useSegments"></label>
+                </div>
+            </div>
+
+            <div class="group" id="groupSingleWheel">
+                <div class="group-title">單張轉盤 (Single Image)</div>
+                <div class="field" style="margin-bottom: 0;">
+                    <label>上傳整張轉盤 (可多選)</label>
+                    <input type="file" id="fileWheel" accept="image/*" multiple>
+                    <div id="wheelStatus" style="font-size:11px; color:#eee; margin-top:5px;">尚未載入</div>
+                </div>
+                <div class="field" style="background: #333; padding: 6px; border-radius:4px; margin-top: 10px;">
+                    <label style="margin:0; cursor:pointer;">
+                        <span style="color:#fff; font-weight:bold;">每次旋轉隨機替換轉盤圖</span>
+                        <input type="checkbox" id="randomWheelMode">
+                    </label>
+                </div>
+            </div>
+
+            <div class="group" id="groupSegments" style="display:none; border-color: #4caf50;">
+                <div class="group-title" style="color:#4caf50">切片拼接 (Slices)</div>
+                <div class="field">
+                    <label>批次上傳切片 (可多選)</label>
+                    <input type="file" id="fileSlices" accept="image/*" multiple>
+                    <div id="sliceStatus" style="font-size:11px; color:#eee; margin-top:5px;"></div>
+                </div>
+                <div class="field" style="background: #333; padding: 6px; border-radius:4px;">
+                    <label style="margin:0; cursor:pointer;">
+                        <span style="color:#fff; font-weight:bold;">顯示拼接輔助線</span>
+                        <input type="checkbox" id="showSegmentSeams">
+                    </label>
+                    <div style="font-size:10px; color:#aaa; margin-top:4px;">此功能只用來檢查切片分界；已移除消線強度與裁邊放大，避免圖片被變形。</div>
+                </div>
+                <div class="field" style="background: #333; padding: 6px; border-radius:4px;">
+                    <label style="margin:0; cursor:pointer;">
+                        <span style="color:#fff; font-weight:bold;">每次旋轉前隨機分布切片獎項</span>
+                        <input type="checkbox" id="randomizeSliceLayout">
+                    </label>
+                    <div style="font-size:10px; color:#aaa; margin-top:4px;">只重排切片位置，不會改變原始圖片；中獎文字與中獎圖會跟著切片來源對應。</div>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button id="shuffleSlicesBtn" class="sm-btn primary-btn" style="margin-top:0;">立即隨機分布</button>
+                    <button id="restoreSlicesBtn" class="sm-btn" style="margin-top:0;">恢復上傳順序</button>
+                </div>
+            </div>
+
+            <div class="group">
+                <div class="group-title">轉盤位置調整</div>
+                <div class="field"><label><span>大小 (%)</span><input type="number" id="wheelSizeVal" class="inline-num" step="1" value="70"></label><input type="range" id="wheelSize" min="5" max="150" value="70"></div>
+                <div class="field"><label><span>X 位移</span><input type="number" id="wheelXVal" class="inline-num" step="1" value="0"></label><input type="range" id="wheelX" min="-300" max="300" value="0"></div>
+                <div class="field"><label><span>Y 位移</span><input type="number" id="wheelYVal" class="inline-num" step="1" value="0"></label><input type="range" id="wheelY" min="-300" max="300" value="0"></div>
+                <div class="field"><label><span style="color:#ff6b6b">角度微調 (°)</span><input type="number" id="imgOffsetVal" class="inline-num" step="1" value="0"></label><input type="range" id="imgOffset" min="-180" max="180" value="0"></div>
+                <div class="field" style="background: #333; padding: 6px; border-radius:4px;">
+                    <label style="margin:0; cursor:pointer;"><span style="color:#fff; font-weight:bold;">顯示對位輔助線</span><input type="checkbox" id="showOverlay"></label>
+                </div>
+            </div>
+            <div class="group">
+                <div class="group-title">背景 (Background)</div>
+                <div class="field"><label>上傳背景圖</label><input type="file" id="fileBg" accept="image/*"></div>
+                <div class="field"><label><span>縮放</span><input type="number" id="bgScaleVal" class="inline-num" step="0.1" value="1.0"></label><input type="range" id="bgScale" min="0.1" max="3" step="0.1" value="1.0"></div>
+                <div class="field"><label><span>X 位移</span><input type="number" id="bgXVal" class="inline-num" step="1" value="0"></label><input type="range" id="bgX" min="-500" max="500" value="0"></div>
+                <div class="field"><label><span>Y 位移</span><input type="number" id="bgYVal" class="inline-num" step="1" value="0"></label><input type="range" id="bgY" min="-500" max="500" value="0"></div>
+                <div class="field"><label><span>透明度</span><input type="number" id="bgOpVal" class="inline-num" step="0.1" value="0.5"></label><input type="range" id="bgOp" min="0" max="1" step="0.1" value="0.5"></div>
+            </div>
+        </div>
+
+        <div id="tab-pointer" class="tab-pane">
+            <div class="group">
+                <div class="group-title">基本設定</div>
+                <div class="field"><label>上傳指針圖</label><input type="file" id="filePointer" accept="image/*"></div>
+                <div class="field"><label><span>指針大小 (%)</span><input type="number" id="ptrSizeVal" class="inline-num" step="1" value="100"></label><input type="range" id="ptrSize" min="10" max="250" value="100"></div>
+                <div class="field">
+                    <label>方向</label>
+                    <select id="ptrPos">
+                        <option value="top">上 (Top)</option>
+                        <option value="right">右 (Right)</option>
+                        <option value="bottom">下 (Bottom)</option>
+                        <option value="left">左 (Left)</option>
+                    </select>
+                </div>
+                <div class="field"><label>距離微調 (px)</label><input type="number" id="ptrOffset" value="0"></div>
+            </div>
+
+            <div class="group">
+                <div class="group-title">軸心調整 (Pivot)</div>
+                <div class="field"><label><span>軸心 X (%)</span><input type="number" id="ptrPivotXVal" class="inline-num" step="1" value="50"></label><input type="range" id="ptrPivotX" min="0" max="100" value="50"></div>
+                <div class="field"><label><span>軸心 Y (%)</span><input type="number" id="ptrPivotYVal" class="inline-num" step="1" value="0"></label><input type="range" id="ptrPivotY" min="0" max="100" value="0"></div>
+                <button id="testClickerBtn" class="sm-btn">測試撞擊動態</button>
+            </div>
+        </div>
+
+        <div id="tab-ui" class="tab-pane">
+            <div class="group">
+                <div class="group-title">介面圖層 (Top Layer)</div>
+                <div class="field"><label>上傳 UI 框 / 介面</label><input type="file" id="fileUI" accept="image/*"></div>
+                <div class="field" style="background: #333; padding: 6px; border-radius:4px;">
+                    <label style="margin:0; cursor:pointer;"><span style="color:#fff; font-weight:bold;">顯示介面圖</span><input type="checkbox" id="showUI" checked></label>
+                </div>
+                <div class="field"><label><span>縮放</span><input type="number" id="uiScaleVal" class="inline-num" step="0.1" value="1.0"></label><input type="range" id="uiScale" min="0.1" max="3" step="0.1" value="1.0"></div>
+                <div class="field"><label><span>X 位移</span><input type="number" id="uiXVal" class="inline-num" step="1" value="0"></label><input type="range" id="uiX" min="-500" max="500" value="0"></div>
+                <div class="field"><label><span>Y 位移</span><input type="number" id="uiYVal" class="inline-num" step="1" value="0"></label><input type="range" id="uiY" min="-500" max="500" value="0"></div>
+                <div class="field"><label><span>透明度</span><input type="number" id="uiOpVal" class="inline-num" step="0.1" value="1.0"></label><input type="range" id="uiOp" min="0" max="1" step="0.1" value="1.0"></div>
+            </div>
+
+            <div class="group">
+                <div class="group-title">結算畫面 (Result Popup)</div>
+                <div class="field" style="background: #333; padding: 6px; border-radius:4px; margin-bottom:10px;">
+                    <label style="margin:0; cursor:pointer;">
+                        <span style="color:#fff; font-weight:bold;">轉盤停止時彈出中獎提示</span>
+                        <input type="checkbox" id="showWinPopup" checked>
+                    </label>
+                </div>
+                
+                <div class="field">
+                    <label>彈出類型</label>
+                    <select id="popupType">
+                        <option value="text">顯示文字</option>
+                        <option value="image">顯示圖片</option>
+                    </select>
+                </div>
+
+                <div id="winTextSettings">
+                    <div class="field">
+                        <label>上傳自訂字型檔 (.ttf, .otf)</label>
+                        <input type="file" id="fileCustomFont" accept=".ttf,.otf,.woff,.woff2">
+                    </div>
+                </div>
+
+                <div id="winImageSettings" style="display:none; border: 1px dashed #555; padding: 8px; border-radius: 4px; background: #222;">
+                    <div class="field" style="margin-bottom:0;">
+                        <label>批次上傳中獎圖 (可多選)</label>
+                        <input type="file" id="fileWinImages" accept="image/*" multiple>
+                        <div id="winImageStatus" style="font-size:11px; color:#eee; margin-top:5px;">尚未載入圖片</div>
+                        <div style="font-size:10px; color:#aaa; margin-top:4px;">* 單張圖: 每次都彈出同一張<br>* 多張圖: 依選項順序彈出對應圖</div>
+                    </div>
+                </div>
+
+                <div style="margin-top:10px; border-top: 1px solid #444; padding-top: 10px;">
+                    <div class="field"><label><span>大小縮放</span><input type="number" id="winScaleVal" class="inline-num" step="0.1" value="1.0"></label><input type="range" id="winScale" min="0.1" max="5" step="0.1" value="1.0"></div>
+                    <div class="field"><label><span>X 位移</span><input type="number" id="winXVal" class="inline-num" step="1" value="0"></label><input type="range" id="winX" min="-500" max="500" value="0"></div>
+                    <div class="field"><label><span>Y 位移</span><input type="number" id="winYVal" class="inline-num" step="1" value="-40"></label><input type="range" id="winY" min="-500" max="500" value="-40"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-system" class="tab-pane">
+             <div class="group">
+                <div class="group-title">隨機邏輯設定</div>
+                <div class="field" style="background: #2a2a2a; border: 1px solid #43a047; padding: 10px; border-radius: 4px;">
+                    <label style="margin-bottom: 5px;">
+                        <span style="color:#4caf50; font-weight:bold;">不重複抽取 (No Repeat)</span>
+                        <input type="checkbox" id="noRepeatMode">
+                    </label>
+                    <div style="display:flex; justify-content:space-between; font-size:12px; color:#fff;">
+                        <span>進度: <span id="poolStatus">0 / 12</span></span>
+                    </div>
+                    <div class="progress-bar"><div class="progress-fill" id="poolProgress"></div></div>
+                    <button id="resetPoolBtn" class="sm-btn danger-btn" style="margin-top:8px;">重置抽取歷史</button>
+                </div>
+            </div>
+
+            <div class="group">
+                <div class="group-title">專案管理 (Project)</div>
+                <div class="field">
+                    <button id="saveProjectBtn" class="sm-btn primary-btn">匯出專案檔 (.json)</button>
+                </div>
+                <div class="field">
+                    <label style="margin-top:10px;">讀取專案檔</label>
+                    <input type="file" id="loadProjectInput" accept=".json">
+                </div>
+            </div>
+
+            <div class="group">
+                <div class="group-title">參數設定</div>
+                <div class="field"><label>分割數量</label><input type="number" id="segments" value="12" min="1"></div>
+                <div class="field"><label>旋轉時間 (s)</label><input type="number" id="duration" value="3.5" step="0.1"></div>
+                <div class="field"><label>旋轉圈數</label><input type="number" id="rounds" value="5" step="1"></div>
+                
+                <div style="margin-top:12px; border-top:1px solid #444; padding-top:12px;">
+                    <label style="font-size:12px; color:#aaa;">速度曲線</label>
+                    <div style="display:flex; justify-content:center; background:#111; padding:10px; border-radius:4px; margin-top:5px;">
+                        <canvas id="curveEditor" width="220" height="150"></canvas>
+                    </div>
+                </div>
+
+                <div class="field" style="margin-top:12px;">
+                    <label>獎勵列表 (順時針: 1, 2...)</label>
+                    <textarea id="rewards" rows="6">Item 1&#10;Item 2&#10;Item 3&#10;Item 4&#10;Item 5&#10;Item 6&#10;Item 7&#10;Item 8&#10;Item 9&#10;Item 10&#10;Item 11&#10;Item 12</textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sidebar-footer">
+        <button id="spinBtn" class="action-btn">開始旋轉</button>
+        <button id="resetBtn" class="action-btn">重置轉盤</button>
+    </div>
+</div>
+
+<div class="main" id="mainStage">
+    <div class="stage-transform-layer" id="stageLayer">
+        <div class="stage-inner">
+            <div id="bgContainer"><img id="bgImage" src="" style="display:none"></div>
+            <div id="wheelContainer" class="wheel-container">
+                <div id="wheelRotator" class="wheel-rotator">
+                    <img id="wheelImage" src="">
+                    <div id="wheelSegments"></div>
+                    <img id="seamLineImage" src="">
+                    <img id="overlayImage" src="">
+                </div>
+            </div>
+            <div id="pointerWrapper" class="pointer-wrapper">
+                <div id="clickerTarget" class="clicker-anim-target">
+                    <div id="pivotDot" class="pivot-dot"></div>
+                    <img id="pointerImg" src="">
+                    <div id="defaultPointer" class="default-pointer"><div class="dp-body"></div><div class="dp-cap"></div></div>
+                </div>
+            </div>
+            <div id="uiContainer"><img id="uiImage" src=""></div>
+            
+            <div id="winDisplay" class="win-display">
+                <div class="win-glow"></div>
+                <div class="win-text" id="winText">WIN</div>
+                <img id="winImageEl" src="" style="display:none;">
+            </div>
+        </div>
+    </div>
+    
+    <div class="hud" id="hud">滾輪縮放 | 左鍵拖曳視角</div>
+    
+    <div class="view-controls">
+        <button class="view-btn" id="zoomInBtn">➕ 放大</button>
+        <button class="view-btn" id="zoomOutBtn">➖ 縮小</button>
+        <button class="view-btn" id="resetViewBtn">⟲ 視角歸位</button>
+    </div>
+</div>
+
+<script>
+    // --- Context & Elements ---
+    const ctx = {
+        rotation: 0, segments: 12, isSpinning: false, bezier: [0.25, 0.1, 0.25, 1.0], lastPegIndex: -1,
+        
+        // 視角控制變數
+        scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0,
+        
+        wheelImages: [], segmentImages: [], segmentOrder: [], pool: [], usedPool: [], isNoRepeat: false,
+        customFontUrl: null, winImages: [], hidePopupTimeout: null, segmentRenderToken: 0
+    };
+
+    const els = {
+        mainStage: document.getElementById('mainStage'), stageLayer: document.getElementById('stageLayer'),
+        bgImage: document.getElementById('bgImage'), wheelRotator: document.getElementById('wheelRotator'),
+        wheelImage: document.getElementById('wheelImage'), wheelSegments: document.getElementById('wheelSegments'),
+        seamLineImage: document.getElementById('seamLineImage'),
+        overlayImage: document.getElementById('overlayImage'), wheelContainer: document.getElementById('wheelContainer'), 
+        ptrWrapper: document.getElementById('pointerWrapper'), clickerTarget: document.getElementById('clickerTarget'), 
+        ptrImg: document.getElementById('pointerImg'), defPtr: document.getElementById('defaultPointer'), 
+        hud: document.getElementById('hud'), winDisplay: document.getElementById('winDisplay'), 
+        winText: document.getElementById('winText'), winImageEl: document.getElementById('winImageEl'),
+        pivotDot: document.getElementById('pivotDot'), uiImage: document.getElementById('uiImage'),
+
+        // Inputs
+        useSegments: document.getElementById('useSegments'), groupSingle: document.getElementById('groupSingleWheel'),
+        groupSegments: document.getElementById('groupSegments'), fileSlices: document.getElementById('fileSlices'), 
+        sliceStatus: document.getElementById('sliceStatus'),
+        showSegmentSeams: document.getElementById('showSegmentSeams'),
+        randomizeSliceLayout: document.getElementById('randomizeSliceLayout'),
+        shuffleSlicesBtn: document.getElementById('shuffleSlicesBtn'), restoreSlicesBtn: document.getElementById('restoreSlicesBtn'),
+        noRepeatMode: document.getElementById('noRepeatMode'),
+        poolStatus: document.getElementById('poolStatus'), poolProgress: document.getElementById('poolProgress'),
+        resetPoolBtn: document.getElementById('resetPoolBtn'),
+        
+        wheelStatus: document.getElementById('wheelStatus'), randomWheelMode: document.getElementById('randomWheelMode'),
+
+        fileBg: document.getElementById('fileBg'), 
+        bgScale: document.getElementById('bgScale'), bgScaleVal: document.getElementById('bgScaleVal'),
+        bgX: document.getElementById('bgX'), bgXVal: document.getElementById('bgXVal'), 
+        bgY: document.getElementById('bgY'), bgYVal: document.getElementById('bgYVal'), 
+        bgOp: document.getElementById('bgOp'), bgOpVal: document.getElementById('bgOpVal'),
+        
+        fileWheel: document.getElementById('fileWheel'), 
+        wheelSize: document.getElementById('wheelSize'), wheelSizeVal: document.getElementById('wheelSizeVal'),
+        wheelX: document.getElementById('wheelX'), wheelXVal: document.getElementById('wheelXVal'), 
+        wheelY: document.getElementById('wheelY'), wheelYVal: document.getElementById('wheelYVal'),
+        imgOffset: document.getElementById('imgOffset'), imgOffsetVal: document.getElementById('imgOffsetVal'), 
+        showOverlay: document.getElementById('showOverlay'),
+        
+        filePtr: document.getElementById('filePointer'), ptrPos: document.getElementById('ptrPos'), ptrOffset: document.getElementById('ptrOffset'),
+        ptrSize: document.getElementById('ptrSize'), ptrSizeVal: document.getElementById('ptrSizeVal'),
+        ptrPivotX: document.getElementById('ptrPivotX'), ptrPivotXVal: document.getElementById('ptrPivotXVal'),
+        ptrPivotY: document.getElementById('ptrPivotY'), ptrPivotYVal: document.getElementById('ptrPivotYVal'),
+        testClickerBtn: document.getElementById('testClickerBtn'),
+
+        fileUI: document.getElementById('fileUI'), showUI: document.getElementById('showUI'), 
+        showWinPopup: document.getElementById('showWinPopup'),
+        uiScale: document.getElementById('uiScale'), uiScaleVal: document.getElementById('uiScaleVal'),
+        uiX: document.getElementById('uiX'), uiXVal: document.getElementById('uiXVal'),
+        uiY: document.getElementById('uiY'), uiYVal: document.getElementById('uiYVal'),
+        uiOp: document.getElementById('uiOp'), uiOpVal: document.getElementById('uiOpVal'),
+
+        popupType: document.getElementById('popupType'), winTextSettings: document.getElementById('winTextSettings'),
+        winImageSettings: document.getElementById('winImageSettings'), fileCustomFont: document.getElementById('fileCustomFont'),
+        fileWinImages: document.getElementById('fileWinImages'), winImageStatus: document.getElementById('winImageStatus'),
+        winScale: document.getElementById('winScale'), winScaleVal: document.getElementById('winScaleVal'),
+        winX: document.getElementById('winX'), winXVal: document.getElementById('winXVal'),
+        winY: document.getElementById('winY'), winYVal: document.getElementById('winYVal'),
+
+        canvas: document.getElementById('curveEditor'), duration: document.getElementById('duration'), 
+        rounds: document.getElementById('rounds'), segments: document.getElementById('segments'),
+        rewards: document.getElementById('rewards'), spinBtn: document.getElementById('spinBtn'), 
+        resetBtn: document.getElementById('resetBtn'), 
+        
+        // 視角控制按鈕
+        zoomInBtn: document.getElementById('zoomInBtn'),
+        zoomOutBtn: document.getElementById('zoomOutBtn'),
+        resetViewBtn: document.getElementById('resetViewBtn'),
+        
+        saveProjectBtn: document.getElementById('saveProjectBtn'), loadProjectInput: document.getElementById('loadProjectInput')
+    };
+
+    // --- Tabs ---
+    const tabs = document.querySelectorAll('.tab-btn');
+    const panes = document.querySelectorAll('.tab-pane');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active')); panes.forEach(p => p.classList.remove('active'));
+            tab.classList.add('active'); document.getElementById(tab.dataset.tab).classList.add('active');
+        });
+    });
+
+    // --- Main Stage Pan & Zoom Logic ---
+    function updateStageView() {
+        els.stageLayer.style.transform = `translate(${ctx.panX}px, ${ctx.panY}px) scale(${ctx.scale})`;
+    }
+
+    // 滾輪縮放
+    els.mainStage.addEventListener('wheel', (e) => {
+        e.preventDefault(); // 阻止預設捲動
+        const zoomSensitivity = 0.001;
+        const delta = e.deltaY * -zoomSensitivity;
+        let newScale = ctx.scale * Math.exp(delta);
+        
+        // 限制縮放範圍在 0.1 到 5 之間
+        newScale = Math.max(0.1, Math.min(newScale, 5)); 
+        ctx.scale = newScale;
+        updateStageView();
+    }, { passive: false });
+
+    // 滑鼠拖曳平移
+    els.mainStage.addEventListener('mousedown', (e) => {
+        // 如果點擊到按鈕區或側邊欄就不觸發拖曳
+        if (e.target.closest('.view-controls') || e.target.closest('.sidebar')) return;
+        
+        ctx.isDragging = true;
+        // 紀錄起始座標，並扣掉已經平移的距離
+        ctx.startX = e.clientX - ctx.panX;
+        ctx.startY = e.clientY - ctx.panY;
+        els.mainStage.style.cursor = 'grabbing';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!ctx.isDragging) return;
+        ctx.panX = e.clientX - ctx.startX;
+        ctx.panY = e.clientY - ctx.startY;
+        // 拖曳時暫時關閉動畫以提升效能
+        els.stageLayer.style.transition = 'none';
+        updateStageView();
+    });
+
+    window.addEventListener('mouseup', () => {
+        ctx.isDragging = false;
+        els.mainStage.style.cursor = 'grab';
+        // 恢復動畫
+        els.stageLayer.style.transition = 'transform 0.1s ease-out';
+    });
+    
+    // 如果滑鼠移出視窗外，也要取消拖曳狀態
+    window.addEventListener('mouseleave', () => {
+        ctx.isDragging = false;
+        els.mainStage.style.cursor = 'grab';
+    });
+
+    // 按鈕縮放
+    els.zoomInBtn.addEventListener('click', () => {
+        ctx.scale = Math.min(ctx.scale + 0.2, 5);
+        updateStageView();
+    });
+
+    els.zoomOutBtn.addEventListener('click', () => {
+        ctx.scale = Math.max(ctx.scale - 0.2, 0.1);
+        updateStageView();
+    });
+
+    els.resetViewBtn.addEventListener('click', () => {
+        ctx.scale = 1; ctx.panX = 0; ctx.panY = 0;
+        updateStageView();
+    });
+
+    // --- Popup Type Toggle ---
+    els.popupType.addEventListener('change', (e) => {
+        const isImage = e.target.value === 'image';
+        els.winTextSettings.style.display = isImage ? 'none' : 'block';
+        els.winImageSettings.style.display = isImage ? 'block' : 'none';
+    });
+
+    // --- Multiple Wheels (Single Image) ---
+    els.fileWheel.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        if(!files.length) return;
+        files.sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+        ctx.wheelImages = new Array(files.length).fill(null);
+        let loaded = 0;
+        files.forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = ev => {
+                ctx.wheelImages[index] = ev.target.result;
+                loaded++;
+                if(loaded === files.length) {
+                    els.wheelStatus.textContent = `已載入 ${files.length} 張轉盤圖`;
+                    els.wheelImage.src = ctx.wheelImages[0];
+                    els.wheelImage.style.display = 'block';
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+
+    // --- Slices & Custom Font ---
+    els.useSegments.addEventListener('change', (e) => {
+        const active = e.target.checked;
+        // v4.6.4：切片模式使用 Canvas 合成成一張完整轉盤圖；不再進行裁邊/放大消線，避免圖片變形。
+        els.wheelImage.style.display = 'block';
+        els.wheelSegments.style.display = 'none';
+        els.groupSingle.style.display = active ? 'none' : 'block';
+        els.groupSegments.style.display = active ? 'block' : 'none';
+        if(active) rebuildSegmentedWheel();
+        else if(ctx.wheelImages.length > 0) els.wheelImage.src = ctx.wheelImages[0];
+    });
+
+    els.fileSlices.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files); if(!files.length) return;
+        files.sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+        ctx.segmentImages = new Array(files.length).fill(null); let loadedCount = 0;
+        files.forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                ctx.segmentImages[index] = ev.target.result; loadedCount++;
+                if(loadedCount === files.length) {
+                    els.sliceStatus.textContent = `已載入 ${files.length} 張切片圖`;
+                    els.segments.value = files.length; ctx.segments = files.length;
+                    setSegmentOrderIdentity();
+                    rebuildSegmentedWheel(); drawOverlay(ctx.segments); drawSeamLines(ctx.segments); resetPool();
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+
+    function syncSegmentSeamSettings(e) {
+        // v4.6.4：移除消線/重疊/裁邊模式，避免切片圖片被放大、裁切或變形。
+        const showLines = !!els.showSegmentSeams.checked;
+        els.wheelSegments.classList.remove('seamless');
+        els.seamLineImage.style.display = showLines ? 'block' : 'none';
+        if (els.useSegments.checked) renderSegmentedWheelCanvas();
+        if (!els.useSegments.checked && ctx.wheelImages.length <= 1 && els.wheelStatus.textContent.includes('預設')) createDefaultWheel();
+    }
+
+    function ensureSegmentOrder() {
+        const segs = parseInt(els.segments.value) || 12;
+        if (!Array.isArray(ctx.segmentOrder) || ctx.segmentOrder.length !== segs) setSegmentOrderIdentity();
+    }
+
+    function setSegmentOrderIdentity() {
+        const segs = parseInt(els.segments.value) || 12;
+        ctx.segmentOrder = Array.from({length: segs}, (_, i) => i);
+    }
+
+    function shuffleArray(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    function setSegmentOrderRandom() {
+        const segs = parseInt(els.segments.value) || 12;
+        const srcCount = Math.max(ctx.segmentImages.length, segs);
+        const order = Array.from({length: segs}, (_, i) => i % srcCount);
+        ctx.segmentOrder = shuffleArray(order);
+    }
+
+    function getSliceSourceIndex(displayIndex) {
+        ensureSegmentOrder();
+        const mapped = ctx.segmentOrder[displayIndex];
+        return Number.isFinite(mapped) ? mapped : displayIndex;
+    }
+
+    function findDisplayIndexByPrizeIndex(prizeIndex) {
+        ensureSegmentOrder();
+        const found = ctx.segmentOrder.indexOf(prizeIndex);
+        return found >= 0 ? found : prizeIndex;
+    }
+
+    function rebuildSegmentedWheel() {
+        if(!els.useSegments.checked) return;
+        // DOM 切片只保留作為備援/檢查，不直接顯示；實際畫面使用 Canvas 合成。
+        els.wheelSegments.innerHTML = '';
+        ensureSegmentOrder();
+        const segs = parseInt(els.segments.value) || 12;
+        const anglePerSeg = 360 / segs;
+        for(let i=0; i<segs; i++) {
+            const wrapper = document.createElement('div'); wrapper.className = 'segment-slice';
+            // v4.6.4：補上半格偏移，讓第 1 片真的落在輔助線 1 的區間中心，而不是卡在分隔線上。
+            wrapper.style.transform = `translate(-50%, -100%) rotate(${(i + 0.5) * anglePerSeg}deg)`;
+            const img = document.createElement('img');
+            const sourceIndex = getSliceSourceIndex(i);
+            if(ctx.segmentImages[sourceIndex]) img.src = ctx.segmentImages[sourceIndex];
+            else { img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 100 L0 0 L100 0 Z' fill='%23444'/%3E%3C/svg%3E"; img.style.opacity = '0.3'; }
+            wrapper.appendChild(img); els.wheelSegments.appendChild(wrapper);
+        }
+        syncSegmentSeamSettings();
+        renderSegmentedWheelCanvas();
+    }
+
+    function loadImageForCanvas(src) {
+        return new Promise((resolve) => {
+            if(!src) { resolve(null); return; }
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = src;
+        });
+    }
+
+    async function renderSegmentedWheelCanvas() {
+        if(!els.useSegments.checked) return;
+        const token = ++ctx.segmentRenderToken;
+        ensureSegmentOrder();
+        const segs = parseInt(els.segments.value) || 12;
+        const showLines = !!els.showSegmentSeams.checked;
+        const size = 1400;
+        const cvs = document.createElement('canvas');
+        cvs.width = size; cvs.height = size;
+        const c = cvs.getContext('2d');
+        c.imageSmoothingEnabled = true;
+        c.imageSmoothingQuality = 'high';
+        const cx = size / 2, cy = size / 2;
+        const r = size * 0.49;
+        const angleStep = (Math.PI * 2) / segs;
+
+        const sources = [];
+        for(let i=0; i<segs; i++) {
+            const sourceIndex = getSliceSourceIndex(i);
+            sources.push(ctx.segmentImages[sourceIndex] || null);
+        }
+        const imgs = await Promise.all(sources.map(src => loadImageForCanvas(src)));
+        if(token !== ctx.segmentRenderToken) return;
+
+        c.clearRect(0, 0, size, size);
+
+        for(let i=0; i<segs; i++) {
+            const start = -Math.PI / 2 + i * angleStep;
+            const end = start + angleStep;
+            const mid = start + angleStep / 2;
+
+            c.save();
+            c.beginPath();
+            c.moveTo(cx, cy);
+            c.arc(cx, cy, r, start, end, false);
+            c.closePath();
+            c.clip();
+
+            const img = imgs[i];
+            if(img) {
+                const drawW = 2 * r * Math.sin(angleStep / 2);
+                const drawH = r;
+                c.save();
+                c.translate(cx, cy);
+                c.rotate(mid + Math.PI / 2);
+                c.drawImage(img, 0, 0, img.width, img.height, -drawW / 2, -drawH, drawW, drawH);
+                c.restore();
+            } else {
+                c.fillStyle = i % 2 === 0 ? '#ffb347' : '#ff6b6b';
+                c.beginPath();
+                c.moveTo(cx, cy);
+                c.arc(cx, cy, r, start, end);
+                c.fill();
+            }
+            c.restore();
+        }
+
+        if(showLines) {
+            c.save();
+            c.strokeStyle = 'rgba(0,0,0,0.75)';
+            c.lineWidth = 1.5;
+            for(let i=0; i<segs; i++) {
+                const a = -Math.PI/2 + i * angleStep;
+                c.beginPath(); c.moveTo(cx,cy); c.lineTo(cx+r*Math.cos(a), cy+r*Math.sin(a)); c.stroke();
+            }
+            c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2); c.stroke();
+            c.restore();
+        }
+
+        els.wheelImage.src = cvs.toDataURL('image/png');
+        els.wheelImage.style.display = 'block';
+        els.wheelSegments.style.display = 'none';
+    }
+
+    els.fileCustomFont.addEventListener('change', e => {
+        const file = e.target.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => { ctx.customFontUrl = ev.target.result; applyCustomFont(ctx.customFontUrl); };
+        reader.readAsDataURL(file);
+    });
+
+    function applyCustomFont(base64Url) {
+        if(!base64Url) return;
+        const fontFace = new FontFace('CustomWinFont', `url(${base64Url})`);
+        fontFace.load().then(loadedFace => {
+            document.fonts.add(loadedFace);
+            els.winText.style.fontFamily = '"CustomWinFont", system-ui, sans-serif';
+        }).catch(err => console.error("字型載入失敗", err));
+    }
+
+    // --- Custom Win Images Upload Logic ---
+    els.fileWinImages.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        if(!files.length) return;
+        files.sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+        ctx.winImages = new Array(files.length).fill(null);
+        let loaded = 0;
+        files.forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = ev => {
+                ctx.winImages[index] = ev.target.result;
+                loaded++;
+                if(loaded === files.length) {
+                    els.winImageStatus.textContent = `已載入 ${files.length} 張中獎圖`;
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+
+    // --- Input Sync Helper & Layout Updates ---
+    function syncSliderInput(e, sliderId, inputId) {
+        if (!e || !e.target) { els[inputId].value = els[sliderId].value; return; }
+        if (e.target.id === sliderId) els[inputId].value = e.target.value;
+        else if (e.target.id === inputId) els[sliderId].value = e.target.value;
+    }
+
+    function updateWinLayout(e) {
+        syncSliderInput(e, 'winScale', 'winScaleVal'); syncSliderInput(e, 'winX', 'winXVal'); syncSliderInput(e, 'winY', 'winYVal');
+        els.winDisplay.style.setProperty('--wscale', els.winScale.value);
+        els.winDisplay.style.setProperty('--wx', els.winX.value + 'px');
+        els.winDisplay.style.setProperty('--wy', els.winY.value + 'px');
+    }
+
+    function updateBackground(e) {
+        syncSliderInput(e, 'bgScale', 'bgScaleVal'); syncSliderInput(e, 'bgX', 'bgXVal');
+        syncSliderInput(e, 'bgY', 'bgYVal'); syncSliderInput(e, 'bgOp', 'bgOpVal');
+        const sc=els.bgScale.value, x=els.bgX.value, y=els.bgY.value, op=els.bgOp.value;
+        els.bgImage.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${sc})`;
+        els.bgImage.style.opacity = op;
+    }
+    function updateWheelLayout(e) {
+        syncSliderInput(e, 'wheelSize', 'wheelSizeVal'); syncSliderInput(e, 'wheelX', 'wheelXVal'); syncSliderInput(e, 'wheelY', 'wheelYVal');
+        const sizeVal = parseInt(els.wheelSize.value) || 70;
+        els.wheelContainer.style.width = sizeVal + "%"; els.wheelContainer.style.height = sizeVal + "%";
+        els.wheelContainer.style.transform = `translate(calc(-50% + ${els.wheelX.value}px), calc(-50% + ${els.wheelY.value}px))`;
+        updatePointerLayout();
+    }
+    function updatePointerLayout() {
+        const sizeVal = parseInt(els.wheelSize.value)||70; const gap = (100 - sizeVal)/2;
+        const offset = parseInt(els.ptrOffset.value)||0; const pos = els.ptrPos.value;
+        const wx = parseInt(els.wheelX.value)||0, wy = parseInt(els.wheelY.value)||0;
+        const s = els.ptrWrapper.style;
+        s.top=s.bottom=s.left=s.right=s.transform='';
+        if(pos==='top') { s.top=`calc(${gap}% - ${offset}px + ${wy}px)`; s.left=`calc(50% + ${wx}px)`; s.transform='translateX(-50%)'; }
+        else if(pos==='right') { s.top=`calc(50% + ${wy}px)`; s.right=`calc(${gap}% - ${offset}px - ${wx}px)`; s.transform='translateY(-50%) rotate(-90deg)'; }
+        else if(pos==='bottom') { s.bottom=`calc(${gap}% - ${offset}px - ${wy}px)`; s.left=`calc(50% + ${wx}px)`; s.transform='translateX(-50%) rotate(180deg)'; }
+        else if(pos==='left') { s.top=`calc(50% + ${wy}px)`; s.left=`calc(${gap}% - ${offset}px + ${wx}px)`; s.transform='translateY(-50%) rotate(90deg)'; }
+    }
+    function updatePointerSize(e) {
+        syncSliderInput(e, 'ptrSize', 'ptrSizeVal'); const val = els.ptrSize.value;
+        els.ptrImg.style.width = (120 * (val / 100)) + 'px'; els.defPtr.style.transform = `scale(${val / 100})`;
+    }
+    function updatePointerPivot(e) {
+        syncSliderInput(e, 'ptrPivotX', 'ptrPivotXVal'); syncSliderInput(e, 'ptrPivotY', 'ptrPivotYVal');
+        const px = els.ptrPivotX.value, py = els.ptrPivotY.value;
+        els.clickerTarget.style.transformOrigin = `${px}% ${py}%`; els.pivotDot.style.left = `${px}%`; els.pivotDot.style.top = `${py}%`;
+    }
+    function updateUILayout(e) {
+        syncSliderInput(e, 'uiScale', 'uiScaleVal'); syncSliderInput(e, 'uiX', 'uiXVal');
+        syncSliderInput(e, 'uiY', 'uiYVal'); syncSliderInput(e, 'uiOp', 'uiOpVal');
+        const sc = els.uiScale.value, x = els.uiX.value, y = els.uiY.value, op = els.uiOp.value;
+        els.uiImage.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${sc})`; els.uiImage.style.opacity = op;
+        if(!e || !e.target || e.target.id==='showUI') els.uiImage.style.display = els.showUI.checked ? 'block' : 'none';
+    }
+    function updateRotationOffset(e) { syncSliderInput(e, 'imgOffset', 'imgOffsetVal'); renderRotation(ctx.rotation); }
+
+    function handleFileSelect(file, imgEl, callback) {
+        if (!file) return; const reader = new FileReader();
+        reader.onload = (e) => { imgEl.src = e.target.result; imgEl.style.display = 'block'; if(callback) callback(); };
+        reader.readAsDataURL(file);
+    }
+
+    els.fileBg.addEventListener('change', e => handleFileSelect(e.target.files[0], els.bgImage));
+    els.filePtr.addEventListener('change', e => handleFileSelect(e.target.files[0], els.ptrImg, () => { els.defPtr.style.display='none'; }));
+    els.fileUI.addEventListener('change', e => handleFileSelect(e.target.files[0], els.uiImage, updateUILayout));
+
+    // --- Events Syncing ---
+    [els.bgScale, els.bgX, els.bgY, els.bgOp, els.bgScaleVal, els.bgXVal, els.bgYVal, els.bgOpVal].forEach(el=>el.addEventListener('input', updateBackground));
+    [els.wheelSize, els.wheelX, els.wheelY, els.wheelSizeVal, els.wheelXVal, els.wheelYVal].forEach(el=>el.addEventListener('input', updateWheelLayout));
+    [els.ptrSize, els.ptrSizeVal].forEach(el=>el.addEventListener('input', updatePointerSize));
+    [els.ptrPivotX, els.ptrPivotY, els.ptrPivotXVal, els.ptrPivotYVal].forEach(el=>el.addEventListener('input', updatePointerPivot));
+    [els.uiScale, els.uiX, els.uiY, els.uiOp, els.uiScaleVal, els.uiXVal, els.uiYVal, els.uiOpVal].forEach(el=>el.addEventListener('input', updateUILayout));
+    [els.imgOffset, els.imgOffsetVal].forEach(el=>el.addEventListener('input', updateRotationOffset));
+    [els.winScale, els.winX, els.winY, els.winScaleVal, els.winXVal, els.winYVal].forEach(el=>el.addEventListener('input', updateWinLayout));
+
+    [els.ptrPos, els.ptrOffset].forEach(el=>el.addEventListener('input', updatePointerLayout));
+    els.showUI.addEventListener('change', updateUILayout);
+    els.testClickerBtn.addEventListener('click', triggerClicker);
+    els.showOverlay.addEventListener('change', e=>els.overlayImage.style.display=e.target.checked?'block':'none');
+    els.showSegmentSeams.addEventListener('change', syncSegmentSeamSettings);
+    els.shuffleSlicesBtn.addEventListener('click', () => { setSegmentOrderRandom(); rebuildSegmentedWheel(); });
+    els.restoreSlicesBtn.addEventListener('click', () => { setSegmentOrderIdentity(); rebuildSegmentedWheel(); });
+    
+    els.segments.addEventListener('change', ()=>{ 
+        if(ctx.wheelImages.length === 0 && !els.wheelImage.getAttribute('src').startsWith('data')) createDefaultWheel(); 
+        drawOverlay(parseInt(els.segments.value)||12); drawSeamLines(parseInt(els.segments.value)||12); resetPool();
+        if(els.useSegments.checked) { ensureSegmentOrder(); rebuildSegmentedWheel(); }
+    });
+
+    els.noRepeatMode.addEventListener('change', (e) => { ctx.isNoRepeat = e.target.checked; updatePoolUI(); });
+    els.resetPoolBtn.addEventListener('click', resetPool);
+
+    function resetPool() {
+        const segs = parseInt(els.segments.value) || 12; ctx.pool = Array.from({length: segs}, (_, i) => i);
+        ctx.usedPool = []; updatePoolUI();
+    }
+
+    function updatePoolUI() {
+        const total = parseInt(els.segments.value) || 12; const used = ctx.usedPool.length;
+        els.poolStatus.textContent = `${used} / ${total}`; els.poolProgress.style.width = `${(used / total) * 100}%`;
+        if (ctx.isNoRepeat && used >= total) { els.spinBtn.textContent = "全部轉完 (Reset)"; els.spinBtn.style.filter = "grayscale(1)"; } 
+        else { els.spinBtn.textContent = "開始旋轉"; els.spinBtn.style.filter = ""; }
+    }
+
+    function getNextWinnerIndex() {
+        const total = parseInt(els.segments.value) || 12;
+        let prizeIndex, displayIndex;
+        if(ctx.isNoRepeat) {
+            if(ctx.pool.length === 0) return -1;
+            const randIndex = Math.floor(Math.random() * ctx.pool.length);
+            prizeIndex = ctx.pool[randIndex]; ctx.pool.splice(randIndex, 1); ctx.usedPool.push(prizeIndex);
+            displayIndex = els.useSegments.checked ? findDisplayIndexByPrizeIndex(prizeIndex) : prizeIndex;
+            updatePoolUI();
+        } else {
+            displayIndex = Math.floor(Math.random() * total);
+            prizeIndex = els.useSegments.checked ? getSliceSourceIndex(displayIndex) : displayIndex;
+        }
+        ctx.winnerPrizeIndex = prizeIndex;
+        return displayIndex;
+    }
+
+    // --- SAVE / LOAD ---
+    els.saveProjectBtn.addEventListener('click', () => {
+        const project = {
+            version: "4.6.4",
+            settings: {
+                bg: { scale: els.bgScale.value, x: els.bgX.value, y: els.bgY.value, op: els.bgOp.value },
+                wheel: { size: els.wheelSize.value, x: els.wheelX.value, y: els.wheelY.value, angle: els.imgOffset.value, useSegments: els.useSegments.checked, randomMode: els.randomWheelMode.checked, showSegmentSeams: els.showSegmentSeams.checked, randomizeSliceLayout: els.randomizeSliceLayout.checked, segmentOrder: ctx.segmentOrder },
+                ptr: { pos: els.ptrPos.value, offset: els.ptrOffset.value, size: els.ptrSize.value, px: els.ptrPivotX.value, py: els.ptrPivotY.value },
+                ui: { 
+                    scale: els.uiScale.value, x: els.uiX.value, y: els.uiY.value, op: els.uiOp.value, show: els.showUI.checked, 
+                    showPopup: els.showWinPopup.checked, winScale: els.winScale.value, winX: els.winX.value, winY: els.winY.value,
+                    popupType: els.popupType.value 
+                },
+                params: { segments: els.segments.value, duration: els.duration.value, rounds: els.rounds.value, rewards: els.rewards.value, bezier: ctx.bezier, noRepeat: els.noRepeatMode.checked },
+                overlay: els.showOverlay.checked
+            },
+            images: { 
+                bg: els.bgImage.src, wheel: els.wheelImage.src, wheelImages: ctx.wheelImages, slices: ctx.segmentImages, 
+                ptr: els.ptrImg.src, ui: els.uiImage.src, font: ctx.customFontUrl,
+                winImages: ctx.winImages 
+            }
+        };
+        const blob = new Blob([JSON.stringify(project)], {type: "application/json"});
+        const url = URL.createObjectURL(blob); const a = document.createElement('a');
+        a.href = url; a.download = "wheel-project-v4.6.4.json"; a.click(); URL.revokeObjectURL(url);
+    });
+
+    els.loadProjectInput.addEventListener('change', (e) => {
+        const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const proj = JSON.parse(ev.target.result); const s = proj.settings;
+                els.bgScale.value = s.bg.scale; els.bgX.value = s.bg.x; els.bgY.value = s.bg.y; els.bgOp.value = s.bg.op;
+                els.wheelSize.value = s.wheel.size; els.wheelX.value = s.wheel.x; els.wheelY.value = s.wheel.y; els.imgOffset.value = s.wheel.angle;
+                els.ptrPos.value = s.ptr.pos; els.ptrOffset.value = s.ptr.offset; els.ptrSize.value = s.ptr.size; els.ptrPivotX.value = s.ptr.px; els.ptrPivotY.value = s.ptr.py;
+                els.uiScale.value = s.ui.scale; els.uiX.value = s.ui.x; els.uiY.value = s.ui.y; els.uiOp.value = s.ui.op; els.showUI.checked = s.ui.show;
+                els.segments.value = s.params.segments; els.duration.value = s.params.duration; els.rounds.value = s.params.rounds; els.rewards.value = s.params.rewards;
+                els.showOverlay.checked = s.overlay; els.noRepeatMode.checked = s.params.noRepeat || false; ctx.isNoRepeat = s.params.noRepeat || false;
+                
+                if(s.wheel.randomMode !== undefined) els.randomWheelMode.checked = s.wheel.randomMode;
+                if(s.wheel.showSegmentSeams !== undefined) els.showSegmentSeams.checked = s.wheel.showSegmentSeams;
+                if(s.wheel.randomizeSliceLayout !== undefined) els.randomizeSliceLayout.checked = s.wheel.randomizeSliceLayout;
+                if(Array.isArray(s.wheel.segmentOrder)) ctx.segmentOrder = s.wheel.segmentOrder;
+                if(s.ui.showPopup !== undefined) els.showWinPopup.checked = s.ui.showPopup; else els.showWinPopup.checked = true;
+                if(s.ui.winScale !== undefined) { els.winScale.value = s.ui.winScale; els.winX.value = s.ui.winX; els.winY.value = s.ui.winY; }
+                
+                if(s.ui.popupType) { els.popupType.value = s.ui.popupType; els.popupType.dispatchEvent(new Event('change')); }
+                if(proj.images.winImages && Array.isArray(proj.images.winImages)) {
+                    ctx.winImages = proj.images.winImages;
+                    els.winImageStatus.textContent = `已載入專案的中獎圖 (${ctx.winImages.length}張)`;
+                }
+
+                if(proj.images.font) { ctx.customFontUrl = proj.images.font; applyCustomFont(ctx.customFontUrl); }
+
+                els.useSegments.checked = s.wheel.useSegments || false; els.useSegments.dispatchEvent(new Event('change'));
+
+                if(s.params.bezier) { handles[0].x = s.params.bezier[0]; handles[0].y = s.params.bezier[1]; handles[1].x = s.params.bezier[2]; handles[1].y = s.params.bezier[3]; drawCurve(); }
+
+                if(proj.images.bg && proj.images.bg.length > 50) { els.bgImage.src = proj.images.bg; els.bgImage.style.display='block'; }
+                
+                if(proj.images.wheelImages && Array.isArray(proj.images.wheelImages) && proj.images.wheelImages.length > 0) {
+                    ctx.wheelImages = proj.images.wheelImages;
+                    els.wheelStatus.textContent = `已載入專案的轉盤圖 (${ctx.wheelImages.length}張)`;
+                    if (!proj.images.wheel) els.wheelImage.src = ctx.wheelImages[0];
+                } else if (proj.images.wheel && proj.images.wheel.length > 50) {
+                    ctx.wheelImages = [proj.images.wheel];
+                    els.wheelStatus.textContent = `已載入 1 張轉盤圖`;
+                }
+
+                if(proj.images.wheel && proj.images.wheel.length > 50) els.wheelImage.src = proj.images.wheel;
+
+                if(proj.images.ptr && proj.images.ptr.length > 50) { els.ptrImg.src = proj.images.ptr; els.ptrImg.style.display='block'; els.defPtr.style.display='none'; }
+                if(proj.images.ui && proj.images.ui.length > 50) els.uiImage.src = proj.images.ui;
+                if(proj.images.slices && Array.isArray(proj.images.slices)) { ctx.segmentImages = proj.images.slices; ensureSegmentOrder(); rebuildSegmentedWheel(); els.sliceStatus.textContent = "已載入專案切片"; }
+
+                updateBackground(); updateWheelLayout(); updatePointerLayout(); updatePointerSize(); updatePointerPivot(); updateUILayout(); updateRotationOffset(); updateWinLayout();
+                
+                // 重置視角
+                ctx.scale = 1; ctx.panX = 0; ctx.panY = 0; updateStageView();
+                
+                els.overlayImage.style.display = s.overlay?'block':'none'; drawOverlay(parseInt(els.segments.value)); drawSeamLines(parseInt(els.segments.value)); syncSegmentSeamSettings(); resetPool();
+            } catch(err) { alert("讀取錯誤: 格式不符"); console.error(err); }
+        };
+        reader.readAsText(file);
+    });
+
+    // --- Helpers ---
+    function drawOverlay(segs) {
+        const size=1024, cvs=document.createElement('canvas'), c=cvs.getContext('2d');
+        cvs.width=size; cvs.height=size; const cx=size/2, cy=size/2, r=size*0.49;
+        c.clearRect(0,0,size,size);
+        for(let i=0; i<segs; i++) {
+            const angleStep = (2*Math.PI)/segs; const startAngle = -Math.PI/2 + i*angleStep; const endAngle = startAngle + angleStep;
+            c.beginPath(); c.moveTo(cx,cy); c.arc(cx,cy,r,startAngle,endAngle); c.fillStyle=i%2===0?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.05)'; c.fill();
+            c.beginPath(); c.moveTo(cx,cy); c.arc(cx,cy,r,startAngle,startAngle); c.strokeStyle='rgba(255,255,0,0.5)'; c.lineWidth=2; c.stroke();
+            const mid = startAngle + angleStep/2; const tr = r*0.85;
+            c.save(); c.translate(cx+tr*Math.cos(mid), cy+tr*Math.sin(mid)); c.rotate(mid + Math.PI/2);
+            c.font="bold 40px Arial"; c.textAlign="center"; c.textBaseline="middle"; c.fillStyle="#fff"; c.fillText((i+1)+"",0,0); c.restore();
+        }
+        c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2); c.strokeStyle='rgba(255,255,0,0.8)'; c.lineWidth=4; c.stroke();
+        els.overlayImage.src=cvs.toDataURL();
+    }
+    
+    function drawSeamLines(segs) {
+        const size=1024, cvs=document.createElement('canvas'), c=cvs.getContext('2d');
+        cvs.width=size; cvs.height=size; const cx=size/2, cy=size/2, r=size*0.49;
+        c.clearRect(0,0,size,size);
+        c.strokeStyle='rgba(0,0,0,0.8)'; c.lineWidth=1.5;
+        for(let i=0; i<segs; i++) {
+            const a = -Math.PI/2 + i*(2*Math.PI/segs);
+            c.beginPath(); c.moveTo(cx,cy); c.lineTo(cx+r*Math.cos(a), cy+r*Math.sin(a)); c.stroke();
+        }
+        c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2); c.stroke();
+        els.seamLineImage.src=cvs.toDataURL();
+        els.seamLineImage.style.display = els.showSegmentSeams.checked ? 'block' : 'none';
+    }
+
+    function createDefaultWheel() {
+        const segs=parseInt(els.segments.value)||12, size=600, cvs=document.createElement('canvas'), c=cvs.getContext('2d');
+        cvs.width=size; cvs.height=size; const cx=size/2, cy=size/2, r=size*0.48;
+        for(let i=0; i<segs; i++) {
+            const angleStep = (2*Math.PI)/segs; const s = -Math.PI/2 + i*angleStep; const e = s + angleStep;
+            c.beginPath(); c.moveTo(cx,cy); c.arc(cx,cy,r,s,e); c.fillStyle=i%2===0?'#ffb347':'#ff6b6b'; c.fill();
+            if(els.showSegmentSeams && els.showSegmentSeams.checked) { c.strokeStyle='rgba(0,0,0,0.8)'; c.lineWidth=1.5; c.stroke(); }
+        }
+        els.wheelImage.src=cvs.toDataURL();
+        ctx.wheelImages = [els.wheelImage.src];
+        els.wheelStatus.textContent = "使用預設轉盤圖";
+    }
+    
+    // Curve Editor
+    const curveCtx=els.canvas.getContext('2d'), handles=[{x:0.25,y:0.1,c:'#ff6b6b'},{x:0.25,y:1.0,c:'#4ecdc4'}];
+    let dragH=null;
+    function drawCurve() {
+        const w=els.canvas.width, h=els.canvas.height, p=15, gw=w-p*2, gh=h-p*2, tx=v=>p+v*gw, ty=v=>h-p-v*gh;
+        curveCtx.clearRect(0,0,w,h); curveCtx.strokeStyle='#333'; curveCtx.strokeRect(p,p,gw,gh);
+        curveCtx.strokeStyle='#555'; curveCtx.setLineDash([2,2]);
+        curveCtx.beginPath(); curveCtx.moveTo(tx(0),ty(0)); curveCtx.lineTo(tx(handles[0].x),ty(handles[0].y)); curveCtx.stroke();
+        curveCtx.beginPath(); curveCtx.moveTo(tx(1),ty(1)); curveCtx.lineTo(tx(handles[1].x),ty(handles[1].y)); curveCtx.stroke();
+        curveCtx.setLineDash([]); curveCtx.strokeStyle='#ffd54f'; curveCtx.lineWidth=2;
+        curveCtx.beginPath(); curveCtx.moveTo(tx(0),ty(0));
+        curveCtx.bezierCurveTo(tx(handles[0].x),ty(handles[0].y),tx(handles[1].x),ty(handles[1].y),tx(1),ty(1)); curveCtx.stroke();
+        handles.forEach(h=>{ curveCtx.fillStyle=h.c; curveCtx.beginPath(); curveCtx.arc(tx(h.x),ty(h.y),5,0,Math.PI*2); curveCtx.fill(); });
+        ctx.bezier = [handles[0].x, handles[0].y, handles[1].x, handles[1].y];
+    }
+    els.canvas.addEventListener('mousedown', e=>{
+        const r=els.canvas.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top, w=els.canvas.width, h=els.canvas.height, p=15, gw=w-p*2, gh=h-p*2;
+        handles.forEach(ha=>{ if(Math.hypot(mx-(p+ha.x*gw), my-(h-p-ha.y*gh))<15) dragH=ha; });
+    });
+    window.addEventListener('mousemove', e=>{
+        if(!dragH) return; const r=els.canvas.getBoundingClientRect(), w=els.canvas.width, h=els.canvas.height, p=15, gw=w-p*2, gh=h-p*2;
+        dragH.x=Math.max(0,Math.min(1,(e.clientX-r.left-p)/gw)); dragH.y=(h-p-(e.clientY-r.top))/gh; drawCurve();
+    });
+    window.addEventListener('mouseup', ()=>dragH=null);
+
+    // Anim
+    function solveCubicBezier(t,p1x,p1y,p2x,p2y) {
+        const ax=3*p1x-3*p2x+1, bx=3*p2x-6*p1x, cx=3*p1x, ay=3*p1y-3*p2y+1, by=3*p2y-6*p1y, cy=3*p1y;
+        function sY(t){return((ay*t+by)*t+cy)*t} let t2=t; 
+        for(let i=0;i<8;i++){ const x2=((ax*t2+bx)*t2+cx)*t2-t; if(Math.abs(x2)<1e-5)break; const d2=(3*ax*t2+2*bx)*t2+cx; t2-=x2/d2; }
+        return sY(t2);
+    }
+    function triggerClicker() { els.clickerTarget.classList.remove('hitting'); void els.clickerTarget.offsetWidth; els.clickerTarget.classList.add('hitting'); }
+    
+    let st=0, dur=0, sRot=0, tRot=0, finalAngle=0;
+    
+    function animate(time) {
+        if(!ctx.isSpinning) return; if(!st) st=time;
+        const elap=(time-st)/1000, prog=elap/dur;
+        
+        if(prog>=1) { 
+            ctx.isSpinning=false; els.spinBtn.disabled=false;
+            if(ctx.isNoRepeat && ctx.usedPool.length >= parseInt(els.segments.value)) els.spinBtn.textContent = "全部轉完 (重置)";
+            showResult(); ctx.rotation = sRot + tRot; renderRotation(ctx.rotation); return; 
+        }
+
+        const ep=solveCubicBezier(prog,handles[0].x,handles[0].y,handles[1].x,handles[1].y);
+        const cur=sRot+tRot*ep; ctx.rotation=cur; renderRotation(cur);
+        
+        let off=getPointerOffsetDeg(); const segAngle=360/ctx.segments;
+        const idx = Math.floor( ((cur - off) % 360) / segAngle );
+        if(idx !== ctx.lastPegIndex) { triggerClicker(); ctx.lastPegIndex=idx; }
+        
+        requestAnimationFrame(animate);
+    }
+
+    function renderRotation(deg) {
+        const vizOffset = parseInt(els.imgOffset.value) || 0; els.wheelRotator.style.transform=`rotate(${deg + vizOffset}deg)`;
+    }
+
+    function getPointerOffsetDeg() {
+        if(els.ptrPos.value==='right') return 90; else if(els.ptrPos.value==='bottom') return 180; else if(els.ptrPos.value==='left') return 270;
+        return 0; // Top
+    }
+
+    els.spinBtn.addEventListener('click', ()=>{
+        if(ctx.isSpinning) return; 
+        if(ctx.isNoRepeat && ctx.usedPool.length >= parseInt(els.segments.value)) { resetPool(); return; }
+
+        clearTimeout(ctx.hidePopupTimeout);
+        els.winDisplay.classList.remove('show');
+        
+        if (!els.useSegments.checked && els.randomWheelMode.checked && ctx.wheelImages.length > 1) {
+            const randIdx = Math.floor(Math.random() * ctx.wheelImages.length);
+            els.wheelImage.src = ctx.wheelImages[randIdx];
+        }
+
+        if (els.useSegments.checked && els.randomizeSliceLayout.checked) {
+            setSegmentOrderRandom();
+            rebuildSegmentedWheel();
+        }
+
+        dur=parseFloat(els.duration.value)||3; const r=parseFloat(els.rounds.value)||5; ctx.segments=parseInt(els.segments.value)||12;
+
+        const winnerIndex = getNextWinnerIndex();
+        if (winnerIndex < 0) { resetPool(); return; }
+        ctx.winnerIndex = winnerIndex;
+        const segAngle = 360 / ctx.segments; const ptrOffset = getPointerOffsetDeg();
+        const halfWedge = segAngle / 2; const jitter = (Math.random() * (segAngle * 0.8)) - (segAngle * 0.4); 
+        const wedgeCenter = (winnerIndex * segAngle) + halfWedge;
+        const targetPos = (360 - wedgeCenter) + ptrOffset + jitter;
+        
+        sRot = ctx.rotation; const currentMod = sRot % 360;
+        let dist = targetPos - currentMod; if(dist < 0) dist += 360; 
+        tRot = (360 * r) + dist;
+        
+        st=0; ctx.isSpinning=true; els.spinBtn.disabled=true; els.hud.textContent="Spinning..."; ctx.lastPegIndex = -1;
+        requestAnimationFrame(animate);
+    });
+
+    function showResult() {
+        const idx = ctx.winnerIndex;
+        const prizeIdx = Number.isFinite(ctx.winnerPrizeIndex) ? ctx.winnerPrizeIndex : idx;
+        const rw=els.rewards.value.split(/[,，\n]/).map(s=>s.trim()).filter(s=>s);
+        const txt=rw[prizeIdx]||`#${prizeIdx+1}`; 
+        els.hud.innerHTML=`Result: <b style="color:#fff">${txt}</b>`;
+        
+        if(els.showWinPopup.checked) {
+            if (els.popupType.value === 'image' && ctx.winImages.length > 0) {
+                els.winText.style.display = 'none';
+                els.winImageEl.style.display = 'block';
+                const imgData = ctx.winImages.length === 1 ? ctx.winImages[0] : ctx.winImages[prizeIdx];
+                
+                if (imgData) {
+                    els.winImageEl.src = imgData;
+                } else {
+                    els.winImageEl.style.display = 'none';
+                    els.winText.style.display = 'block';
+                    els.winText.textContent = txt; 
+                }
+            } else {
+                els.winImageEl.style.display = 'none';
+                els.winText.style.display = 'block';
+                els.winText.textContent = txt; 
+            }
+            
+            els.winDisplay.classList.add('show'); 
+
+            clearTimeout(ctx.hidePopupTimeout);
+            ctx.hidePopupTimeout = setTimeout(() => {
+                els.winDisplay.classList.remove('show');
+            }, 1500);
+        }
+    }
+
+    els.resetBtn.addEventListener('click', ()=>{ 
+        if(ctx.isSpinning)return; 
+        clearTimeout(ctx.hidePopupTimeout);
+        ctx.rotation=0; renderRotation(0); els.winDisplay.classList.remove('show'); els.hud.textContent="Ready"; resetPool();
+    });
+
+    // Init
+    createDefaultWheel(); drawOverlay(12); drawSeamLines(12); drawCurve(); syncSegmentSeamSettings(); updateBackground(); updateWheelLayout(); updatePointerPivot(); updatePointerSize(); updateUILayout(); updateWinLayout();
+    resetPool();
+
+</script>
+</body>
+</html>

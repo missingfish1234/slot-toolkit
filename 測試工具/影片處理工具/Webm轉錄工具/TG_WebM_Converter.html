@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>跨平台貼圖剪輯器 (V9 幀率解鎖版)</title>
+    <style>
+        :root { --bg: #121212; --card: #1e1e24; --text: #e0e0e0; --accent: #00d2ff; --primary: #4a90e2; --border: #333; --success: #4caf50; --danger: #ff5252; --warning: #ff9800; --panel: #25252c; --line: #06c755; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; padding: 20px; margin: 0; }
+        .card { background: var(--card); padding: 25px; border-radius: 16px; width: 100%; max-width: 900px; border: 1px solid var(--border); box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
+        h2 { margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 15px; display: flex; justify-content: space-between; align-items: baseline; }
+        .version-tag { font-size: 12px; color: #fff; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 4px 10px; border-radius: 12px; font-weight: bold;}
+        input[type="file"] { width: 100%; padding: 10px; margin-bottom: 10px; background: #2a2a35; border: 1px dashed #888; border-radius: 8px; color: var(--text); cursor: pointer; box-sizing: border-box; }
+        
+        .zoom-row { display: flex; align-items: center; justify-content: flex-end; font-size: 13px; color: #888; margin-bottom: 10px; }
+        .zoom-row input[type="range"] { margin: 0 10px; width: 150px; }
+
+        .preview-container { position: relative; background: #000; border-radius: 12px; overflow: auto; border: 1px solid var(--border); min-height: 250px; display: flex; justify-content: center; align-items: flex-start; padding: 10px; box-sizing: border-box; }
+        .preview-wrapper { position: relative; line-height: 0; }
+        #mainCanvas { cursor: crosshair; }
+        #timeDisplay { position: absolute; top: 10px; left: 10px; color: var(--accent); background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px; font-family: monospace; z-index: 10; pointer-events: none; font-weight: bold; }
+        
+        /* 時間軸 */
+        .timeline-container { margin: 20px 0; padding: 15px 10px; background: var(--panel); border-radius: 8px; border: 1px solid var(--border); user-select: none; }
+        .timeline-track { position: relative; width: 100%; height: 24px; background: #1a1a24; border-radius: 4px; cursor: pointer; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); }
+        .timeline-range { position: absolute; height: 100%; background: rgba(74, 144, 226, 0.4); border: 1px solid var(--primary); border-radius: 4px; cursor: grab; }
+        .timeline-range:active { cursor: grabbing; }
+        .timeline-range.overtime { background: rgba(255, 82, 82, 0.4); border-color: var(--danger); }
+        .timeline-handle { position: absolute; top: 50%; width: 12px; height: 32px; background: #fff; border-radius: 4px; transform: translate(-50%, -50%); cursor: ew-resize; z-index: 2; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        .timeline-playhead { position: absolute; top: -5px; height: 34px; width: 2px; background: var(--accent); transform: translateX(-50%); z-index: 3; pointer-events: none; box-shadow: 0 0 5px var(--accent); }
+        .timeline-labels { display: flex; justify-content: space-between; font-size: 11px; color: #888; margin-top: 5px; font-family: monospace; }
+
+        .control-row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; background: var(--panel); padding: 15px; border-radius: 12px; border: 1px solid var(--border); }
+        .output-row { background: #1a1a24; border: 1px solid #4a90e2; box-shadow: 0 0 10px rgba(74, 144, 226, 0.1); transition: 0.3s; }
+        .output-row.line-mode { border-color: var(--line); box-shadow: 0 0 10px rgba(6, 199, 85, 0.2); }
+        
+        .text-fx-row { border: 1px solid #9c27b0; background: rgba(156, 39, 176, 0.05); }
+        .section-title { width: 100%; margin: 0 0 10px 0; font-size: 14px; color: #b388ff; border-bottom: 1px solid #9c27b0; padding-bottom: 5px; font-weight: bold; }
+        .section-title.plat { color: var(--primary); border-bottom-color: var(--primary); }
+        
+        .input-item { display: flex; flex-direction: column; flex: 1; min-width: 100px; }
+        .input-item.full { min-width: 100%; }
+        label { font-size: 12px; color: #aaa; margin-bottom: 6px; font-weight: bold; }
+        input[type="number"], input[type="text"], select, input[type="color"] { padding: 8px; background: #121212; border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 14px; box-sizing: border-box; }
+        input[type="range"] { margin-top: 5px; }
+        input:focus, select:focus { border-color: var(--primary); outline: none; }
+        
+        .display-val { font-size: 16px; font-weight: bold; color: var(--accent); margin-top: 5px; }
+        
+        .btn-group { display: flex; gap: 10px; margin-top: 10px; }
+        button { flex: 1; padding: 14px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 15px; }
+        #playBtn { background: #444; color: white; }
+        #playBtn:hover { background: #555; }
+        #recordBtn { background: linear-gradient(135deg, var(--primary), #357abd); color: white; }
+        #recordBtn.line-btn { background: linear-gradient(135deg, var(--line), #04a045); }
+        #recordBtn:disabled { background: #333; color: #666; cursor: not-allowed; }
+        
+        #downloadLink { display: none; text-align: center; background: var(--success); color: white; padding: 14px; border-radius: 8px; text-decoration: none; margin-top: 15px; font-weight: bold; }
+        .hint { color: var(--danger); font-size: 13px; margin-top: 10px; display: block; text-align: center; }
+        .info-box { display: none; background: rgba(6, 199, 85, 0.1); border-left: 4px solid var(--line); padding: 10px; font-size: 13px; color: #ddd; margin-top: 10px; width: 100%; box-sizing: border-box; }
+        
+        #v { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; z-index: -100; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>跨平台貼圖剪輯器 <span class="version-tag">V9 幀率解鎖版</span></h2>
+        <input type="file" id="videoUpload" accept="video/mp4, video/webm, video/mov">
+        
+        <div class="zoom-row">
+            預覽畫面縮放: <input type="range" id="viewZoom" min="0.1" max="1.5" step="0.05" value="1" disabled>
+            <span id="zoomLabel">100%</span>
+        </div>
+
+        <div class="preview-container">
+            <div class="preview-wrapper">
+                <div id="timeDisplay">等待影片...</div>
+                <canvas id="mainCanvas"></canvas>
+            </div>
+        </div>
+
+        <div class="timeline-container">
+            <div class="timeline-track" id="tTrack">
+                <div class="timeline-range" id="tRange"></div>
+                <div class="timeline-handle" id="hStart"></div>
+                <div class="timeline-handle" id="hEnd"></div>
+                <div class="timeline-playhead" id="tPlayhead"></div>
+            </div>
+            <div class="timeline-labels">
+                <span id="tLabelStart">00:00</span>
+                <span id="tLabelDur">長度: 0.0s</span>
+                <span id="tLabelTotal">00:00</span>
+            </div>
+        </div>
+
+        <div class="control-row">
+            <div class="input-item"><label>起點 (秒)</label><input type="number" id="startT" value="0" step="0.1" min="0"></div>
+            <div class="input-item"><label>終點 (秒)</label><input type="number" id="endT" value="2" step="0.1" min="0"></div>
+            <div class="input-item"><label>擷取 X</label><input type="number" id="cX" value="0"></div>
+            <div class="input-item"><label>擷取 Y</label><input type="number" id="cY" value="0"></div>
+            <div class="input-item"><label>擷取寬</label><input type="number" id="cW" value="512"></div>
+            <div class="input-item"><label>擷取高</label><input type="number" id="cH" value="512"></div>
+        </div>
+
+        <div class="control-row text-fx-row">
+            <div class="section-title">✨ 字幕特效引擎 (Text FX)</div>
+            <div class="input-item full"><label>文字內容 (留空則不顯示)</label><input type="text" id="txtStr" placeholder="例如：BIG WIN!"></div>
+            <div class="input-item"><label>字型</label><select id="txtFont"><option value="sans-serif">黑體</option><option value="serif">明體</option><option value="Impact">粗礦 (Impact)</option><option value="Comic Sans MS">手寫風</option></select></div>
+            <div class="input-item"><label>大小</label><input type="number" id="txtSize" value="80"></div>
+            <div class="input-item"><label>字體色</label><input type="color" id="txtColor" value="#ffffff"></div>
+            <div class="input-item"><label>筆畫色</label><input type="color" id="txtStroke" value="#000000"></div>
+            <div class="input-item"><label>粗細</label><input type="number" id="txtStrokeW" value="4"></div>
+            
+            <div class="input-item full" style="flex-direction: row; gap: 15px; margin-top: 10px;">
+                <div style="flex:1"><label>X 位置 (%)</label><input type="range" id="txtX" min="0" max="100" value="50" style="width:100%"></div>
+                <div style="flex:1"><label>Y 位置 (%)</label><input type="range" id="txtY" min="0" max="100" value="80" style="width:100%"></div>
+            </div>
+
+            <div class="input-item"><label>▶ 進場動態</label><select id="txtIn"><option value="none">無</option><option value="fade">淡入</option><option value="scale" selected>縮放彈出</option><option value="flyUp">向上浮出</option><option value="slideRight">向右淡入</option><option value="slideLeft">向左淡入</option></select></div>
+            <div class="input-item"><label>∞ 持續動態</label><select id="txtCont"><option value="none">無</option><option value="glow">發光</option><option value="pulse" selected>心跳跳動</option><option value="float">漂浮</option></select></div>
+            <div class="input-item"><label>◀ 退場動態</label><select id="txtOut"><option value="none">無</option><option value="fade">淡出</option><option value="scale" selected>縮小消失</option><option value="slideDown">向下淡出</option><option value="slideLeft">向左淡出</option><option value="slideRight">向右淡出</option></select></div>
+        </div>
+
+        <div class="control-row output-row" id="outputPanel">
+            <div class="section-title plat" id="platTitle">⚙️ 目標平台與輸出設定</div>
+            
+            <div class="input-item full" style="margin-bottom: 10px;">
+                <label>選擇目標平台</label>
+                <select id="platformTarget" style="font-size: 16px; font-weight: bold; padding: 10px;">
+                    <option value="telegram">✈️ Telegram 動態貼圖 (強壓 256KB, 30FPS)</option>
+                    <option value="line">💬 LINE 中繼高畫質素材 (解鎖畫質, 10FPS 完美幀率)</option>
+                    <option value="custom">🛠️ 自訂高畫質影片 (自由設定)</option>
+                </select>
+                <div id="lineInfoBox" class="info-box">
+                    💡 <b>LINE APNG 完美壓縮指南：</b><br>
+                    1. 本模式將輸出 <b>10 FPS</b> 的高畫質 WebM (預期大於 300KB)。<br>
+                    2. 將檔案上傳至 <a href="https://ezgif.com/webm-to-apng" target="_blank" style="color:var(--accent);">Ezgif.com</a> 轉換。<br>
+                    3. 點擊 <b>Optimize (最佳化)</b>，將 Color Reduction (色彩數) 降至 64 或 128。<br>
+                    這才是保留流暢度又縮小檔案的唯一解法！
+                </div>
+            </div>
+
+            <div class="input-item" id="fpsContainer" style="display: none; margin-bottom: 10px;">
+                <label>輸出幀率 (FPS)</label>
+                <select id="outFps">
+                    <option value="10">10 FPS (省空間/LINE極限)</option>
+                    <option value="15">15 FPS (一般流暢)</option>
+                    <option value="30" selected>30 FPS (超流暢)</option>
+                </select>
+            </div>
+
+            <div class="input-item"><label>輸出檔案命名</label><input type="text" id="outFilename" value="my_sticker"></div>
+            
+            <div class="input-item" id="customScaleContainer" style="display: none; flex: 2;">
+                <label>整體輸出長邊像素 (自由縮放)</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="range" id="outEdgeSlider" min="64" max="1920" value="512" style="flex: 1; cursor: pointer;">
+                    <input type="number" id="outEdgeNum" value="512" style="width: 80px; text-align: center;"> px
+                </div>
+            </div>
+
+            <div class="input-item"><label>最終解析度</label><div class="display-val" id="outDimDisplay">0 x 0 px</div></div>
+            <div class="input-item"><label>引擎壓制狀態</label><div class="display-val" id="estSizeDisplay" style="color: var(--success);">約 0 KB</div></div>
+        </div>
+
+        <div class="btn-group">
+            <button id="playBtn" disabled>⏯ 開啟循環預覽</button>
+            <button id="recordBtn" disabled>⏺ 壓製目標素材</button>
+        </div>
+        <a id="downloadLink">⬇️ 下載檔案</a>
+        <span class="hint" id="warningText"></span>
+    </div>
+
+    <video id="v" muted playsinline></video>
+
+    <script>
+        const v = document.getElementById('v'), canvas = document.getElementById('mainCanvas'), ctx = canvas.getContext('2d');
+        const playBtn = document.getElementById('playBtn'), viewZoom = document.getElementById('viewZoom');
+        const tTrack = document.getElementById('tTrack'), tRange = document.getElementById('tRange');
+        const hStart = document.getElementById('hStart'), hEnd = document.getElementById('hEnd'), tPlayhead = document.getElementById('tPlayhead');
+        
+        const platformTarget = document.getElementById('platformTarget');
+        const customScaleContainer = document.getElementById('customScaleContainer');
+        const fpsContainer = document.getElementById('fpsContainer');
+        const outFps = document.getElementById('outFps');
+        const outEdgeSlider = document.getElementById('outEdgeSlider');
+        const outEdgeNum = document.getElementById('outEdgeNum');
+        const outputPanel = document.getElementById('outputPanel');
+        const lineInfoBox = document.getElementById('lineInfoBox');
+        const recordBtn = document.getElementById('recordBtn');
+
+        let scale = 1.0, isLooping = false, vidDuration = 0.1;
+        let isDraggingCanvas = false, dragActionCanvas = null, dragStartX = 0, dragStartY = 0, initialCrop = {};
+        let activeTimelineDrag = null, timelineDragOffset = 0, renderLoopId = null;
+        window.targetBps = 1500000; 
+        let currentRecordFps = 30;
+
+        function applyTextOverlay(context, isPreview, outW, outH) {
+            const text = document.getElementById('txtStr').value;
+            if (!text) return; 
+
+            const t = v.currentTime;
+            const start = parseFloat(document.getElementById('startT').value);
+            const end = parseFloat(document.getElementById('endT').value);
+            const dur = end - start;
+
+            if (t < start - 0.1 || t > end + 0.1) return;
+
+            const introDur = Math.min(0.4, dur * 0.3); 
+            const outroDur = Math.min(0.4, dur * 0.3); 
+
+            let alpha = 1.0; let s = 1.0; let yOffset = 0; let xOffset = 0; let blurGlow = 0;
+
+            if (t < start + introDur) {
+                let p = (t - start) / introDur; if (p < 0) p = 0;
+                const easeOut = 1 - Math.pow(1 - p, 3); 
+                const type = document.getElementById('txtIn').value;
+                if (type === 'fade') alpha = p;
+                if (type === 'scale') { alpha = p; s = easeOut; }
+                if (type === 'flyUp') { alpha = p; yOffset = (1 - easeOut) * 50; }
+                if (type === 'slideRight') { alpha = p; xOffset = -(1 - easeOut) * 50; } 
+                if (type === 'slideLeft') { alpha = p; xOffset = (1 - easeOut) * 50; }   
+            }
+            else if (t > end - outroDur) {
+                let p = (end - t) / outroDur; if (p < 0) p = 0; 
+                const easeIn = 1 - Math.pow(p, 3); 
+                const type = document.getElementById('txtOut').value;
+                if (type === 'fade') alpha = p;
+                if (type === 'scale') { alpha = p; s = Math.pow(p, 2); }
+                if (type === 'slideDown') { alpha = p; yOffset = easeIn * 50; }   
+                if (type === 'slideLeft') { alpha = p; xOffset = -easeIn * 50; }  
+                if (type === 'slideRight') { alpha = p; xOffset = easeIn * 50; }  
+            }
+
+            const contType = document.getElementById('txtCont').value;
+            if (t >= start && t <= end) {
+                const elapsed = t - start;
+                if (contType === 'pulse') s *= 1 + 0.08 * Math.sin(elapsed * 12);
+                if (contType === 'float') yOffset += 12 * Math.sin(elapsed * 4);
+                if (contType === 'glow') blurGlow = 10 + 15 * Math.abs(Math.sin(elapsed * 6));
+            }
+
+            const pctX = document.getElementById('txtX').value / 100;
+            const pctY = document.getElementById('txtY').value / 100;
+            const baseSize = parseInt(document.getElementById('txtSize').value);
+            const strokeW = parseInt(document.getElementById('txtStrokeW').value);
+
+            context.save(); context.globalAlpha = alpha;
+
+            let absX, absY, sizeMultiplier;
+            if (isPreview) {
+                const cx = parseFloat(document.getElementById('cX').value);
+                const cy = parseFloat(document.getElementById('cY').value);
+                const cw = parseFloat(document.getElementById('cW').value);
+                const ch = parseFloat(document.getElementById('cH').value);
+                absX = (cx + cw * pctX) * scale; absY = (cy + ch * pctY) * scale;
+                sizeMultiplier = scale; 
+            } else {
+                const cw = parseFloat(document.getElementById('cW').value);
+                absX = outW * pctX; absY = outH * pctY;
+                sizeMultiplier = outW / cw; 
+            }
+
+            context.translate(absX + xOffset * sizeMultiplier, absY + yOffset * sizeMultiplier);
+            context.scale(s, s);
+
+            context.font = `900 ${baseSize * sizeMultiplier}px ${document.getElementById('txtFont').value}`;
+            context.textAlign = 'center'; context.textBaseline = 'middle';
+            context.fillStyle = document.getElementById('txtColor').value;
+            context.strokeStyle = document.getElementById('txtStroke').value;
+            context.lineWidth = strokeW * sizeMultiplier; context.lineJoin = 'round';
+
+            if (blurGlow > 0) { context.shadowColor = context.strokeStyle; context.shadowBlur = blurGlow * sizeMultiplier; }
+            if (context.lineWidth > 0) context.strokeText(text, 0, 0);
+            context.shadowBlur = 0; context.fillText(text, 0, 0);
+            context.restore();
+        }
+
+        function updateOutputEstimation() {
+            const cw = parseInt(document.getElementById('cW').value) || 512;
+            const ch = parseInt(document.getElementById('cH').value) || 512;
+            let start = parseFloat(document.getElementById('startT').value), end = parseFloat(document.getElementById('endT').value);
+            if(start < 0) start = 0; if(end > vidDuration) end = vidDuration;
+            const duration = Math.max(0.1, end - start);
+            
+            const plat = platformTarget.value;
+            let outW, outH;
+            
+            if (plat === 'telegram') {
+                customScaleContainer.style.display = 'none';
+                fpsContainer.style.display = 'none';
+                lineInfoBox.style.display = 'none';
+                outputPanel.classList.remove('line-mode');
+                recordBtn.classList.remove('line-btn');
+                
+                const s = Math.min(512 / cw, 512 / ch); outW = Math.round(cw * s); outH = Math.round(ch * s);
+                currentRecordFps = 30; // TG 順暢優先
+                
+                const areaRatio = (outW * outH) / (512 * 512);
+                const targetKB = Math.min((180 * areaRatio) * duration, 220); // 強壓
+                window.targetBps = Math.floor((targetKB * 1024 * 8) / duration);
+                
+                const sizeDisplay = document.getElementById('estSizeDisplay');
+                sizeDisplay.innerText = `TG 安全強壓模式 (${currentRecordFps} FPS)`;
+                sizeDisplay.style.color = "var(--warning)";
+                
+            } else if (plat === 'line') {
+                customScaleContainer.style.display = 'none';
+                fpsContainer.style.display = 'none';
+                lineInfoBox.style.display = 'block';
+                outputPanel.classList.add('line-mode');
+                recordBtn.classList.add('line-btn');
+                
+                const s = Math.min(320 / cw, 270 / ch); outW = Math.round(cw * s); outH = Math.round(ch * s);
+                if(outW % 2 !== 0) outW -= 1; if(outH % 2 !== 0) outH -= 1;
+                
+                currentRecordFps = 10; // LINE 完美 10 FPS
+                window.targetBps = 2500000; // 不鎖 Bitrate，保證畫面清晰
+                
+                const sizeDisplay = document.getElementById('estSizeDisplay');
+                sizeDisplay.innerText = `LINE 高清提取模式 (${currentRecordFps} FPS 鎖定)`;
+                sizeDisplay.style.color = "var(--line)";
+                
+            } else {
+                customScaleContainer.style.display = 'block';
+                fpsContainer.style.display = 'block';
+                lineInfoBox.style.display = 'none';
+                outputPanel.classList.remove('line-mode');
+                recordBtn.classList.remove('line-btn');
+                
+                const targetEdge = parseInt(outEdgeNum.value) || 512;
+                const s = targetEdge / Math.max(cw, ch); outW = Math.round(cw * s); outH = Math.round(ch * s);
+                currentRecordFps = parseInt(outFps.value);
+                window.targetBps = 4000000; // 高畫質無限制
+                
+                const sizeDisplay = document.getElementById('estSizeDisplay');
+                sizeDisplay.innerText = `高畫質無限制 (${currentRecordFps} FPS)`;
+                sizeDisplay.style.color = "var(--accent)";
+            }
+
+            document.getElementById('outDimDisplay').innerText = `${outW} x ${outH} px`;
+            updateTimelineUI(start, end, plat);
+        }
+
+        platformTarget.addEventListener('change', updateOutputEstimation);
+        outFps.addEventListener('change', updateOutputEstimation);
+        outEdgeSlider.addEventListener('input', (e) => { outEdgeNum.value = e.target.value; updateOutputEstimation(); });
+        outEdgeNum.addEventListener('input', (e) => { outEdgeSlider.value = e.target.value; updateOutputEstimation(); });
+        ['cW', 'cH'].forEach(id => document.getElementById(id).addEventListener('input', updateOutputEstimation));
+
+        function updateTimelineUI(start, end, plat) {
+            if(!vidDuration) return;
+            const sPct = (start / vidDuration) * 100, ePct = (end / vidDuration) * 100;
+            hStart.style.left = sPct + '%'; hEnd.style.left = ePct + '%';
+            tRange.style.left = sPct + '%'; tRange.style.width = (ePct - sPct) + '%';
+            const dur = end - start;
+            document.getElementById('tLabelDur').innerText = `長度: ${dur.toFixed(2)}s`;
+            
+            const warningText = document.getElementById('warningText');
+            if(plat === 'telegram' && dur > 3.05) { 
+                tRange.classList.add('overtime'); warningText.innerText = "❌ TG 模式警告：長度超過 3 秒，會被機器人拒絕！"; 
+            } else if (plat === 'line' && dur > 4.05) {
+                tRange.classList.add('overtime'); warningText.innerText = "❌ LINE 模式警告：長度超過 4 秒，不符合官方規定！";
+            } else { 
+                tRange.classList.remove('overtime'); warningText.innerText = ""; 
+            }
+        }
+
+        function getTimeFromMouse(e) { const rect = tTrack.getBoundingClientRect(); let x = e.clientX - rect.left; x = Math.max(0, Math.min(x, rect.width)); return (x / rect.width) * vidDuration; }
+
+        hStart.onmousedown = (e) => { activeTimelineDrag = 'start'; if(isLooping) v.pause(); e.stopPropagation(); };
+        hEnd.onmousedown = (e) => { activeTimelineDrag = 'end'; if(isLooping) v.pause(); e.stopPropagation(); };
+        tRange.onmousedown = (e) => { activeTimelineDrag = 'range'; timelineDragOffset = getTimeFromMouse(e) - parseFloat(document.getElementById('startT').value); if(isLooping) v.pause(); e.stopPropagation(); };
+        tTrack.onmousedown = (e) => { if(!activeTimelineDrag) v.currentTime = getTimeFromMouse(e); };
+
+        window.addEventListener('mousemove', (e) => {
+            if (!activeTimelineDrag) return;
+            let start = parseFloat(document.getElementById('startT').value), end = parseFloat(document.getElementById('endT').value);
+            const t = getTimeFromMouse(e);
+            if (activeTimelineDrag === 'start') { start = Math.min(t, end - 0.1); v.currentTime = start; } 
+            else if (activeTimelineDrag === 'end') { end = Math.max(t, start + 0.1); v.currentTime = end; } 
+            else if (activeTimelineDrag === 'range') { const dur = end - start; start = t - timelineDragOffset; if(start < 0) start = 0; if(start + dur > vidDuration) start = vidDuration - dur; end = start + dur; v.currentTime = start; }
+            document.getElementById('startT').value = start.toFixed(2); document.getElementById('endT').value = end.toFixed(2); updateOutputEstimation();
+        });
+
+        window.addEventListener('mouseup', () => { if (activeTimelineDrag) { activeTimelineDrag = null; if (isLooping) v.play().catch(e=>{}); } isDraggingCanvas = false; dragActionCanvas = null; });
+
+        document.getElementById('startT').addEventListener('input', (e) => { let s = parseFloat(e.target.value); v.currentTime = s; updateOutputEstimation(); });
+        document.getElementById('endT').addEventListener('input', (e) => { let eT = parseFloat(e.target.value); v.currentTime = eT; updateOutputEstimation(); });
+
+        document.getElementById('videoUpload').onchange = (e) => {
+            if(!e.target.files[0]) return;
+            isLooping = false; v.pause(); playBtn.innerText = "⏯ 開啟循環預覽"; playBtn.style.background = "#444";
+            activeTimelineDrag = null; isDraggingCanvas = false;
+
+            v.src = URL.createObjectURL(e.target.files[0]); v.load();
+            v.onloadedmetadata = () => {
+                vidDuration = v.duration; document.getElementById('tLabelTotal').innerText = vidDuration.toFixed(1) + 's';
+                document.getElementById('startT').value = "0.00";
+                document.getElementById('endT').value = Math.min(2.0, vidDuration).toFixed(2);
+                
+                document.getElementById('cW').value = v.videoWidth; document.getElementById('cH').value = v.videoHeight;
+                const maxW = document.querySelector('.preview-container').clientWidth - 40;
+                scale = v.videoWidth > maxW ? maxW / v.videoWidth : 1; viewZoom.value = scale; viewZoom.disabled = false;
+                document.getElementById('zoomLabel').innerText = Math.round(scale*100)+'%';
+                
+                canvas.width = v.videoWidth * scale; canvas.height = v.videoHeight * scale;
+                recordBtn.disabled = false; playBtn.disabled = false;
+                
+                v.currentTime = 0; updateOutputEstimation();
+                if(!renderLoopId) render();
+            };
+        };
+
+        playBtn.onclick = () => {
+            isLooping = !isLooping;
+            if (isLooping) {
+                const st = parseFloat(document.getElementById('startT').value), et = parseFloat(document.getElementById('endT').value);
+                if (v.currentTime < st || v.currentTime >= et) v.currentTime = st;
+                v.play().catch(e => { alert("點擊畫面重試"); }); playBtn.innerText = "⏸ 停止循環"; playBtn.style.background = "#d9534f";
+            } else { v.pause(); playBtn.innerText = "⏯ 開啟循環預覽"; playBtn.style.background = "#444"; }
+        };
+
+        viewZoom.addEventListener('input', (e) => { scale = parseFloat(e.target.value); document.getElementById('zoomLabel').innerText = Math.round(scale*100)+'%'; if(v.videoWidth) { canvas.width = v.videoWidth * scale; canvas.height = v.videoHeight * scale; } });
+
+        function getRawMousePos(e) { const rect = canvas.getBoundingClientRect(); return { rawX: (e.clientX - rect.left) / scale, rawY: (e.clientY - rect.top) / scale }; }
+
+        canvas.onmousemove = (e) => {
+            if (isDraggingCanvas) return;
+            const { rawX: rx, rawY: ry } = getRawMousePos(e);
+            let cx = parseFloat(document.getElementById('cX').value), cy = parseFloat(document.getElementById('cY').value), cw = parseFloat(document.getElementById('cW').value), ch = parseFloat(document.getElementById('cH').value);
+            const tol = 15 / scale;
+            if (Math.abs(rx - cx) <= tol && Math.abs(ry - cy) <= tol) canvas.style.cursor = 'nwse-resize';
+            else if (Math.abs(rx - (cx+cw)) <= tol && Math.abs(ry - cy) <= tol) canvas.style.cursor = 'nesw-resize';
+            else if (Math.abs(rx - cx) <= tol && Math.abs(ry - (cy+ch)) <= tol) canvas.style.cursor = 'nesw-resize';
+            else if (Math.abs(rx - (cx+cw)) <= tol && Math.abs(ry - (cy+ch)) <= tol) canvas.style.cursor = 'nwse-resize';
+            else if (rx > cx && rx < cx+cw && ry > cy && ry < cy+ch) canvas.style.cursor = 'move';
+            else canvas.style.cursor = 'crosshair';
+        };
+
+        canvas.onmousedown = (e) => {
+            const { rawX: rx, rawY: ry } = getRawMousePos(e);
+            let cx = parseFloat(document.getElementById('cX').value), cy = parseFloat(document.getElementById('cY').value), cw = parseFloat(document.getElementById('cW').value), ch = parseFloat(document.getElementById('cH').value);
+            const tol = 15 / scale;
+            if (Math.abs(rx - cx) <= tol && Math.abs(ry - cy) <= tol) dragActionCanvas = 'tl';
+            else if (Math.abs(rx - (cx+cw)) <= tol && Math.abs(ry - cy) <= tol) dragActionCanvas = 'tr';
+            else if (Math.abs(rx - cx) <= tol && Math.abs(ry - (cy+ch)) <= tol) dragActionCanvas = 'bl';
+            else if (Math.abs(rx - (cx+cw)) <= tol && Math.abs(ry - (cy+ch)) <= tol) dragActionCanvas = 'br';
+            else if (rx > cx && rx < cx+cw && ry > cy && ry < cy+ch) dragActionCanvas = 'move';
+            else return;
+            isDraggingCanvas = true; dragStartX = rx; dragStartY = ry; initialCrop = {x: cx, y: cy, w: cw, h: ch};
+        };
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDraggingCanvas) return;
+            const { rawX: rx, rawY: ry } = getRawMousePos(e), dx = rx - dragStartX, dy = ry - dragStartY;
+            let {x, y, w, h} = initialCrop;
+            if (dragActionCanvas === 'move') { x += dx; y += dy; } 
+            else if (dragActionCanvas === 'tl') { x += dx; y += dy; w -= dx; h -= dy; } 
+            else if (dragActionCanvas === 'tr') { y += dy; w += dx; h -= dy; } 
+            else if (dragActionCanvas === 'bl') { x += dx; w -= dx; h += dy; } 
+            else if (dragActionCanvas === 'br') { w += dx; h += dy; }
+            if (w < 50) { w = 50; if(dragActionCanvas==='tl'||dragActionCanvas==='bl') x = initialCrop.x + initialCrop.w - 50; }
+            if (h < 50) { h = 50; if(dragActionCanvas==='tl'||dragActionCanvas==='tr') y = initialCrop.y + initialCrop.h - 50; }
+            document.getElementById('cX').value = Math.round(x); document.getElementById('cY').value = Math.round(y); document.getElementById('cW').value = Math.round(w); document.getElementById('cH').value = Math.round(h); updateOutputEstimation();
+        });
+
+        function render() {
+            if(renderLoopId) cancelAnimationFrame(renderLoopId);
+            if(canvas.width > 0) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+                const x = document.getElementById('cX').value * scale, y = document.getElementById('cY').value * scale;
+                const w = document.getElementById('cW').value * scale, h = document.getElementById('cH').value * scale;
+                
+                ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+                ctx.fillRect(0, 0, canvas.width, y); ctx.fillRect(0, y + h, canvas.width, canvas.height - y - h); 
+                ctx.fillRect(0, y, x, h); ctx.fillRect(x + w, y, canvas.width - x - w, h); 
+                
+                ctx.strokeStyle = "#00d2ff"; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h);
+                ctx.fillStyle = "#fff"; const p = 5;
+                ctx.fillRect(x-p, y-p, p*2, p*2); ctx.fillRect(x+w-p, y-p, p*2, p*2);
+                ctx.fillRect(x-p, y+h-p, p*2, p*2); ctx.fillRect(x+w-p, y+h-p, p*2, p*2);
+                
+                applyTextOverlay(ctx, true, 0, 0);
+
+                document.getElementById('timeDisplay').innerText = `目前時間: ${v.currentTime.toFixed(2)}s`;
+                if(vidDuration > 0) tPlayhead.style.left = (v.currentTime / vidDuration * 100) + '%';
+                const startLimit = parseFloat(document.getElementById('startT').value), endLimit = parseFloat(document.getElementById('endT').value);
+                if (isLooping) { if (v.currentTime >= endLimit || v.currentTime < startLimit) { v.currentTime = startLimit; } }
+            }
+            renderLoopId = requestAnimationFrame(render);
+        }
+
+        document.getElementById('recordBtn').onclick = async () => {
+            const btn = document.getElementById('recordBtn');
+            btn.innerText = "壓製中，請稍候..."; btn.disabled = true; document.getElementById('downloadLink').style.display = 'none';
+            if(isLooping) playBtn.click(); v.pause();
+
+            const start = parseFloat(document.getElementById('startT').value), end = parseFloat(document.getElementById('endT').value);
+            const cw = parseInt(document.getElementById('cW').value), ch = parseInt(document.getElementById('cH').value);
+            const plat = platformTarget.value;
+            
+            let outW, outH;
+            if (plat === 'telegram') {
+                const s = Math.min(512 / cw, 512 / ch); outW = Math.round(cw * s); outH = Math.round(ch * s);
+            } else if (plat === 'line') {
+                const s = Math.min(320 / cw, 270 / ch); outW = Math.round(cw * s); outH = Math.round(ch * s);
+                if(outW % 2 !== 0) outW -= 1; if(outH % 2 !== 0) outH -= 1;
+            } else {
+                const targetEdge = parseInt(outEdgeNum.value) || 512;
+                const s = targetEdge / Math.max(cw, ch); outW = Math.round(cw * s); outH = Math.round(ch * s);
+            }
+
+            const offscreen = document.createElement('canvas'); offscreen.width = outW; offscreen.height = outH;
+            const oCtx = offscreen.getContext('2d');
+            
+            // V9: 核心更新！根據模式傳入正確的 FPS 幀率
+            const stream = offscreen.captureStream(currentRecordFps);
+            
+            let options = { mimeType: 'video/webm; codecs=vp9', videoBitsPerSecond: window.targetBps };
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: 'video/webm', videoBitsPerSecond: window.targetBps };
+            const recorder = new MediaRecorder(stream, options); const chunks = [];
+
+            recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const realKB = (blob.size / 1024).toFixed(1);
+                const warning = document.getElementById('warningText');
+                
+                if (plat === 'telegram' && realKB > 256) {
+                    warning.innerText = `⚠️ 真實大小為 ${realKB} KB，稍微超標！請再縮短一點時間。`;
+                } else if (plat === 'line') {
+                    warning.innerText = `✅ LINE 中繼檔輸出完成！(${realKB} KB) 請接續丟到 Ezgif 減色成 APNG。`;
+                } else {
+                    warning.innerText = `✅ 輸出成功！真實檔案大小為 ${realKB} KB。`;
+                }
+
+                const url = URL.createObjectURL(blob);
+                const link = document.getElementById('downloadLink');
+                let filename = document.getElementById('outFilename').value.trim() || 'my_video';
+                if (!filename.endsWith('.webm')) filename += '.webm';
+                
+                link.href = url; link.download = filename; link.style.display = "block";
+                btn.innerText = "⏺ 重新壓製"; btn.disabled = false;
+            };
+
+            v.currentTime = start; await v.play(); recorder.start();
+            const track = () => {
+                if (v.currentTime >= end) { recorder.stop(); v.pause(); return; }
+                oCtx.clearRect(0,0,outW,outH);
+                oCtx.drawImage(v, document.getElementById('cX').value, document.getElementById('cY').value, cw, ch, 0, 0, outW, outH);
+                
+                applyTextOverlay(oCtx, false, outW, outH);
+                requestAnimationFrame(track);
+            };
+            track();
+        };
+    </script>
+</body>
+</html>

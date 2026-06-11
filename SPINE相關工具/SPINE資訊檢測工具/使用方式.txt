@@ -1,0 +1,5 @@
+在終端模式中開啟
+
+執行python checkspine_gui.py
+
+即可

@@ -1,0 +1,152 @@
+1. Unity 實作範例 (C#)
+在 Unity 中，程式人員需要寫一個腳本來讀取 JSON，然後控制 SkeletonAnimation。
+
+優點：因為我們在 V48 版本已經把掉落的物理曲線 「烘焙 (Bake)」 好了（算好每一幀的位置），Unity 端不需要寫物理公式，直接讀取座標即可，效能最好。
+
+C#
+
+using UnityEngine;
+using Spine.Unity;
+using System.Collections.Generic;
+using System.IO;
+
+[System.Serializable]
+public class DirectorData {
+    public CharacterData[] characters;
+}
+
+[System.Serializable]
+public class CharacterData {
+    public string name;
+    public string skin;
+    public ClipData[] clips;
+}
+
+[System.Serializable]
+public class ClipData {
+    public string animation;
+    public float startTime;
+    public float duration;
+    public float mix;
+    public PhysicsData physics;
+}
+
+[System.Serializable]
+public class PhysicsData {
+    public bool enabled;
+    public float[] bakedCurve; // 這裡就是工具算好的每一幀 Y 軸位置
+}
+
+public class SpineDirector : MonoBehaviour {
+    public TextAsset jsonFile; // 拖入導出的 JSON
+    public List<SkeletonAnimation> spines; // 場景上的 Spine 物件
+    private DirectorData data;
+    private float timer;
+    
+    void Start() {
+        data = JsonUtility.FromJson<DirectorData>(jsonFile.text);
+        timer = 0;
+    }
+
+    void Update() {
+        timer += Time.deltaTime;
+
+        foreach(var charData in data.characters) {
+            // 找到對應的 Spine GameObject
+            var spine = spines.Find(s => s.name == charData.name);
+            if (spine == null) continue;
+
+            foreach(var clip in charData.clips) {
+                // 1. 觸發動畫 (簡單判定：剛好經過開始時間)
+                if (timer >= clip.startTime && timer < clip.startTime + Time.deltaTime) {
+                    spine.AnimationState.SetAnimation(0, clip.animation, true);
+                }
+
+                // 2. 處理掉落位移 (讀取工具算好的 Baked Curve)
+                if (clip.physics != null && clip.physics.enabled) {
+                    float localTime = timer - clip.startTime;
+                    if (localTime >= 0 && localTime < clip.duration) {
+                        // 將時間換算成陣列索引 (假設 60fps)
+                        int frameIndex = Mathf.FloorToInt(localTime * 60);
+                        if (frameIndex < clip.physics.bakedCurve.Length) {
+                            float yOffset = clip.physics.bakedCurve[frameIndex];
+                            // 設定位置 (假設原點是 0)
+                            spine.transform.localPosition = new Vector3(spine.transform.localPosition.x, yOffset, 0);
+                        }
+                    } else if (localTime >= clip.duration) {
+                         // 確保落地歸零
+                         spine.transform.localPosition = new Vector3(spine.transform.localPosition.x, 0, 0);
+                    }
+                }
+            }
+        }
+    }
+}
+2. Cocos Creator 實作範例 (TypeScript)
+Cocos 的處理方式也很類似，直接讀取 JSON 並控制 sp.Skeleton。
+
+TypeScript
+
+import { _decorator, Component, JsonAsset, sp, Vec3 } from 'cc';
+const { ccclass, property } = _decorator;
+
+@ccclass('SpineDirector')
+export class SpineDirector extends Component {
+    @property(JsonAsset)
+    directorJson: JsonAsset = null!; // 拖入導出的 JSON
+
+    @property([sp.Skeleton])
+    spines: sp.Skeleton[] = []; // 拖入場景上的 Spine
+
+    private _timer: number = 0;
+    private _data: any = null;
+
+    start() {
+        this._data = this.directorJson.json;
+        this._timer = 0;
+    }
+
+    update(deltaTime: number) {
+        this._timer += deltaTime;
+        
+        if (!this._data) return;
+
+        this._data.characters.forEach((charData: any) => {
+            const spineComp = this.spines.find(s => s.node.name === charData.name);
+            if (!spineComp) return;
+
+            charData.clips.forEach((clip: any) => {
+                // 1. 觸發動畫
+                // 注意：這裡需要一個標記避免重複觸發，這裡僅為簡化邏輯
+                if (this._timer >= clip.startTime && this._timer < clip.startTime + deltaTime) {
+                    spineComp.setAnimation(0, clip.animation, true);
+                }
+
+                // 2. 處理掉落位移 (讀取 Baked Curve)
+                if (clip.physics && clip.physics.enabled) {
+                    const localTime = this._timer - clip.startTime;
+                    if (localTime >= 0 && localTime < clip.duration) {
+                        const frameIndex = Math.floor(localTime * 60);
+                        const curve = clip.physics.bakedCurve;
+                        if (frameIndex < curve.length) {
+                            const yOffset = curve[frameIndex];
+                            // Cocos 使用 setPosition
+                            spineComp.node.setPosition(spineComp.node.position.x, yOffset);
+                        }
+                    } else if (localTime >= clip.duration && localTime < clip.duration + 0.1) {
+                        // 確保落地
+                        spineComp.node.setPosition(spineComp.node.position.x, 0);
+                    }
+                }
+            });
+        });
+    }
+}
+總結
+這個 JSON 檔案就像是**「樂譜」**。
+
+Cocos / Unity 是**「鋼琴」**。
+
+上面的腳本是**「鋼琴師」**。
+
+只要把樂譜（JSON）給程式看，他們就能用上面的邏輯輕鬆彈奏出您在網頁工具上調整好的節奏，包含那些細膩的彈跳效果，完全不需要程式再去重寫物理公式。

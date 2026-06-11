@@ -1,0 +1,3354 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>老虎機編輯器 (v42 - SCATTER 素材面板)</title>
+    <style>
+        :root {
+            --primary-color: #ffb74d;
+            --bg-dark: #121212;
+            --panel-bg: #1e1e1e;
+            --border-color: #333;
+            --text-main: #e0e0e0;
+            --text-dim: #aaa;
+            
+            /* Slot Vars */
+            --reel-count: 5;
+            --row-count: 6; 
+            --symbol-width: 100px;
+            --symbol-height: 100px;
+            --symbol-gap: 10px;
+            --mask-width: 600px;
+            --mask-height: 650px;
+            --offset-x: -300px;
+            --offset-y: -325px;
+            --global-scale: 0.8;
+            
+            /* Pan Vars */
+            --pan-x: 0px;
+            --pan-y: 0px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #svg-filters { position: absolute; width: 0; height: 0; pointer-events: none; }
+
+        /* === UI Styling === */
+        .top-bar {
+            height: 50px; background: #252525; border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; padding: 0 20px; gap: 20px; flex-shrink: 0; 
+            position: relative; z-index: 10000; 
+        }
+        .app-title { font-weight: bold; color: var(--primary-color); font-size: 16px; margin-right: auto; }
+        .top-control { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-dim); }
+        .top-control input[type="range"] { width: 100px; margin: 0; }
+        .top-control input[type="number"] { 
+            width: 50px; background: #333; border: 1px solid #555; color: #fff; 
+            border-radius: 3px; padding: 2px; font-size: 12px; text-align: center;
+        }
+        .top-control input[type="checkbox"] { margin: 0; cursor: pointer; }
+        .top-control label { cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        .top-control label:hover { color: #fff; }
+        
+        .btn-reset-view {
+            background: #333; border: 1px solid #555; color: #fff; padding: 2px 8px; 
+            border-radius: 3px; cursor: pointer; font-size: 11px; margin-left: 5px;
+        }
+        .btn-reset-view:hover { background: #555; }
+
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+
+        /* === Sidebar & Layout Optimization === */
+        .sidebar {
+            width: 400px; /* 稍微加寬以容納更多資訊 */
+            background: #1e1e1e;
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 9000;
+            box-shadow: 5px 0 15px rgba(0,0,0,0.3);
+        }
+
+        /* 現代化 Scrollbar */
+        .tabs-content::-webkit-scrollbar { width: 6px; }
+        .tabs-content::-webkit-scrollbar-track { background: #1a1a1a; }
+        .tabs-content::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+        .tabs-content::-webkit-scrollbar-thumb:hover { background: #666; }
+
+        /* Tabs 優化 */
+        .tabs-header {
+            display: flex;
+            background: #181818;
+            padding: 5px 5px 0 5px;
+            border-bottom: 1px solid #333;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px 0;
+            background: transparent;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            position: relative;
+            transition: all 0.3s ease;
+            border-radius: 5px 5px 0 0;
+        }
+        .tab-btn:hover { color: #ccc; background: rgba(255,255,255,0.05); }
+        .tab-btn.active {
+            color: var(--primary-color);
+            background: #252525;
+            border-bottom: 2px solid var(--primary-color);
+        }
+        .tab-btn.active::after {
+            content: ''; position: absolute; bottom: -2px; left: 0; width: 100%; height: 2px;
+            background: var(--primary-color); box-shadow: 0 -2px 8px rgba(255, 183, 77, 0.4);
+        }
+
+        /* 內容區域 */
+        .tabs-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #252525; /*稍微亮一點的背景區分層次*/
+        }
+        
+        /* === 補上這段：分頁切換邏輯 === */
+        .tab-pane {
+            display: none; /* 預設隱藏所有分頁 */
+            animation: fadeIn 0.3s ease; /* 加入淡入動畫 */
+        }
+
+        .tab-pane.active {
+            display: block; /* 只有加上 active 類別的才顯示 */
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 控制群組卡片化 */
+        .control-group {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .control-group h3 {
+            margin: 0 0 12px 0;
+            font-size: 12px;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .control-group h3::before {
+            content: ''; display: block; width: 3px; height: 12px; background: var(--primary-color); border-radius: 2px;
+        }
+
+        /* 輸入控制項優化 */
+        .input-row {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .input-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #bbb;
+        }
+
+        /* 自定義滑桿容器 */
+        .input-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            background: #2a2a2a;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #3a3a3a;
+        }
+        .input-controls:focus-within { border-color: #555; }
+
+        /* 自定義 Range Slider */
+        input[type=range] {
+            flex: 1;
+            -webkit-appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; background: #444; border-radius: 2px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px; width: 16px; border-radius: 50%;
+            background: #fff; margin-top: -6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+            transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); background: var(--primary-color); }
+
+        /* 數值輸入框 */
+        .input-controls input[type="number"] {
+            width: 50px;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+            text-align: right;
+            padding: 0;
+        }
+        .input-controls input[type="number"]:focus { outline: none; color: var(--primary-color); }
+
+        /* 下拉選單 */
+        select.style-select {
+            width: 100%;
+            background: #2a2a2a;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            outline: none;
+        }
+        select.style-select:hover { border-color: #666; }
+
+        /* 圖片列表優化 */
+        .image-list {
+            background: #181818;
+            border: 1px solid #333;
+            padding: 8px;
+            border-radius: 6px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .img-item {
+            display: flex;
+            align-items: center;
+            background: #252525;
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            border: 1px solid #333;
+            transition: background 0.2s;
+        }
+        .img-item:hover { background: #2f2f2f; border-color: #444; }
+        .img-thumb {
+            width: 48px; height: 48px;
+            object-fit: contain;
+            background: #000;
+            border-radius: 4px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        .img-details { flex: 1; min-width: 0; }
+        .img-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .span-select {
+            background: #111; color: #aaa; border: 1px solid #333;
+            padding: 2px 5px; font-size: 11px; border-radius: 3px; width: auto; display: inline-block;
+        }
+
+        
+        .reels-input {
+            width: 100%;
+            margin-top: 6px;
+            background: #111;
+            color: #ddd;
+            border: 1px solid #333;
+            padding: 4px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            outline: none;
+        }
+        .reels-input:focus { border-color: #666; }
+        .reels-hint {
+            margin-top: 4px;
+            font-size: 10px;
+            color: #777;
+            line-height: 1.2;
+        }
+/* 固定底部 Footer */
+        .sidebar-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #333;
+            background: #1e1e1e;
+            z-index: 10;
+            box-shadow: 0 -5px 10px rgba(0,0,0,0.1);
+        }
+
+        .spin-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #ffa726 0%, #fb8c00 100%);
+            border: none;
+            color: #000;
+            font-weight: 800;
+            font-size: 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
+            transition: all 0.1s;
+            position: relative; overflow: hidden;
+        }
+        .spin-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .spin-btn:active { transform: translateY(1px); box-shadow: 0 2px 5px rgba(255, 152, 0, 0.4); }
+        .spin-btn:disabled { background: #333; color: #555; box-shadow: none; cursor: not-allowed; }
+
+        /* 按鈕群組化 */
+        .btn-group-row { display: flex; gap: 8px; margin-bottom: 10px; }
+        .btn-small {
+            flex: 1; padding: 10px; font-size: 12px;
+            background: #333; border: none; color: #ccc;
+            border-radius: 4px; font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-small:hover { background: #444; color: #fff; }
+        .spin-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #f57c00; }
+        .spin-btn:disabled { background: #555; color: #888; box-shadow: none; cursor: not-allowed; transform: none; }
+        
+        .reset-btn { width: 100%; background: transparent; border: none; color: #666; font-size: 12px; margin-top: 8px; cursor: pointer; }
+        .reset-btn:hover { color: #999; }
+        .sys-btn { width: 100%; padding: 10px; margin-bottom: 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .btn-save { background: #42a5f5; color: #fff; }
+        .btn-load { background: #66bb6a; color: #fff; }
+        .btn-export { background: #333; color: #ddd; border: 1px solid #555; }
+        
+        .btn-auto-fit {
+            width: 100%; background: linear-gradient(45deg, #ffb74d, #ff9800); 
+            border: none; color: #000; font-weight: bold; padding: 10px; 
+            border-radius: 4px; cursor: pointer; margin-bottom: 10px;
+            font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .btn-auto-fit:hover { filter: brightness(1.1); }
+
+        .stage {
+            flex: 1; display: flex; justify-content: center; align-items: center;
+            position: relative; background-image: radial-gradient(#333 1px, transparent 1px);
+            background-size: 20px 20px; overflow: hidden; cursor: grab;
+        }
+        .stage:active { cursor: grabbing; }
+
+        .slot-wrapper {
+            position: relative; display: flex; justify-content: center; align-items: center;
+            transform: translate(var(--pan-x), var(--pan-y)) scale(var(--global-scale)); 
+            transform-origin: center center; will-change: transform;
+        }
+        .ui-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 1; max-width: none; }
+        .ui-overlay.front { z-index: 4000; }
+        
+        .viewport {
+            width: var(--mask-width); height: var(--mask-height); 
+            overflow: hidden; 
+            border: 2px dashed #ff5722; position: absolute; top: 50%; left: 50%;
+            transform: translate(var(--offset-x), calc(-100% - var(--offset-y)));
+            display: flex; justify-content: center; z-index: 10; box-sizing: content-box;
+            background: rgba(0,0,0,0.2);
+            align-items: flex-end; 
+        }
+        .viewport.noborder { border: none; background: transparent; }
+        
+        .reels-container { display: flex; gap: var(--symbol-gap); height: 100%; }
+        .reel { width: var(--symbol-width); height: 100%; position: relative; }
+        .reel-strip {
+            display: flex; flex-direction: column; gap: var(--symbol-gap); width: 100%;
+            transform: translateY(0); flex-shrink: 0;
+            z-index: 1; 
+        }
+        
+        .symbol {
+            width: var(--symbol-width); height: var(--symbol-height); background: #2c2c2c;
+            border: 1px solid rgba(255,255,255,0.1); box-sizing: border-box;
+            display: flex; align-items: flex-start; 
+            justify-content: center; position: relative; overflow: visible;
+            flex-shrink: 0; 
+        }
+        .symbol.is-placeholder { z-index: -1000 !important; background: transparent !important; border: none !important; opacity: 0 !important; }
+        .hide-bg .symbol { background: transparent !important; border: none !important; }
+        .symbol img.main-img { display: block; pointer-events: none; z-index: 2; position: relative; width: 100%; }
+        
+        /* === v37.1 修正: 模糊層繼承原始位置並放大 === */
+        .blur-clone {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            /* 移除 flex，改用 absolute 定位內部 img */
+            pointer-events: none; z-index: 5; 
+            opacity: 1; transition: opacity 0.1s linear; mix-blend-mode: normal; will-change: opacity; 
+        }
+        .blur-clone img {
+            position: absolute !important;
+            top: 0; left: 0;
+            width: 100%; 
+            /* 關鍵: 高度設為 auto，讓它讀取 inline style 的實際 px 高度 */
+            height: auto !important; 
+            object-fit: contain;
+            filter: url(#vertical-blur); 
+            
+            /* 放大效果 */
+            transform: scale(1.1, 1.6); 
+            transform-origin: center center; /* 從圖片中心放大 */
+            opacity: 0.9; will-change: filter, transform;
+        }
+        
+        .reels-container:not(.native) .symbol img:not(.big) { width: 100%; height: 100%; object-fit: contain; }
+        
+        /* 共用基礎設定：水平置中、絕對定位 */
+        .reels-container.native .symbol img, .symbol img.big {
+            position: absolute; 
+            left: 50%; 
+            width: auto; 
+            max-width: none;
+        }
+
+        /* 情況 1：跨格圖騰 (Big) 
+           因為要往下延伸，必須保持靠上對齊 (top: 0) */
+        .symbol img.big {
+            top: 0;
+            transform: translate(-50%, 0);
+        }
+
+        /* 情況 2：原圖模式 (Native) 下的【單格圖騰】 
+           修正重點：改為 top: 50% 配合 translateY(-50%) 達到完全垂直置中 */
+        .reels-container.native .symbol img:not(.big) {
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .symbol.debug-box::after {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: var(--debug-height, 100%); 
+            border: 2px solid #00ff00; z-index: 20; pointer-events: none; box-sizing: border-box;
+        }
+        .viewport.noborder .symbol.debug-box::after { display: none; }
+
+        .text-sym { font-size: 24px; color: #666; margin-top: 30px;}
+        .hide-bg .text-sym { text-shadow: 0 0 5px #000; color: #fff; }
+
+    
+        /* ===== v37.8: Win pulse (horizontal matches) ===== */
+        @keyframes winPulse {
+            0%   { transform: scale(1); }
+            20%  { transform: scale(var(--win-scale, 1.16)); }
+            40%  { transform: scale(1); }
+            60%  { transform: scale(var(--win-scale, 1.16)); }
+            80%  { transform: scale(1); }
+            100% { transform: scale(1); }
+        }
+        .symbol.win-pulse {
+            animation: winPulse var(--win-dur, 520ms) ease-in-out;
+            transform-origin: center center;
+            will-change: transform;
+        }
+        .symbol.win-glow {
+            box-shadow: 0 0 0 2px rgba(255, 183, 77, 0.85) inset, 0 0 18px rgba(255, 183, 77, 0.35);
+        }
+
+
+        /* === Scene Drivers Overlay (v43) === */
+        .bonus-layer{
+            position:absolute;
+            left:0; top:0; right:0; bottom:0;
+            display:none;
+            align-items:center;
+            justify-content:center;
+            background: rgba(0,0,0,0.55);
+            z-index: 50;
+        }
+        .bonus-panel{
+            width: min(720px, 92vw);
+            background: rgba(20,20,22,0.96);
+            border: 1px solid #3a3a3f;
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+        }
+        .bonus-title{
+            font-size: 16px;
+            font-weight: 700;
+            color:#f2d36a;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+        .bonus-grid{
+            display:grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .bonus-card{
+            user-select:none;
+            cursor:pointer;
+            border-radius: 12px;
+            border: 1px solid #444;
+            background: linear-gradient(180deg, rgba(60,60,65,0.8), rgba(25,25,28,0.9));
+            min-height: 98px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            color:#ddd;
+            font-weight:700;
+            position:relative;
+            overflow:hidden;
+            transition: transform 120ms ease, border-color 120ms ease, filter 120ms ease;
+        }
+        .bonus-card:hover{
+            transform: translateY(-1px) scale(1.01);
+            border-color: #6a6a72;
+            filter: brightness(1.05);
+        }
+        .bonus-card.revealed{
+            cursor:default;
+            border-color:#f2d36a;
+            background: radial-gradient(circle at 30% 20%, rgba(242,211,106,0.28), rgba(25,25,28,0.92));
+        }
+        .bonus-card .shine{
+            content:"";
+            position:absolute;
+            top:-40%;
+            left:-60%;
+            width: 60%;
+            height: 160%;
+            transform: rotate(20deg);
+            background: rgba(255,255,255,0.08);
+            animation: bonusShine 1.2s ease forwards;
+            pointer-events:none;
+        }
+        @keyframes bonusShine{
+            0%{ left:-80%; opacity:0; }
+            20%{ opacity:1; }
+            100%{ left:140%; opacity:0; }
+        }
+        .bonus-result{
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.10);
+            color:#ddd;
+            min-height: 20px;
+            font-size: 13px;
+        }
+        .bonus-actions{
+            display:flex;
+            justify-content:flex-end;
+            gap:8px;
+            margin-top: 12px;
+        }
+        .scene-inline-hint{
+            font-size:12px;
+            color:#aaa;
+            line-height:1.4;
+            margin-top:6px;
+        }
+        .scene-subpanel{
+            margin-top:10px;
+            padding:10px;
+            border:1px solid #3a3a3f;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.03);
+        }
+        .scene-subpanel h4{
+            margin:0 0 8px 0;
+            font-size: 13px;
+            color:#ddd;
+        }
+        .scene-subpanel textarea{
+            width:100%;
+            min-height: 90px;
+            resize: vertical;
+            background:#111;
+            color:#ddd;
+            border:1px solid #444;
+            border-radius:8px;
+            padding:8px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+            font-size: 12px;
+            box-sizing:border-box;
+        }
+
+    </style>
+</head>
+<body>
+    <svg id="svg-filters"><defs><filter id="vertical-blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur in="SourceGraphic" stdDeviation="0 0" /></filter></defs></svg>
+
+    <div class="top-bar">
+        <div class="app-title">SLOT SIM v38.0 (Reel-gated Symbols + Ways Wins)</div><div class="top-control"><label>縮放</label><input type="range" id="global-scale" min="0.2" max="2.0" step="0.05" value="0.8"><input type="number" id="num-global-scale" min="0.2" max="2.0" step="0.05" value="0.8"><button class="btn-reset-view" id="btn-reset-view">回正</button></div>
+        <div class="top-control" style="margin-left:20px; border-left:1px solid #444; padding-left:20px;"><label><input type="checkbox" id="hide-bg-toggle"> 隱藏底框</label></div>
+        <div class="top-control"><label><input type="checkbox" id="native-size-toggle" style="accent-color:#29b6f6;"> <span style="color:#81d4fa">原圖尺寸</span></label></div>
+        <div class="top-control"><label><input type="checkbox" id="ui-front-toggle"> UI置頂</label></div>
+        <div class="top-control"><label><input type="checkbox" id="border-toggle"> 隱藏輔助線</label></div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="tabs-header"><button class="tab-btn active" onclick="openTab('tab-assets', this)">📂 素材</button><button class="tab-btn" onclick="openTab('tab-layout', this)">📐 佈局</button><button class="tab-btn" onclick="openTab('tab-motion', this)">⚡ 動態</button><button class="tab-btn" onclick="openTab('tab-scenes', this)">🧩 場景</button><button class="tab-btn" onclick="openTab('tab-flow', this)">🔀 流程</button><button class="tab-btn" onclick="openTab('tab-rules', this)">🏆 規則</button><button class="tab-btn" onclick="openTab('tab-system', this)">💾 系統</button></div>
+            <div class="tabs-content">
+                <div id="tab-assets" class="tab-pane active">
+                    <div class="control-group"><h3>圖騰管理</h3><div style="font-size:12px; color:#aaa; line-height:1.4; margin-top:6px;">
+                        提示：在每個圖騰下方勾選 <b style="color:#f2d36a;">SCATTER</b>，可讓 base 在停輪後發出 <b>SCATTER_TRIGGER</b> 事件（再由 Flow 決定進入特殊遊戲）。
+                    </div><div class="upload-area"><button class="btn-small" onclick="document.getElementById('file-reset').click()">🔄 重置上傳</button><button class="btn-small" onclick="document.getElementById('file-add').click()">➕ 追加圖片</button></div><input type="file" id="file-reset" multiple accept="image/*" style="display:none"><input type="file" id="file-add" multiple accept="image/*" style="display:none"><div id="weight-list" class="image-list" style="display:none;"></div></div>
+                    <div class="control-group"><h3>背景 / UI</h3><button class="btn-small" style="width:100%" onclick="document.getElementById('ui-input').click()">上傳介面圖</button><input type="file" id="ui-input" accept="image/*" style="display:none"></div>
+                </div>
+                <div id="tab-layout" class="tab-pane">
+                     <div class="control-group"><h3>結構</h3><div id="ctrl-reels"></div><div id="ctrl-rows"></div><div id="ctrl-gap"></div></div>
+                     <div class="control-group"><h3>格子尺寸</h3><button class="btn-auto-fit" onclick="autoFitDimensions()">📐 智能填滿</button><div id="ctrl-w"></div><div id="ctrl-h"></div></div>
+                     <div class="control-group"><h3>可視範圍</h3><div id="ctrl-mask-w"></div><div id="ctrl-mask-h"></div></div>
+                     <div class="control-group"><h3>左下角錨點</h3><div id="ctrl-off-x"></div><div id="ctrl-off-y"></div></div>
+                </div>
+                <div id="tab-motion" class="tab-pane">
+                    <div class="control-group"><h3>速度與節奏</h3>
+                        <div id="ctrl-spin-duration"></div>
+                        <div id="ctrl-speed"></div><div id="ctrl-interval"></div>
+                    </div>
+                    <div class="control-group"><h3>特效細節</h3><div class="input-row"><div class="input-header"><span class="input-label">演出模式</span></div><select id="anim-mode" class="style-select"><option value="spin">標準轉輪</option><option value="cascade" selected>掉落消除</option></select></div><div class="input-row"><div class="input-header"><span class="input-label">煞車曲線</span></div>
+                        <select id="ease-type" class="style-select">
+                            <option value="bounceBack" selected>觸底反彈 (Bounce Back)</option>
+                            <option value="std">標準 (Standard)</option>
+                            <option value="heavy">重力急停 (Heavy Drop)</option>
+                            <option value="elastic">Q彈 (Elastic)</option>
+                        </select>
+                    </div><div id="ctrl-bounce"></div><div id="ctrl-blur"></div></div>
+                    <div class="control-group" style="border-top:1px solid #333; padding-top:15px;"><h3>掉落專用設定</h3><div id="ctrl-cascade-speed"></div><div id="ctrl-cascade-bounce"></div></div>
+                </div>
+                
+                <div id="tab-scenes" class="tab-pane">
+                    <div class="control-group">
+                        <h3>場景管理</h3>
+                        <div class="input-row">
+                            <div class="input-header">
+                                <span class="input-label">當前場景</span>
+                            </div>
+                            <div class="input-controls" style="gap:8px;">
+                                <select id="scene-select" style="width:100%; height:30px; background:#1f1f1f; color:#ddd; border:1px solid #444; border-radius:6px;"></select>
+                            </div>
+                        
+                        <div class="input-row" style="margin-top:8px;">
+                            <div class="input-header">
+                                <span class="input-label">場景類型</span>
+                            </div>
+                            <div class="input-controls" style="gap:8px;">
+                                <select id="scene-type-select" style="flex:1; background:#111; color:#ddd; border:1px solid #444; border-radius:6px;">
+                                    <option value="reels">reels（轉輪/掉落）</option>
+                                    <option value="bonus-pick">bonus-pick（選卡）</option>
+                                    <option value="intro">intro（開場占位）</option>
+                                    <option value="payout">payout（報獎占位）</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="bonus-pick-editor" class="scene-subpanel" style="display:none;">
+                            <h4>BONUS-PICK 參數</h4>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <div style="flex:1;">
+                                    <div style="font-size:12px; color:#bbb; margin-bottom:4px;">卡片數量</div>
+                                    <input id="bonus-pick-cardcount" type="number" min="1" max="12" value="6" style="width:100%; background:#111; color:#ddd; border:1px solid #444; border-radius:8px; padding:6px; box-sizing:border-box;">
+                                </div>
+                                <div style="flex:1;">
+                                    <div style="font-size:12px; color:#bbb; margin-bottom:4px;">可選次數</div>
+                                    <input id="bonus-pick-picks" type="number" min="1" max="12" value="1" style="width:100%; background:#111; color:#ddd; border:1px solid #444; border-radius:8px; padding:6px; box-sizing:border-box;">
+                                </div>
+                            </div>
+                            <div style="margin-top:10px;">
+                                <div style="font-size:12px; color:#bbb; margin-bottom:6px;">獎勵列表（JSON Array，例如：[50,100,200]）</div>
+                                <textarea id="bonus-pick-rewards">[50,100,200,500,1000,2000]</textarea>
+                            </div>
+                            <div style="display:flex; gap:8px; margin-top:10px;">
+                                <button id="btn-bonus-pick-write" class="sys-btn btn-load" style="flex:1; margin:0;">寫入到當前場景 Rules</button>
+                                <button id="btn-bonus-pick-read" class="sys-btn btn-export" style="flex:1; margin:0;">從 Rules 讀取</button>
+                            </div>
+                            <div class="scene-inline-hint">提示：BONUS 結束會發出 <b style="color:#f2d36a;">BONUS_END</b>，請在 Flow 設定 bonus → BONUS_END → base。</div>
+                        </div>
+</div>
+
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button id="btn-scene-new" class="sys-btn btn-load" style="flex:1; margin:0;">新增</button>
+                            <button id="btn-scene-dup" class="sys-btn btn-export" style="flex:1; margin:0;">複製</button>
+                            <button id="btn-scene-del" class="sys-btn btn-export" style="flex:1; margin:0;">刪除</button>
+                        </div>
+
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button id="btn-scene-capture" class="sys-btn btn-save" style="flex:1; margin:0;">從盤面讀取</button>
+                            <button id="btn-scene-apply" class="sys-btn btn-load" style="flex:1; margin:0;">套用到盤面</button>
+                        </div>
+
+                        <div style="margin-top:10px; font-size:12px; color:#aaa; line-height:1.4;">
+                            場景「reels」會套用目前左側佈局/動態/系統參數到專案場景中；切換場景時會自動保存當前場景參數。
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h3>專案（Project）</h3>
+                        <div style="display:flex; gap:8px; margin-bottom:8px;">
+                            <button id="btn-project-save" class="sys-btn btn-save" style="flex:1; margin:0;">暫存專案</button>
+                            <button id="btn-project-load" class="sys-btn btn-load" style="flex:1; margin:0;">載入暫存</button>
+                        </div>
+                        <div style="display:flex; gap:8px; margin-bottom:8px;">
+                            <button id="btn-project-export" class="sys-btn btn-export" style="flex:1; margin:0;">匯出 project.json</button>
+                            <button id="btn-project-import" class="sys-btn btn-export" style="flex:1; margin:0;">匯入 project.json</button>
+                            <input type="file" id="file-project-import" accept=".json,application/json" style="display:none" />
+                        </div>
+
+                        <textarea id="project-json" spellcheck="false" style="width:100%; height:240px; background:#141414; color:#dcdcdc; border:1px solid #333; border-radius:8px; padding:10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size:11px; line-height:1.5;"></textarea>
+
+                        <div class="control-group" style="margin-top:10px; border-top:1px dashed #333; padding-top:10px;">
+                            <h4 style="margin:0 0 8px; font-size:13px; color:#ddd;">SCATTER（在素材面板勾選）</h4>
+                            <div style="font-size:12px; color:#aaa; line-height:1.5;">
+                                請到「📂 素材」每個圖騰下方勾選 <b style="color:#f2d36a;">SCATTER</b>。當 <b>base</b> spin 結果中，同一局有至少 <b>3 輪</b> 出現 SCATTER，會發出事件 <b>SCATTER_TRIGGER</b>，再由 Flow 決定切換到哪個場景。<br>
+                                若要覆蓋最少輪數或事件名，可在該場景 Rules 內設定 <code>triggers.scatter</code>（進階用法）。
+                            </div>
+                            <div id="scatter-summary" style="margin-top:8px; font-size:12px; color:#bbb;"></div>
+                        </div>
+
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button id="btn-project-apply-json" class="sys-btn btn-load" style="flex:1; margin:0;">套用 JSON</button>
+                            <button id="btn-project-refresh-json" class="sys-btn btn-export" style="flex:1; margin:0;">刷新 JSON</button>
+                        </div>
+                        <div style="margin-top:10px; font-size:12px; color:#aaa; line-height:1.4;">
+                            注意：此版本不會把圖片檔案二進位打包進 JSON（仍可保留符號 ID / WILD 等中繼資料）。後續可升級為 zip/資料夾型輸出。
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div id="tab-flow" class="tab-pane">
+                    <div class="control-group">
+                        <h3>流程（Flow）</h3>
+                        <div style="font-size:12px; color:#aaa; line-height:1.4; margin-bottom:10px;">
+                            以事件串接場景（from / on / to）。此版本提供可視化表格編輯，並保留進階 JSON 編輯入口。
+                        </div>
+
+                        <div class="input-row" style="margin-bottom:10px;">
+                            <div class="input-header"><span>起始場景（flow.start）</span></div>
+                            <div class="input-controls" style="gap:8px;">
+                                <select id="flow-start" style="width:100%; height:30px; background:#1f1f1f; color:#ddd; border:1px solid #444; border-radius:6px;"></select>
+                            </div>
+                        </div>
+
+                        <div style="border:1px solid #333; border-radius:8px; overflow:hidden; background:#141414;">
+                            <table id="flow-table" style="width:100%; border-collapse:collapse; font-size:12px;">
+                                <thead>
+                                    <tr style="background:#1b1b1b; color:#bbb;">
+                                        <th style="text-align:left; padding:8px; border-bottom:1px solid #333; width:28%;">From</th>
+                                        <th style="text-align:left; padding:8px; border-bottom:1px solid #333; width:34%;">On（Event）</th>
+                                        <th style="text-align:left; padding:8px; border-bottom:1px solid #333; width:28%;">To</th>
+                                        <th style="text-align:center; padding:8px; border-bottom:1px solid #333; width:10%;">刪除</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="flow-tbody"></tbody>
+                            </table>
+                        </div>
+
+                        <div style="display:flex; gap:8px; margin-top:10px;">
+                            <button id="btn-flow-add" class="sys-btn btn-save" style="flex:1; margin:0;">＋ 新增轉移</button>
+                            <button id="btn-flow-apply" class="sys-btn btn-load" style="flex:1; margin:0;">套用流程</button>
+                            <button id="btn-flow-refresh" class="sys-btn btn-export" style="flex:1; margin:0;">刷新顯示</button>
+                        </div>
+
+                        <details style="margin-top:12px;">
+                            <summary style="cursor:pointer; color:#aaa; font-size:12px;">進階：直接編輯 Flow JSON</summary>
+                            <textarea id="flow-json" spellcheck="false" style="width:100%; height:240px; background:#141414; color:#dcdcdc; border:1px solid #333; border-radius:8px; padding:10px; margin-top:8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size:11px; line-height:1.5;"></textarea>
+                            <div style="display:flex; gap:8px; margin-top:8px;">
+                                <button id="btn-flow-apply-json" class="sys-btn btn-load" style="flex:1; margin:0;">套用 JSON</button>
+                                <button id="btn-flow-sync-json" class="sys-btn btn-export" style="flex:1; margin:0;">從表格產生 JSON</button>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <div id="tab-rules" class="tab-pane">
+                    <div class="control-group">
+                        <h3>規則 / 賠表（Rules / Paytable）</h3>
+                        <div style="font-size:12px; color:#aaa; line-height:1.4; margin-bottom:8px;">
+                            先提供可擴充的 JSON 入口。後續可逐步做成表格、下拉與校驗。
+                        </div>
+                        <div style="margin-bottom:8px; font-size:12px; color:#bbb;">全域 Paytable</div>
+                        <textarea id="paytable-json" spellcheck="false" style="width:100%; height:180px; background:#141414; color:#dcdcdc; border:1px solid #333; border-radius:8px; padding:10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size:11px; line-height:1.5;"></textarea>
+
+                        <div style="margin:10px 0 8px; font-size:12px; color:#bbb;">當前場景 Rules</div>
+                        <textarea id="scene-rules-json" spellcheck="false" style="width:100%; height:180px; background:#141414; color:#dcdcdc; border:1px solid #333; border-radius:8px; padding:10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size:11px; line-height:1.5;"></textarea>
+
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button id="btn-rules-apply" class="sys-btn btn-load" style="flex:1; margin:0;">套用規則</button>
+                            <button id="btn-rules-refresh" class="sys-btn btn-export" style="flex:1; margin:0;">刷新顯示</button>
+                        </div>
+                    </div>
+                </div>
+<div id="tab-system" class="tab-pane">
+                     <div class="control-group"><h3>設定檔管理</h3><button class="sys-btn btn-save" id="btn-save">暫存設定</button><button class="sys-btn btn-load" id="btn-load">讀取暫存</button><hr style="border:0; border-top:1px solid #333; margin:15px 0;"><button class="sys-btn btn-export" id="btn-export">匯出 JSON</button><button class="sys-btn btn-export" id="btn-export-cocos">匯出 Cocos3.8 JSON</button><button class="sys-btn btn-export" id="btn-export-unity">匯出 Unity JSON</button><button class="sys-btn btn-export" onclick="document.getElementById('file-import').click()">匯入 JSON</button><input type="file" id="file-import" accept=".json" style="display:none"></div>
+                </div>
+            </div>
+            <div class="sidebar-footer"><button id="btn-spin" class="spin-btn">SPIN</button><button id="btn-reset-all" class="reset-btn">重置所有設定</button></div>
+        </div>
+        <div class="stage" id="stage-area"><div class="slot-wrapper" id="slot-wrapper"><img id="ui-layer" class="ui-overlay" src="" style="display:none;"><div class="viewport" id="viewport"><div class="reels-container" id="reels-container"></div>
+            <div id="bonus-pick-layer" class="bonus-layer">
+                <div class="bonus-panel">
+                    <div class="bonus-title">BONUS - PICK</div>
+                    <div id="bonus-pick-grid" class="bonus-grid"></div>
+                    <div class="bonus-result" id="bonus-pick-result">請選擇一張卡片。</div>
+                    <div class="bonus-actions">
+                        <button id="bonus-pick-end" class="sys-btn btn-export" style="margin:0;">結束</button>
+                    </div>
+                </div>
+            </div>
+</div></div></div>
+    </div>
+
+    <script>
+        const settings = {
+            symbols: ['A', 'B', 'C', 'D', 'E', '1', '2', '3'], images: [],
+            spinSpeed: 1500, stopDelay: 60, bounce: 20, reels: 5, rows: 6, ease: 'bounceBack',
+            spinDuration: 2000,
+            mode: 'cascade', cascadeSpeed: 300, cascadeBounce: 30
+        };
+        let isSpinning = false;
+
+        // ===== Reel gating =====
+        // 轉輪限制：可指定圖騰只出現在某些「轉輪欄位」（1..reels）。
+        // 例：1,3,5 表示只會出現在第 1/3/5 轉輪。
+function _buildReelPredicate(specRaw) {
+            const spec = (specRaw || '').trim();
+            if (!spec) return null; // null => allow all rounds
+            const low = spec.toLowerCase();
+            if (low === 'all' || spec === '*' || low === '任何' || low === '全部') return null;
+
+            const tokens = spec.split(/[,;\s]+/).map(t => t.trim()).filter(Boolean);
+            const ranges = []; // [start, end] inclusive; end can be Infinity
+
+            for (const t0 of tokens) {
+                const t = String(t0 || '').replace(/\s+/g, '');
+                if (!t) continue;
+
+                let m;
+                if ((m = t.match(/^>=([0-9]+)$/))) { const n = parseInt(m[1], 10); if (isFinite(n) && n > 0) ranges.push([n, Infinity]); continue; }
+                if ((m = t.match(/^>([0-9]+)$/)))  { const n = parseInt(m[1], 10); if (isFinite(n) && n >= 0) ranges.push([n + 1, Infinity]); continue; }
+                if ((m = t.match(/^<=([0-9]+)$/))) { const n = parseInt(m[1], 10); if (isFinite(n) && n > 0) ranges.push([1, n]); continue; }
+                if ((m = t.match(/^<([0-9]+)$/)))  { const n = parseInt(m[1], 10); if (isFinite(n) && n > 1) ranges.push([1, n - 1]); continue; }
+
+                if ((m = t.match(/^([0-9]+)-([0-9]+)$/))) {
+                    let a = parseInt(m[1], 10), b = parseInt(m[2], 10);
+                    if (!isFinite(a) || !isFinite(b) || a <= 0 || b <= 0) continue;
+                    if (a > b) { const tmp = a; a = b; b = tmp; }
+                    ranges.push([a, b]); continue;
+                }
+
+                if ((m = t.match(/^([0-9]+)$/))) {
+                    const n = parseInt(m[1], 10);
+                    if (isFinite(n) && n > 0) ranges.push([n, n]);
+                    continue;
+                }
+            }
+
+            if (ranges.length === 0) return null; // invalid => treat as all (fail-open)
+
+            return (reelIndex) => {
+                const r = Math.max(1, parseInt(reelIndex, 10) || 1);
+                for (const [a, b] of ranges) {
+                    if (r >= a && (b === Infinity || r <= b)) return true;
+                }
+                return false;
+            };
+        }
+
+        
+        // Backwards-compatible aliases
+        const _buildRoundPredicate = _buildReelPredicate;
+        const _isImgAllowedForRound = _isImgAllowedForReel;
+function _isImgAllowedForReel(img, reelIndex) {
+            if (!img) return false;
+            const pred = img._reelPred || img._roundPred; // backwards compatible
+            if (!pred) return true;
+            try { return !!pred(reelIndex); } catch (_) { return true; }
+        }
+
+        // ===== v37.3 Patch: constants & helpers =====
+        const APP_VERSION = '38.0';
+        const PAD_TOP = 2;
+        const PAD_BOTTOM = 1;
+        const BLUR_WINDOW_MARGIN = 2; // blur window extends above/below visible rows
+        let _uiLayerBlobUrl = null;
+
+
+// ===== v37.9: Ways win detection & animation (left-to-right reels, All-Ways style) =====
+let _winToken = 0;
+function _delay(ms) { return new Promise(res => setTimeout(res, ms)); }
+
+function _getVisibleSymbolsOnReel(reelIdx) {
+    const reel = document.getElementById(`reel-${reelIdx}`);
+    if (!reel) return [];
+    const strip = reel.querySelector('.reel-strip');
+    if (!strip) return [];
+    const out = [];
+    for (let r = 0; r < settings.rows; r++) {
+        const childIndex = PAD_TOP + r;
+        const sym = (strip.children && strip.children[childIndex]) ? strip.children[childIndex] : null;
+        if (!sym) continue;
+
+        const kind = (sym.dataset && sym.dataset.kind) ? sym.dataset.kind : '';
+        const id = (sym.dataset && sym.dataset.symId) ? sym.dataset.symId : '';
+        if (!id) continue;
+
+        // For big symbols that anchor above the visible window, visible cells may be placeholders.
+        // Map placeholder -> anchor element so win animations always target the real visible artwork.
+        let el = sym;
+        if (kind === 'placeholder') {
+            const aIdx = parseInt((sym.dataset && sym.dataset.anchorIndex) ? sym.dataset.anchorIndex : '-1', 10);
+            if (!Number.isNaN(aIdx) && aIdx >= 0 && strip.children && strip.children[aIdx]) el = strip.children[aIdx];
+        }
+
+        out.push({ row: r, el, id, kind });
+    }
+    return out;
+}
+
+
+
+function _collectWaysWins(minConsecutive = 3) {
+    const cols = settings.reels;
+    if (cols <= 0) return [];
+
+    // WILD ids (can substitute for any non-wild symbol)
+    const wildIds = new Set();
+    try {
+        (settings.images || []).forEach(img => { if (img && img.isWild && img.id) wildIds.add(String(img.id)); });
+    } catch (_) {}
+    const _isWildId = (id) => wildIds.has(String(id));
+
+    // Cache per-reel visible symbols and quick lookup sets
+    const reelSyms = new Array(cols);
+    const reelSets = new Array(cols);
+    const reelHasWild = new Array(cols).fill(false);
+
+    for (let c = 0; c < cols; c++) {
+        const syms = _getVisibleSymbolsOnReel(c);
+        reelSyms[c] = syms;
+
+        const set = new Set();
+        for (const s of syms) {
+            if (!s || !s.id) continue;
+            const sid = String(s.id);
+            set.add(sid);
+            if (_isWildId(sid)) reelHasWild[c] = true;
+        }
+        reelSets[c] = set;
+    }
+
+    // Candidate symbols: any non-wild symbol present anywhere on the grid
+    // (plus a special WILD-group so pure WILD chains can pay as WILD itself)
+    const candidates = [];
+    {
+        const seen = new Set();
+        for (let c = 0; c < cols; c++) {
+            for (const s of reelSyms[c]) {
+                const sid = String(s.id || '');
+                if (!sid) continue;
+                if (_isWildId(sid)) continue;
+                if (seen.has(sid)) continue;
+                seen.add(sid);
+                candidates.push(sid);
+            }
+        }
+    }
+    if (wildIds.size > 0 && reelHasWild.some(v => v)) candidates.push("__WILD__");
+
+
+    const wins = [];
+    for (const id of candidates) {
+        const isWildGroup = (id === "__WILD__");
+
+        // Count consecutive reels starting from reel 1 (index 0).
+        // - For normal symbols: allow WILD substitution.
+        // - For WILD-group itself: require actual WILD presence in each reel.
+        let len = 0;
+        let hasReal = false; // for normal symbols, avoid "pure-wild pays every symbol"
+        for (let c = 0; c < cols; c++) {
+            const set = reelSets[c];
+            const ok = isWildGroup ? reelHasWild[c] : ((set && set.has(id)) || reelHasWild[c]);
+            if (!ok) break;
+            if (!isWildGroup && set && set.has(id)) hasReal = true;
+            len++;
+        }
+
+        if (len >= minConsecutive && (isWildGroup || hasReal)) {
+            // Collect all matching symbol elements in those reels.
+            // Include WILD elements too because they contribute to the connection.
+            const divSet = new Set();
+            for (let c = 0; c < len; c++) {
+                for (const s of reelSyms[c]) {
+                    if (!s || !s.el) continue;
+                    const sid = String(s.id || '');
+                    if (!sid) continue;
+                    if (isWildGroup) { if (_isWildId(sid)) divSet.add(s.el); }
+                    else { if (sid === id || _isWildId(sid)) divSet.add(s.el); }
+                }
+            }
+            const divs = Array.from(divSet);
+
+            // Playback order key: first occurrence from leftmost reel, top->bottom
+            let orderKey = 999999;
+            for (let c = 0; c < len; c++) {
+                for (const s of reelSyms[c]) {
+                    const sid = String(s.id || '');
+                    if (!sid) continue;
+                    if (isWildGroup) {
+                        if (_isWildId(sid)) { orderKey = c * 100 + (s.row || 0); c = len; break; }
+                    } else {
+                        if (sid === id) { orderKey = c * 100 + (s.row || 0); c = len; break; }
+                    }
+                }
+            }
+
+            wins.push({ id, len, divs, _orderKey: orderKey });
+        }
+    }
+
+    // Only sequence when multiple symbol types win; stable by orderKey
+    wins.sort((a, b) => (a._orderKey || 0) - (b._orderKey || 0));
+    wins.forEach(w => { try { delete w._orderKey; } catch (_) {} });
+    return wins;
+}
+
+
+async function _pulseGroup(divs, scale, durMs) {
+    if (!divs || divs.length === 0) return;
+
+    // Prepare
+    for (const sym of divs) {
+        sym.classList.remove('win-pulse', 'win-glow');
+        sym.style.setProperty('--win-scale', String(scale));
+        sym.style.setProperty('--win-dur', String(durMs) + 'ms');
+    }
+    // Restart animation reliably (single reflow is enough)
+    void divs[0].offsetWidth;
+
+    for (const sym of divs) {
+        sym.classList.add('win-glow');
+        sym.classList.add('win-pulse');
+    }
+
+    await _delay(durMs);
+
+    for (const sym of divs) {
+        sym.classList.remove('win-pulse', 'win-glow');
+    }
+}
+
+async function _playWaysWins() {
+    const token = _winToken;
+    const wins = _collectWaysWins(3);
+    if (!wins.length) return;
+
+    // If multiple symbol types win, play them in order (leftmost reel, top->bottom)
+    const spinBtn = document.getElementById('btn-spin');
+    if (spinBtn) spinBtn.disabled = true;
+
+    try {
+        for (const w of wins) {
+            if (token !== _winToken) return;
+
+            // Stronger for longer chains
+            const scale = 1.16 + Math.min(0.10, (w.len - 3) * 0.03);
+            const dur = 520 + Math.min(200, (w.len - 3) * 60);
+
+            // "這不同輪的所有同一顆圖騰開始做縮放表演" => group pulse (simultaneous)
+            await _pulseGroup(w.divs, scale, dur);
+            await _delay(220);
+        }
+    } finally {
+        if (token === _winToken && spinBtn) spinBtn.disabled = false;
+    }
+}
+
+function _scheduleWinCheck() {
+    // Defer a bit to ensure blur cleanup & DOM trim is finished.
+    const token = ++_winToken;
+    setTimeout(() => {
+        if (token !== _winToken) return;
+        if (isSpinning) return;
+
+        // 1) 先播贏分縮放（若有）
+        const p = Promise.resolve(_playWaysWins());
+
+        // 2) 再依照本次盤面結果判斷是否要觸發跨場景事件（FG / BONUS ...）
+        p.then(() => {
+            if (token !== _winToken) return;
+            if (isSpinning) return;
+            try { _emitSpinResultAndMaybeTrigger(token); } catch(e){ console.error(e); }
+        });
+    }, 120);
+}
+
+function _emitSpinResultAndMaybeTrigger(token){
+    const bus = window.SlotEventBus;
+    const sm  = window.SlotSceneManager;
+    const proj = window.SlotEditorProject;
+    if(!bus || !sm || !proj) return;
+
+    const sceneId = sm.sceneId;
+    const scene = (proj.scenes || []).find(s => s.id === sceneId);
+
+    // Collect unique visible symbol counts (dedupe by actual element; big-symbol placeholders won't double count)
+    const counts = new Map();
+    const seenEl = new Set();
+    try{
+        for(let c=0;c<settings.reels;c++){
+            const syms = _getVisibleSymbolsOnReel(c);
+            for(const s of (syms||[])){
+                if(!s || !s.id || !s.el) continue;
+                if(seenEl.has(s.el)) continue;
+                seenEl.add(s.el);
+                const id = String(s.id);
+                counts.set(id, (counts.get(id)||0) + 1);
+            }
+        }
+    }catch(_){}
+
+    const countsObj = {};
+    counts.forEach((v,k) => countsObj[k] = v);
+
+    bus.emit("SPIN_RESULT", { sceneId, counts: countsObj, at: Date.now() });
+
+    // Default: only base scene triggers unless explicitly allowed
+    const rules = scene?.rules || {};
+    const triggers = rules.triggers || rules.trigger || null;
+    if(!triggers) return;
+
+    const allowAll = !!triggers.applyInAllScenes;
+    const isBaseLike = (sceneId === "base") || (String(rules.mode||"").toLowerCase() === "base");
+    if(!allowAll && !isBaseLike) return;
+
+    const evalCfg = (cfg, defaultEvent) => {
+        if(!cfg) return null;
+        if(typeof cfg === "string"){
+            return { event: defaultEvent, symbols: [cfg], minCount: 1 };
+        }
+        if(Array.isArray(cfg)){
+            // custom triggers list
+            return { list: cfg };
+        }
+        const event = cfg.event || defaultEvent;
+        const symbols = cfg.symbols || (cfg.symbolId ? [cfg.symbolId] : (cfg.symbol ? [cfg.symbol] : null));
+        const minCount = (cfg.minCount != null ? cfg.minCount : (cfg.count != null ? cfg.count : 1));
+        const sum = (Array.isArray(symbols) ? symbols : []).reduce((acc, sid) => acc + (countsObj[String(sid)]||0), 0);
+        return { event, sum, minCount, symbols };
+    };
+
+
+const countReelsWith = (symbolsArr) => {
+    const set = new Set((symbolsArr||[]).map(x => String(x)));
+    let reelsHit = 0;
+    try{
+        for(let c=0;c<settings.reels;c++){
+            const syms = _getVisibleSymbolsOnReel(c);
+            let has = false;
+            for(const s of (syms||[])){
+                const id = (s && s.dataset) ? (s.dataset.symId ?? s.dataset.sym ?? s.dataset.id) : null;
+                if(id && set.has(String(id))){
+                    has = true;
+                    break;
+                }
+            }
+            if(has) reelsHit++;
+        }
+    }catch(_){}
+    return reelsHit;
+};
+
+// Read scatter selection from assets panel (settings.images) or project assets.
+const getScatterSymbolsFromAssets = () => {
+    const ids = [];
+    try{ (settings.images||[]).forEach(img => { if(img && img.isScatter && img.id!=null) ids.push(String(img.id)); }); }catch(_){}
+    try{
+        const p = window.SlotEditorProject;
+        const arr = (p && p.assets && Array.isArray(p.assets.images)) ? p.assets.images : [];
+        arr.forEach(img => { if(img && img.isScatter && img.id!=null) ids.push(String(img.id)); });
+    }catch(_){}
+    // de-dup
+    return Array.from(new Set(ids));
+};
+
+const evalScatterCfg = (cfg, defaultEvent) => {
+    if(!cfg) return null;
+    if(typeof cfg === "string"){
+        const symbols = [cfg];
+        return { event: defaultEvent, symbols, minReels: 3, reels: countReelsWith(symbols) };
+    }
+    if(Array.isArray(cfg)){
+        // custom triggers list
+        return { list: cfg };
+    }
+    const event = cfg.event || defaultEvent;
+    const symbols = cfg.symbols || cfg.symbolIds || (cfg.symbolId ? [cfg.symbolId] : (cfg.symbol ? [cfg.symbol] : []));
+    const minReels = (cfg.minReels != null ? cfg.minReels : (cfg.minCountReels != null ? cfg.minCountReels : 3));
+    const reels = (cfg.reels != null ? cfg.reels : countReelsWith(symbols));
+    return { event, symbols, minReels, reels };
+};
+
+    // Priority: BONUS -> FG (common UX); can be overridden by triggers.priority = ["FG_ENTER","BONUS_TRIGGER"]
+    let pending = [];
+
+    // A) explicit list mode
+    if(Array.isArray(triggers)){
+        pending = triggers.slice();
+    }else{
+        const bonusCfg = triggers.bonus || triggers.bonusTrigger || triggers.BONUS_TRIGGER || null;
+        const fgCfg    = triggers.fg || triggers.fgEnter || triggers.FG_ENTER || null;
+        const scatterCfg = triggers.scatter || triggers.scatterTrigger || triggers.SCATTER_TRIGGER || null;
+
+        // If scene rules didn't specify scatter, fall back to assets panel selection (SCATTER checkbox)
+        let _scatterFromAssets = [];
+        try{ _scatterFromAssets = getScatterSymbolsFromAssets(); }catch(_){ _scatterFromAssets = []; }
+
+        let scatterCfg2 = scatterCfg;
+        const _isEmptyScatterCfg = (cfg) => {
+            if(!cfg) return true;
+            if(typeof cfg === "string") return String(cfg).trim() === "";
+            if(Array.isArray(cfg)) return cfg.length === 0;
+            if(typeof cfg === "object"){
+                if(Array.isArray(cfg.symbols) && cfg.symbols.length === 0) return true;
+                if(Array.isArray(cfg.symbolIds) && cfg.symbolIds.length === 0) return true;
+            }
+            return false;
+        };
+
+        if(_isEmptyScatterCfg(scatterCfg2) && _scatterFromAssets.length > 0){
+            scatterCfg2 = { symbols: _scatterFromAssets, minReels: 3, event: "SCATTER_TRIGGER" };
+        }
+
+
+
+        const b = evalCfg(bonusCfg, "BONUS_TRIGGER");
+        const f = evalCfg(fgCfg, "FG_ENTER");
+
+        const s = evalScatterCfg(scatterCfg2, "SCATTER_TRIGGER");
+
+        if(b && !b.list && b.event && b.sum >= b.minCount) pending.push({ event: b.event, symbols: b.symbols, minCount: b.minCount, sum: b.sum, type: "bonus" });
+        if(f && !f.list && f.event && f.sum >= f.minCount) pending.push({ event: f.event, symbols: f.symbols, minCount: f.minCount, sum: f.sum, type: "fg" });
+        if(s && !s.list && s.event && s.reels >= s.minReels) pending.push({ event: s.event, symbols: s.symbols, minReels: s.minReels, reels: s.reels, type: "scatter" });
+
+        // merge custom list if exists
+        if(b && b.list) pending = pending.concat(b.list);
+        if(f && f.list) pending = pending.concat(f.list);
+
+        if(s && s.list) pending = pending.concat(s.list);
+        if(Array.isArray(triggers.custom)) pending = pending.concat(triggers.custom);
+    }
+
+    // Normalize custom list items
+    const norm = [];
+for(const it of pending){
+    if(!it) continue;
+    const event = it.event || it.on;
+    const symbols = it.symbols || (it.symbolId ? [it.symbolId] : (it.symbol ? [it.symbol] : []));
+    const type = it.type || "";
+
+    // Reel-based trigger (e.g., SCATTER): count reels that contain at least one of the given symbols
+    if(it.minReels != null){
+        const minReels = (it.minReels != null ? it.minReels : 3);
+        const reels = (it.reels != null ? it.reels : countReelsWith(symbols));
+        if(event && reels >= minReels) norm.push({ event, symbols, minReels, reels, type });
+        continue;
+    }
+
+    // Count-based trigger (e.g., BONUS/FG): sum of occurrences across visible grid
+    const minCount = (it.minCount != null ? it.minCount : (it.count != null ? it.count : 1));
+    const sum = (Array.isArray(symbols) ? symbols : []).reduce((acc, sid) => acc + (countsObj[String(sid)]||0), 0);
+    if(event && sum >= minCount) norm.push({ event, symbols, minCount, sum, type });
+}
+if(norm.length === 0) return;
+    // Apply priority override if provided
+    if(Array.isArray(triggers.priority)){
+        const pr = triggers.priority.map(x => String(x));
+        norm.sort((a,b) => pr.indexOf(String(a.event)) - pr.indexOf(String(b.event)));
+    }else{
+        // default: BONUS -> SCATTER -> FG -> others
+        const w = (x) => {
+            const e = String(x.event||"");
+            if(e.includes("BONUS")) return 0;
+            if(e.includes("SCATTER")) return 1;
+            if(e.includes("FG")) return 2;
+            return 3;
+        };
+        norm.sort((a,b) => w(a) - w(b));
+}
+
+    const chosen = norm[0];
+    if(!chosen) return;
+
+    // Emit a dedicated trigger event before transition (for debug / timeline UI)
+    bus.emit("TRIGGER_DETECTED", { sceneId, ...chosen, at: Date.now() });
+
+    // Fire via SceneManager so Flow can route it
+    try{
+        if(window.SlotSceneManager && typeof window.SlotSceneManager.handleEvent === "function"){
+            window.SlotSceneManager.handleEvent(String(chosen.event), { sceneId, ...chosen, at: Date.now() });
+        }else{
+            bus.emit(String(chosen.event), { sceneId, ...chosen, at: Date.now() });
+        }
+    }catch(e){
+        console.error(e);
+    }
+}
+
+function _revokeBlobUrl(url) {
+            try {
+                if (typeof url === 'string' && url.startsWith('blob:')) URL.revokeObjectURL(url);
+            } catch (_) {}
+        }
+        function _revokeAllSymbolImageUrls() {
+            try { (settings.images || []).forEach(img => _revokeBlobUrl(img && img.url)); } catch (_) {}
+        }
+        function _clearStripBlurClones(strip) {
+            if (!strip) return;
+            strip.querySelectorAll('.blur-clone').forEach(b => b.remove());
+        }
+
+        const _stripBlurState = new Map(); // Map<HTMLElement, {active:boolean, raf:number, token:number, rows:number}>
+
+        function _getTranslateY(el) {
+            const tr = getComputedStyle(el).transform;
+            if (!tr || tr === 'none') return 0;
+            // matrix(a,b,c,d,tx,ty) or matrix3d(...)
+            const m = tr.match(/matrix\(([^)]+)\)/);
+            if (m) {
+                const parts = m[1].split(',').map(x => parseFloat(x.trim()));
+                return parts.length >= 6 ? parts[5] : 0;
+            }
+            const m3 = tr.match(/matrix3d\(([^)]+)\)/);
+            if (m3) {
+                const parts = m3[1].split(',').map(x => parseFloat(x.trim()));
+                return parts.length >= 16 ? parts[13] : 0;
+            }
+            return 0;
+        }
+
+        function _ensureBlurClone(sym, h, g) {
+            if (!sym || sym.querySelector('.blur-clone')) return;
+            if ((sym.dataset && sym.dataset.kind) !== 'image') return;
+
+            const blurVal = parseFloat(document.getElementById('num-blur')?.value || '0');
+            if (!(blurVal > 0)) return;
+
+            const img = sym.querySelector('img.main-img');
+            if (!img) return;
+
+            const span = Math.max(1, parseInt(sym.dataset.span || '1', 10) || 1);
+
+            const cloneDiv = document.createElement('div');
+            cloneDiv.className = 'blur-clone';
+
+            const cloneImg = img.cloneNode(true);
+            if (span > 1) {
+                const totalH = (h * span) + (g * (span - 1));
+                cloneImg.style.height = totalH + 'px';
+            } else {
+                cloneImg.style.height = '100%';
+            }
+
+            cloneDiv.appendChild(cloneImg);
+            sym.appendChild(cloneDiv);
+        }
+
+        function _updateStripBlurWindow(strip, rows, h, g) {
+            if (!strip) return;
+
+            const blurVal = parseFloat(document.getElementById('num-blur')?.value || '0');
+            if (!(blurVal > 0)) {
+                _clearStripBlurClones(strip);
+                return;
+            }
+
+            const step = h + g;
+            const y = _getTranslateY(strip);
+
+            // When y == -PAD_TOP*step, the first visible index is PAD_TOP.
+            const firstVisible = Math.max(0, Math.floor((-y) / Math.max(step, 1)));
+            const start = Math.max(0, firstVisible - BLUR_WINDOW_MARGIN);
+            const end = Math.min(strip.children.length - 1, firstVisible + rows + PAD_BOTTOM + BLUR_WINDOW_MARGIN);
+
+            // Ensure clones in window
+            for (let i = start; i <= end; i++) {
+                const sym = strip.children[i];
+                _ensureBlurClone(sym, h, g);
+            }
+
+            // Remove clones outside window (keep DOM light)
+            for (let i = 0; i < strip.children.length; i++) {
+                if (i >= start && i <= end) continue;
+                const sym = strip.children[i];
+                const c = sym && sym.querySelector && sym.querySelector('.blur-clone');
+                if (c) c.remove();
+            }
+        }
+
+        
+        function _startStripBlurLoop(strip, rows) {
+            if (!strip) return;
+
+            // state object per strip to avoid rAF race conditions (e.g., first spin transitionend timing)
+            let st = _stripBlurState.get(strip);
+            if (!st) {
+                st = { active: false, raf: 0, token: 0, rows: rows || 0 };
+                _stripBlurState.set(strip, st);
+            }
+
+            st.active = true;
+            st.rows = rows || st.rows || 0;
+            st.token = (st.token || 0) + 1;
+            const myToken = st.token;
+
+            // already scheduled; keep active + latest rows
+            if (st.raf) return;
+
+            const tick = () => {
+                const st2 = _stripBlurState.get(strip);
+                if (!st2 || !st2.active || st2.token !== myToken) {
+                    if (st2) st2.raf = 0;
+                    return;
+                }
+
+                // If blur is off mid-spin, keep loop alive (so toggling back on works), but clear clones.
+                const blurVal = parseFloat(document.getElementById('num-blur')?.value || '0');
+                const h = parseInt(document.getElementById('num-h')?.value || '0', 10);
+                const g = parseInt(document.getElementById('num-gap')?.value || '0', 10);
+                const rowsNow = st2.rows || rows || 0;
+
+                if (!(blurVal > 0)) {
+                    _clearStripBlurClones(strip);
+                } else {
+                    _updateStripBlurWindow(strip, rowsNow, h, g);
+                }
+
+                st2.raf = requestAnimationFrame(tick);
+            };
+
+            st.raf = requestAnimationFrame(tick);
+        }
+
+        function _stopStripBlurLoop(strip) {
+            const st = _stripBlurState.get(strip);
+            if (!st) return;
+            st.active = false;
+            st.token = (st.token || 0) + 1; // invalidate any in-flight tick
+            if (st.raf) cancelAnimationFrame(st.raf);
+            st.raf = 0;
+        }
+
+        // ===== end patch =====
+
+
+        window.openTab = function(tabName, btn) {
+            document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            if(btn) btn.classList.add('active');
+        }
+
+        window.autoFitDimensions = function() {
+            const mw = parseInt(document.getElementById('num-mw').value);
+            const mh = parseInt(document.getElementById('num-mh').value);
+            const reels = parseInt(document.getElementById('num-reels').value);
+            const rows = parseInt(document.getElementById('num-rows').value);
+            const gap = parseInt(document.getElementById('num-gap').value);
+
+            if(reels <= 0 || rows <= 0) return;
+
+            let newW = Math.floor((mw - (reels - 1) * gap) / reels);
+            if(newW < 10) newW = 10;
+            let newH = Math.floor((mh - (rows - 1) * gap) / rows);
+            if(newH < 10) newH = 10;
+
+            const wInput = document.getElementById('num-w'); wInput.value = newW; wInput.dispatchEvent(new Event('input'));
+            const hInput = document.getElementById('num-h'); hInput.value = newH; hInput.dispatchEvent(new Event('input'));
+            updateGrid();
+            alert(`Auto-Fit: ${newW}x${newH}px`);
+        }
+
+        function generateReelData(totalRows, reelIndex) {
+            const result = new Array(totalRows).fill(null);
+            let i = 0;
+            while (i < totalRows) {
+                let img = null;
+                if (settings.images.length > 0) img = getWeightedImg(reelIndex);
+                
+                if (!img) {
+                    result[i] = { type: 'text', data: 'TEXT', span: 1 };
+                    i++; continue;
+                }
+
+                let span = img.span;
+                if (i + span > totalRows) {
+                    let safeImg = null;
+                    for(let k=0; k<10; k++) {
+                        let tryImg = getWeightedImg(reelIndex);
+                        if(tryImg.span === 1) { safeImg = tryImg; break; }
+                    }
+                    if (safeImg) { result[i] = { type: 'image', data: safeImg, span: 1 }; }
+                    else { result[i] = { type: 'text', data: '1', span: 1 }; }
+                    i++;
+                } else {
+                    result[i] = { type: 'image', data: img, span: span };
+                    for (let k = 1; k < span; k++) {
+                        result[i + k] = { type: 'placeholder', span: span, symId: (img && img.id) ? img.id : '', anchorIndex: i };
+                    }
+                    i += span;
+                }
+            }
+            return result;
+        }
+
+        function createControl(parentId, labelText, settingKey, min, max, step, val, cssVar, isPx) {
+             const container = document.getElementById(parentId); if(!container) return;
+     
+             // 修改後的 HTML 結構：將 label 放在最上面，slider 和 number 包在 input-controls 裡
+             const html = `
+                <div class="input-row">
+                    <div class="input-header">
+                        <span class="input-label">${labelText}</span>
+                    </div>
+                    <div class="input-controls">
+                        <input type="range" id="range-${settingKey}" min="${min}" max="${max}" step="${step}" value="${val}">
+                        <input type="number" id="num-${settingKey}" min="${min}" max="${max}" step="${step}" value="${val}">
+                    </div>
+                </div>`;
+     
+             container.innerHTML = html;
+             const range = document.getElementById(`range-${settingKey}`); 
+             const num = document.getElementById(`num-${settingKey}`);
+     
+             const update = (v) => {
+                range.value = v; num.value = v;
+                if(cssVar) document.documentElement.style.setProperty(cssVar, v + (isPx ? 'px' : ''));
+        
+                // 保持原有的邏輯不變
+                if(settingKey === 'reels' || settingKey === 'rows') { settings[settingKey] = parseInt(v); updateGrid(); } 
+                else if(settingKey === 'speed') { settings.spinSpeed = parseFloat(v) * 1000; } 
+                else if(settingKey === 'interval') { settings.stopDelay = parseInt(v); } 
+                else if(settingKey === 'bounce') { settings.bounce = parseInt(v); }
+                else if(settingKey === 'duration') { const sec = parseFloat(v); settings.spinDuration = Math.max(0, isFinite(sec) ? sec : 0) * 1000; }
+                else if(settingKey === 'cascade-speed') { settings.cascadeSpeed = parseInt(v); }
+                else if(settingKey === 'cascade-bounce') { settings.cascadeBounce = parseInt(v); }
+        
+                if(settingKey === 'blur') { 
+                    const f = document.querySelector('#vertical-blur feGaussianBlur'); 
+                    if(f) f.setAttribute('stdDeviation', `0 ${v}`); 
+                }
+             };
+     
+             range.addEventListener('input', (e) => update(e.target.value)); 
+             num.addEventListener('input', (e) => update(e.target.value));
+             update(val);
+        }
+
+        function getWeightedImg(reelIndex) {
+            if (!settings.images || settings.images.length === 0) return null;
+            const r = Math.max(1, parseInt(reelIndex, 10) || 1);
+
+            let pool = settings.images.filter(img => _isImgAllowedForReel(img, r));
+            if (pool.length === 0) pool = settings.images.filter(img => !(img._reelPred || img._roundPred));
+            if (pool.length === 0) pool = settings.images;
+
+            const total = pool.reduce((a, b) => a + (parseInt(b.weight, 10) || 0), 0);
+            if (!(total > 0)) return pool[0] || null;
+
+            let rr = Math.random() * total;
+            for (let img of pool) {
+                const w = (parseInt(img.weight, 10) || 0);
+                if (rr < w) return img;
+                rr -= w;
+            }
+            return pool[0] || null;
+        }
+
+        function renderSymbol(div, dataObj, rowIndex) {
+            div.innerHTML = ''; div.style.background = ''; div.classList.remove('debug-box', 'is-long', 'is-placeholder', 'is-anchor');
+            // v37.3: reset symbol metadata
+            div.dataset.kind = '';
+            div.dataset.span = '1';
+    
+            div.dataset.symId = '';
+           // 修正：基礎值 + 行數權重 -> 下面行數 (rowIndex 大) 數值大 -> 下壓上
+           let baseZIndex = 1000 + (rowIndex * 10);
+           div.style.zIndex = baseZIndex;
+
+            if (dataObj && dataObj.type === 'placeholder') {
+                div.classList.add('is-placeholder'); div.style.zIndex = -1000; 
+                div.style.opacity = '0'; 
+                div.dataset.kind = 'placeholder';
+                div.dataset.symId = (dataObj.symId != null) ? String(dataObj.symId) : '';
+                div.dataset.anchorIndex = (dataObj.anchorIndex != null) ? String(dataObj.anchorIndex) : '';
+                return;
+            }
+
+            if (dataObj && dataObj.type === 'image') {
+                div.classList.add('is-anchor');
+                const imgData = dataObj.data;
+                const img = document.createElement('img'); img.src = imgData.url; img.className = 'main-img';
+                
+                if(imgData.span > 1) {
+                    img.classList.add('big'); div.classList.add('debug-box'); div.classList.add('is-long'); 
+                    div.style.zIndex = baseZIndex + 5; 
+                    const h = parseInt(document.getElementById('num-h').value);
+                    const g = parseInt(document.getElementById('num-gap').value);
+                    const totalSpanHeight = (h * imgData.span) + (g * (imgData.span - 1));
+                    div.style.setProperty('--debug-height', totalSpanHeight + 'px');
+                    
+                    // 核心：確保原圖有正確高度，方便模糊層讀取
+                    if(document.getElementById('native-size-toggle').checked) { 
+                        img.classList.add('force-native'); 
+                        img.style.height = ''; // Native size
+                    } else { 
+                        img.classList.remove('force-native'); 
+                        img.style.height = totalSpanHeight + 'px'; 
+                    }
+                    
+                    img.style.top = '0'; img.style.marginTop = '0'; 
+                }
+                div.appendChild(img);
+                
+                // v37.3: mark symbol metadata for lazy blur window
+                div.dataset.kind = 'image';
+                div.dataset.span = String(imgData.span || 1);
+                div.dataset.symId = String(imgData.id || imgData.name || imgData.url || '');
+            } else if (dataObj && dataObj.type === 'text') {
+                 const span = document.createElement('span'); span.className = 'text-sym';
+                 span.innerText = settings.symbols[Math.floor(Math.random()*settings.symbols.length)];
+                 div.appendChild(span); div.style.background = '#333';
+                 div.dataset.kind = 'text';
+                div.dataset.symId = 'text:' + String(dataObj && dataObj.data != null ? dataObj.data : '');
+            }
+        }
+
+        function updateGrid() {
+            const con = document.getElementById('reels-container'); if(!con) return;
+            const hInput = document.getElementById('num-h'); const gapInput = document.getElementById('num-gap');
+            if(!hInput || !gapInput) return;
+            con.innerHTML = ''; 
+            
+            // === 修改處：增加 bottomPaddingCount (底部緩衝) ===
+            const topPaddingCount = PAD_TOP; 
+            const bottomPaddingCount = PAD_BOTTOM; // v37.3: centralized padding constants
+            const totalRows = settings.rows + topPaddingCount + bottomPaddingCount;
+            // =================================================
+
+            for(let i=0; i<settings.reels; i++) {
+                const reelData = generateReelData(totalRows, i+1);
+                const reel = document.createElement('div'); reel.className = 'reel'; reel.id = `reel-${i}`;
+                const strip = document.createElement('div'); strip.className = 'reel-strip'; 
+                const h = parseInt(hInput.value); const g = parseInt(gapInput.value);
+                
+                // 初始位置維持只扣除 topPadding，這樣 bottomPadding 會自然的被擠到下方遮罩外
+                const initOffset = -(topPaddingCount * (h + g));
+                strip.style.transform = `translateY(${initOffset}px)`;
+
+                reelData.forEach((item, j) => {
+                    const sym = document.createElement('div'); sym.className = 'symbol';
+                    renderSymbol(sym, item, j); strip.appendChild(sym);
+                });
+                reel.appendChild(strip); con.appendChild(reel);
+            }
+        }
+
+        function spin() {
+             if(isSpinning) return; 
+             if(settings.mode === 'cascade') { performCascade(); return; }
+             isSpinning = true;
+const spinBtn = document.getElementById('btn-spin'); spinBtn.disabled = true;
+try{ window.SlotEventBus?.emit("SPIN_CLICK", { sceneId: window.SlotSceneManager?.sceneId, at: Date.now() }); } catch(_){}
+             const safetyMs = Math.max(5000, settings.spinDuration + ((settings.reels - 1) * settings.stopDelay) + 3000 + (settings.ease === 'bounceBack' ? 600 : 0));
+             const safetyTimer = setTimeout(() => {
+                 if(isSpinning) {
+                     isSpinning = false; spinBtn.disabled = false;
+                     // v37.3: fail-safe cleanup
+                     document.querySelectorAll('.reel-strip').forEach(st => { _stopStripBlurLoop(st); _clearStripBlurClones(st); });
+                 }
+             }, safetyMs);
+
+             const reels = document.querySelectorAll('.reel');
+             const bounce = parseInt(document.getElementById('num-bounce').value);
+             const h = parseInt(document.getElementById('num-h').value); 
+             const g = parseInt(document.getElementById('num-gap').value);
+             
+             // === 修改處：定義緩衝區數量 ===
+             const topPaddingCount = PAD_TOP; 
+             const bottomPaddingCount = PAD_BOTTOM; // v37.3: centralized padding constants
+             const rows = settings.rows;
+             // ==========================
+             
+             const minDuration = settings.spinDuration; 
+             const approxSymbols = Math.ceil(minDuration / 50); 
+             const bufferCount = Math.max(20, approxSymbols);
+
+             let easeCurve = 'cubic-bezier(0.25, 0.1, 0.25, 1)'; 
+             if (settings.ease === 'bounceBack') easeCurve = 'linear';
+             else if (settings.ease === 'heavy') easeCurve = 'cubic-bezier(0.5, 1, 0.89, 1)';
+             else if (settings.ease === 'elastic') easeCurve = 'cubic-bezier(0.68, -0.55, 0.27, 1.55)';
+
+            reels.forEach((reel, idx) => {
+                let strip = reel.querySelector('.reel-strip');
+                strip.querySelectorAll('.blur-clone').forEach(b => b.remove());
+
+                const fragment = document.createDocumentFragment();
+                // 這裡生成的數量夠多，不需要改
+                const newData = generateReelData(topPaddingCount + rows + bufferCount, idx+1); 
+                newData.forEach((item, i) => {
+                    const sym = document.createElement('div'); sym.className = 'symbol';
+                    renderSymbol(sym, item, i); fragment.appendChild(sym);
+                });
+                strip.prepend(fragment);
+                
+                const addedHeight = (topPaddingCount + rows + bufferCount) * (h + g);
+                const startY = -(addedHeight + (topPaddingCount * (h+g)));
+                strip.style.transition = 'none'; strip.style.transform = `translateY(${startY}px)`; strip.offsetHeight; 
+
+                const duration = minDuration + (idx * settings.stopDelay);
+                let targetY = -(topPaddingCount * (h + g));
+                
+                setTimeout(() => {
+                     strip.style.transition = `transform ${duration}ms ${easeCurve}`;
+                     strip.style.transform = `translateY(${targetY}px)`;
+                     // v37.3: keep blur clones only near visible window
+                     _startStripBlurLoop(strip, rows);
+                     
+                     const blurFade = Math.max(0, duration - 50);
+                     setTimeout(() => {
+                                // Stop blur loop before fading to prevent late-added clones.
+                                _stopStripBlurLoop(strip);
+                                const blurs = strip.querySelectorAll('.blur-clone');
+                                blurs.forEach(b => b.style.opacity = '0');
+                                // Hard guarantee removal even if transitionend timing is odd.
+                                setTimeout(() => _clearStripBlurClones(strip), 160);
+                            }, blurFade);
+
+                     const onEnd = () => {
+                         strip.removeEventListener('transitionend', onEnd);
+                         _stopStripBlurLoop(strip);
+                         const blurs = strip.querySelectorAll('.blur-clone');
+                         if (settings.ease === 'bounceBack') {
+                            strip.style.transition = `transform 100ms cubic-bezier(0.2, 0.6, 0.3, 1)`;
+                            // 回彈時往上拉，這裡如果沒有 bottomPadding，底部就會穿幫
+                            strip.style.transform = `translateY(${-topPaddingHeight - bounce}px)`;
+                            setTimeout(() => {
+                                strip.style.transition = `transform 120ms ease-in`;
+                                strip.style.transform = `translateY(${-topPaddingHeight}px)`;
+                                setTimeout(() => _clearStripBlurClones(strip), 200);
+                                finalize();
+                            }, 100);
+                        } else {
+                            setTimeout(() => _clearStripBlurClones(strip), 100);
+                            finalize();
+                        }
+                     };
+                     strip.addEventListener('transitionend', onEnd);
+                }, 50);
+            });
+            
+            let reelsDone = 0;
+            const topPaddingHeight = topPaddingCount * (h + g);
+            
+            function finalize() {
+                 setTimeout(() => {
+                     // === 修改處：清理時保留底部緩衝 ===
+                     // 原本是 topPaddingCount + rows，現在要加 bottomPaddingCount
+                     const keepCount = topPaddingCount + rows + bottomPaddingCount;
+                     // ==============================
+                     
+                     const strips = document.querySelectorAll('.reel-strip');
+                     reelsDone++;
+                     if(reelsDone === settings.reels) {
+                         strips.forEach(strip => { while (strip.children.length > keepCount) { strip.removeChild(strip.lastChild); } });
+                         isSpinning = false; spinBtn.disabled = false; clearTimeout(safetyTimer);
+                         _scheduleWinCheck();
+                         document.querySelectorAll('.reel-strip').forEach(st => { _stopStripBlurLoop(st); _clearStripBlurClones(st); }); 
+                     }
+                 }, 200); 
+            }
+        }
+
+        function performCascade() {
+            if(isSpinning) return; isSpinning = true;
+const spinBtn = document.getElementById('btn-spin'); spinBtn.disabled = true;
+try{ window.SlotEventBus?.emit("SPIN_CLICK", { sceneId: window.SlotSceneManager?.sceneId, at: Date.now() }); } catch(_){}
+            const reels = document.querySelectorAll('.reel');
+            const bounce = settings.cascadeBounce;
+            const h = parseInt(document.getElementById('num-h').value); 
+            const g = parseInt(document.getElementById('num-gap').value);
+            const rows = settings.rows;
+            const topPaddingCount = PAD_TOP; 
+            const topPaddingHeight = topPaddingCount * (h + g);
+            const dropOutDuration = 300;
+            const dropInDuration = settings.cascadeSpeed; 
+            const columnDelay = settings.stopDelay; 
+            let reelsDone = 0;
+
+            reels.forEach((reel, idx) => {
+                setTimeout(() => {
+                    const strip = reel.querySelector('.reel-strip');
+                    const visibleLimit = topPaddingCount + rows;
+                    while (strip.children.length > visibleLimit) {
+                        strip.removeChild(strip.lastChild);
+                    }
+                    strip.querySelectorAll('.blur-clone').forEach(b => b.remove());
+                    
+                    const allSyms = Array.from(strip.children);
+                    allSyms.reverse().forEach((sym, i) => {
+                        setTimeout(() => {
+                            sym.style.transition = `transform ${dropOutDuration}ms cubic-bezier(0.5, 0, 1, 0.5), opacity ${dropOutDuration}ms linear`;
+                            sym.style.transform = 'translateY(1000px)';
+                            sym.style.opacity = '0';
+                        }, i * 80);
+                    });
+
+                    const exitTotalTime = (allSyms.length * 80) + dropOutDuration;
+
+                    setTimeout(() => {
+                        const totalNeeded = topPaddingCount + rows;
+                        const newStackData = generateReelData(totalNeeded, idx+1);
+                        strip.innerHTML = ''; 
+                        const fragment = document.createDocumentFragment();
+                        newStackData.forEach((item, i) => {
+                            const sym = document.createElement('div'); sym.className = 'symbol';
+                            renderSymbol(sym, item, i);
+                            sym.style.transform = `translateY(-1000px)`;
+                            sym.style.opacity = '0'; 
+                            if (document.getElementById('num-blur').value > 0 && item.type === 'image') {
+                                 const img = sym.querySelector('img');
+                                 if(img) { 
+                                     const cloneDiv = document.createElement('div'); cloneDiv.className = 'blur-clone'; 
+                                     const cloneImg = img.cloneNode(true); 
+                                     
+                                     // Cascade Blur Sizing Logic
+                                     if(item.data.span > 1) {
+                                         const totalH = (h * item.data.span) + (g * (item.data.span - 1));
+                                         cloneImg.style.height = totalH + 'px';
+                                     } else {
+                                         cloneImg.style.height = '100%';
+                                     }
+                                     
+                                     cloneDiv.appendChild(cloneImg); sym.appendChild(cloneDiv); 
+                                 }
+                            }
+                            fragment.appendChild(sym);
+                        });
+                        strip.appendChild(fragment);
+                        strip.style.transition = 'none';
+                        strip.style.transform = `translateY(-${topPaddingHeight}px)`;
+                        strip.offsetHeight; 
+
+                        const newSyms = Array.from(strip.children);
+                        const reversedSyms = [...newSyms].reverse();
+
+                        reversedSyms.forEach((sym, rIdx) => {
+                            const delay = rIdx * 120; 
+                            setTimeout(() => {
+                                const blurFade = Math.max(0, dropInDuration - 50);
+                                setTimeout(() => {
+                                    const blurs = sym.querySelectorAll('.blur-clone');
+                                    blurs.forEach(b => b.style.opacity = '0');
+                                    setTimeout(() => { blurs.forEach(b => b.remove()); }, 160);
+                                }, blurFade);
+                                sym.style.transition = `transform ${dropInDuration}ms linear, opacity 0.1s linear`;
+                                sym.style.transform = 'translateY(0)'; 
+                                sym.style.opacity = '1'; 
+                                setTimeout(() => {
+                                    sym.style.transition = `transform 100ms cubic-bezier(0.2, 0.6, 0.3, 1)`;
+                                    sym.style.transform = `translateY(${-bounce}px)`;
+                                    setTimeout(() => {
+                                        sym.style.transition = `transform 120ms ease-in`;
+                                        sym.style.transform = `translateY(0)`;
+                                        setTimeout(() => { const blurs = sym.querySelectorAll('.blur-clone'); blurs.forEach(b => b.remove()); }, 200);
+                                        if(rIdx === reversedSyms.length - 1) {
+                                            reelsDone++;
+                                            if(reelsDone === settings.reels) { isSpinning = false; spinBtn.disabled = false; } _scheduleWinCheck();
+                                        }
+                                    }, 100);
+                                }, dropInDuration);
+                            }, delay);
+                        });
+                    }, exitTotalTime);
+                }, idx * columnDelay); 
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            createControl('ctrl-gap', '間距', 'gap', 0, 100, 1, 10, '--symbol-gap', true);
+            createControl('ctrl-w', '寬度', 'w', 10, 3000, 1, 100, '--symbol-width', true);
+            createControl('ctrl-h', '高度', 'h', 10, 3000, 1, 100, '--symbol-height', true);
+            createControl('ctrl-reels', '轉輪數', 'reels', 1, 10, 1, 5, '--reel-count');
+            createControl('ctrl-rows', '行數', 'rows', 1, 10, 1, 6, '--row-count');
+            createControl('ctrl-mask-w', 'Mask W', 'mw', 100, 3000, 1, 600, '--mask-width', true);
+            createControl('ctrl-mask-h', 'Mask H', 'mh', 100, 3000, 1, 650, '--mask-height', true);
+            createControl('ctrl-off-x', 'X (左下)', 'ox', -1500, 1500, 1, -300, '--offset-x', true);
+            createControl('ctrl-off-y', 'Y (左下)', 'oy', -1500, 1500, 1, -325, '--offset-y', true);
+            createControl('ctrl-spin-duration', '旋轉時間 (秒)', 'duration', 0.5, 10.0, 0.5, 2.0, null);
+            createControl('ctrl-speed', '轉速 (Speed)', 'speed', 0.1, 5.0, 0.1, 1.5, null);
+            createControl('ctrl-interval', '間隔 (Interval)', 'interval', 0, 1000, 10, 60, null);
+            createControl('ctrl-bounce', '回彈 (Bounce)', 'bounce', 0, 200, 1, 20, null);
+            createControl('ctrl-blur', '模糊 (Blur)', 'blur', 0, 50, 1, 15, null);
+            createControl('ctrl-cascade-speed', '掉落速度', 'cascade-speed', 50, 2000, 10, 300, null);
+            createControl('ctrl-cascade-bounce', '掉落回彈', 'cascade-bounce', 0, 200, 1, 30, null);
+            
+            const zRange = document.getElementById('global-scale'); const zNum = document.getElementById('num-global-scale');
+            const syncZoom = (v) => { zRange.value = v; zNum.value = v; document.documentElement.style.setProperty('--global-scale', v); };
+            zRange.addEventListener('input', e => syncZoom(e.target.value)); zNum.addEventListener('input', e => syncZoom(e.target.value));
+
+            setupMotionBindings(); setupToggles(); setupImages(); setupSystem(); setupStageDrag(); setupZoomWheel();
+            updateGrid();
+        });
+
+        function setupStageDrag() {
+            const stage = document.getElementById('stage-area'); const wrapper = document.getElementById('slot-wrapper');
+            let isDragging = false; let startX, startY, currentPanX = 0, currentPanY = 0;
+            stage.addEventListener('mousedown', (e) => { isDragging = true; startX = e.clientX - currentPanX; startY = e.clientY - currentPanY; });
+            window.addEventListener('mousemove', (e) => { if (!isDragging) return; e.preventDefault(); currentPanX = e.clientX - startX; currentPanY = e.clientY - startY; wrapper.style.setProperty('--pan-x', `${currentPanX}px`); wrapper.style.setProperty('--pan-y', `${currentPanY}px`); });
+            window.addEventListener('mouseup', () => { isDragging = false; });
+            document.getElementById('btn-reset-view').addEventListener('click', () => { currentPanX = 0; currentPanY = 0; wrapper.style.setProperty('--pan-x', '0px'); wrapper.style.setProperty('--pan-y', '0px'); document.getElementById('global-scale').value = 0.8; document.getElementById('num-global-scale').value = 0.8; document.documentElement.style.setProperty('--global-scale', 0.8); });
+        }
+
+        function setupZoomWheel() {
+            const stage = document.getElementById('stage-area'); const zRange = document.getElementById('global-scale'); const zNum = document.getElementById('num-global-scale');
+            stage.addEventListener('wheel', (e) => { e.preventDefault(); let currentScale = parseFloat(zNum.value); const delta = e.deltaY > 0 ? -0.05 : 0.05; let newScale = Math.max(0.2, Math.min(2.0, currentScale + delta)); newScale = parseFloat(newScale.toFixed(2)); zRange.value = newScale; zNum.value = newScale; document.documentElement.style.setProperty('--global-scale', newScale); }, { passive: false });
+        }
+        
+        function setupMotionBindings() {
+            document.getElementById('ease-type').addEventListener('change', e => { settings.ease = e.target.value; });
+            document.getElementById('anim-mode').addEventListener('change', e => { settings.mode = e.target.value; });
+            document.getElementById('btn-spin').addEventListener('click', () => { if(settings.mode === 'cascade') performCascade(); else spin(); });
+        }
+        
+        function setupToggles() {
+             const toggles = ['hide-bg-toggle','native-size-toggle','ui-front-toggle','border-toggle'];
+             toggles.forEach(id => {
+                 document.getElementById(id).addEventListener('change', e => {
+                     const cls = id.replace('-toggle','').replace('hide-bg','hide-bg').replace('native-size','native').replace('ui-front','front').replace('border','noborder');
+                     const tgt = id.includes('ui') ? document.getElementById('ui-layer') : (id.includes('border') ? document.getElementById('viewport') : document.getElementById('reels-container'));
+                     if(e.target.checked) tgt.classList.add(cls); else tgt.classList.remove(cls);
+                     if(id.includes('native')) updateGrid();
+                 });
+             });
+        }
+        
+        function setupImages() { document.getElementById('file-reset').addEventListener('change', e => handleImages(e, true)); document.getElementById('file-add').addEventListener('change', e => handleImages(e, false)); document.getElementById('ui-input').addEventListener('change', e => {
+            if(e.target.files[0]) {
+                if(_uiLayerBlobUrl) _revokeBlobUrl(_uiLayerBlobUrl);
+                const url = URL.createObjectURL(e.target.files[0]);
+                _uiLayerBlobUrl = url;
+                const el = document.getElementById('ui-layer');
+                el.src = url;
+                el.style.display = 'block';
+            }
+        }); }
+        function setupSystem() { document.getElementById('btn-reset-all').addEventListener('click', () => { if(confirm('重置設定？')) { localStorage.removeItem('slotSimConfig'); location.reload(); }}); initSaveLoad(); }
+        function handleImages(e, reset) { if(reset) { _revokeAllSymbolImageUrls(); settings.images = []; } if(e.target.files.length > 0) { Array.from(e.target.files).forEach(file => { const url = URL.createObjectURL(file); const uid = Date.now() + Math.random().toString(36).substr(2,5); settings.images.push({ id: uid, name: file.name, url: url, weight: 50, span: 1, reelsSpec: '', isWild:false, isScatter:false }); settings.images[settings.images.length-1]._reelPred = _buildReelPredicate(''); }); renderImgList(); updateGrid(); } e.target.value = ''; }
+        function renderImgList() { const con = document.getElementById('weight-list'); con.innerHTML = ''; if(settings.images.length === 0) { con.style.display = 'none'; return; } con.style.display = 'block'; settings.images.forEach((img, idx) => { const item = document.createElement('div'); item.className = 'img-item'; item.innerHTML = `<img src="${img.url}" class="img-thumb"><div class="img-details"><div class="img-header"><span title="${img.name}">${img.name.substring(0,10)}</span><div class="img-actions"><button class="action-btn btn-rep" onclick="replaceImg(${idx})">換圖</button><button class="action-btn btn-del" onclick="delImg(${idx})">刪</button></div></div><div style="display:flex; justify-content:space-between; font-size:11px; color:#888;"><span>權重: <b id="disp-w-${img.id}">${img.weight}</b></span></div><input type="range" min="1" max="100" value="${img.weight}" oninput="updateWeight(${idx}, this.value)"><select class="span-select" onchange="updateSpan(${idx}, this.value)">${[1,2,3,4,5].map(n => `<option value="${n}" ${img.span==n?'selected':''}>佔 ${n} 格</option>`).join('')}</select><input class="reels-input" type="text" placeholder="轉輪：全部 / 1 / 1,3-5 / >=2" value="${img.reelsSpec||''}" oninput="updateReels(${idx}, this.value)"><div style="display:flex; gap:14px; align-items:center; font-size:12px; margin-top:6px;">
+                                <label style="display:flex;align-items:center;gap:6px; margin:0;">
+                                    <input type="checkbox" ${img.isWild?'checked':''} onchange="updateWild(${idx}, this.checked)">
+                                    <span>WILD</span>
+                                </label>
+                                <label style="display:flex;align-items:center;gap:6px; margin:0;">
+                                    <input type="checkbox" ${img.isScatter?'checked':''} onchange="updateScatter(${idx}, this.checked)">
+                                    <span style="color:#f2d36a;">SCATTER</span>
+                                </label>
+                            </div><div class="reels-hint">例：<b>1</b>、<b>1,3,5</b>、<b>2-4</b>、<b>>=2</b>（空白=全部轉輪）</div></div>`; con.appendChild(item); }); refreshScatterSummary(); }
+        window.updateWeight = (idx, val) => { settings.images[idx].weight = parseInt(val); document.getElementById(`disp-w-${settings.images[idx].id}`).innerText = val; };
+        window.updateSpan = (idx, val) => { settings.images[idx].span = parseInt(val); updateGrid(); };
+        window.updateReels = (idx, val) => {
+            const img = settings.images[idx];
+            if (!img) return;
+            img.reelsSpec = String(val || '');
+            img._reelPred = _buildReelPredicate(img.reelsSpec);
+            updateGrid();
+        }
+        window.updateRounds = window.updateReels; // backwards compatible
+        window.updateWild = (idx, checked) => { const img = settings.images[idx]; if (!img) return; img.isWild = !!checked; updateGrid(); refreshScatterSummary(); };
+        window.updateScatter = (idx, checked) => {
+            const img = settings.images[idx];
+            if (!img) return;
+            img.isScatter = !!checked;
+            // 常見約束：同一符號通常不會同時是 WILD 與 SCATTER；此處不強制，但你可在後續版本加「互斥」開關
+            updateGrid();
+            refreshScatterSummary();
+        };
+
+        function refreshScatterSummary(){
+            const el = document.getElementById('scatter-summary');
+            if(!el) return;
+            const ids = [];
+            try{
+                (settings.images||[]).forEach(img => { if(img && img.isScatter && img.id!=null) ids.push(String(img.id)); });
+            }catch(_){}
+            const uniq = Array.from(new Set(ids));
+            if(uniq.length===0){
+                el.innerHTML = '<span style="color:#888;">目前未指定任何 SCATTER。</span>';
+            }else{
+                el.innerHTML = '目前 SCATTER：<b>' + uniq.join(', ') + '</b>（事件：<b>SCATTER_TRIGGER</b>）';
+            }
+        }
+;
+        window.delImg = (idx) => { if(confirm('刪除？')) { const it = settings.images[idx]; if(it) _revokeBlobUrl(it.url); settings.images.splice(idx, 1); renderImgList(); updateGrid(); }};
+        let replaceIdx = -1; const repInput = document.createElement('input'); repInput.type = 'file'; repInput.accept = 'image/*'; repInput.style.display = 'none'; document.body.appendChild(repInput); repInput.onchange = (e) => {
+            if(e.target.files[0] && replaceIdx > -1) {
+                const old = settings.images[replaceIdx];
+                if(old) _revokeBlobUrl(old.url);
+                settings.images[replaceIdx].url = URL.createObjectURL(e.target.files[0]);
+                settings.images[replaceIdx].name = e.target.files[0].name;
+                renderImgList(); updateGrid();
+            }
+            repInput.value = '';
+        }; window.replaceImg = (idx) => { replaceIdx = idx; repInput.click(); };
+        
+        function initSaveLoad() {
+            const buildConfig = () => {
+                const config = { app: 'slot-sim', appVersion: APP_VERSION, schemaVersion: 1, params: {}, toggles: {} };
+                document.querySelectorAll('.input-controls input[type="number"]').forEach(input => {
+                    config.params[input.id] = input.value;
+                });
+                config.params['ease-type'] = document.getElementById('ease-type').value;
+                config.params['anim-mode'] = document.getElementById('anim-mode').value;
+
+                config.toggles.bg  = document.getElementById('hide-bg-toggle').checked;
+                config.toggles.nat = document.getElementById('native-size-toggle').checked;
+                config.toggles.ui  = document.getElementById('ui-front-toggle').checked;
+                config.toggles.brd = document.getElementById('border-toggle').checked;
+                return config;
+            };
+
+            document.getElementById('btn-save').onclick = () => {
+                const config = buildConfig();
+                localStorage.setItem('slotSimConfig', JSON.stringify(config));
+                alert('已暫存');
+            };
+
+            document.getElementById('btn-load').onclick = () => {
+                const raw = localStorage.getItem('slotSimConfig');
+                if(raw) applyConfig(JSON.parse(raw));
+                else alert('無存檔');
+            };
+
+            document.getElementById('btn-export').onclick = () => {
+                const config = buildConfig();
+                let fileName = prompt('請輸入檔案名稱 (不需副檔名):', 'slot_config');
+                if (fileName === null) return;
+                if (!fileName.trim()) fileName = 'slot_config';
+
+                const raw = JSON.stringify(config, null, 2);
+                const blob = new Blob([raw], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${fileName}.json`;
+                a.click();
+
+                setTimeout(() => _revokeBlobUrl(url), 1000);
+            };
+
+            // ---- Engine Export (Cocos Creator 3.8 / Unity 2022.3) ----
+            const _cssNum = (varName, fallback=0) => {
+                try {
+                    const v = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+                    if (!v) return fallback;
+                    const n = parseFloat(v);
+                    return isFinite(n) ? n : fallback;
+                } catch (_) { return fallback; }
+            };
+
+            const _getBlurY = () => {
+                try {
+                    const f = document.querySelector('#vertical-blur feGaussianBlur');
+                    if (!f) return 0;
+                    const s = (f.getAttribute('stdDeviation') || '0 0').trim();
+                    const parts = s.split(/[\s,]+/).filter(Boolean);
+                    const y = parts.length >= 2 ? parseFloat(parts[1]) : parseFloat(parts[0]);
+                    return isFinite(y) ? y : 0;
+                } catch (_) { return 0; }
+            };
+
+            const _normalizeSymbolsForExport = () => {
+                const out = [];
+                (settings.images || []).forEach((img, idx) => {
+                    if (!img) return;
+                    const id = (img.id != null && String(img.id).trim()) ? String(img.id).trim() : `SYM_${idx}`;
+                    out.push({
+                        id,
+                        spriteKey: id, // 建議在引擎端用同名 SpriteFrame / Sprite 對應
+                        fileName: img.name || '',
+                        weight: Math.max(0, parseInt(img.weight, 10) || 0),
+                        span: Math.max(1, parseInt(img.span, 10) || 1),
+                        allowedReels: (img.reelsSpec && String(img.reelsSpec).trim()) ? String(img.reelsSpec).trim() : '*',
+                        isWild: !!img.isWild,
+                        isScatter: !!img.isScatter
+                    });
+                });
+                return out;
+            };
+
+            const _buildCommonEnginePayload = () => {
+                const easeType = document.getElementById('ease-type')?.value || settings.ease || 'linear';
+                const animMode = document.getElementById('anim-mode')?.value || settings.mode || 'cascade';
+                return {
+                    source: { app: 'slot-sim', appVersion: APP_VERSION, schemaVersion: 1 },
+                    reels: settings.reels,
+                    rows: settings.rows,
+                    timing: {
+                        spinSpeedSec: (settings.spinSpeed || 0) / 1000,
+                        spinDurationSec: (settings.spinDuration || 0) / 1000,
+                        stopDelaySec: (settings.stopDelay || 0) / 1000,
+                        ease: easeType,
+                        mode: animMode
+                    },
+                    motion: {
+                        bouncePx: (settings.bounce || 0),
+                        cascadeSpeedMs: (settings.cascadeSpeed || 0),
+                        cascadeBouncePx: (settings.cascadeBounce || 0),
+                        blurY: _getBlurY()
+                    },
+                    layout: {
+                        symbolWidthPx: _cssNum('--symbol-width', 100),
+                        symbolHeightPx: _cssNum('--symbol-height', 100),
+                        symbolGapPx: _cssNum('--symbol-gap', 10),
+                        maskWidthPx: _cssNum('--mask-width', 280),
+                        maskHeightPx: _cssNum('--mask-height', 420),
+                        offsetXPx: _cssNum('--offset-x', 0),
+                        offsetYPx: _cssNum('--offset-y', 0),
+                        globalScale: _cssNum('--global-scale', 1.0)
+                    },
+                    symbols: _normalizeSymbolsForExport()
+                };
+            };
+
+            const _downloadJson = (obj, baseName) => {
+                const raw = JSON.stringify(obj, null, 2);
+                const blob = new Blob([raw], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${baseName}.json`;
+                a.click();
+                setTimeout(() => _revokeBlobUrl(url), 1500);
+            };
+
+            const _buildCocosConfig = () => {
+                const common = _buildCommonEnginePayload();
+                return {
+                    schemaVersion: common.source.schemaVersion,
+                    app: common.source.app,
+                    appVersion: common.source.appVersion,
+                    engineTarget: 'cocos-creator-3.8',
+                    reels: common.reels,
+                    rows: common.rows,
+                    timing: common.timing,
+                    motion: common.motion,
+                    layout: common.layout,
+                    waysWin: {
+                        minReelsFromLeft: 3,
+                        wildId: (() => {
+                            const w = (common.symbols || []).find(s => s.isWild);
+                            return w ? w.id : 'WILD';
+                        })(),
+                        allowWildSelfWin: true
+                    },
+                    winFx: {
+                        pulseCount: 2 // 你目前工具的定義：縮放兩次後停下
+                    },
+                    symbols: common.symbols.map(s => ({
+                        id: s.id,
+                        sprite: s.spriteKey,
+                        fileName: s.fileName,
+                        weight: s.weight,
+                        span: s.span,
+                        allowedReels: s.allowedReels,
+                        isWild: s.isWild,
+                        isScatter: !!s.isScatter
+                    }))
+                };
+            };
+
+            const _buildUnityConfig = () => {
+                const common = _buildCommonEnginePayload();
+                return {
+                    schemaVersion: common.source.schemaVersion,
+                    app: common.source.app,
+                    appVersion: common.source.appVersion,
+                    engineTarget: 'unity-2022.3.44',
+                    reels: common.reels,
+                    rows: common.rows,
+                    spin: {
+                        spinSpeedMs: Math.round(common.timing.spinSpeedSec * 1000),
+                        spinDurationMs: Math.round(common.timing.spinDurationSec * 1000),
+                        stopDelayMs: Math.round(common.timing.stopDelaySec * 1000),
+                        ease: common.timing.ease,
+                        mode: common.timing.mode,
+                        bouncePx: common.motion.bouncePx
+                    },
+                    cascade: {
+                        speedMs: common.motion.cascadeSpeedMs,
+                        bouncePx: common.motion.cascadeBouncePx
+                    },
+                    blur: {
+                        y: common.motion.blurY
+                    },
+                    layout: common.layout,
+                    winFx: {
+                        pulseCount: 2
+                    },
+                    waysWin: {
+                        minReelsFromLeft: 3,
+                        wildId: (() => {
+                            const w = (common.symbols || []).find(s => s.isWild);
+                            return w ? w.id : 'WILD';
+                        })(),
+                        allowWildSelfWin: true
+                    },
+                    symbols: common.symbols.map(s => ({
+                        id: s.id,
+                        spriteKey: s.spriteKey,
+                        fileName: s.fileName,
+                        weight: s.weight,
+                        span: s.span,
+                        allowedReels: s.allowedReels,
+                        isWild: s.isWild,
+                        isScatter: !!s.isScatter
+                    }))
+                };
+            };
+
+            const btnCocos = document.getElementById('btn-export-cocos');
+            if (btnCocos) btnCocos.onclick = () => {
+                const cfg = _buildCocosConfig();
+                let fileName = prompt('請輸入 Cocos 設定檔名稱 (不需副檔名):', 'slot_config_cocos');
+                if (fileName === null) return;
+                if (!fileName.trim()) fileName = 'slot_config_cocos';
+                _downloadJson(cfg, fileName.trim());
+            };
+
+            const btnUnity = document.getElementById('btn-export-unity');
+            if (btnUnity) btnUnity.onclick = () => {
+                const cfg = _buildUnityConfig();
+                let fileName = prompt('請輸入 Unity 設定檔名稱 (不需副檔名):', 'slot_config_unity');
+                if (fileName === null) return;
+                if (!fileName.trim()) fileName = 'slot_config_unity';
+                _downloadJson(cfg, fileName.trim());
+            };
+
+
+            const importInput = document.getElementById('file-import');
+            if (importInput) {
+                importInput.onchange = (e) => {
+                    const file = e.target.files && e.target.files[0];
+                    if (!file) return;
+                    file.text().then(t => {
+                        try {
+                            const d = JSON.parse(t);
+                            applyConfig(d);
+                        } catch (err) {
+                            alert('JSON 解析失敗，請確認檔案內容。');
+                            console.error(err);
+                        }
+                    }).catch(err => {
+                        alert('讀取檔案失敗。');
+                        console.error(err);
+                    }).finally(() => {
+                        importInput.value = '';
+                    });
+                };
+            }
+        }
+
+        function applyConfig(d) { if(d.params) { for(let key in d.params) { const el = document.getElementById(key); if(el) { el.value = d.params[key]; el.dispatchEvent(new Event('input')); } } if(d.params['ease-type']) { const el = document.getElementById('ease-type'); el.value = d.params['ease-type']; el.dispatchEvent(new Event('change')); } if(d.params['anim-mode']) { const el = document.getElementById('anim-mode'); el.value = d.params['anim-mode']; el.dispatchEvent(new Event('change')); } } if(d.toggles) { const setChk = (id, v) => { const el = document.getElementById(id); el.checked = v; el.dispatchEvent(new Event('change')); }; setChk('hide-bg-toggle', d.toggles.bg); setChk('native-size-toggle', d.toggles.nat); setChk('ui-front-toggle', d.toggles.ui); setChk('border-toggle', d.toggles.brd); } alert('設定載入完成'); }
+    
+
+        // ============================
+        // Slot Editor v0.1 (Project/Scenes/Flow baseline)
+        // ============================
+        (function(){
+            const PROJECT_KEY = "slotEditorProjectV1";
+
+            // ---- Event Bus (for future scene transitions, timeline, etc.) ----
+            const EventBus = (() => {
+                const map = new Map();
+                return {
+                    on(evt, fn){ if(!map.has(evt)) map.set(evt, new Set()); map.get(evt).add(fn); },
+                    off(evt, fn){ map.get(evt)?.delete(fn); },
+                    emit(evt, payload){ (map.get(evt) || []).forEach(fn => { try{ fn(payload); } catch(e){ console.error(e); } }); }
+                };
+            })();
+            window.SlotEventBus = EventBus;
+
+            // ---- Plugin Registry (scene types / exporters) ----
+            const Plugins = {
+                sceneTypes: new Map(),
+                exporters: new Map(),
+                registerSceneType(type, impl){ this.sceneTypes.set(type, impl); },
+                registerExporter(name, fn){ this.exporters.set(name, fn); }
+            };
+            window.SlotEditorPlugins = Plugins;
+
+            // ---- Scene Manager (minimal) ----
+            class SceneManager {
+                constructor(project){
+                    this.project = project;
+                    this.sceneId = project?.flow?.start || (project?.scenes?.[0]?.id ?? "base");
+                }
+                getScene(id){ return (this.project.scenes || []).find(s => s.id === id); }
+                get current(){ return this.getScene(this.sceneId); }
+                goto(id){
+                    if(!id || id === this.sceneId) return;
+                    this.sceneId = id;
+                    EventBus.emit("SCENE_CHANGED", { id });
+                }
+                handleEvent(evt, payload){
+                    const trs = this.project?.flow?.transitions || [];
+                    const t = trs.find(x => x.from === this.sceneId && x.on === evt);
+                    if(t && t.to) this.goto(t.to);
+                    EventBus.emit(evt, payload);
+                }
+            }
+
+
+            // ---- Scene Drivers (v43) ----
+            const SceneDrivers = {
+                "reels": {
+                    mount(scene){
+                        // Ensure reel area visible
+                        const reelsEl = document.getElementById("reels-container");
+                        if(reelsEl) reelsEl.style.display = "";
+                        const bonusLayer = document.getElementById("bonus-pick-layer");
+                        if(bonusLayer) bonusLayer.style.display = "none";
+                        // Re-apply UI config for reels scenes only
+                        if(scene && scene.uiConfig) applySceneToUI(scene);
+                    },
+                    unmount(){
+                        // nothing
+                    }
+                },
+                "bonus-pick": {
+                    mount(scene){
+                        const reelsEl = document.getElementById("reels-container");
+                        if(reelsEl) reelsEl.style.display = "none";
+                        const layer = document.getElementById("bonus-pick-layer");
+                        const grid  = document.getElementById("bonus-pick-grid");
+                        const result= document.getElementById("bonus-pick-result");
+                        const btnEnd= document.getElementById("bonus-pick-end");
+                        if(!layer || !grid || !result || !btnEnd) return;
+
+                        layer.style.display = "flex";
+                        result.textContent = "請選擇一張卡片。";
+
+                        // Read config
+                        const rules = (scene && scene.rules) ? scene.rules : {};
+                        const pickConf = rules.bonusPick || {};
+                        const cardCount = Math.max(1, Math.min(12, Number(pickConf.cardCount ?? 6) || 6));
+                        const picksMax  = Math.max(1, Math.min(12, Number(pickConf.picks ?? 1) || 1));
+                        const rewards = Array.isArray(rules.bonusRewards) && rules.bonusRewards.length ? rules.bonusRewards.slice() : [50,100,200,500,1000,2000];
+
+                        let picksLeft = picksMax;
+                        let revealed = 0;
+                        let totalWin = 0;
+                        let ended = false;
+
+                        const cleanup = { handlers: [] };
+                        const on = (el, evt, fn) => { el.addEventListener(evt, fn); cleanup.handlers.push(() => el.removeEventListener(evt, fn)); };
+
+                        const pickReward = () => {
+                            // Simple RNG; later you can weight via rules
+                            const v = rewards[Math.floor(Math.random() * rewards.length)];
+                            return v;
+                        };
+
+                        const makeCard = (idx) => {
+                            const card = document.createElement("div");
+                            card.className = "bonus-card";
+                            card.textContent = "PICK";
+                            card.dataset.idx = String(idx);
+                            on(card, "click", () => {
+                                if(ended) return;
+                                if(card.classList.contains("revealed")) return;
+                                if(picksLeft <= 0) return;
+
+                                const win = pickReward();
+                                totalWin += Number(win) || 0;
+                                picksLeft--;
+                                revealed++;
+
+                                card.classList.add("revealed");
+                                card.textContent = String(win);
+                                const shine = document.createElement("div");
+                                shine.className = "shine";
+                                card.appendChild(shine);
+
+                                result.textContent = `本次獲得：${win}（剩餘可選：${picksLeft}）｜累計：${totalWin}`;
+
+                                // Auto-end if picks done
+                                if(picksLeft <= 0){
+                                    result.textContent = `BONUS 結束｜累計獲得：${totalWin}`;
+                                }
+                            });
+                            return card;
+                        };
+
+                        grid.innerHTML = "";
+                        for(let i=0;i<cardCount;i++){
+                            grid.appendChild(makeCard(i));
+                        }
+
+                        on(btnEnd, "click", () => {
+                            if(ended) return;
+                            ended = true;
+                            try{
+                                // Allow downstream to use win amount
+                                if(sm) sm.handleEvent("BONUS_END", { sceneId: scene?.id, totalWin });
+                                else EventBus.emit("BONUS_END", { sceneId: scene?.id, totalWin });
+                            }catch(e){ console.error(e); }
+                        });
+
+                        // Return cleanup so we can unmount cleanly
+                        return () => {
+                            cleanup.handlers.forEach(fn => { try{ fn(); }catch(_){} });
+                            grid.innerHTML = "";
+                            layer.style.display = "none";
+                        };
+                    },
+                    unmount(){
+                        // handled by switchScene cleanup function
+                    }
+                },
+                "intro": {
+                    mount(scene){
+                        // Auto advance to base for editor convenience
+                        const reelsEl = document.getElementById("reels-container");
+                        if(reelsEl) reelsEl.style.display = "";
+                        const bonusLayer = document.getElementById("bonus-pick-layer");
+                        if(bonusLayer) bonusLayer.style.display = "none";
+                        setTimeout(() => {
+                            try{
+                                if(sm) sm.handleEvent("INTRO_DONE", { sceneId: scene?.id });
+                                else EventBus.emit("INTRO_DONE", { sceneId: scene?.id });
+                            }catch(e){ console.error(e); }
+                        }, 200);
+                    },
+                    unmount(){}
+                },
+                "payout": {
+                    mount(scene){
+                        const reelsEl = document.getElementById("reels-container");
+                        if(reelsEl) reelsEl.style.display = "none";
+                        const layer = document.getElementById("bonus-pick-layer");
+                        const grid  = document.getElementById("bonus-pick-grid");
+                        const result= document.getElementById("bonus-pick-result");
+                        const btnEnd= document.getElementById("bonus-pick-end");
+                        if(layer){ layer.style.display = "flex"; }
+                        if(grid){ grid.innerHTML = ""; }
+                        if(result){ result.textContent = "PAYOUT 場景占位（後續可接報獎演出）"; }
+                        if(btnEnd){
+                            btnEnd.textContent = "返回";
+                            btnEnd.onclick = () => {
+                                try{
+                                    if(sm) sm.handleEvent("PAYOUT_DONE", { sceneId: scene?.id });
+                                    else EventBus.emit("PAYOUT_DONE", { sceneId: scene?.id });
+                                }catch(e){ console.error(e); }
+                            };
+                        }
+                        return () => {
+                            if(btnEnd) btnEnd.onclick = null;
+                            if(btnEnd) btnEnd.textContent = "結束";
+                            if(layer) layer.style.display = "none";
+                        };
+                    },
+                    unmount(){}
+                }
+            };
+
+            let _driverCleanup = null;
+            function mountDriverForScene(scene){
+                if(_driverCleanup){
+                    try{ _driverCleanup(); }catch(_){}
+                    _driverCleanup = null;
+                }
+                const t = (scene && scene.type) ? scene.type : "reels";
+                const driver = SceneDrivers[t] || SceneDrivers["reels"];
+                const cleanup = driver.mount(scene);
+                if(typeof cleanup === "function") _driverCleanup = cleanup;
+            }
+
+            // ---- UI Config Helpers (compatible with existing save/load) ----
+            function buildUIConfig(){
+                const config = { params: {}, toggles: {} };
+                document.querySelectorAll('.input-controls input[type="number"]').forEach(input => {
+                    config.params[input.id] = input.value;
+                });
+                const easeSel = document.getElementById('ease-type');
+                const modeSel = document.getElementById('anim-mode');
+                if (easeSel) config.params['ease-type'] = easeSel.value;
+                if (modeSel) config.params['anim-mode'] = modeSel.value;
+
+                const bgT  = document.getElementById('hide-bg-toggle');
+                const natT = document.getElementById('native-size-toggle');
+                const uiT  = document.getElementById('ui-front-toggle');
+                const brdT = document.getElementById('border-toggle');
+                if (bgT)  config.toggles.bg  = !!bgT.checked;
+                if (natT) config.toggles.nat = !!natT.checked;
+                if (uiT)  config.toggles.ui  = !!uiT.checked;
+                if (brdT) config.toggles.brd = !!brdT.checked;
+
+                return config;
+            }
+
+            function safeJsonParse(raw, fallback=null){
+                try { return JSON.parse(raw); } catch(e){ return fallback; }
+            }
+
+            // ---- Project Model ----
+            function defaultPaytable(){
+                // Simple example; you will likely replace this with your own table.
+                return {
+                    "A": {"3": 10, "4": 20, "5": 50},
+                    "B": {"3": 8,  "4": 16, "5": 40},
+                    "C": {"3": 6,  "4": 12, "5": 30}
+                };
+            }
+
+            function makeDefaultProject(){
+                const baseUI = buildUIConfig();
+                const fgUI   = JSON.parse(JSON.stringify(baseUI));
+                return {
+                    app: "slot-editor",
+                    appVersion: (typeof APP_VERSION !== "undefined" ? APP_VERSION : "0.1.0"),
+                    schemaVersion: 1,
+                    assets: {
+                        // NOTE: images are not embedded; we preserve metadata where possible.
+                        symbols: (settings && settings.symbols) ? settings.symbols.slice() : [],
+                        images:  (settings && settings.images)  ? JSON.parse(JSON.stringify(settings.images)) : []
+                    },
+                    paytable: defaultPaytable(),
+                    scenes: [
+                        { id: "intro",  name: "Intro",  type: "intro",  uiConfig: null, rules: { } },
+                        { id: "base",   name: "Base",   type: "reels",  uiConfig: baseUI, rules: { mode: "base" } },
+                        { id: "fg",     name: "FG",     type: "reels",  uiConfig: fgUI,   rules: { mode: "freegame" } },
+                        { id: "bonus",  name: "Bonus",  type: "bonus-pick",  uiConfig: null, rules: { bonusRewards:[50,100,200,500,1000,2000], bonusPick:{ cardCount:6, picks:1 } } },
+                        { id: "payout", name: "Payout", type: "payout", uiConfig: null, rules: { } }
+                    ],
+                    flow: {
+                        start: "intro",
+                        transitions: [
+                            { from: "intro", on: "INTRO_DONE",      to: "base"  },
+                            { from: "base",  on: "FG_ENTER",        to: "fg"    },
+                            { from: "fg",    on: "FG_END",          to: "base"  },
+                            { from: "base",  on: "SCATTER_TRIGGER", to: "bonus" },
+                            { from: "base",  on: "BONUS_TRIGGER",   to: "bonus" },
+                            { from: "bonus", on: "BONUS_END",       to: "base"  },
+                            { from: "payout",on: "PAYOUT_DONE",     to: "base"  }
+                        ]}
+                };
+            }
+
+            let project = null;
+            let sm = null;
+            let currentSceneId = null;
+
+            function loadProject(){
+                const raw = localStorage.getItem(PROJECT_KEY);
+                const p = raw ? safeJsonParse(raw, null) : null;
+                if (p && p.app === "slot-editor") return p;
+                return null;
+            }
+
+            function saveProject(){
+                try {
+                    localStorage.setItem(PROJECT_KEY, JSON.stringify(project));
+                    alert("專案已暫存");
+                } catch(e){
+                    console.error(e);
+                    alert("暫存失敗（可能是 localStorage 空間不足）");
+                }
+            }
+
+            function refreshProjectTextareas(){
+                const el = document.getElementById("project-json");
+                if (el) el.value = JSON.stringify(project, null, 2);
+
+                const f = document.getElementById("flow-json");
+                if (f) f.value = JSON.stringify(project.flow || {}, null, 2);
+
+                const p = document.getElementById("paytable-json");
+                if (p) p.value = JSON.stringify(project.paytable || {}, null, 2);
+
+                refreshSceneRulesTextarea();
+                refreshFlowEditor();
+            }
+
+            function refreshSceneSelect(){
+                const sel = document.getElementById("scene-select");
+                if (!sel) return;
+                sel.innerHTML = "";
+                (project.scenes || []).forEach(s => {
+                    const opt = document.createElement("option");
+                    opt.value = s.id;
+                    opt.textContent = `${s.id} · ${s.name || s.type}`;
+                    sel.appendChild(opt);
+                });
+                sel.value = currentSceneId || (sm?.sceneId ?? "base");
+                refreshFlowEditor();
+            }
+
+            function getScene(id){
+                return (project.scenes || []).find(s => s.id === id);
+            }
+
+            function captureSceneFromUI(scene){
+                if(!scene) return;
+                if(scene.type === "reels"){
+                    scene.uiConfig = buildUIConfig();
+                }
+                // Always sync assets metadata
+                if(project.assets){
+                    project.assets.symbols = (settings && settings.symbols) ? settings.symbols.slice() : (project.assets.symbols || []);
+                    project.assets.images  = (settings && settings.images)  ? JSON.parse(JSON.stringify(settings.images)) : (project.assets.images || []);
+                }
+            }
+
+            function applySceneToUI(scene){
+                if(!scene) return;
+                if(scene.type === "reels" && scene.uiConfig){
+                    // Reuse existing applyConfig if present; otherwise do minimal apply.
+                    if(typeof applyConfig === "function"){
+                        applyConfig({ params: scene.uiConfig.params || {}, toggles: scene.uiConfig.toggles || {} });
+                    }else{
+                        const params = scene.uiConfig.params || {};
+                        for(const k in params){
+                            const el = document.getElementById(k);
+                            if(el){ el.value = params[k]; el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change")); }
+                            const el2 = document.getElementById(k);
+                            if(el2){ el2.value = params[k]; }
+                        }
+                    }
+                }
+                // Force a layout update if available
+                try { if(typeof updateGrid === "function") updateGrid(); } catch(_){}
+            }
+
+            function switchScene(nextId){
+                if(!nextId) return;
+                const prev = getScene(currentSceneId);
+                if(prev) captureSceneFromUI(prev);
+
+                const scene = getScene(nextId);
+                if(!scene){ alert("找不到場景：" + nextId); return; }
+
+                currentSceneId = nextId;
+                if(sm) sm.goto(nextId);
+
+                // Mount driver (handles UI/show/hide by scene.type)
+                mountDriverForScene(scene);
+
+                refreshSceneSelect();
+                refreshSceneTypeControls();
+                refreshSceneRulesTextarea();
+                refreshProjectTextareas();
+            }
+
+            function refreshSceneRulesTextarea(){
+                const el = document.getElementById("scene-rules-json");
+                if(!el) return;
+                const scene = getScene(currentSceneId || sm?.sceneId);
+                el.value = JSON.stringify(scene?.rules || {}, null, 2);
+                // Keep scatter panel in sync
+                try{ renderScatterPanelOptions(); }catch(_){}
+            }
+
+
+            function publishGlobals(){
+                try{
+                    window.SlotEditorProject = project;
+                    window.SlotSceneManager = sm;
+                }catch(_){}
+            }
+
+            function getSceneIds(){
+                return (project && project.scenes) ? project.scenes.map(s => s.id) : [];
+            }
+
+            
+            function refreshSceneTypeControls(){
+                const typeSel = document.getElementById("scene-type-select");
+                const bonusEd = document.getElementById("bonus-pick-editor");
+                if(!typeSel) return;
+                const scene = getScene(currentSceneId);
+                if(!scene) return;
+                typeSel.value = scene.type || "reels";
+                if(bonusEd){
+                    bonusEd.style.display = (typeSel.value === "bonus-pick") ? "block" : "none";
+                }
+                // fill bonus pick fields
+                try{ readBonusPickFromRules(); }catch(_){}
+            }
+
+            function writeBonusPickToRules(){
+                const scene = getScene(currentSceneId);
+                if(!scene) return;
+                if(scene.type !== "bonus-pick"){
+                    alert("當前場景不是 bonus-pick");
+                    return;
+                }
+                const cardEl = document.getElementById("bonus-pick-cardcount");
+                const picksEl= document.getElementById("bonus-pick-picks");
+                const rewEl  = document.getElementById("bonus-pick-rewards");
+                const cardCount = Math.max(1, Math.min(12, Number(cardEl?.value ?? 6) || 6));
+                const picks = Math.max(1, Math.min(12, Number(picksEl?.value ?? 1) || 1));
+                let rewards = null;
+                try{
+                    rewards = JSON.parse(rewEl?.value || "[]");
+                }catch(_){
+                    alert("獎勵列表 JSON 解析失敗");
+                    return;
+                }
+                if(!Array.isArray(rewards) || rewards.length===0){
+                    alert("獎勵列表需為非空 Array，例如：[50,100,200]");
+                    return;
+                }
+                scene.rules = scene.rules || {};
+                scene.rules.bonusPick = { cardCount, picks };
+                scene.rules.bonusRewards = rewards;
+                refreshSceneRulesTextarea();
+                refreshProjectTextareas();
+            }
+
+            function readBonusPickFromRules(){
+                const scene = getScene(currentSceneId);
+                const cardEl = document.getElementById("bonus-pick-cardcount");
+                const picksEl= document.getElementById("bonus-pick-picks");
+                const rewEl  = document.getElementById("bonus-pick-rewards");
+                if(!scene || scene.type !== "bonus-pick") return;
+                const rules = scene.rules || {};
+                const pick = rules.bonusPick || {};
+                if(cardEl) cardEl.value = String(pick.cardCount ?? 6);
+                if(picksEl) picksEl.value = String(pick.picks ?? 1);
+                if(rewEl) rewEl.value = JSON.stringify(Array.isArray(rules.bonusRewards)?rules.bonusRewards:[50,100,200,500,1000,2000], null, 0);
+            }
+function _fillSceneIdSelect(selectEl, value){
+                if(!selectEl) return;
+                const ids = getSceneIds();
+                selectEl.innerHTML = "";
+                ids.forEach(id => {
+                    const o = document.createElement("option");
+                    o.value = id;
+                    o.textContent = id;
+                    selectEl.appendChild(o);
+                });
+                if(value && ids.includes(value)) selectEl.value = value;
+                else selectEl.value = ids[0] || "";
+            }
+
+            function _makeFlowRow(t){
+                const tr = document.createElement("tr");
+                tr.style.borderBottom = "1px solid #222";
+
+                const tdFrom = document.createElement("td");
+                tdFrom.style.padding = "6px 8px";
+                const selFrom = document.createElement("select");
+                selFrom.className = "flow-from";
+                selFrom.style.width = "100%";
+                selFrom.style.height = "28px";
+                selFrom.style.background = "#1f1f1f";
+                selFrom.style.color = "#ddd";
+                selFrom.style.border = "1px solid #444";
+                selFrom.style.borderRadius = "6px";
+                _fillSceneIdSelect(selFrom, t && t.from);
+                tdFrom.appendChild(selFrom);
+
+                const tdOn = document.createElement("td");
+                tdOn.style.padding = "6px 8px";
+                const inpOn = document.createElement("input");
+                inpOn.className = "flow-on";
+                inpOn.type = "text";
+                inpOn.placeholder = "例如 FG_ENTER / BONUS_TRIGGER";
+                inpOn.value = (t && t.on) ? String(t.on) : "";
+                inpOn.style.width = "100%";
+                inpOn.style.height = "28px";
+                inpOn.style.background = "#1f1f1f";
+                inpOn.style.color = "#ddd";
+                inpOn.style.border = "1px solid #444";
+                inpOn.style.borderRadius = "6px";
+                inpOn.style.padding = "0 8px";
+                tdOn.appendChild(inpOn);
+
+                const tdTo = document.createElement("td");
+                tdTo.style.padding = "6px 8px";
+                const selTo = document.createElement("select");
+                selTo.className = "flow-to";
+                selTo.style.width = "100%";
+                selTo.style.height = "28px";
+                selTo.style.background = "#1f1f1f";
+                selTo.style.color = "#ddd";
+                selTo.style.border = "1px solid #444";
+                selTo.style.borderRadius = "6px";
+                _fillSceneIdSelect(selTo, t && t.to);
+                tdTo.appendChild(selTo);
+
+                const tdDel = document.createElement("td");
+                tdDel.style.padding = "6px 8px";
+                tdDel.style.textAlign = "center";
+                const btnDel = document.createElement("button");
+                btnDel.textContent = "✕";
+                btnDel.title = "刪除這一列";
+                btnDel.style.width = "28px";
+                btnDel.style.height = "28px";
+                btnDel.style.borderRadius = "6px";
+                btnDel.style.border = "1px solid #444";
+                btnDel.style.background = "#232323";
+                btnDel.style.color = "#ddd";
+                btnDel.style.cursor = "pointer";
+                btnDel.onmouseenter = () => btnDel.style.background = "#333";
+                btnDel.onmouseleave = () => btnDel.style.background = "#232323";
+                btnDel.onclick = () => { try{ tr.remove(); } catch(_){} };
+                tdDel.appendChild(btnDel);
+
+                tr.appendChild(tdFrom);
+                tr.appendChild(tdOn);
+                tr.appendChild(tdTo);
+                tr.appendChild(tdDel);
+                return tr;
+            }
+
+            function refreshFlowEditor(){
+                const startSel = document.getElementById("flow-start");
+                const tbody = document.getElementById("flow-tbody");
+                if(!startSel || !tbody) return;
+
+                _fillSceneIdSelect(startSel, project?.flow?.start);
+
+                tbody.innerHTML = "";
+                const trs = (project && project.flow && Array.isArray(project.flow.transitions)) ? project.flow.transitions : [];
+                if(trs.length === 0){
+                    // render one empty row for convenience
+                    addFlowRowUI({ on: "EVENT" });
+                    return;
+                }
+                trs.forEach(t => tbody.appendChild(_makeFlowRow(t)));
+            }
+
+            function addFlowRowUI(pref = {}){
+                const tbody = document.getElementById("flow-tbody");
+                if(!tbody) return;
+
+                const ids = getSceneIds();
+                const defFrom = pref.from || currentSceneId || sm?.sceneId || ids[0] || "base";
+                const defTo = pref.to || (ids.includes("base") ? "base" : (ids[0] || defFrom));
+                const defOn = (pref.on != null && String(pref.on).trim()) ? String(pref.on).trim() : "EVENT";
+                tbody.appendChild(_makeFlowRow({ from: defFrom, on: defOn, to: defTo }));
+            }
+
+            function _readFlowTableToObject(){
+                const startSel = document.getElementById("flow-start");
+                const tbody = document.getElementById("flow-tbody");
+                const ids = new Set(getSceneIds());
+                const transitions = [];
+                let ok = true;
+
+                if(!tbody) return { ok:false, flow:{ start:"", transitions:[] } };
+
+                tbody.querySelectorAll("tr").forEach(row => {
+                    const from = row.querySelector(".flow-from")?.value || "";
+                    const on   = (row.querySelector(".flow-on")?.value || "").trim();
+                    const to   = row.querySelector(".flow-to")?.value || "";
+
+                    // reset highlight
+                    row.style.background = "";
+
+                    if(!from || !to || !on || !ids.has(from) || !ids.has(to)){
+                        ok = false;
+                        row.style.background = "rgba(255, 80, 80, 0.12)";
+                        return;
+                    }
+                    transitions.push({ from, on, to });
+                });
+
+                const start = (startSel && ids.has(startSel.value)) ? startSel.value : (getSceneIds()[0] || "base");
+                return { ok, flow: { start, transitions } };
+            }
+
+            function applyFlowFromTable(silent=false){
+                const r = _readFlowTableToObject();
+                if(!r.ok){
+                    if(!silent) alert("Flow 表格有未填/無效的欄位（已標紅），請修正後再套用。");
+                    return false;
+                }
+                project.flow = r.flow;
+                sm = new SceneManager(project);
+                publishGlobals();
+                sm.goto(currentSceneId || sm.sceneId);
+                refreshProjectTextareas();
+                if(!silent) alert("流程已套用");
+                return true;
+            }
+
+            function syncFlowJsonFromTable(){
+                const r = _readFlowTableToObject();
+                if(!r.ok){ alert("Flow 表格有未填/無效的欄位（已標紅），無法產生 JSON。"); return; }
+                const el = document.getElementById("flow-json");
+                if(el) el.value = JSON.stringify(r.flow, null, 2);
+            }
+
+            function applyFlowFromTextarea(){
+                const el = document.getElementById("flow-json");
+                if(!el) return;
+                const obj = safeJsonParse(el.value, null);
+                if(!obj){ alert("Flow JSON 解析失敗"); return; }
+                if(typeof obj !== "object"){ alert("Flow JSON 格式不正確"); return; }
+                if(!Array.isArray(obj.transitions)) obj.transitions = [];
+                if(!obj.start) obj.start = getSceneIds()[0] || "base";
+
+                project.flow = obj;
+                sm = new SceneManager(project);
+                publishGlobals();
+                sm.goto(currentSceneId || sm.sceneId);
+                refreshProjectTextareas();
+                alert("流程 JSON 已套用");
+            }
+
+            function applyRulesFromTextarea(){
+                const p = document.getElementById("paytable-json");
+                const r = document.getElementById("scene-rules-json");
+                const scene = getScene(currentSceneId || sm?.sceneId);
+                if(p){
+                    const obj = safeJsonParse(p.value, null);
+                    if(!obj){ alert("Paytable JSON 解析失敗"); return; }
+                    project.paytable = obj;
+                }
+                if(r && scene){
+                    const obj = safeJsonParse(r.value, null);
+                    if(!obj){ alert("Scene rules JSON 解析失敗"); return; }
+                    scene.rules = obj;
+                }
+                refreshProjectTextareas();
+                alert("規則已套用");
+            }
+
+            function applyProjectFromTextarea(){
+                const el = document.getElementById("project-json");
+                if(!el) return;
+                const obj = safeJsonParse(el.value, null);
+                if(!obj){ alert("Project JSON 解析失敗"); return; }
+                if(obj.app !== "slot-editor"){ alert("不是 slot-editor 專案格式"); return; }
+
+                // capture current before overwrite
+                const prev = getScene(currentSceneId);
+                if(prev) captureSceneFromUI(prev);
+
+                project = obj;
+                sm = new SceneManager(project);
+                publishGlobals();
+                currentSceneId = sm.sceneId;
+
+                refreshSceneSelect();
+                refreshProjectTextareas();
+                switchScene(currentSceneId);
+                alert("專案已套用");
+            }
+
+            function exportProject(){
+                const raw = JSON.stringify(project, null, 2);
+                let fileName = prompt("請輸入檔案名稱 (不需副檔名):", "project");
+                if (fileName === null) return;
+                if (!fileName.trim()) fileName = "project";
+                const blob = new Blob([raw], {type: "application/json"});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `${fileName}.json`;
+                a.click();
+                setTimeout(() => { try{ URL.revokeObjectURL(url); } catch(_){} }, 1000);
+            }
+
+            function importProjectFromFile(file){
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const obj = safeJsonParse(reader.result, null);
+                    if(!obj){ alert("檔案解析失敗"); return; }
+                    if(obj.app !== "slot-editor"){ alert("不是 slot-editor 專案格式"); return; }
+                    project = obj;
+                    sm = new SceneManager(project);
+                publishGlobals();
+                    currentSceneId = sm.sceneId;
+
+                    refreshSceneSelect();
+                    refreshProjectTextareas();
+                    switchScene(currentSceneId);
+                    alert("專案已匯入");
+                };
+                reader.readAsText(file, "utf-8");
+            }
+
+            function addScene(){
+                const id = prompt("輸入新場景 ID（英數/底線）:", "scene_" + Math.floor(Math.random()*1000));
+                if(!id) return;
+                if(getScene(id)){ alert("ID 已存在"); return; }
+                const type = prompt("輸入場景 type（reels/intro/bonus-pick/payout...）:", "reels") || "reels";
+                const name = prompt("輸入場景名稱:", id) || id;
+
+                let rules = {};
+                if(type==="bonus-pick"){
+                    rules = { bonusRewards:[50,100,200,500,1000,2000], bonusPick:{ cardCount:6, picks:1 } };
+                }
+                const sc = { id, name, type, uiConfig: (type==="reels" ? buildUIConfig() : null), rules };
+                project.scenes.push(sc);
+                refreshSceneSelect();
+                refreshProjectTextareas();
+                switchScene(id);
+            }
+
+            function dupScene(){
+                const src = getScene(currentSceneId);
+                if(!src){ alert("沒有可複製的場景"); return; }
+                const id = prompt("輸入新場景 ID（英數/底線）:", src.id + "_copy");
+                if(!id) return;
+                if(getScene(id)){ alert("ID 已存在"); return; }
+                const copy = JSON.parse(JSON.stringify(src));
+                copy.id = id;
+                copy.name = (src.name || src.id) + " Copy";
+                project.scenes.push(copy);
+                refreshSceneSelect();
+                refreshProjectTextareas();
+                switchScene(id);
+            }
+
+            function delScene(){
+                const id = currentSceneId;
+                if(!id) return;
+                if(!confirm("確定刪除場景：" + id + " ?")) return;
+                const idx = (project.scenes || []).findIndex(s => s.id === id);
+                if(idx < 0) return;
+                project.scenes.splice(idx, 1);
+                const next = project.scenes[0]?.id || "base";
+                currentSceneId = next;
+                if(sm) sm.goto(next);
+                refreshSceneSelect();
+                refreshProjectTextareas();
+                switchScene(next);
+            }
+
+            // ---- Bootstrap UI wiring ----
+            
+            // --- Scatter Trigger UI (reel-based) ---
+            function _collectSymbolIdsForScatter(){
+                const ids = new Set();
+                try{ (project?.assets?.images||[]).forEach(x => { if(x && x.id) ids.add(String(x.id)); }); }catch(_){}
+                try{ Object.keys(project?.paytable||{}).forEach(k => ids.add(String(k))); }catch(_){}
+                // Also consider currently visible grid symbols (helps when using text symbols)
+                try{
+                    for(let c=0;c<settings.reels;c++){
+                        const syms = _getVisibleSymbolsOnReel(c);
+                        for(const s of (syms||[])){
+                            const id = (s && s.dataset) ? (s.dataset.symId ?? s.dataset.sym ?? s.dataset.id) : null;
+                            if(id) ids.add(String(id));
+                        }
+                    }
+                }catch(_){}
+                return Array.from(ids).sort();
+            }
+
+            function renderScatterPanelOptions(){
+                const sel = document.getElementById("scatter-symbol-select");
+                if(!sel) return;
+                const ids = _collectSymbolIdsForScatter();
+                const prev = sel.value;
+                sel.innerHTML = "";
+                const o0 = document.createElement("option");
+                o0.value = "";
+                o0.textContent = "（選擇圖騰）";
+                sel.appendChild(o0);
+                ids.forEach(id => {
+                    const o = document.createElement("option");
+                    o.value = id;
+                    o.textContent = id;
+                    sel.appendChild(o);
+                });
+                if(prev && ids.includes(prev)) sel.value = prev;
+                syncScatterUIFromRules();
+            }
+
+            function _safeParseJson(text, fallback){
+                try{ return JSON.parse(text); }catch(_){ return fallback; }
+            }
+
+            function getCurrentSceneRulesFromTextarea(){
+                const el = document.getElementById("scene-rules-json");
+                const obj = _safeParseJson(el?.value || "{}", null);
+                return obj;
+            }
+
+            function setCurrentSceneRulesToTextarea(rulesObj){
+                const el = document.getElementById("scene-rules-json");
+                if(el) el.value = JSON.stringify(rulesObj || {}, null, 2);
+            }
+
+            function syncScatterUIFromRules(){
+                const chk = document.getElementById("scatter-enable");
+                const sel = document.getElementById("scatter-symbol-select");
+                const minEl = document.getElementById("scatter-minreels");
+                const evEl  = document.getElementById("scatter-event");
+                if(!chk || !sel || !minEl || !evEl) return;
+
+                const rulesObj = getCurrentSceneRulesFromTextarea();
+                const scene = getScene(currentSceneId || sm?.sceneId);
+                const rules = rulesObj || (scene?.rules || {});
+                const triggers = rules.triggers || rules.trigger || {};
+                const cfg = triggers.scatter || triggers.scatterTrigger || triggers.SCATTER_TRIGGER || null;
+
+                chk.checked = !!cfg;
+
+                if(cfg){
+                    let sym = "";
+                    let minReels = 3;
+                    let ev = "SCATTER_TRIGGER";
+                    if(typeof cfg === "string"){
+                        sym = cfg;
+                    }else if(typeof cfg === "object"){
+                        if(cfg.symbolId) sym = cfg.symbolId;
+                        else if(Array.isArray(cfg.symbols) && cfg.symbols[0]) sym = cfg.symbols[0];
+                        else if(cfg.symbol) sym = cfg.symbol;
+                        if(cfg.minReels != null) minReels = cfg.minReels;
+                        else if(cfg.minCountReels != null) minReels = cfg.minCountReels;
+                        if(cfg.event) ev = cfg.event;
+                    }
+                    if(sym) sel.value = String(sym);
+                    minEl.value = String(minReels);
+                    evEl.value  = String(ev);
+                }
+            }
+
+            function applyScatterUIToRules(){
+                const chk = document.getElementById("scatter-enable");
+                const sel = document.getElementById("scatter-symbol-select");
+                const minEl = document.getElementById("scatter-minreels");
+                const evEl  = document.getElementById("scatter-event");
+                if(!chk || !sel || !minEl || !evEl) return;
+
+                const enabled = !!chk.checked;
+                const sym = String(sel.value || "");
+                const minReels = Math.max(1, parseInt(minEl.value || "3", 10) || 3);
+                const ev = String(evEl.value || "SCATTER_TRIGGER");
+
+                let rules = getCurrentSceneRulesFromTextarea();
+                if(!rules){
+                    alert("當前場景 Rules JSON 解析失敗，請先修正後再操作。");
+                    return;
+                }
+                if(!rules.triggers && !rules.trigger) rules.triggers = {};
+                const trg = rules.triggers || rules.trigger;
+
+                if(!enabled){
+                    delete trg.scatter;
+                    delete trg.scatterTrigger;
+                    delete trg.SCATTER_TRIGGER;
+                }else{
+                    if(!sym){
+                        alert("請先選擇 SCATTER 圖騰。");
+                        return;
+                    }
+                    trg.scatter = { symbolId: sym, minReels, event: ev };
+                }
+
+                rules.triggers = trg;
+                setCurrentSceneRulesToTextarea(rules);
+
+                // Persist into project
+                applyRulesFromTextarea();
+                refreshProjectTextareas();
+            }
+function wireEditorUI(){
+                const sel = document.getElementById("scene-select");
+                if(sel){
+                    sel.onchange = () => switchScene(sel.value);
+                }
+
+                const typeSel = document.getElementById("scene-type-select");
+                if(typeSel){
+                    typeSel.onchange = () => {
+                        const s = getScene(currentSceneId);
+                        if(!s) return;
+                        const nextType = typeSel.value;
+                        s.type = nextType;
+
+                        // Ensure uiConfig exists for reels scenes
+                        if(nextType === "reels" && !s.uiConfig){
+                            s.uiConfig = buildUIConfig();
+                        }
+                        refreshSceneTypeControls();
+                        refreshProjectTextareas();
+
+                        // Remount driver for immediate preview
+                        mountDriverForScene(s);
+                    };
+                }
+
+                const btnBPWrite = document.getElementById("btn-bonus-pick-write");
+                if(btnBPWrite) btnBPWrite.onclick = () => writeBonusPickToRules();
+
+                const btnBPRead = document.getElementById("btn-bonus-pick-read");
+                if(btnBPRead) btnBPRead.onclick = () => { try{ readBonusPickFromRules(); }catch(e){ console.error(e); } };
+
+                const btnNew = document.getElementById("btn-scene-new");
+                if(btnNew) btnNew.onclick = () => addScene();
+
+                const btnDup = document.getElementById("btn-scene-dup");
+                if(btnDup) btnDup.onclick = () => dupScene();
+
+                const btnDel = document.getElementById("btn-scene-del");
+                if(btnDel) btnDel.onclick = () => delScene();
+
+                const btnCap = document.getElementById("btn-scene-capture");
+                if(btnCap) btnCap.onclick = () => {
+                    const s = getScene(currentSceneId);
+                    captureSceneFromUI(s);
+                    refreshProjectTextareas();
+                    alert("已從盤面讀取到場景");
+                };
+
+                const btnApply = document.getElementById("btn-scene-apply");
+                if(btnApply) btnApply.onclick = () => {
+                    const s = getScene(currentSceneId);
+                    applySceneToUI(s);
+                    refreshProjectTextareas();
+                    alert("已套用場景到盤面");
+                };
+
+                const btnPSave = document.getElementById("btn-project-save");
+                if(btnPSave) btnPSave.onclick = () => { 
+                    const s = getScene(currentSceneId);
+                    captureSceneFromUI(s);
+                    saveProject();
+                    refreshProjectTextareas();
+                };
+
+                const btnPLoad = document.getElementById("btn-project-load");
+                if(btnPLoad) btnPLoad.onclick = () => {
+                    const p = loadProject();
+                    if(!p){ alert("沒有暫存專案"); return; }
+                    project = p;
+                    sm = new SceneManager(project);
+                publishGlobals();
+                    currentSceneId = sm.sceneId;
+                    refreshSceneSelect();
+                    refreshProjectTextareas();
+                    switchScene(currentSceneId);
+                    alert("已載入暫存專案");
+                };
+
+                const btnPExport = document.getElementById("btn-project-export");
+                if(btnPExport) btnPExport.onclick = () => { 
+                    const s = getScene(currentSceneId);
+                    captureSceneFromUI(s);
+                    exportProject();
+                };
+
+                const btnPImport = document.getElementById("btn-project-import");
+                const fileInput = document.getElementById("file-project-import");
+                if(btnPImport && fileInput){
+                    btnPImport.onclick = () => fileInput.click();
+                    fileInput.onchange = () => {
+                        const f = fileInput.files && fileInput.files[0];
+                        if(f) importProjectFromFile(f);
+                        fileInput.value = "";
+                    };
+                }
+
+                const btnApplyJson = document.getElementById("btn-project-apply-json");
+                if(btnApplyJson) btnApplyJson.onclick = () => applyProjectFromTextarea();
+
+                const btnRefreshJson = document.getElementById("btn-project-refresh-json");
+                if(btnRefreshJson) btnRefreshJson.onclick = () => refreshProjectTextareas();
+                const btnFlowAdd = document.getElementById("btn-flow-add");
+                if(btnFlowAdd) btnFlowAdd.onclick = () => { addFlowRowUI({ on: "EVENT" }); };
+
+                const btnFlowApply = document.getElementById("btn-flow-apply");
+                if(btnFlowApply) btnFlowApply.onclick = () => applyFlowFromTable();
+
+                const btnFlowRefresh = document.getElementById("btn-flow-refresh");
+                if(btnFlowRefresh) btnFlowRefresh.onclick = () => { refreshProjectTextareas(); };
+
+                const btnFlowApplyJson = document.getElementById("btn-flow-apply-json");
+                if(btnFlowApplyJson) btnFlowApplyJson.onclick = () => applyFlowFromTextarea();
+
+                const btnFlowSyncJson = document.getElementById("btn-flow-sync-json");
+                if(btnFlowSyncJson) btnFlowSyncJson.onclick = () => syncFlowJsonFromTable();
+
+                const btnRulesApply = document.getElementById("btn-rules-apply");
+
+                if(btnRulesApply) btnRulesApply.onclick = () => applyRulesFromTextarea();
+
+                const btnRulesRefresh = document.getElementById("btn-rules-refresh");
+                if(btnRulesRefresh) btnRulesRefresh.onclick = () => refreshProjectTextareas();
+                const btnScatterRead = document.getElementById("btn-scatter-read");
+                if(btnScatterRead) btnScatterRead.onclick = () => { renderScatterPanelOptions(); syncScatterUIFromRules(); };
+
+                const btnScatterApply = document.getElementById("btn-scatter-apply");
+                if(btnScatterApply) btnScatterApply.onclick = () => applyScatterUIToRules();
+
+            }
+
+            function bootstrapProject(){
+                project = loadProject();
+                if(!project){
+                    project = makeDefaultProject();
+                }else{
+                    // Try to sync current UI into base scene on first load (non-destructive).
+                    const base = (project.scenes || []).find(s => s.id === "base");
+                    if(base && base.type === "reels" && !base.uiConfig){
+                        base.uiConfig = buildUIConfig();
+                    }
+                }
+                sm = new SceneManager(project);
+                publishGlobals();
+                currentSceneId = sm.sceneId || "base";
+
+                wireEditorUI();
+
+                // Scene transitions -> drive UI switch
+                EventBus.on("SCENE_CHANGED", (p) => {
+                    const id = p && p.id;
+                    if(id && id !== currentSceneId) switchScene(id);
+                });
+                refreshSceneSelect();
+                refreshProjectTextareas();
+
+                // Apply current scene driver
+                const sc = getScene(currentSceneId);
+                if(sc){
+                    mountDriverForScene(sc);
+                }
+                refreshSceneTypeControls();
+            }
+
+            // Defer until base UI is ready
+            window.addEventListener("load", () => {
+                try { bootstrapProject(); try{ if(typeof refreshScatterSummary==='function') refreshScatterSummary(); }catch(_){} } catch(e){ console.error(e); }
+            });
+        })();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,323 @@
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: sprite-vs:vert
+      frag: sprite-fs:frag
+      depthStencilState:
+        depthTest: false
+        depthWrite: false
+      blendState:
+        targets:
+        - blend: true
+          blendSrc: src_alpha
+          blendDst: one_minus_src_alpha
+          blendSrcAlpha: src_alpha
+          blendDstAlpha: one_minus_src_alpha
+      rasterizerState:
+        cullMode: none
+      properties:
+        alphaThreshold: { value: 0.5, editor: { displayName: "Alpha 裁切閥值", tooltip: "透明裁切門檻；低於此值的像素會被裁掉" } }
+        maskTexture:    { value: white, editor: { displayName: "遮罩貼圖", tooltip: "流光遮罩貼圖（需勾選 USE_MASK）" } }
+
+        # --- 白色/指定色掃光 ---
+        sweepColor:     { value: [1.0, 1.0, 1.0, 1.0], editor: { displayName: "掃光顏色", type: color, tooltip: "掃光顏色（需勾選 USE_SWEEP_FLOW）" } }
+        sweepAngle:     { value: 135.0, editor: { displayName: "掃光角度", tooltip: "控制白色/指定色掃光的移動方向", slide: true, range: [0.0, 360.0], step: 1.0 } }
+        sweepSpeed:     { value: 2.5, editor: { displayName: "掃光速度", tooltip: "控制掃光移動速度；負值可反向", slide: true, range: [-10.0, 10.0], step: 0.01 } }
+        sweepWidth:     { value: 0.1, editor: { displayName: "掃光寬度", tooltip: "掃光帶本體寬度", slide: true, range: [0.01, 1.0], step: 0.01 } }
+        sweepIntensity: { value: 3.0, editor: { displayName: "掃光強度", tooltip: "掃光疊加亮度強度", slide: true, range: [0.0, 10.0], step: 0.01 } }
+        sweepSoftness:  { value: 0.5, editor: { displayName: "掃光柔和度", tooltip: "掃光邊緣柔和度（<1 柔和擴散，>1 較銳利）", slide: true, range: [0.1, 10.0], step: 0.01 } }
+
+        # --- 彩虹流光 ---
+        flowMode:       { value: 0.0, editor: { displayName: "彩虹模式", tooltip: "0=直線、1=放射、2=環繞、3=螺旋", slide: true, range: [0.0, 3.0], step: 1.0 } }
+        flowAngle:      { value: 45.0, editor: { displayName: "彩虹角度", tooltip: "直線模式使用：控制彩虹流光方向", slide: true, range: [0.0, 360.0], step: 1.0 } }
+        flowSpeed:      { value: 1.0, editor: { displayName: "彩虹速度", tooltip: "控制彩虹流動速度；負值可反向", slide: true, range: [-5.0, 5.0], step: 0.01 } }
+        flowWidth:      { value: 0.3, editor: { displayName: "彩虹寬度", tooltip: "一般模式：彩虹掃帶寬度；無縫模式：彩虹密度縮放", slide: true, range: [0.01, 2.0], step: 0.01 } }
+        lightIntensity: { value: 1.5, editor: { displayName: "彩虹強度", tooltip: "彩虹強度（實體模式＝覆蓋比例；疊加模式＝發光強度）", slide: true, range: [0.0, 5.0], step: 0.01 } }
+        colorBias:      { value: 0.75, editor: { displayName: "色相偏向", tooltip: "顏色分布偏向（<1 拉寬黃/紅，>1 拉寬藍/紫）", slide: true, range: [0.5, 1.5], step: 0.01 } }
+        flowCenterX:    { value: 0.0, editor: { displayName: "流動中心 X", tooltip: "放射/環繞/螺旋模式中心 X；一般 Sprite 預設 0 即為圖片中心", slide: true, range: [-2.0, 2.0], step: 0.01 } }
+        flowCenterY:    { value: 0.0, editor: { displayName: "流動中心 Y", tooltip: "放射/環繞/螺旋模式中心 Y；一般 Sprite 預設 0 即為圖片中心", slide: true, range: [-2.0, 2.0], step: 0.01 } }
+        radialScale:    { value: 3.0, editor: { displayName: "放射密度", tooltip: "放射模式使用：數值越大，同心圓越密", slide: true, range: [0.1, 20.0], step: 0.01 } }
+        angularScale:   { value: 1.0, editor: { displayName: "環繞密度", tooltip: "環繞模式使用：數值越大，角度循環越密", slide: true, range: [0.1, 10.0], step: 0.01 } }
+        spiralDensity:  { value: 2.0, editor: { displayName: "螺旋扭曲", tooltip: "螺旋模式使用：控制半徑對角度的扭曲強度", slide: true, range: [-10.0, 10.0], step: 0.01 } }
+
+        # --- 彩虹扭曲 ---
+        distortStrength: { value: 0.0, editor: { displayName: "扭曲強度", tooltip: "控制彩虹流動的扭曲幅度；0 為關閉", slide: true, range: [0.0, 2.0], step: 0.01 } }
+        distortScale:    { value: 4.0, editor: { displayName: "扭曲密度", tooltip: "控制扭曲紋理密度；越大越細碎", slide: true, range: [0.1, 20.0], step: 0.01 } }
+        distortSpeedX:   { value: 0.5, editor: { displayName: "扭曲速度 X", tooltip: "控制扭曲噪聲在 X 方向的流動速度", slide: true, range: [-5.0, 5.0], step: 0.01 } }
+        distortSpeedY:   { value: 0.3, editor: { displayName: "扭曲速度 Y", tooltip: "控制扭曲噪聲在 Y 方向的流動速度", slide: true, range: [-5.0, 5.0], step: 0.01 } }
+
+        # --- 彩虹 Noise ---
+        noiseStrength:   { value: 0.0, editor: { displayName: "Noise 強度", tooltip: "控制彩虹顏色與亮度的噪聲變化量；0 為關閉", slide: true, range: [0.0, 1.0], step: 0.01 } }
+        noiseScale:      { value: 6.0, editor: { displayName: "Noise 密度", tooltip: "控制 Noise 紋理密度；越大顆粒越細", slide: true, range: [0.1, 30.0], step: 0.01 } }
+        noiseSpeedX:     { value: 0.2, editor: { displayName: "Noise 速度 X", tooltip: "控制 Noise 在 X 方向的流動速度", slide: true, range: [-5.0, 5.0], step: 0.01 } }
+        noiseSpeedY:     { value: 0.1, editor: { displayName: "Noise 速度 Y", tooltip: "控制 Noise 在 Y 方向的流動速度", slide: true, range: [-5.0, 5.0], step: 0.01 } }
+
+        # --- 進階 ---
+        bmfontScale:    { value: 0.01, editor: { displayName: "BMFont 縮放", tooltip: "BMFont 局部座標縮放（需勾選 USE_BMFONT）", slide: true, range: [0.001, 0.05], step: 0.001 } }
+        outlineThreshold: { value: 0.5, editor: { displayName: "外框保護閥值", tooltip: "排除暗色外框的亮度閥值（需勾選 PROTECT_OUTLINE）", slide: true, range: [0.0, 1.0], step: 0.01 } }
+        charWidth:      { value: 100.0, editor: { displayName: "單字分割寬度", tooltip: "單字分割寬度（需勾選 SPLIT_PER_CHAR）", slide: true, range: [10.0, 500.0], step: 1.0 } }
+}%
+
+CCProgram sprite-vs %{
+  precision highp float;
+  #include <builtin/uniforms/cc-global>
+  #if USE_LOCAL
+    #include <builtin/uniforms/cc-local>
+  #endif
+  #if SAMPLE_FROM_RT
+    #include <common/common-define>
+  #endif
+
+  in vec3 a_position;
+  in vec2 a_texCoord;
+  in vec4 a_color;
+
+  out vec4 color;
+  out vec2 uv0;
+  out vec2 v_localPos;
+
+  vec4 vert () {
+    vec4 pos = vec4(a_position, 1.0);
+    v_localPos = a_position.xy;
+
+    #if USE_LOCAL
+      pos = cc_matWorld * pos;
+    #endif
+
+    #if USE_PIXEL_ALIGNMENT
+      pos = cc_matView * pos;
+      pos.xyz = floor(pos.xyz);
+      pos = cc_matProj * pos;
+    #else
+      pos = cc_matViewProj * pos;
+    #endif
+
+    uv0 = a_texCoord;
+    #if SAMPLE_FROM_RT
+      CC_HANDLE_RT_SAMPLE_FLIP(uv0);
+    #endif
+    color = a_color;
+
+    return pos;
+  }
+}%
+
+CCProgram sprite-fs %{
+  precision highp float;
+  #include <builtin/internal/embedded-alpha>
+  #include <builtin/internal/alpha-test>
+  #include <builtin/uniforms/cc-global>
+
+  in vec4 color;
+  in vec2 uv0;
+  in vec2 v_localPos;
+
+  #if USE_TEXTURE
+    #pragma builtin(local)
+    layout(set = 2, binding = 12) uniform sampler2D cc_spriteTexture;
+  #endif
+
+  #if USE_MASK
+    uniform sampler2D maskTexture;
+  #endif
+
+  uniform FlowConstant {
+    vec4 sweepColor;
+
+    float sweepAngle;
+    float sweepSpeed;
+    float sweepWidth;
+    float sweepIntensity;
+
+    float sweepSoftness;
+    float flowMode;
+    float flowAngle;
+    float flowSpeed;
+
+    float flowWidth;
+    float lightIntensity;
+    float colorBias;
+    float flowCenterX;
+
+    float flowCenterY;
+    float radialScale;
+    float angularScale;
+    float spiralDensity;
+
+    float distortStrength;
+    float distortScale;
+    float distortSpeedX;
+    float distortSpeedY;
+
+    float noiseStrength;
+    float noiseScale;
+    float noiseSpeedX;
+    float noiseSpeedY;
+
+    float bmfontScale;
+    float outlineThreshold;
+    float charWidth;
+    float _padding0;
+  };
+
+  const float PI = 3.14159265359;
+  const float DEG2RAD = 0.01745329252;
+  const float INV_TWO_PI = 0.15915494309;
+
+  vec3 hsv2rgb(vec3 c) {
+    vec4 K = vec4(1.0, 0.6666667, 0.3333333, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+  }
+
+  float hash21(vec2 p) {
+    p = fract(p * vec2(123.34, 345.45));
+    p += dot(p, p + 34.345);
+    return fract(p.x * p.y);
+  }
+
+  float valueNoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+
+    float a = hash21(i);
+    float b = hash21(i + vec2(1.0, 0.0));
+    float c = hash21(i + vec2(0.0, 1.0));
+    float d = hash21(i + vec2(1.0, 1.0));
+
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+  }
+
+  float fbm2(vec2 p) {
+    float v = 0.0;
+    float a = 0.5;
+    v += valueNoise(p) * a;
+    p = p * 2.02 + vec2(13.1, 7.7);
+    a *= 0.5;
+    v += valueNoise(p) * a;
+    p = p * 2.03 + vec2(19.7, 3.1);
+    a *= 0.5;
+    v += valueNoise(p) * a;
+    return v / 0.875;
+  }
+
+  float adjustedHue(float pos, float width, float offset, float bias) {
+    float safeWidth = max(width, 0.001);
+    float h = fract((pos - offset) / safeWidth);
+    return pow(h, bias);
+  }
+
+  float bandSineAlpha(float localPos, float width, float powerValue) {
+    float safeWidth = max(width, 0.001);
+    float inBand = 1.0 - step(safeWidth, localPos);
+    float t = clamp(localPos / safeWidth, 0.0, 1.0);
+    return pow(max(sin(t * PI), 0.0), powerValue) * inBand;
+  }
+
+  float getFlowCoord(vec2 uv, float mode, float angleDeg, vec2 center, float radialScaleValue, float angularScaleValue, float spiralDensityValue) {
+    vec2 p = uv - center;
+
+    if (mode < 0.5) {
+      float ang = angleDeg * DEG2RAD;
+      vec2 dir = vec2(cos(ang), sin(ang));
+      return dot(uv, dir) + 0.5;
+    } else if (mode < 1.5) {
+      return length(p) * radialScaleValue;
+    } else if (mode < 2.5) {
+      float a = atan(p.y, p.x) * INV_TWO_PI;
+      return fract(a) * angularScaleValue;
+    } else {
+      float a = atan(p.y, p.x) * INV_TWO_PI;
+      float r = length(p);
+      return a + r * spiralDensityValue;
+    }
+  }
+
+  vec4 frag () {
+    vec4 o = vec4(1.0);
+
+    #if USE_TEXTURE
+      o *= CCSampleWithAlphaSeparated(cc_spriteTexture, uv0);
+    #endif
+
+    o *= color;
+    ALPHA_TEST(o);
+
+    vec2 flowBaseUv;
+    #if USE_BMFONT
+      vec2 localSpace = v_localPos;
+      #if SPLIT_PER_CHAR
+        localSpace.x = mod(localSpace.x, max(charWidth, 0.001));
+      #endif
+      flowBaseUv = localSpace * bmfontScale;
+    #else
+      flowBaseUv = uv0 - vec2(0.5);
+    #endif
+
+    float globalMask = o.a;
+
+    #if USE_MASK
+      vec4 m = texture(maskTexture, uv0);
+      globalMask *= m.r * m.a;
+    #endif
+
+    #if PROTECT_OUTLINE
+      float brightness = dot(o.rgb, vec3(0.299, 0.587, 0.114));
+      globalMask *= smoothstep(outlineThreshold - 0.2, outlineThreshold + 0.1, brightness);
+    #endif
+
+    vec2 flowCenter = vec2(flowCenterX, flowCenterY);
+
+    // ========= 彩虹扭曲 / Noise =========
+    vec2 distortAnimUv = flowBaseUv * distortScale + cc_time.x * vec2(distortSpeedX, distortSpeedY);
+    float distortNoiseValue = fbm2(distortAnimUv) * 2.0 - 1.0;
+
+    vec2 noiseAnimUv = flowBaseUv * noiseScale + cc_time.x * vec2(noiseSpeedX, noiseSpeedY);
+    float noiseValue = fbm2(noiseAnimUv);
+    float noiseSigned = noiseValue * 2.0 - 1.0;
+
+    // ========= 彩虹流光 =========
+    float projectedRainbowUv = getFlowCoord(flowBaseUv, flowMode, flowAngle, flowCenter, radialScale, angularScale, spiralDensity);
+    projectedRainbowUv += distortNoiseValue * distortStrength;
+    float rainbowOffset = cc_time.x * flowSpeed;
+
+    vec3 finalRainbowGlow = vec3(0.0);
+    float rainbowAlpha = 0.0;
+
+    #if USE_SEAMLESS
+      float hue = adjustedHue(projectedRainbowUv, flowWidth, rainbowOffset, colorBias);
+      hue = fract(hue + noiseSigned * noiseStrength * 0.35);
+      finalRainbowGlow = hsv2rgb(vec3(hue, 1.0, 1.0));
+      rainbowAlpha = mix(1.0, clamp(0.55 + noiseValue, 0.0, 1.5), noiseStrength);
+    #else
+      float localRainbowPos = fract(projectedRainbowUv - rainbowOffset);
+      float safeFlowWidth = max(flowWidth, 0.001);
+      rainbowAlpha = bandSineAlpha(localRainbowPos, safeFlowWidth, 2.0);
+      rainbowAlpha *= mix(1.0, clamp(0.35 + noiseValue, 0.0, 1.0), noiseStrength);
+      float hueLinear = fract((localRainbowPos / safeFlowWidth) + cc_time.x * 0.5);
+      float hue = pow(hueLinear, colorBias);
+      hue = fract(hue + noiseSigned * noiseStrength * 0.35);
+      finalRainbowGlow = hsv2rgb(vec3(hue, 1.0, 1.0)) * rainbowAlpha;
+    #endif
+
+    #if USE_SOLID_FLOW
+      float alphaFactor = clamp(lightIntensity, 0.0, 1.0) * globalMask * rainbowAlpha;
+      o.rgb = mix(o.rgb, finalRainbowGlow, alphaFactor);
+    #else
+      o.rgb += finalRainbowGlow * lightIntensity * globalMask;
+    #endif
+
+    // ========= 一般掃光 =========
+    #if USE_SWEEP_FLOW
+      float sweepRad = sweepAngle * DEG2RAD;
+      vec2 sweepDir = vec2(cos(sweepRad), sin(sweepRad));
+      float projectedSweepUv = dot(flowBaseUv, sweepDir) + 0.5;
+      float localSweepPos = fract(projectedSweepUv - cc_time.x * sweepSpeed);
+      float sweepAlpha = bandSineAlpha(localSweepPos, sweepWidth, sweepSoftness);
+      o.rgb += sweepColor.rgb * sweepAlpha * sweepIntensity * globalMask;
+    #endif
+
+    return o;
+  }
+}%

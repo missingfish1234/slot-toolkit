@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>Spine Director V75 (Vis & Motion)</title>
+    
+    <script src="https://unpkg.com/vis-timeline/standalone/umd/vis-timeline-graph2d.min.js"></script>
+    <link href="https://unpkg.com/vis-timeline/styles/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
+
+    <style>
+        :root {
+            --bg-app: #1e1e1e;
+            --bg-panel: rgba(35, 35, 35, 0.95);
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --accent: #0A84FF;
+            --rec-color: #FF453A;
+            --motion-color: #BF5AF2; /* Purple for Motion Clips */
+            --text-main: #F5F5F7;
+            --text-sub: #98989D;
+            --border: rgba(255, 255, 255, 0.1);
+            --radius: 8px;
+        }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Microsoft JhengHei", "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-app); 
+            color: var(--text-main); 
+            margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none; 
+        }
+        
+        #workspace { height: 65%; display: flex; overflow: hidden; min-height: 200px; }
+        
+        /* Canvas Container with REC border support */
+        #canvas-container { flex: 1; background: #1c1c1e; position: relative; overflow: hidden; box-shadow: inset 0 0 50px rgba(0,0,0,0.5); border: 2px solid transparent; transition: border-color 0.2s; box-sizing: border-box; }
+        #canvas-container.recording { border-color: var(--rec-color); }
+        #canvas-container.recording::after {
+            content: "🔴 REC (Auto-Create Motion)"; position: absolute; top: 10px; right: 10px; color: var(--rec-color); font-weight: bold; font-size: 12px; background: rgba(0,0,0,0.5); padding: 4px 8px; border-radius: 4px; pointer-events: none;
+        }
+
+        /* Inspector */
+        #inspector { width: 340px; background: var(--bg-panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; z-index: 20; }
+        .panel-header { padding: 12px 16px; font-size: 13px; font-weight: 600; color: var(--text-main); display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+        
+        .panel-body { padding: 0; overflow-y: hidden; flex: 1; display: flex; flex-direction: column; }
+
+        /* Tabs */
+        .tab-bar { display: flex; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.2); }
+        .tab-btn { flex: 1; background: transparent; border: none; padding: 10px 0; color: var(--text-sub); border-bottom: 2px solid transparent; cursor: pointer; font-size: 12px; font-weight: 600; transition: 0.2s; border-radius: 0; }
+        .tab-btn:hover { color: var(--text-main); background: rgba(255,255,255,0.02); }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(255,255,255,0.05); }
+        
+        .tab-content { display: none; flex-direction: column; gap: 15px; animation: fadeIn 0.2s; height: 100%; overflow-y: auto; padding: 16px; box-sizing: border-box; }
+        .tab-content.active { display: flex; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .section-label { font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block; }
+        .card { background: var(--bg-card); border-radius: var(--radius); padding: 12px; border: 1px solid var(--border); }
+
+        /* Controls */
+        button { background: rgba(255,255,255,0.1); color: var(--text-main); border: 1px solid transparent; padding: 6px 12px; cursor: pointer; border-radius: 6px; font-size: 13px; transition: 0.2s; font-family: inherit; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+        button:hover { background: rgba(255,255,255,0.2); }
+        button.primary { background: var(--accent); color: white; }
+        button.danger { background: rgba(255, 69, 58, 0.15); color: #FF453A; border-color: rgba(255, 69, 58, 0.3); }
+        button.rec-btn { color: #888; border: 1px solid rgba(255,255,255,0.2); width: 80px; }
+        button.rec-btn.active { background: var(--rec-color); color: white; border-color: var(--rec-color); animation: pulse 2s infinite; }
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+
+        button.icon-btn { padding: 4px; background: transparent; color: var(--text-sub); font-size: 16px; }
+        button.icon-btn:hover { color: white; background: rgba(255,255,255,0.1); }
+        button.sm { font-size: 10px; padding: 2px 6px; height: 20px; }
+
+        input[type="number"], select { background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: var(--text-main); padding: 6px 8px; border-radius: 6px; width: 100%; box-sizing: border-box; font-size: 12px; outline: none; }
+        input[type="number"]:focus, select:focus { border-color: var(--accent); }
+        select option { background-color: #232323; color: #ffffff; }
+
+        input[type="range"] { -webkit-appearance: none; width: 100%; background: transparent; margin: 10px 0; cursor: pointer; }
+        input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #fff; margin-top: -6px; box-shadow: 0 2px 4px rgba(0,0,0,0.4); }
+
+        .file-drop-zone { border: 1px dashed var(--border); padding: 15px; text-align: center; color: var(--text-sub); cursor: pointer; border-radius: var(--radius); background: rgba(255,255,255,0.02); transition: 0.2s; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .file-drop-zone:hover { border-color: var(--accent); background: rgba(10, 132, 255, 0.1); color: white; }
+
+        /* Timeline */
+        #timeline-area { flex: 1; background: #151515; display: flex; flex-direction: column; border-top: 1px solid var(--border); }
+        #timeline-toolbar { height: 40px; background: #1e1e1e; display: flex; align-items: center; padding: 0 15px; gap: 15px; border-bottom: 1px solid var(--border); flex-shrink: 0; font-size: 13px; }
+        #visualization { flex: 1; width: 100%; overflow: hidden; }
+        #splitter { height: 2px; background: #000; border-top: 1px solid #333; cursor: row-resize; z-index: 100; }
+
+        /* Vis Overrides */
+        .vis-timeline { border: none; background: #151515; }
+        .vis-time-axis .vis-text { color: #888 !important; }
+        .vis-item { border-color: rgba(255,255,255,0.3); border-radius: 4px; font-size: 12px; color: white !important; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+        .vis-item.vis-selected { border-color: white !important; box-shadow: 0 0 0 2px #fff; z-index: 2; }
+        .scene-group { background-color: #2c2c2e !important; color: #ff9f0a !important; border-bottom: 1px solid #333; }
+        .default-group { color: #ccc; border-left: 3px solid transparent; }
+        .group-highlight { background-color: rgba(10, 132, 255, 0.15) !important; border-left: 3px solid var(--accent) !important; color: #fff !important; }
+        
+        .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+        .col { flex: 1; }
+        label { font-size: 11px; color: var(--text-sub); display: block; margin-bottom: 4px; }
+        .value-display { font-family: monospace; font-size: 11px; color: var(--accent); }
+        
+        /* Scene List */
+        #scene-list { max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 6px; border: 1px solid var(--border); }
+        .scene-list-item { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+        .scene-list-item:hover { background: rgba(255,255,255,0.1); }
+        .scene-list-item.active { background: var(--accent); color: white; }
+        
+        /* Motion Fields */
+        .motion-field { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
+        .motion-field label { width: 15px; margin: 0; color: #666; font-weight: bold; }
+        .motion-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 5px; }
+        .motion-box { background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; margin-bottom: 5px; border: 1px solid rgba(255,255,255,0.05); }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+    </style>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const isV3 = (urlParams.get('v') === '3.8');
+        if (isV3) {
+            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.3.10/pixi.min.js"><\/script>');
+            document.write('<script src="https://cdn.jsdelivr.net/npm/pixi-spine@2.1.11/dist/pixi-spine.js"><\/script>');
+        } else {
+            document.write('<script src="https://d157l7jdn8e5sf.cloudfront.net/v7.2.4/pixi.min.js"><\/script>');
+            document.write('<script src="https://cdn.jsdelivr.net/npm/pixi-spine@4.0.3/dist/pixi-spine.js"><\/script>');
+        }
+    </script>
+</head>
+<body>
+
+    <div id="workspace">
+        <div id="canvas-container">
+            <div style="position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.6); backdrop-filter:blur(4px); padding: 4px 10px; border-radius: 4px; font-size: 11px; color: var(--accent); pointer-events: none; border:1px solid rgba(255,255,255,0.1);">
+                <span id="ver-tag">Engine Loading...</span>
+            </div>
+            <div style="position: absolute; bottom: 10px; right: 10px; color: rgba(255,255,255,0.3); font-size: 10px; pointer-events: none; text-align: right;">
+                有片段 = 顯示<br>無片段 = 隱藏
+            </div>
+        </div>
+        
+        <div id="inspector">
+            <div class="panel-header">
+                <span>Spine Director V75</span>
+                <div style="display:flex; gap:5px;">
+                    <input type="file" id="projectInput" accept=".json" style="display:none" onchange="loadProject(this.files[0])">
+                    <button class="icon-btn" onclick="document.getElementById('projectInput').click()" title="讀取專案 (Load)">📂</button>
+                    <button class="icon-btn" onclick="saveProject()" title="儲存專案 (Save)">💾</button>
+                </div>
+            </div>
+            
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchTab('project')" id="tab-btn-project">專案設定</button>
+                <button class="tab-btn" onclick="switchTab('character')" id="tab-btn-character">角色編輯</button>
+                <button class="tab-btn" onclick="switchTab('clip')" id="tab-btn-clip">片段與動態</button>
+            </div>
+
+            <div class="panel-body">
+                
+                <div id="tab-project" class="tab-content active">
+                    <div style="margin-bottom:10px; display:flex; gap:10px; align-items:center; background:rgba(0,0,0,0.2); padding:8px; border-radius:6px; border:1px solid var(--border);">
+                        <label style="margin:0; color:#ccc; font-size:12px;">Spine 版本:</label>
+                        <select id="versionSelect" onchange="switchVersion(this.value)" style="flex:1;">
+                            <option value="4.0">Spine 4.0 / 4.1</option>
+                            <option value="3.8">Spine 3.8</option>
+                        </select>
+                    </div>
+                    <div>
+                        <span class="section-label">匯入 (Import)</span>
+                        <div class="file-drop-zone" onclick="document.getElementById('fileInput').click()">
+                            <div style="font-size: 24px;">📥</div>
+                            <div style="font-weight: 600;">匯入素材</div>
+                            <div style="font-size: 10px; opacity: 0.7;">.json/.skel + .atlas + .png</div>
+                            <input type="file" id="fileInput" multiple accept=".json,.skel,.atlas,.txt,.png,.jpg" style="display:none" onchange="handleFiles(this)">
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <span class="section-label" style="margin:0;">場景管理 (Scene)</span>
+                            <div style="display:flex; gap:5px;">
+                                <button class="icon-btn" style="font-size:12px;" onclick="document.getElementById('bg1Input').click()">BG1</button>
+                                <button class="icon-btn" style="font-size:12px;" onclick="document.getElementById('bg2Input').click()">BG2</button>
+                            </div>
+                        </div>
+                        <input type="file" id="bg1Input" accept="image/*" style="display:none" onchange="loadBackground(this.files[0], 1)">
+                        <input type="file" id="bg2Input" accept="image/*" style="display:none" onchange="loadBackground(this.files[0], 2)">
+                        
+                        <div id="scene-list">
+                            <div style="padding:20px; color:var(--text-sub); text-align:center; font-size:11px; font-style:italic;">(尚未加入物件)</div>
+                        </div>
+                        <button onclick="addSceneClip()" style="width:100%; margin-top:8px; font-size:11px; color:#ff9f0a; border-color:rgba(255,159,10,0.3);">+ 增加背景轉場 (BG Fade)</button>
+                    </div>
+                </div>
+
+                <div id="tab-character" class="tab-content">
+                    <div id="char-empty-msg" style="text-align:center; color:#666; padding-top:50px;">
+                        請先選擇一個角色<br>以進行編輯
+                    </div>
+                    
+                    <div id="char-settings-container" style="display:none;">
+                        <span class="section-label">更新素材 (Reload)</span>
+                        <div class="card" style="margin-bottom:12px; border-color: rgba(255, 159, 10, 0.3);">
+                            <div style="font-size:11px; color:#aaa; margin-bottom:8px;">
+                                若重新匯出 Spine，可在此直接更新，保留時間軸設定。
+                            </div>
+                            <input type="file" id="reloadInput" multiple accept=".json,.skel,.atlas,.txt,.png,.jpg" style="display:none" onchange="handleReloadFiles(this)">
+                            <button class="warn" style="width:100%;" onclick="document.getElementById('reloadInput').click()">♻️ 更新此角色素材 (Reload Asset)</button>
+                        </div>
+
+                        <span class="section-label">變形 (Transform)</span>
+                        <div class="card">
+                            <div class="card-title" style="display:flex; justify-content:space-between;">
+                                <span>目前物件: <span id="selectedCharName" style="color:var(--accent)">-</span></span>
+                                <button class="icon-btn" style="font-size:10px;" onclick="resetTransform()" title="重置">↺</button>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <div style="display:flex; justify-content:space-between;"><label>縮放</label><span id="scaleVal" class="value-display">1.0</span></div>
+                                    <input type="range" id="charScale" min="0.1" max="2.5" step="0.05" value="1" oninput="updateCharTransform()" style="margin:5px 0;">
+                                </div>
+                                <div class="col">
+                                    <div style="display:flex; justify-content:space-between;"><label>旋轉</label><span id="rotVal" class="value-display">0°</span></div>
+                                    <input type="range" id="charRotation" min="-180" max="180" step="1" value="0" oninput="updateCharTransform()" style="margin:5px 0;">
+                                </div>
+                            </div>
+                            <button id="btn-flip" onclick="toggleFlip()" style="width:100%;">↔ 水平翻轉 (Flip X)</button>
+                        </div>
+
+                        <div class="card" style="margin-top:12px;">
+                            <div class="card-title">屬性 (Properties)</div>
+                            <div class="row">
+                                <div class="col"><label>外觀 (Skin)</label><select id="skinSelect" onchange="changeSkin()"></select></div>
+                            </div>
+                            <div style="margin-top:8px;">
+                                <label>層級排序 (Order)</label>
+                                <div class="row">
+                                    <button class="col" onclick="moveLayer(-1)">上移一層 ▲</button>
+                                    <button class="col" onclick="moveLayer(1)">下移一層 ▼</button>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
+                                <button class="primary" style="width:100%; margin-bottom: 8px; background-color: #34c759;" onclick="duplicateSelectedCharacter()">📑 複製此角色 (Duplicate)</button>
+                                <button class="danger" style="width:100%" onclick="removeSelectedCharacter()">🗑️ 刪除此角色</button>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:12px;">
+                            <label>新增動作 (Add Clip)</label>
+                            <div style="display:flex; gap:5px;">
+                                <select id="nextAnimSelect"></select>
+                                <button class="primary" style="white-space:nowrap;" onclick="addClipToSelectedTrack()">+ 加入</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-clip" class="tab-content">
+                    <div id="clip-empty-msg" style="text-align:center; color:#666; padding-top:50px;">
+                        請在時間軸上選擇一個片段<br>以調整參數
+                    </div>
+
+                    <div id="clip-editor-container" style="display:none;">
+                        <span class="section-label" style="color:#ff9f0a;">片段設定 (Clip Settings)</span>
+                        <div class="card" style="border-color:rgba(255,159,10,0.3);">
+                            <select id="clipAnimSelect" onchange="updateSelectedClip()" style="margin-bottom:8px;"></select>
+                            
+                            <button class="sm" style="width:100%; margin-bottom:10px; border-color:var(--motion-color); color:var(--motion-color); background:rgba(191,90,242,0.1);" onclick="convertClipToMotion()">✨ 轉換為純位移片段 (Motion Only)</button>
+
+                            <div class="row">
+                                <div class="col"><label>開始 (Start)</label><input type="number" id="clipStart" step="0.01" oninput="updateSelectedClip()"></div>
+                                <div class="col"><label>長度 (Duration)</label><input type="number" id="clipDuration" step="0.01" oninput="updateSelectedClip()"></div>
+                            </div>
+                            
+                            <div style="margin-top:8px; padding-bottom:8px; border-bottom:1px solid var(--border);">
+                                <label style="display:flex; align-items:center; cursor:pointer; color:var(--text-main);">
+                                    <input type="checkbox" id="clipLoop" onchange="updateSelectedClip()" style="margin-right:6px;"> 🔁 循環播放 (Loop)
+                                </label>
+                            </div>
+
+                            <div style="margin-top:12px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <label style="color:var(--accent);">🚀 位移與動態 (Motion)</label>
+                                    <label style="display:flex; align-items:center;"><input type="checkbox" id="motionEnable" onchange="updateSelectedClip()" style="margin-right:4px;">啟用</label>
+                                </div>
+                                
+                                <div id="motion-controls" style="display:none; margin-top:5px;">
+                                    <div class="motion-box">
+                                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                                            <label>開始 (Start)</label>
+                                            <button class="sm" onclick="captureToMotion('start')">📍 擷取目前</button>
+                                        </div>
+                                        <div class="motion-inputs">
+                                            <div class="motion-field"><label>X</label><input type="number" id="motStartX" oninput="updateSelectedClip()"></div>
+                                            <div class="motion-field"><label>Y</label><input type="number" id="motStartY" oninput="updateSelectedClip()"></div>
+                                        </div>
+                                        <div class="motion-field"><label>R</label><input type="number" id="motStartR" placeholder="Rotation" oninput="updateSelectedClip()"></div>
+                                    </div>
+                                    
+                                    <div style="text-align:center; font-size:10px; color:#666; margin:-3px 0;">⬇️ 補間 (Tween) ⬇️</div>
+
+                                    <div class="motion-box">
+                                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                                            <label>結束 (End)</label>
+                                            <button class="sm" onclick="captureToMotion('end')">📍 擷取目前</button>
+                                        </div>
+                                        <div class="motion-inputs">
+                                            <div class="motion-field"><label>X</label><input type="number" id="motEndX" oninput="updateSelectedClip()"></div>
+                                            <div class="motion-field"><label>Y</label><input type="number" id="motEndY" oninput="updateSelectedClip()"></div>
+                                        </div>
+                                        <div class="motion-field"><label>R</label><input type="number" id="motEndR" placeholder="Rotation" oninput="updateSelectedClip()"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="margin-top:12px; padding-top:8px; border-top:1px solid var(--border);">
+                                <label style="display:flex; align-items:center; cursor:pointer; color:#888;">
+                                    <input type="checkbox" id="dropEnable" onchange="updateSelectedClip()" style="margin-right:6px;"> 啟用物理掉落 (Physics)
+                                </label>
+                                <div id="physics-controls" style="margin-top:8px; padding-left:10px; border-left:2px solid #888; display:none;">
+                                    <label>高度:</label><input type="range" id="dropHeight" min="0" max="1500" step="10" oninput="updateSelectedClip()">
+                                    <label>彈性:</label><input type="range" id="dropBounce" min="0" max="1.0" step="0.05" oninput="updateSelectedClip()">
+                                </div>
+                            </div>
+
+                            <button class="danger" style="margin-top:15px; width:100%;" onclick="deleteSelectedClip()">刪除片段</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="splitter"></div>
+
+    <div id="timeline-area">
+        <div id="timeline-toolbar">
+            <button class="primary" id="play-btn" onclick="togglePlay()" style="width:40px; border-radius:20px;">▶</button>
+            <button onclick="stop()" style="width:40px; border-radius:20px;">■</button>
+            <span id="time-display" style="font-family:monospace; color:var(--accent); font-weight:bold; margin-left:10px;">0.00s</span>
+            
+            <div style="width: 20px;"></div>
+            <button id="rec-btn" class="rec-btn" onclick="toggleRec()">🔴 REC</button>
+
+            <div style="flex:1"></div>
+            <label style="font-size:12px; display:flex; align-items:center; margin-right:10px;">
+                <input type="checkbox" id="loop-playback-check" style="margin-right:5px;"> 循環播放
+            </label>
+            <button onclick="fitTimeline()">Fit View</button>
+        </div>
+        <div id="visualization"></div>
+    </div>
+
+<script>
+    let app, worldContainer, bgContainer, debugGraphics;
+    let bg1Sprite = null, bg2Sprite = null;
+    let characters = []; 
+    let timeline, timelineData, timelineGroups;
+    let isPlaying = false;
+    let isRecording = false;
+    let currentTime = 0;
+    let selectedGroupId = null;
+    let selectedClipId = null;
+    let clipClipboard = null;
+    let savedBg1Name = null, savedBg2Name = null;
+    
+    const SCENE_TRACK_ID = 'scene_track';
+    const ACCENT_COLOR = '#0A84FF';
+    const MOTION_CLIP_NAME = '✨ 純位移 (Motion)'; // V75
+    const clipRegistry = {}; 
+    
+    function generateUUID() { return 'clip_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9); }
+    function getSafeDuration(item) {
+        if (clipRegistry[item.id]) return clipRegistry[item.id];
+        if (item.group !== SCENE_TRACK_ID && item.content !== MOTION_CLIP_NAME) {
+            const char = characters.find(c => c.id === item.group);
+            if (char) {
+                const rawName = item.content.split(' (')[0];
+                if (char.animDurations[rawName]) return char.animDurations[rawName] * 1000;
+            }
+        }
+        return (item.end - item.start) || 1000; 
+    }
+
+    document.getElementById('ver-tag').innerText = isV3 ? "Engine: Spine 3.8 (V75 Visibility)" : "Engine: Spine 4.0/4.1 (V75 Visibility)";
+
+    window.onload = function() {
+        app = new PIXI.Application({ backgroundColor: 0x1c1c1e, resizeTo: document.getElementById('canvas-container'), antialias: true });
+        document.getElementById('canvas-container').appendChild(app.view);
+        worldContainer = new PIXI.Container(); worldContainer.sortableChildren = true; app.stage.addChild(worldContainer);
+        bgContainer = new PIXI.Container(); bgContainer.sortableChildren = true; bgContainer.zIndex = -99999; worldContainer.addChild(bgContainer);
+        debugGraphics = new PIXI.Graphics(); debugGraphics.zIndex = 99999; worldContainer.addChild(debugGraphics);
+        document.getElementById('versionSelect').value = isV3 ? '3.8' : '4.0';
+        resetView();
+        setupInteractions();
+        setupSplitter(); 
+        app.ticker.add(onTick);
+        initTimeline();
+        setupKeyboardShortcuts();
+    };
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        const btn = document.getElementById('tab-btn-' + tabId);
+        const content = document.getElementById('tab-' + tabId);
+        if(btn) btn.classList.add('active');
+        if(content) content.classList.add('active');
+    }
+
+    function initTimeline() {
+        timelineData = new vis.DataSet(); 
+        timelineGroups = new vis.DataSet();
+        const options = {
+            start: 0, end: 5000, min: 0, max: 600000,
+            showCurrentTime: false, orientation: 'top', stack: false,
+            editable: { add: false, updateTime: true, remove: true },
+            groupOrder: 'order',
+            multiselect: true, multiselectPerGroup: true,
+            width: '100%', height: '100%', verticalScroll: true, zoomKey: 'ctrlKey',
+            snap: function (date) { return Math.round(date.getTime() / 10) * 10; },
+            onMoving: function(item, callback) {
+                const originalDur = getSafeDuration(item);
+                const currentDur = item.end.valueOf() - item.start.valueOf();
+                if (Math.abs(currentDur - originalDur) > 50) { clipRegistry[item.id] = currentDur; callback(item); return; }
+                const neighbors = timelineData.get({ filter: i => i.group === item.group && i.id !== item.id });
+                let bestStart = item.start.valueOf();
+                let minDiff = 300; 
+                if (Math.abs(bestStart) < minDiff) { bestStart = 0; }
+                else {
+                    neighbors.forEach(other => {
+                        const diff = Math.abs(bestStart - other.end.valueOf());
+                        if (diff < minDiff) { minDiff = diff; bestStart = other.end.valueOf(); }
+                    });
+                }
+                item.start = new Date(bestStart); 
+                item.end = new Date(bestStart + originalDur); 
+                callback(item);
+            },
+            onMove: function (item, callback) {
+                let startMs = Math.max(0, item.start.valueOf());
+                item.start = new Date(startMs);
+                const currentDur = item.end.valueOf() - item.start.valueOf();
+                clipRegistry[item.id] = currentDur;
+                item.end = new Date(startMs + currentDur);
+                if(selectedClipId === item.id) renderInspector();
+                callback(item);
+            },
+            format: { minorLabels: (d) => (d/1000).toFixed(2)+'s', majorLabels: (d) => (d/1000).toFixed(0)+'s' },
+            groupTemplate: (g) => `<div style="padding:2px;">${g.content}</div>`
+        };
+        timeline = new vis.Timeline(document.getElementById('visualization'), timelineData, timelineGroups, options);
+        timeline.addCustomTime(0, 'playhead');
+        timelineGroups.add({ id: SCENE_TRACK_ID, content: '🎬 場景 (Scene)', className: 'scene-group', order: -999 });
+        
+        timeline.on('select', (p) => {
+            selectedClipId = (p.items.length > 0) ? p.items[0] : null;
+            if (selectedClipId) { 
+                const item = timelineData.get(selectedClipId); 
+                if (item.group !== SCENE_TRACK_ID) selectGroup(item.group); 
+                switchTab('clip');
+            } else { switchTab('project'); }
+            renderInspector();
+        });
+
+        timeline.on('timechange', (p) => { if (p.id === 'playhead') { currentTime = p.time.getTime(); updateTimeDisplay(); if(isPlaying) togglePlay(); syncSpineToTime(currentTime); } });
+        timeline.on('click', (p) => {
+            if (p.group && p.group !== SCENE_TRACK_ID) selectGroup(p.group);
+            if (p.time && !p.item) { currentTime = p.time.getTime(); timeline.setCustomTime(currentTime, 'playhead'); updateTimeDisplay(); syncSpineToTime(currentTime); }
+        });
+        timeline.on('doubleClick', () => togglePlay());
+    }
+
+    function toggleRec() {
+        isRecording = !isRecording;
+        const btn = document.getElementById('rec-btn');
+        const container = document.getElementById('canvas-container');
+        if (isRecording) { btn.classList.add('active'); container.classList.add('recording'); } 
+        else { btn.classList.remove('active'); container.classList.remove('recording'); }
+    }
+
+    function onTick() {
+        if (isPlaying) {
+            currentTime += app.ticker.deltaMS;
+            const loop = document.getElementById('loop-playback-check').checked;
+            let maxEnd = 0; timelineData.get().forEach(i => { const e = i.end.valueOf(); if(e>maxEnd) maxEnd=e; });
+            const loopPoint = Math.max(2000, maxEnd + 500); 
+            if (loop && currentTime > loopPoint) { currentTime = 0; characters.forEach(c => { c.lastClipId = null; }); }
+            else if (!loop && currentTime > loopPoint) { stop(); return; }
+            timeline.setCustomTime(currentTime, 'playhead'); updateTimeDisplay(); syncSpineToTime(currentTime);
+        }
+        drawPhysicsDebug();
+    }
+
+    function syncSpineToTime(time) {
+        const getTime = (val) => (val && val.valueOf) ? val.valueOf() : val;
+        if (bg2Sprite) {
+            const sceneClips = timelineData.get({ filter: i => i.group === SCENE_TRACK_ID && (time >= getTime(i.start) && time <= getTime(i.end)) });
+            if (sceneClips.length > 0) {
+                const clip = sceneClips[0];
+                const local = time - getTime(clip.start);
+                bg2Sprite.alpha = local < 500 ? local/500 : (getTime(clip.end)-time < 500 ? (getTime(clip.end)-time)/500 : 1);
+            } else { bg2Sprite.alpha = 0; }
+        }
+
+        characters.forEach(char => {
+            const baseScaleX = char.scaleX * (char.flipX ? -1 : 1);
+            const clips = timelineData.get({ filter: (item) => item.group === char.id && time >= getTime(item.start) && time < getTime(item.end) });
+            
+            let finalX = char.spine.x; let finalY = char.baseY; let finalRot = char.rotation;
+
+            if (!isPlaying && !isRecording && clips.length === 0) {
+                 char.spine.scale.set(baseScaleX, char.scaleY);
+                 char.spine.rotation = char.rotation * (Math.PI / 180);
+            }
+
+            if (clips.length > 0) {
+                // V75: Explicitly visible if there is a clip
+                char.spine.visible = char.visible; char.spine.alpha = 1;
+                
+                const clip = clips[0]; const clipStart = getTime(clip.start); const localTime = (time - clipStart) / 1000;
+                let animName = clip.content.split(' (')[0]; 
+                
+                if (char.lastClipId !== clip.id) { 
+                    char.spine.stateData.defaultMix = 0; 
+                    // V75: Handle Motion Only Clip (No Animation)
+                    if (animName.includes('✨')) {
+                        char.spine.state.setEmptyAnimation(0, 0);
+                    } else {
+                        try { char.spine.state.setAnimation(0, animName, true); } catch(e) {}
+                    }
+                    char.lastClipId = clip.id; 
+                }
+
+                if (!animName.includes('✨')) {
+                    const track = char.spine.state.getCurrent(0);
+                    if (track) { 
+                        const animDur = track.animation.duration;
+                        const isLoop = (clip.loop !== undefined) ? clip.loop : true;
+                        if (isLoop) track.trackTime = localTime % animDur; else track.trackTime = (localTime > animDur) ? animDur : localTime;
+                        char.spine.update(0); 
+                    }
+                }
+
+                if (clip.motionEnable) {
+                    const duration = (getTime(clip.end) - getTime(clip.start)) / 1000;
+                    let t = localTime / duration; if (t > 1) t = 1; if (t < 0) t = 0;
+                    const sX = (clip.motStartX !== undefined) ? clip.motStartX : char.spine.x; const eX = (clip.motEndX !== undefined) ? clip.motEndX : sX; finalX = sX + (eX - sX) * t;
+                    const sY = (clip.motStartY !== undefined) ? clip.motStartY : char.baseY; const eY = (clip.motEndY !== undefined) ? clip.motEndY : sY; finalY = sY + (eY - sY) * t;
+                    const sR = (clip.motStartR !== undefined) ? clip.motStartR : char.rotation; const eR = (clip.motEndR !== undefined) ? clip.motEndR : sR; finalRot = sR + (eR - sR) * t;
+                }
+
+                if (clip.dropEnable) {
+                    const dropDur = clip.dropDuration || 0.5;
+                    if (localTime < dropDur) {
+                        const t = localTime / dropDur; const height = clip.dropHeight || 500; const bounce = (clip.dropBounce !== undefined) ? clip.dropBounce : 0.5;
+                        let progress = (bounce <= 0.05) ? (t*t*t) : customBounce(t, bounce); finalY = finalY - height + (height * progress);
+                    }
+                }
+                char.spine.x = finalX; char.spine.y = finalY; char.spine.rotation = finalRot * (Math.PI / 180); char.spine.scale.set(baseScaleX, char.scaleY);
+            } else {
+                // V75: Visibility Logic (Hide if no clip)
+                if (char.id === selectedGroupId && char.visible) {
+                    // Ghost Mode (Editing)
+                    char.spine.visible = true; char.spine.alpha = 0.5;
+                    char.spine.skeleton.setToSetupPose(); char.spine.update(0);
+                    if (char.lastClipId !== null) { char.spine.state.clearTracks(); char.lastClipId = null; }
+                } else {
+                    // Truly Invisible
+                    if (char.lastClipId !== null) { char.spine.state.setEmptyAnimation(0, 0); char.lastClipId = null; }
+                    char.spine.visible = false; 
+                }
+            }
+        });
+    }
+    function customBounce(t, b) { const n1=7.5625,d1=2.75; if(t<1/d1)return n1*t*t; else if(t<2/d1)return n1*(t-=1.5/d1)*t+0.75; else if(t<2.5/d1)return n1*(t-=2.25/d1)*t+0.9375; else return n1*(t-=2.625/d1)*t+0.984375; }
+
+    function drawPhysicsDebug() {
+        debugGraphics.clear();
+        if (!selectedClipId) return;
+        const item = timelineData.get(selectedClipId);
+        if (!item || item.group === SCENE_TRACK_ID) return;
+        const char = characters.find(c => c.id === item.group);
+        if (!char) return;
+
+        if (item.motionEnable) {
+            const sX = (item.motStartX !== undefined) ? item.motStartX : char.spine.x;
+            const sY = (item.motStartY !== undefined) ? item.motStartY : char.baseY;
+            const eX = (item.motEndX !== undefined) ? item.motEndX : sX;
+            const eY = (item.motEndY !== undefined) ? item.motEndY : sY;
+            
+            debugGraphics.lineStyle(2, 0xFFCC00, 0.6); 
+            const dist = Math.sqrt((eX-sX)**2 + (eY-sY)**2);
+            if (dist > 0) {
+                const dashLen = 10; const steps = dist/dashLen;
+                for(let i=0; i<steps; i+=2) {
+                    const t1 = i/steps; const t2 = (i+1)/steps;
+                    debugGraphics.moveTo(sX + (eX-sX)*t1, sY + (eY-sY)*t1);
+                    debugGraphics.lineTo(sX + (eX-sX)*t2, sY + (eY-sY)*t2);
+                }
+            }
+            debugGraphics.beginFill(0xFFCC00); debugGraphics.drawCircle(sX, sY, 3); debugGraphics.endFill();
+            debugGraphics.beginFill(0xFFCC00); debugGraphics.drawCircle(eX, eY, 3); debugGraphics.endFill();
+        }
+
+        if (item.dropEnable) {
+            const currentY = char.spine.y; 
+            debugGraphics.lineStyle(2, 0xaaaaaa, 0.5); debugGraphics.moveTo(char.spine.x, char.baseY - item.dropHeight); debugGraphics.lineTo(char.spine.x, char.baseY);
+            debugGraphics.lineStyle(0); debugGraphics.beginFill(0xff3333, 0.8); debugGraphics.drawCircle(char.spine.x, currentY, 5); debugGraphics.endFill();
+        }
+    }
+
+    async function handleFiles(input) {
+        const files = Array.from(input.files); if(files.length===0) return;
+        await processSpineFiles(files, null); 
+        input.value = '';
+    }
+
+    async function handleReloadFiles(input) {
+        const files = Array.from(input.files); if(files.length===0) return;
+        if (!selectedGroupId) { alert("請先選擇要更新的角色"); return; }
+        await processSpineFiles(files, selectedGroupId); 
+        input.value = '';
+    }
+
+    async function processSpineFiles(files, targetId) {
+        const textureMap = {}; 
+        const images = files.filter(f => f.name.match(/\.(jpg|png)$/i));
+        await Promise.all(images.map(f => new Promise(r => {
+            const rd = new FileReader(); rd.onload = e => { const img = new Image(); img.src = e.target.result; img.onload = () => { const b = new PIXI.BaseTexture(img); textureMap[f.name] = b; textureMap[f.name.toLowerCase()] = b; r(); }; }; rd.readAsDataURL(f);
+        })));
+        const skels = files.filter(f => f.name.match(/\.(json|skel)$/i));
+        const atlases = files.filter(f => f.name.match(/\.atlas|\.txt$/i));
+        
+        for (let skel of skels) {
+            try {
+                const baseName = skel.name.replace(/\.(json|skel)$/i, '');
+                const atlas = atlases.find(a => a.name.includes(baseName)) || atlases[0];
+                const atlasText = await readFile(atlas, 'text');
+                let rawData, isBinary = false;
+                if(skel.name.endsWith('.skel')) { rawData = await readFile(skel, 'buffer'); isBinary = true; }
+                else { rawData = JSON.parse(await readFile(skel, 'text')); }
+                if (targetId) reloadSpineData(rawData, atlasText, textureMap, isBinary, targetId);
+                else createSpine(rawData, atlasText, textureMap, isBinary, baseName);
+            } catch(e) { console.error(e); alert("匯入/更新錯誤: " + e.message); }
+        }
+    }
+
+    function reloadSpineData(rawData, atlasText, textureMap, isBinary, targetId) {
+        const charIndex = characters.findIndex(c => c.id === targetId); if (charIndex === -1) return;
+        const oldChar = characters[charIndex];
+        let TextureAtlas, AtlasAttachmentLoader, SkeletonBinary, SkeletonJson;
+        if (isV3) { TextureAtlas = PIXI.spine.core.TextureAtlas; AtlasAttachmentLoader = PIXI.spine.core.AtlasAttachmentLoader; SkeletonBinary = PIXI.spine.core.SkeletonBinary; SkeletonJson = PIXI.spine.core.SkeletonJson; } 
+        else { TextureAtlas = PIXI.spine.TextureAtlas || PIXI.spine.core.TextureAtlas; AtlasAttachmentLoader = PIXI.spine.AtlasAttachmentLoader || PIXI.spine.core.AtlasAttachmentLoader; SkeletonBinary = PIXI.spine.SkeletonBinary || PIXI.spine.core.SkeletonBinary; SkeletonJson = PIXI.spine.SkeletonJson || PIXI.spine.core.SkeletonJson; }
+
+        const spineAtlas = new TextureAtlas(atlasText, (line, cb) => cb(textureMap[line]||textureMap[line.toLowerCase()]||PIXI.Texture.WHITE.baseTexture));
+        const loader = new AtlasAttachmentLoader(spineAtlas);
+        let spineData;
+        if (isBinary) { const parser = new SkeletonBinary(loader); parser.scale = 1; spineData = parser.readSkeletonData(new Uint8Array(rawData)); } 
+        else { const parser = new SkeletonJson(loader); spineData = parser.readSkeletonData(rawData); }
+
+        const newSpine = new PIXI.spine.Spine(spineData); newSpine.autoUpdate = false;
+        newSpine.x = oldChar.spine.x; newSpine.y = oldChar.spine.y; newSpine.scale.set(oldChar.spine.scale.x, oldChar.spine.scale.y); 
+        newSpine.rotation = oldChar.spine.rotation; newSpine.zIndex = oldChar.spine.zIndex; newSpine.charId = oldChar.id;
+        if (oldChar.spine.skeleton.skin) { const skinName = oldChar.spine.skeleton.skin.name; if (spineData.findSkin(skinName)) { newSpine.skeleton.setSkinByName(skinName); newSpine.skeleton.setSlotsToSetupPose(); } }
+
+        worldContainer.removeChild(oldChar.spine); oldChar.spine.destroy({ children: true, texture: false, baseTexture: false });
+        worldContainer.addChild(newSpine); enableDrag(newSpine);
+        oldChar.spine = newSpine; oldChar.animations = spineData.animations; oldChar.skins = spineData.skins.map(s => s.name);
+        oldChar.animDurations = {}; spineData.animations.forEach(a => oldChar.animDurations[a.name] = a.duration);
+        refreshZIndex(); renderInspector(); syncSpineToTime(currentTime); alert("角色素材更新完成！\n時間軸與參數已保留。");
+    }
+
+    function createSpine(rawData, atlasText, textureMap, isBinary, name, reuseId=null, reuseConfig=null) {
+        let TextureAtlas, AtlasAttachmentLoader, SkeletonBinary, SkeletonJson;
+        if (isV3) {
+            if (!PIXI.spine.core) { alert("Spine 3.8 核心未載入"); return; }
+            TextureAtlas = PIXI.spine.core.TextureAtlas; AtlasAttachmentLoader = PIXI.spine.core.AtlasAttachmentLoader; SkeletonBinary = PIXI.spine.core.SkeletonBinary; SkeletonJson = PIXI.spine.core.SkeletonJson;
+        } else {
+            TextureAtlas = PIXI.spine.TextureAtlas || (PIXI.spine.core ? PIXI.spine.core.TextureAtlas : null);
+            AtlasAttachmentLoader = PIXI.spine.AtlasAttachmentLoader || (PIXI.spine.core ? PIXI.spine.core.AtlasAttachmentLoader : null);
+            SkeletonBinary = PIXI.spine.SkeletonBinary || (PIXI.spine.core ? PIXI.spine.core.SkeletonBinary : null);
+            SkeletonJson = PIXI.spine.SkeletonJson || (PIXI.spine.core ? PIXI.spine.core.SkeletonJson : null);
+        }
+        if (!AtlasAttachmentLoader) { alert("無法載入 Spine 模組"); return; }
+
+        const spineAtlas = new TextureAtlas(atlasText, (line, cb) => cb(textureMap[line]||textureMap[line.toLowerCase()]||PIXI.Texture.WHITE.baseTexture));
+        const loader = new AtlasAttachmentLoader(spineAtlas);
+        let spineData;
+        if (isBinary) { const parser = new SkeletonBinary(loader); parser.scale = 1; spineData = parser.readSkeletonData(new Uint8Array(rawData)); } 
+        else { const parser = new SkeletonJson(loader); spineData = parser.readSkeletonData(rawData); }
+        
+        const spine = new PIXI.spine.Spine(spineData); spine.autoUpdate = false;
+        const id = reuseId || ('char_' + Date.now());
+        const baseY = reuseConfig ? reuseConfig.y : (app.screen.height / 1.2);
+        spine.x = reuseConfig ? reuseConfig.x : app.screen.width/2; spine.y = baseY;
+
+        enableDrag(spine); spine.charId = id; worldContainer.addChild(spine);
+
+        const charObj = {
+            id, spine, name: reuseConfig ? reuseConfig.name : name,
+            animations: spineData.animations, animDurations: {}, skins: spineData.skins.map(s => s.name),
+            lastClipId: null, order: reuseConfig ? reuseConfig.order : characters.length,
+            baseY: baseY, scaleX: reuseConfig?(reuseConfig.scaleX||1):1, scaleY: reuseConfig?(reuseConfig.scaleY||1):1, flipX: reuseConfig?(reuseConfig.flipX||false):false, rotation: reuseConfig?(reuseConfig.rotation||0):0, visible: true
+        };
+        spineData.animations.forEach(a => charObj.animDurations[a.name] = a.duration);
+        if(reuseConfig && reuseConfig.skin) { try { spine.skeleton.setSkinByName(reuseConfig.skin); spine.skeleton.setSlotsToSetupPose(); } catch(e){} }
+        characters.push(charObj);
+        
+        if(!reuseId) {
+            timelineGroups.add({ id, content: charObj.name, className: 'default-group', order: charObj.order });
+            selectGroup(id);
+            if(spineData.animations.length > 0) {
+                 const anim = spineData.animations[0].name; const dur = spineData.animations[0].duration;
+                 const clipId = generateUUID(); clipRegistry[clipId] = dur * 1000;
+                 timelineData.add({ id: clipId, group: id, content: `${anim} (${dur.toFixed(2)}s)`, start:0, end: dur*1000, style: `background-color:${stringToColor(anim)}; border-color:${stringToColor(anim)}; color:white;` });
+            }
+            setTimeout(() => timeline.redraw(), 200); 
+        }
+        renderSceneList(); refreshZIndex();
+    }
+
+    function stringToColor(str) { let h=0; for(let i=0;i<str.length;i++) h=str.charCodeAt(i)+((h<<5)-h); return `hsl(${Math.abs(h)%360}, 70%, 35%)`; }
+    function renderSceneList() {
+        const list = document.getElementById('scene-list'); list.innerHTML = '';
+        if (characters.length === 0) { list.innerHTML = '<div style="padding:20px; color:#666; text-align:center; font-size:11px; font-style:italic;">(尚未加入物件)</div>'; return; }
+        characters.forEach(c => {
+            const el = document.createElement('div'); el.className = `scene-list-item ${selectedGroupId === c.id ? 'active' : ''}`;
+            el.innerHTML = `<span>${c.name}</span> <span onclick="toggleVis('${c.id}', event)">${c.visible?'👁️':'❌'}</span>`;
+            el.onclick = () => selectGroup(c.id); list.appendChild(el);
+        });
+    }
+    window.toggleVis = (id, e) => { e.stopPropagation(); const c=characters.find(x=>x.id===id); c.visible=!c.visible; syncSpineToTime(currentTime); renderSceneList(); };
+    
+    function selectGroup(id) {
+        if (selectedGroupId === id) return;
+        if (selectedGroupId && timelineGroups.get(selectedGroupId)) timelineGroups.update({ id: selectedGroupId, className: 'default-group' });
+        if (id && timelineGroups.get(id)) timelineGroups.update({ id: id, className: 'group-highlight' });
+        selectedGroupId = id; 
+        if(id) switchTab('character');
+        renderInspector();
+        timeline.setCustomTime(currentTime, 'playhead'); syncSpineToTime(currentTime);
+    }
+    
+    function renderInspector() {
+        const clipContainer = document.getElementById('clip-editor-container');
+        const clipMsg = document.getElementById('clip-empty-msg');
+        
+        if (selectedClipId) {
+            clipContainer.style.display = 'block'; clipMsg.style.display = 'none';
+            const item = timelineData.get(selectedClipId);
+            if (item.group === SCENE_TRACK_ID) {
+                clipContainer.style.display = 'none'; clipMsg.style.display = 'block'; clipMsg.innerText = "場景轉場片段";
+            } else {
+                const char = characters.find(c => c.id === item.group);
+                const sel = document.getElementById('clipAnimSelect'); sel.innerHTML = '';
+                
+                // Add "Motion Only" Option
+                const emptyOpt = document.createElement('option'); emptyOpt.value = MOTION_CLIP_NAME; emptyOpt.innerText = MOTION_CLIP_NAME; 
+                sel.appendChild(emptyOpt);
+
+                char.animations.forEach(a => { 
+                    const opt = document.createElement('option'); opt.value = a.name; opt.innerText = a.name; 
+                    if(item.content.startsWith(a.name)) opt.selected=true; sel.appendChild(opt); 
+                });
+                if(item.content === MOTION_CLIP_NAME) emptyOpt.selected = true;
+
+                document.getElementById('clipStart').value = (item.start/1000).toFixed(2);
+                document.getElementById('clipDuration').value = ((item.end-item.start)/1000).toFixed(2);
+                document.getElementById('clipLoop').checked = (item.loop !== undefined) ? item.loop : true;
+
+                document.getElementById('motionEnable').checked = item.motionEnable;
+                document.getElementById('motion-controls').style.display = item.motionEnable ? 'block' : 'none';
+                
+                const sX = item.motStartX !== undefined ? item.motStartX : Math.round(char.spine.x);
+                const sY = item.motStartY !== undefined ? item.motStartY : Math.round(char.baseY);
+                const sR = item.motStartR !== undefined ? item.motStartR : Math.round(char.rotation);
+                const eX = item.motEndX !== undefined ? item.motEndX : Math.round(char.spine.x);
+                const eY = item.motEndY !== undefined ? item.motEndY : Math.round(char.baseY);
+                const eR = item.motEndR !== undefined ? item.motEndR : Math.round(char.rotation);
+
+                document.getElementById('motStartX').value = sX; document.getElementById('motStartY').value = sY; document.getElementById('motStartR').value = sR;
+                document.getElementById('motEndX').value = eX; document.getElementById('motEndY').value = eY; document.getElementById('motEndR').value = eR;
+
+                document.getElementById('dropEnable').checked = item.dropEnable;
+                document.getElementById('physics-controls').style.display = item.dropEnable ? 'block' : 'none';
+                document.getElementById('dropHeight').value = item.dropHeight||500;
+                document.getElementById('dropBounce').value = item.dropBounce||0.5;
+            }
+        } else {
+            clipContainer.style.display = 'none'; clipMsg.style.display = 'block'; clipMsg.innerText = "請在時間軸上選擇一個片段";
+        }
+
+        const charContainer = document.getElementById('char-settings-container');
+        const charMsg = document.getElementById('char-empty-msg');
+        if (selectedGroupId) {
+            charContainer.style.display = 'block'; charMsg.style.display = 'none';
+            const char = characters.find(c => c.id === selectedGroupId);
+            document.getElementById('selectedCharName').innerText = char.name;
+            document.getElementById('charScale').value = char.scaleX; document.getElementById('scaleVal').innerText = char.scaleX.toFixed(2);
+            document.getElementById('charRotation').value = char.rotation; document.getElementById('rotVal').innerText = char.rotation + "°";
+            document.getElementById('btn-flip').style.background = char.flipX ? ACCENT_COLOR : 'rgba(255,255,255,0.1)';
+            const animSelect = document.getElementById('nextAnimSelect'); animSelect.innerHTML = '';
+            char.animations.forEach(a => { const opt = document.createElement('option'); opt.value = a.name; opt.innerText = a.name; animSelect.appendChild(opt); });
+            const skinSelect = document.getElementById('skinSelect'); skinSelect.innerHTML = '';
+            char.skins.forEach(s => { const opt = document.createElement('option'); opt.value = s; opt.innerText = s; if (char.spine.skeleton.skin && char.spine.skeleton.skin.name === s) opt.selected = true; skinSelect.appendChild(opt); });
+        } else {
+            charContainer.style.display = 'none'; charMsg.style.display = 'block';
+        }
+        renderSceneList();
+    }
+
+    // V75: Manual convert clip to motion
+    function convertClipToMotion() {
+        if (!selectedClipId) return;
+        const updates = { id: selectedClipId, content: MOTION_CLIP_NAME, style: 'background-color:#BF5AF2; border-color:#BF5AF2; color:white;' };
+        // Auto-enable motion if not already
+        const item = timelineData.get(selectedClipId);
+        if (!item.motionEnable) {
+            updates.motionEnable = true;
+            // Set init values to current pos
+            captureToMotion('start'); captureToMotion('end');
+        }
+        timelineData.update(updates); renderInspector();
+    }
+
+    function captureToMotion(target) {
+        if (!selectedClipId || !selectedGroupId) return;
+        const char = characters.find(c => c.id === selectedGroupId); if (!char) return;
+        const x = Math.round(char.spine.x); const y = Math.round(char.spine.y); const r = Math.round(char.rotation);
+        const updates = { id: selectedClipId };
+        if (target === 'start') { updates.motStartX = x; updates.motStartY = y; updates.motStartR = r; } 
+        else { updates.motEndX = x; updates.motEndY = y; updates.motEndR = r; }
+        updates.motionEnable = true;
+        timelineData.update(updates); renderInspector();
+    }
+
+    function updateSelectedClip() {
+        if (!selectedClipId) return;
+        const item = timelineData.get(selectedClipId);
+        const s = parseFloat(document.getElementById('clipStart').value)*1000;
+        const d = parseFloat(document.getElementById('clipDuration').value)*1000;
+        const updates = { id: selectedClipId, start: s, end: s+d };
+        if (item.group !== SCENE_TRACK_ID) {
+            const anim = document.getElementById('clipAnimSelect').value;
+            const char = characters.find(c => c.id === item.group);
+            
+            clipRegistry[selectedClipId] = d;
+            
+            // Handle Name & Style
+            updates.content = (anim === MOTION_CLIP_NAME) ? MOTION_CLIP_NAME : `${anim} (${(char.animDurations[anim]||1.0).toFixed(2)}s)`;
+            const color = (anim === MOTION_CLIP_NAME) ? '#BF5AF2' : stringToColor(anim);
+            updates.style = `background-color:${color}; border-color:${color}; color:white;`;
+
+            updates.loop = document.getElementById('clipLoop').checked;
+            updates.motionEnable = document.getElementById('motionEnable').checked;
+            updates.motStartX = parseInt(document.getElementById('motStartX').value); updates.motStartY = parseInt(document.getElementById('motStartY').value); updates.motStartR = parseInt(document.getElementById('motStartR').value);
+            updates.motEndX = parseInt(document.getElementById('motEndX').value); updates.motEndY = parseInt(document.getElementById('motEndY').value); updates.motEndR = parseInt(document.getElementById('motEndR').value);
+            updates.dropEnable = document.getElementById('dropEnable').checked; updates.dropHeight = parseInt(document.getElementById('dropHeight').value); updates.dropBounce = parseFloat(document.getElementById('dropBounce').value);
+        }
+        timelineData.update(updates); renderInspector(); drawPhysicsDebug(); syncSpineToTime(currentTime);
+    }
+    
+    function updateCharTransform() {
+        if (!selectedGroupId) return;
+        const char = characters.find(c => c.id === selectedGroupId);
+        char.scaleX = char.scaleY = parseFloat(document.getElementById('charScale').value);
+        char.rotation = parseInt(document.getElementById('charRotation').value);
+        renderInspector(); syncSpineToTime(currentTime);
+    }
+    function toggleFlip() { if (!selectedGroupId) return; const char = characters.find(c => c.id === selectedGroupId); char.flipX = !char.flipX; renderInspector(); syncSpineToTime(currentTime); }
+    function resetTransform() { if (!selectedGroupId) return; const char = characters.find(c => c.id === selectedGroupId); char.scaleX = 1; char.scaleY = 1; char.rotation = 0; char.flipX = false; renderInspector(); syncSpineToTime(currentTime); }
+    
+    function saveProject() {
+        let fileName = prompt("請輸入存檔名稱 (不需要輸入 .json):", "spine_project");
+        if (fileName === null) return; if (fileName.trim() === "") fileName = "spine_project"; if (!fileName.toLowerCase().endsWith(".json")) fileName += ".json";
+        const d = { 
+            version: "V75", bg1: savedBg1Name, bg2: savedBg2Name, 
+            timeline: timelineData.get(), groups: timelineGroups.get(), clipRegistry: clipRegistry,
+            characters: characters.map(c => ({ 
+                id: c.id, name: c.name, order: c.order, 
+                x: c.spine.x, y: c.baseY, 
+                scaleX: c.scaleX, scaleY: c.scaleY, flipX: c.flipX, rotation: c.rotation, skin: c.spine.skeleton.skin?.name 
+            })) 
+        };
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(d)], {type:"application/json"})); a.download = fileName; a.click();
+    }
+    
+    function loadProject(file) {
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                if(data.clipRegistry) Object.assign(clipRegistry, data.clipRegistry);
+                timelineData.clear(); timelineGroups.clear();
+                if(data.groups) timelineGroups.add(data.groups);
+                if(data.timeline) timelineData.add(data.timeline);
+                
+                const usedIds = new Set();
+                for (let savedChar of data.characters) {
+                    let target = characters.find(c => c.name === savedChar.name);
+                    if (!target) {
+                        const match = savedChar.name.match(/^(.*?)(\d+)$/);
+                        const baseName = match ? match[1] : savedChar.name;
+                        const base = characters.find(c => c.name === baseName);
+                        if (base) target = createCloneForRestore(base, savedChar.id, savedChar.name);
+                    }
+                    if (target) {
+                        target.id = savedChar.id; target.name = savedChar.name; target.order = savedChar.order;
+                        target.baseY = savedChar.y; target.spine.x = savedChar.x; target.spine.y = savedChar.y;
+                        target.scaleX = savedChar.scaleX; target.scaleY = savedChar.scaleY; target.rotation = savedChar.rotation; target.flipX = savedChar.flipX; target.visible = true;
+                        if (savedChar.skin && target.spine.skeleton.data.findSkin(savedChar.skin)) { target.spine.skeleton.setSkinByName(savedChar.skin); target.spine.skeleton.setSlotsToSetupPose(); }
+                        usedIds.add(target.id);
+                    }
+                }
+                characters.forEach(c => { if (!usedIds.has(c.id)) { c.visible = false; c.spine.visible = false; } });
+                refreshZIndex(); renderSceneList(); renderInspector(); syncSpineToTime(currentTime); alert("專案讀取成功！");
+            } catch (err) { console.error(err); alert("讀取失敗：檔案格式錯誤或損毀"); }
+            document.getElementById('projectInput').value = '';
+        };
+        reader.readAsText(file);
+    }
+    function createCloneForRestore(original, forceId, forceName) {
+        const newSpine = new PIXI.spine.Spine(original.spine.skeleton.data); newSpine.autoUpdate = false; enableDrag(newSpine); newSpine.charId = forceId; worldContainer.addChild(newSpine);
+        const newCharObj = { id: forceId, spine: newSpine, name: forceName, animations: original.animations, animDurations: original.animDurations, skins: original.skins, lastClipId: null, order: characters.length, baseY: original.baseY, scaleX: original.scaleX, scaleY: original.scaleY, flipX: original.flipX, rotation: original.rotation, visible: true };
+        characters.push(newCharObj); return newCharObj;
+    }
+
+    function readFile(f, t) { return new Promise((r,j)=>{ const d=new FileReader(); d.onload=e=>r(e.target.result); if(t==='buffer') d.readAsArrayBuffer(f); else d.readAsText(f); }); }
+    function loadBackground(f, slot) { 
+        if(!f) return; 
+        const r = new FileReader(); r.onload = e => { 
+            const img = new Image(); img.src = e.target.result; 
+            img.onload = () => { 
+                const s = new PIXI.Sprite(new PIXI.Texture(new PIXI.BaseTexture(img))); s.anchor.set(0.5); s.y = app.screen.height / 2; 
+                if(slot === 1) { if(bg1Sprite) { bgContainer.removeChild(bg1Sprite); bg1Sprite.destroy(); } bg1Sprite = s; savedBg1Name = f.name; } 
+                else { if(bg2Sprite) { bgContainer.removeChild(bg2Sprite); bg2Sprite.destroy(); } bg2Sprite = s; bg2Sprite.alpha = 0; savedBg2Name = f.name; } 
+                bgContainer.addChild(s); bgContainer.sortChildren(); 
+            }; 
+        }; r.readAsDataURL(f); 
+    }
+    
+    // --- V75: Smart Drag + Auto Create Motion ---
+    function enableDrag(obj) {
+        obj.interactive = true; obj.cursor = 'move';
+        obj.on('pointerdown', function(e) { 
+            this.alpha = 0.7; this.dragging = true; this.dragData = e.data; 
+            const loc = this.parent.toLocal(e.data.global); 
+            this.dragOff = { x: loc.x - this.x, y: loc.y - this.y }; 
+            selectGroup(this.charId); switchTab('character');
+        })
+        .on('pointerup', endDrag).on('pointerupoutside', endDrag)
+        .on('pointermove', function() { 
+            if(this.dragging) { 
+                const loc = this.parent.toLocal(this.dragData.global); 
+                const newX = loc.x - this.dragOff.x;
+                const newY = loc.y - this.dragOff.y;
+
+                // V75 Logic: If recording AND no clip exists, create one!
+                if (isRecording && !selectedClipId) {
+                    const char = characters.find(c => c.id === this.charId);
+                    // 1. Create a new Motion Clip at current time
+                    const clipId = generateUUID();
+                    const s = currentTime;
+                    const dur = 1000; // Default 1s for manual move
+                    clipRegistry[clipId] = dur;
+                    
+                    timelineData.add({
+                        id: clipId, group: this.charId,
+                        content: MOTION_CLIP_NAME,
+                        start: s, end: s + dur,
+                        style: 'background-color:#BF5AF2; border-color:#BF5AF2; color:white;',
+                        motionEnable: true,
+                        motStartX: Math.round(newX), motStartY: Math.round(newY), motStartR: Math.round(char.rotation),
+                        motEndX: Math.round(newX), motEndY: Math.round(newY), motEndR: Math.round(char.rotation)
+                    });
+                    
+                    timeline.setSelection(clipId);
+                    selectedClipId = clipId;
+                }
+
+                if (isRecording && selectedClipId) {
+                    const item = timelineData.get(selectedClipId);
+                    if (item.group === this.charId) {
+                        const s = item.start.valueOf(); const e = item.end.valueOf();
+                        let t = (currentTime - s) / (e - s);
+                        
+                        const updates = { id: selectedClipId, motionEnable: true };
+                        if (t < 0.5) {
+                            updates.motStartX = Math.round(newX); updates.motStartY = Math.round(newY);
+                            if (item.motEndX === undefined) { updates.motEndX = Math.round(newX); updates.motEndY = Math.round(newY); }
+                        } else {
+                            updates.motEndX = Math.round(newX); updates.motEndY = Math.round(newY);
+                            if (item.motStartX === undefined) { updates.motStartX = Math.round(newX); updates.motStartY = Math.round(newY); }
+                        }
+                        timelineData.update(updates); renderInspector();
+                    }
+                } else {
+                    this.x = newX; 
+                    const char = characters.find(c=>c.id===this.charId);
+                    char.baseY = newY; 
+                }
+                syncSpineToTime(currentTime); 
+            } 
+        });
+        function endDrag() { this.alpha = 1; this.dragging = false; this.dragData = null; }
+    }
+
+    function setupInteractions() { 
+        let drag=false, start={x:0,y:0}, cam={x:0,y:0};
+        document.getElementById('canvas-container').addEventListener('wheel', e=>{ e.preventDefault(); worldContainer.scale.set(Math.max(0.1, worldContainer.scale.x + (e.deltaY*-0.001))); });
+        app.stage.interactive=true; app.stage.hitArea=new PIXI.Rectangle(-1e4,-1e4,2e4,2e4);
+        app.stage.on('pointerdown', e=>{ if(e.target===app.stage||e.target.parent===bgContainer){ drag=true; start={x:e.data.global.x,y:e.data.global.y}; cam={x:worldContainer.x,y:worldContainer.y}; }})
+                 .on('pointermove', e=>{ if(drag){ worldContainer.x=cam.x+(e.data.global.x-start.x); worldContainer.y=cam.y+(e.data.global.y-start.y); }})
+                 .on('pointerup', ()=>drag=false).on('pointerupoutside', ()=>drag=false);
+    }
+    function setupSplitter() {
+        const split = document.getElementById('splitter'); const ws = document.getElementById('workspace'); let dragging = false;
+        split.addEventListener('mousedown', (e) => { dragging = true; document.body.style.cursor = 'row-resize'; e.preventDefault(); });
+        window.addEventListener('mouseup', () => { if (dragging) { dragging = false; document.body.style.cursor = ''; if(timeline) timeline.redraw(); } });
+        window.addEventListener('mousemove', (e) => { if (dragging) { const percentage = (e.clientY / window.innerHeight) * 100; if(percentage > 10 && percentage < 90) { ws.style.height = percentage + '%'; if(app) app.resize(); } } });
+    }
+    function resetView() { if(worldContainer){ worldContainer.position.set(app.screen.width/2, 0); worldContainer.scale.set(0.6); } }
+    function refreshZIndex() { characters.sort((a,b)=>a.order-b.order); characters.forEach((c,i)=>c.spine.zIndex=i); worldContainer.sortChildren(); }
+    function moveLayer(dir) { if(!selectedGroupId) return; const c=characters.find(x=>x.id===selectedGroupId); c.order+=dir; timelineGroups.update({id:c.id, order:c.order}); refreshZIndex(); }
+    function removeSelectedCharacter() { if(!selectedGroupId) return; const idx=characters.findIndex(c=>c.id===selectedGroupId); worldContainer.removeChild(characters[idx].spine); timelineGroups.remove(selectedGroupId); timelineData.remove(timelineData.get({filter: i=>i.group===selectedGroupId})); characters.splice(idx, 1); selectedGroupId=null; renderInspector(); }
+    function togglePlay() { isPlaying=!isPlaying; document.getElementById('play-btn').innerText = isPlaying?"⏸":"▶"; }
+    function stop() { isPlaying=false; currentTime=0; timeline.setCustomTime(0,'playhead'); updateTimeDisplay(); syncSpineToTime(0); document.getElementById('play-btn').innerText="▶"; }
+    function updateTimeDisplay() { document.getElementById('time-display').innerText = (currentTime/1000).toFixed(2)+"s"; }
+    function fitTimeline() { timeline.fit(); }
+    function switchVersion(v) { const u = new URL(window.location); u.searchParams.set('v', v); window.location.href = u.toString(); }
+    function setupKeyboardShortcuts() {
+        window.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+            switch(e.code) {
+                case 'Space': e.preventDefault(); togglePlay(); break;
+                case 'Delete': case 'Backspace': if (selectedClipId) deleteSelectedClip(); else if (selectedGroupId) removeSelectedCharacter(); break;
+                case 'Escape': timeline.setSelection([]); selectedClipId = null; selectedGroupId = null; renderInspector(); break;
+                case 'KeyC': if (e.ctrlKey || e.metaKey) copyClip(); break;
+                case 'KeyV': if (e.ctrlKey || e.metaKey) pasteClip(); break;
+            }
+        });
+    }
+    function copyClip() { if (!selectedClipId) return; clipClipboard = JSON.parse(JSON.stringify(timelineData.get(selectedClipId))); delete clipClipboard.id; }
+    function pasteClip() { 
+        if (!clipClipboard || !selectedGroupId) return; 
+        const n = JSON.parse(JSON.stringify(clipClipboard)); const dur = n.end - n.start; const newId = generateUUID(); clipRegistry[newId] = dur;
+        n.id = newId; n.start = currentTime; n.end = currentTime + dur; n.group = selectedGroupId; timelineData.add(n); 
+    }
+    function deleteSelectedClip() { if(!selectedClipId) return; timelineData.remove(selectedClipId); delete clipRegistry[selectedClipId]; selectedClipId = null; renderInspector(); }
+    function addClipToSelectedTrack() { 
+        if(!selectedGroupId) return; 
+        const anim=document.getElementById('nextAnimSelect').value; 
+        const dur=characters.find(c=>c.id===selectedGroupId).animDurations[anim]||1; 
+        const items=timelineData.get({filter:i=>i.group===selectedGroupId}); 
+        const start=items.length>0?Math.max(...items.map(i=>i.end)):0; 
+        const clipId = generateUUID(); clipRegistry[clipId] = dur * 1000;
+        timelineData.add({ id: clipId, group:selectedGroupId, content:`${anim} (${dur.toFixed(2)}s)`, start:start, end:start+dur*1000, style:`background-color:${stringToColor(anim)}; border-color:${stringToColor(anim)}; color:white;` }); 
+    }
+    function addSceneClip() { const items=timelineData.get({filter:i=>i.group===SCENE_TRACK_ID}); const start=items.length>0?Math.max(...items.map(i=>i.end)):0; timelineData.add({group:SCENE_TRACK_ID, content:'顯示 BG2', start:start, end:start+2000, className:'scene-item'}); }
+    function changeSkin() { const skinName = document.getElementById('skinSelect').value; const char = characters.find(c => c.id === selectedGroupId); if(char) { char.spine.skeleton.setSkinByName(skinName); char.spine.skeleton.setSlotsToSetupPose(); } }
+    function duplicateSelectedCharacter() {
+        if (!selectedGroupId) return;
+        const original = characters.find(c => c.id === selectedGroupId); if (!original) return;
+        const newSpine = new PIXI.spine.Spine(original.spine.skeleton.data); const newId = 'char_' + Date.now();
+        let baseName = original.name; const match = baseName.match(/^(.*?)(\d+)$/); if (match) baseName = match[1];
+        let counter = 2; let nextName = baseName + "02"; 
+        while (characters.some(c => c.name === nextName)) { counter++; const suffix = counter < 10 ? '0' + counter : counter; nextName = baseName + suffix; }
+        const newBaseY = original.baseY + 20; const newX = original.spine.x + 20;
+        newSpine.x = newX; newSpine.y = newBaseY; newSpine.scale.set(original.scaleX, original.scaleY); newSpine.rotation = original.rotation * (Math.PI / 180); newSpine.autoUpdate = false; 
+        if (original.spine.skeleton.skin) { newSpine.skeleton.setSkin(original.spine.skeleton.skin); newSpine.skeleton.setSlotsToSetupPose(); }
+        if (original.flipX) newSpine.scale.x *= -1;
+        enableDrag(newSpine); newSpine.charId = newId; worldContainer.addChild(newSpine);
+        const newCharObj = { id: newId, spine: newSpine, name: nextName, animations: original.animations, animDurations: original.animDurations, skins: original.skins, lastClipId: null, order: characters.length, baseY: newBaseY, scaleX: original.scaleX, scaleY: original.scaleY, flipX: original.flipX, rotation: original.rotation, visible: true };
+        characters.push(newCharObj);
+        timelineGroups.add({ id: newId, content: newCharObj.name, className: 'default-group', order: newCharObj.order });
+        selectGroup(newId); refreshZIndex();
+        if(newCharObj.animations.length > 0) { const anim = newCharObj.animations[0].name; const dur = newCharObj.animDurations[anim]; const clipId = generateUUID(); clipRegistry[clipId] = dur * 1000; timelineData.add({ id: clipId, group: newId, content: `${anim} (${dur.toFixed(2)}s)`, start:0, end: dur*1000, style: `background-color:${stringToColor(anim)}; border-color:${stringToColor(anim)}; color:white;` }); }
+        renderSceneList(); syncSpineToTime(currentTime); 
+    }
+</script>
+</body>
+</html>

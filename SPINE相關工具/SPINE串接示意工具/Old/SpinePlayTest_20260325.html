@@ -1,0 +1,2584 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>Spine Director V118 (Track Logic Fixed)</title>
+    
+    <script src="https://unpkg.com/vis-timeline/standalone/umd/vis-timeline-graph2d.min.js"></script>
+    <link href="https://unpkg.com/vis-timeline/styles/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
+
+    <style>
+        :root {
+            --bg-app: #181818;
+            --bg-panel: #202020;
+            --bg-header: #2D2D2D;
+            --bg-input: #121212;
+            --bg-hover: #383838;
+            --bg-active: #404040;
+            
+            --border: #3A3A3A;
+            --border-focus: #555;
+            
+            --accent: #0A84FF;
+            --text-main: #E0E0E0;
+            --text-sub: #909090;
+            --text-dim: #606060;
+            
+            --anim-color: #32D74B; 
+            --move-color: #BF5AF2;    /* Purple */
+            --rotate-color: #FF9F0A;  /* Orange */
+            --scale-color: #0A84FF;   /* Blue */
+            --phys-color: #FFD60A;
+            --rec-color: #FF453A;
+            
+            --radius: 4px;
+            --font-size: 12px;
+        }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            background: var(--bg-app); color: var(--text-main); 
+            margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none; font-size: var(--font-size);
+        }
+        
+        #workspace { flex: none; height: 60%; display: flex; overflow: hidden; min-height: 200px; position: relative; }
+        
+        #canvas-container { 
+            flex: 1; background: #000; position: relative; overflow: hidden; 
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.5); 
+            border: 2px solid transparent; transition: border-color 0.2s; 
+        }
+        /* ===== 新增這段拖曳狀態特效 ===== */
+        #canvas-container.drag-over {
+            border-color: var(--anim-color); /* 變成綠色邊框 */
+            border-width: 4px;
+            box-shadow: inset 0 0 100px rgba(50, 215, 75, 0.3);
+        }
+        #canvas-container.drag-over::before {
+            content: "📥 放開滑鼠匯入素材";
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--anim-color);
+            background: rgba(0,0,0,0.7);
+            padding: 15px 30px;
+            border-radius: 8px;
+            pointer-events: none;
+            z-index: 100000;
+        }
+        #canvas-container.recording { border-color: var(--rec-color); border-width: 2px; }
+        #canvas-container.recording::after {
+            content: "🔴 REC (Auto-Key Mode)"; position: absolute; top: 15px; right: 15px; 
+            color: white; background: var(--rec-color); font-weight: 700; font-size: 10px; 
+            padding: 4px 8px; border-radius: 4px; pointer-events: none;
+            box-shadow: 0 0 10px rgba(255, 69, 58, 0.5);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+
+        #inspector { 
+            width: 320px; background: var(--bg-panel); border-left: 1px solid var(--border); 
+            display: flex; flex-direction: column; flex-shrink: 0; z-index: 20; position: relative;
+            height: 100%; /* 確保高度撐滿 */
+        }
+        
+        .panel-header { 
+            height: 40px; padding: 0 12px; display: flex; justify-content: space-between; align-items: center; 
+            background: var(--bg-header); border-bottom: 1px solid var(--border); font-weight: 600; letter-spacing: 0.5px;
+        }
+        
+        #persistent-actions {
+            padding: 10px; background: #2A2A2A; border-bottom: 1px solid var(--border); display: none;
+        }
+        #persistent-actions.active { display: block; }
+        
+        .panel-body { 
+            flex: 1; 
+            overflow-y: auto; /* 改為 auto，讓捲軸自然出現 */
+            overflow-x: hidden;
+            padding: 0; 
+            display: flex; 
+            flex-direction: column; 
+            /* padding-bottom: 60px; (把這行刪除或註解掉) */
+        }
+
+        /* 確保捲軸不影響寬度跳動 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+
+        /* ====== 新增：固定在底部的面板區域 ====== */
+        .panel-footer {
+            background: var(--bg-header);
+            border-top: 1px solid var(--border);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex-shrink: 0; /* 防止被擠壓 */
+            z-index: 10;
+        }
+
+        /* 新增的選單樣式 */
+        .menu-item:hover {
+            background-color: var(--accent) !important;
+            color: white !important;
+        }
+
+        .section { border-bottom: 1px solid var(--border); }
+        .section-header { 
+            padding: 10px 12px; background: var(--bg-panel); cursor: pointer; user-select: none;
+            display: flex; justify-content: space-between; align-items: center; transition: 0.2s;
+        }
+        .section-header:hover { background: var(--bg-hover); }
+        .section-title { font-weight: 700; color: var(--text-sub); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
+        .section-content { padding: 12px; display: flex; flex-direction: column; gap: 10px; background: #252525; }
+        .section.collapsed .section-content { display: none; }
+        .arrow { font-size: 10px; transition: transform 0.2s; color: var(--text-dim); }
+        .section.collapsed .arrow { transform: rotate(-90deg); }
+
+        .control-row { display: flex; align-items: center; gap: 8px; margin-bottom: 0; }
+        .label { width: 70px; color: var(--text-sub); font-size: 11px; flex-shrink: 0; }
+        .full-width { width: 100%; }
+        
+        input[type="text"], input[type="number"], select { 
+            background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); 
+            padding: 4px 8px; border-radius: var(--radius); width: 100%; box-sizing: border-box; font-size: 11px; height: 24px; transition: 0.2s;
+        }
+        input:focus, select:focus { border-color: var(--accent); background: #000; outline: none; }
+        
+        .xy-group { display: flex; gap: 4px; flex: 1; }
+        /* 優化輸入框與圖示標籤的顯示 */
+        .input-icon-wrap { 
+            position: relative; 
+            flex: 1; 
+            display: flex; 
+            align-items: center; 
+        }
+
+        .input-icon { 
+            position: absolute; 
+            left: 8px; 
+            color: var(--accent); /* 改為亮藍色更容易區分 */
+            font-size: 9px; 
+            font-weight: bold;
+            pointer-events: none; 
+            z-index: 5;
+            opacity: 0.8;
+        }
+
+        /* 增加左邊距，避免文字疊在數字上面 */
+        .input-icon-wrap input { 
+            padding-left: 38px !important; 
+            font-family: 'Consolas', monospace; /* 使用等寬字型讓數值整齊 */
+        }
+
+        .slider-wrap { flex: 1; display: flex; align-items: center; gap: 8px; }
+        input[type="range"] { flex: 1; height: 4px; border-radius: 2px; -webkit-appearance: none; background: var(--border); cursor: pointer; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; height: 12px; width: 12px; border-radius: 50%; background: var(--text-sub); margin-top: -4px; transition: 0.2s; }
+        input[type="range"]::-webkit-slider-thumb:hover { background: var(--accent); transform: scale(1.2); }
+        .slider-val { width: 40px !important; text-align: right; font-family: monospace; color: var(--accent); }
+
+        button { 
+            background: var(--bg-hover); color: var(--text-main); border: 1px solid transparent; 
+            padding: 5px 12px; cursor: pointer; border-radius: var(--radius); font-size: 11px; font-weight: 500;
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;
+        }
+        button:hover { background: var(--bg-active); border-color: var(--border-focus); }
+        button:active { transform: translateY(1px); }
+        
+        button.primary { background: var(--accent); color: white; }
+        button.primary:hover { background: #0070D0; }
+        button.danger { background: rgba(255, 69, 58, 0.1); color: var(--rec-color); border-color: rgba(255, 69, 58, 0.3); }
+        button.danger:hover { background: rgba(255, 69, 58, 0.2); }
+        button.icon-only { padding: 4px; width: 28px; height: 28px; font-size: 14px; background: transparent; }
+        button.icon-only:hover { background: var(--bg-hover); color: white; }
+        button.sm { font-size: 10px; padding: 2px 6px; height: 20px; }
+
+        #floating-copy-btn {
+            position: absolute; bottom: 15px; right: 15px; 
+            background: var(--accent); color: white; 
+            padding: 8px 16px; border-radius: 20px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5); 
+            font-weight: bold; z-index: 100;
+            display: none; transition: transform 0.2s; cursor: pointer;
+        }
+        #floating-copy-btn:hover { transform: scale(1.05); background: #0070D0; }
+        #floating-copy-btn:active { transform: scale(0.95); }
+
+        .tab-bar { display: flex; background: var(--bg-app); border-bottom: 1px solid var(--border); }
+        .tab-btn { 
+            flex: 1; background: transparent; border: none; padding: 10px 0; color: var(--text-sub); 
+            font-size: 11px; cursor: pointer; border-bottom: 2px solid transparent; transition: 0.2s;
+        }
+        .tab-btn:hover { color: var(--text-main); background: var(--bg-panel); }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg-panel); font-weight: 600; }
+        .tab-content { display: none; height: 100%; flex-direction: column; } 
+        .tab-content.active { display: flex; }
+
+        #splitter { height: 4px; background: #000; border-top: 1px solid #333; border-bottom: 1px solid #333; cursor: row-resize; z-index: 100; flex-shrink: 0; }
+        #splitter:hover { background: var(--accent); }
+
+        #timeline-area { flex: 1; background: #151515; display: flex; flex-direction: column; }
+        #timeline-toolbar { height: 36px; background: var(--bg-header); display: flex; align-items: center; padding: 0 10px; gap: 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        #visualization { flex: 1; width: 100%; overflow: hidden; }
+        
+        .vis-timeline { border: none; }
+        .vis-time-axis .vis-text { color: var(--text-dim); font-size: 10px; }
+        .vis-item { border-radius: 2px; font-size: 10px; border: 1px solid rgba(0,0,0,0.2); box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+        .vis-item.vis-selected { border-color: white !important; border-width: 1px; box-shadow: 0 0 0 1px white; z-index: 10; }
+        .vis-group-level-0 { background-color: #252525; font-weight: 600; color: #eee; border-bottom: 1px solid #333; }
+        
+        /* Highlight selected group */
+        .vis-label.selected-track {
+            background-color: rgba(10, 132, 255, 0.2) !important;
+            border-left: 3px solid var(--accent) !important;
+            color: white !important;
+        }
+
+        .track-anim { background-color: var(--anim-color); border-color: var(--anim-color); }
+        /* ===== 修正：為區塊右側補上邊框，顯示結束的 Keyframe ===== */
+        .track-move { border-left: 3px solid var(--move-color); border-right: 3px solid var(--move-color); background-color: rgba(191, 90, 242, 0.15); color: #D0D0D0; }
+        .track-rotate { border-left: 3px solid var(--rotate-color); border-right: 3px solid var(--rotate-color); background-color: rgba(255, 159, 10, 0.15); color: #D0D0D0; }
+        .track-scale { border-left: 3px solid var(--scale-color); border-right: 3px solid var(--scale-color); background-color: rgba(10, 132, 255, 0.15); color: #D0D0D0; }
+
+        .layer-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; margin-bottom: 2px; border: 1px solid transparent; }
+        .layer-item:hover { background: rgba(255,255,255,0.08); }
+        .layer-item.selected { border-color: var(--accent); background: rgba(10, 132, 255, 0.1); }
+        .layer-info { display: flex; align-items: center; gap: 8px; overflow: hidden; }
+        .layer-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+        .layer-actions { display: flex; gap: 2px; opacity: 0.5; transition: 0.2s; }
+        .layer-item:hover .layer-actions { opacity: 1; }
+        /* ===== 圖層拖曳特效 ===== */
+        .layer-item {
+            cursor: grab; /* 游標變成手掌 */
+        }
+        .layer-item:active {
+            cursor: grabbing; /* 抓取時握拳 */
+        }
+        .layer-item.dragging {
+            opacity: 0.4; /* 拖曳中的半透明效果 */
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .layer-item.drag-over-top {
+            border-top: 2px solid var(--accent) !important; /* 提示會插在上方 */
+        }
+        .layer-item.drag-over-bottom {
+            border-bottom: 2px solid var(--accent) !important; /* 提示會插在下方 */
+        }
+        .layer-z-disp { font-family: monospace; font-size: 9px; color: #666; margin-right: 5px; }
+        .type-badge { font-size: 9px; padding: 1px 4px; border-radius: 3px; margin-right: 5px; min-width: 25px; text-align: center; }
+        .badge-spine { background: #32D74B; color: black; }
+        .badge-img { background: #0A84FF; color: white; }
+        .empty-state { padding: 40px 20px; text-align: center; color: var(--text-dim); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .empty-icon { font-size: 32px; opacity: 0.3; }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg-app); }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+    </style>
+</head>
+<body>
+    
+    <div id="loading-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #121212; z-index: 99999; display: flex; justify-content: center; align-items: center; flex-direction: column; color: #888;">
+        <div style="margin-bottom: 10px; color: #0A84FF; font-weight: bold;">Spine Director V118</div>
+        <div id="loading-status">Loading Engine...</div>
+    </div>
+
+    <div id="workspace">
+        <div id="canvas-container">
+            <div style="position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.6); backdrop-filter:blur(4px); padding: 4px 10px; border-radius: 4px; font-size: 11px; color: #888; pointer-events: none;">
+                <span id="ver-tag">V118</span>
+            </div>
+        </div>
+        
+        <div class="section-content">
+            
+            <input type="file" id="fileInput" multiple accept=".json,.skel,.atlas,.txt,.png,.jpg" style="display:none" onchange="handleFiles(this)">
+            
+            <input type="file" id="folderInput" webkitdirectory directory multiple style="display:none" onchange="handleFiles(this)">
+            
+            <input type="file" id="imgImportInput" multiple accept=".png,.jpg,.jpeg,.webp" style="display:none" onchange="handleImageFiles(this)">
+        </div>
+
+        <div id="inspector">
+            <div class="panel-header">
+                <span>Spine Director</span>
+                <div style="display:flex; gap:2px;">
+                    <button class="icon-only" onclick="document.getElementById('projectInput').click()" title="Open">📂</button>
+                    <button class="icon-only" onclick="enhancedSaveProject()" title="Save">💾</button>
+                    <input type="file" id="projectInput" accept=".json" style="display:none" onchange="enhancedLoadProject(this.files[0])">
+                </div>
+            </div>
+            
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchTab('project')" id="tab-btn-project">專案</button>
+                <button class="tab-btn" onclick="switchTab('character')" id="tab-btn-character">圖層</button>
+                <button class="tab-btn" onclick="switchTab('inspector')" id="tab-btn-inspector">屬性</button>
+            </div>
+
+            <div class="panel-body">
+                
+                <div id="tab-project" class="tab-content active">
+                    <div class="section">
+                        <div class="section-header" onclick="toggleSection(this)">
+                            <div class="section-title"><span>⚙️ 全域設定</span></div><span class="arrow">▼</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="control-row">
+                                <span class="label">版本</span>
+                                <select id="versionSelect" onchange="switchVersion(this.value)">
+                                    <option value="4.0">Spine 4.0 / 4.1</option>
+                                    <option value="3.8">Spine 3.8</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-header" onclick="toggleSection(this)">
+                            <div class="section-title"><span>📥 匯入資源 (Import)</span></div><span class="arrow">▼</span>
+                        </div>
+                        <div class="section-content" style="gap: 5px;">
+                            <div style="position: relative;">
+                                <button class="full-width primary" onclick="toggleSpineMenu()" style="justify-content: space-between; padding-left: 12px; padding-right: 12px;">
+                                    <span>🦴 匯入 Spine</span><span style="font-size: 8px;">▼</span>
+                                </button>
+                                <div id="spine-import-menu" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; background: var(--bg-active); border: 1px solid var(--border-focus); z-index: 100; border-radius: 4px; margin-top: 2px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); overflow: hidden;">
+                                    <button class="menu-item" onclick="document.getElementById('fileInput').click(); toggleSpineMenu();" style="width: 100%; text-align: left; border-radius: 0; border-bottom: 1px solid var(--border); background: transparent;">📄 選擇檔案 (.skel + .atlas)</button>
+                                    <button class="menu-item" onclick="document.getElementById('folderInput').click(); toggleSpineMenu();" style="width: 100%; text-align: left; border-radius: 0; background: transparent;">📂 選擇資料夾 (自動抓取)</button>
+                                </div>
+                            </div>
+                            <button class="full-width" onclick="document.getElementById('imgImportInput').click()">🖼️ 匯入圖片 (Image)</button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-header" onclick="toggleSection(this)">
+                            <div class="section-title"><span>🖼️ 場景背景</span></div><span class="arrow">▼</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="xy-group">
+                                <button class="full-width" onclick="document.getElementById('bg1Input').click()">BG1 (底)</button>
+                                <button class="full-width" onclick="document.getElementById('bg2Input').click()">BG2 (上)</button>
+                            </div>
+                            <input type="file" id="bg1Input" accept="image/*" style="display:none" onchange="loadBackground(this.files[0], 1)">
+                            <input type="file" id="bg2Input" accept="image/*" style="display:none" onchange="loadBackground(this.files[0], 2)">
+                            <button style="color: var(--move-color);" onclick="addSceneClip()">+ 增加背景轉場特效</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-character" class="tab-content">
+                    <div class="section-header" style="background:var(--bg-header); cursor:default;">
+                        <div class="section-title"><span>📚 圖層列表 (Layers)</span></div>
+                    </div>
+                    <div id="scene-list" style="display:flex; flex-direction:column; padding:10px;">
+                        <div class="empty-state">
+                            <div class="empty-icon">📦</div><div>尚未加入任何物件</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-inspector" class="tab-content">
+                    
+                    <div id="inspector-empty" class="empty-state">
+                        <div class="empty-icon">👈</div><div>請選擇物件或時間軸片段</div>
+                    </div>
+
+                    <div id="inspector-char" style="display:none;">
+                        <div class="section" style="background: #2A2A2A; border-bottom: 2px solid var(--border);">
+                            <div class="section-content">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                                    <div style="font-size:10px; color:var(--text-sub); text-transform:uppercase; font-weight:700;">⚡ 快速操作</div>
+                                    <button class="sm" style="border:1px solid #777; color:white; background:#444;" onclick="forceKeyframe()">🔑 全屬性打點</button>
+                                </div>
+                                <div class="xy-group">
+                                    <select id="charAnimList" style="flex:2;"></select>
+                                    <button class="primary" style="flex:1;" onclick="addSpecificAnim()">+ 動作</button>
+                                    <button style="flex:0.8; font-size: 10px; padding: 0 4px;" onclick="addExtraAnimTrack()" title="增加動畫軌道">+ 軌道</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="section">
+                            <div class="section-header" onclick="toggleSection(this)">
+                                <div class="section-title"><span>📐 變形 (Transform)</span></div><span class="arrow">▼</span>
+                            </div>
+                            <div class="section-content">
+                                <div class="control-row" style="justify-content: space-between;">
+                                    <span id="sel-char-name" style="font-weight:bold; color:var(--text-main);">Name</span>
+                                    <button class="icon-only" onclick="resetTransform()" title="Reset">↺</button>
+                                </div>
+                                <div class="control-row">
+                                    <span class="label">縮放</span>
+                                    <div class="slider-wrap">
+                                        <input type="range" id="charScale" min="0.1" max="2.5" step="0.05" oninput="updateCharTransform('scale')">
+                                        <input type="number" id="charScaleNum" class="slider-val" oninput="document.getElementById('charScale').value=this.value; updateCharTransform('scale')">
+                                    </div>
+                                </div>
+                                <div class="control-row">
+                                    <span class="label">旋轉</span>
+                                    <div class="slider-wrap">
+                                        <input type="range" id="charRotation" min="-180" max="180" step="1" oninput="updateCharTransform('rotate')">
+                                        <input type="number" id="charRotationNum" class="slider-val" oninput="document.getElementById('charRotation').value=this.value; updateCharTransform('rotate')">
+                                    </div>
+                                </div>
+                                <button class="full-width" onclick="toggleFlip()">↔ 水平翻轉 (Flip X)</button>
+                            </div>
+                        </div>
+
+                        <div class="section">
+                            <div class="section-header" onclick="toggleSection(this)">
+                                <div class="section-title"><span>🛠️ 管理 (Manage)</span></div><span class="arrow">▼</span>
+                            </div>
+                            <div class="section-content">
+                                <div id="skin-control-row" class="control-row">
+                                    <span class="label">外觀</span>
+                                    <select id="skinSelect" onchange="changeSkin()"></select>
+                                </div>
+                                <div class="separator"></div>
+                                <button class="primary full-width" onclick="duplicateWithDialog()">📑 複製物件 (Duplicate)</button>
+                                <button class="full-width" style="color:var(--phys-color);" onclick="document.getElementById('reloadInput').click()">♻️ 更新素材 (Reload)</button>
+                                <input type="file" id="reloadInput" accept=".json,.skel" style="display:none" onchange="handleReloadFiles(this)">
+                                <button class="danger full-width" onclick="removeSelectedCharacter()">🗑️ 刪除物件</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="inspector-clip" style="display:none;">
+                        <div class="section">
+                            <div class="section-header">
+                                <div class="section-title"><span id="clip-type-label">CLIP</span></div>
+                            </div>
+                            <div class="section-content">
+                                <div id="anim-controls" style="display:none;">
+                                    <div class="control-row">
+                                        <span class="label">動作</span>
+                                        <select id="clipAnimSelect" onchange="updateSelectedClip()"></select>
+                                    </div>
+                                    <div class="control-row">
+                                        <span class="label"></span>
+                                        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+                                            <input type="checkbox" id="clipLoop" onchange="updateSelectedClip()"> 循環播放 (Loop)
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="xy-group" style="margin-top:5px;">
+                                    <div class="input-icon-wrap"><span class="input-icon">Start</span><input type="number" id="clipStart" step="0.01" oninput="updateSelectedClip()"></div>
+                                    <div class="input-icon-wrap"><span class="input-icon">Dur</span><input type="number" id="clipDuration" step="0.01" oninput="updateSelectedClip()"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="prop-controls" class="section" style="display:none;">
+                            <div class="section-header" onclick="toggleSection(this)">
+                                <div class="section-title"><span id="prop-label" style="color:var(--move-color);">🚀 補間屬性</span></div><span class="arrow">▼</span>
+                            </div>
+                            <div class="section-content">
+                                <div class="control-row" style="margin-bottom: 10px; border-bottom: 1px dashed #444; padding-bottom: 10px;">
+                                    <span class="label">動態曲線</span>
+                                    <select id="clipEasing" onchange="updateSelectedClip()">
+                                        <option value="linear">線性 (Linear)</option>
+                                        <option value="easeOutQuad">平滑減速 (EaseOutQuad)</option>
+                                        <option value="easeInOutQuad">平滑加減速 (EaseInOutQuad)</option>
+                                        <option value="easeOutBack">越界回彈 (EaseOutBack)</option>
+                                        <option value="easeOutElastic">彈性抖動 (EaseOutElastic)</option>
+                                    </select>
+                                </div>
+                                <div id="move-inputs" style="display:none;">
+                                    <div class="control-row" style="justify-content:space-between; margin-bottom:4px;">
+                                        <span class="label" style="font-weight:bold;">起始 (Start)</span>
+                                        <div style="display:flex; gap:4px;">
+                                            <button class="sm" onclick="captureToClip('start')">📍 擷取</button>
+                                            <button class="sm danger" onclick="deleteClipKey('start')" title="刪除此端點" style="padding: 2px 6px;">🗑️</button>
+                                        </div>
+                                    </div>
+                                    <div class="xy-group">
+                                        <div class="input-icon-wrap"><span class="input-icon">X</span><input type="number" id="motStartX" oninput="updateSelectedClip()"></div>
+                                        <div class="input-icon-wrap"><span class="input-icon">Y</span><input type="number" id="motStartY" oninput="updateSelectedClip()"></div>
+                                    </div>
+                                    <div class="control-row" style="justify-content:space-between; margin-top:10px; margin-bottom:4px;">
+                                        <span class="label" style="font-weight:bold; color:var(--accent);">結束 (End)</span>
+                                        <div style="display:flex; gap:4px;">
+                                            <button class="sm" onclick="captureToClip('end')">📍 擷取</button>
+                                            <button class="sm danger" onclick="deleteClipKey('end')" title="刪除此端點" style="padding: 2px 6px;">🗑️</button>
+                                        </div>
+                                    </div>
+                                    <div class="xy-group">
+                                        <div class="input-icon-wrap"><span class="input-icon">X</span><input type="number" id="motEndX" oninput="updateSelectedClip()"></div>
+                                        <div class="input-icon-wrap"><span class="input-icon">Y</span><input type="number" id="motEndY" oninput="updateSelectedClip()"></div>
+                                    </div>
+                                </div>
+
+                                <div id="rotate-inputs" style="display:none;">
+                                    <div class="control-row" style="justify-content:space-between; margin-bottom:4px;">
+                                        <span class="label" style="font-weight:bold;">起始 (Start)</span>
+                                        <div style="display:flex; gap:4px;">
+                                            <button class="sm" onclick="captureToClip('start')">📍 擷取</button>
+                                            <button class="sm danger" onclick="deleteClipKey('start')" title="刪除此端點" style="padding: 2px 6px;">🗑️</button>
+                                        </div>
+                                    </div>
+                                    <div class="input-icon-wrap"><span class="input-icon">R</span><input type="number" id="motStartR" oninput="updateSelectedClip()"></div>
+                                    <div class="control-row" style="justify-content:space-between; margin-top:10px; margin-bottom:4px;">
+                                        <span class="label" style="font-weight:bold; color:var(--accent);">結束 (End)</span>
+                                        <div style="display:flex; gap:4px;">
+                                            <button class="sm" onclick="captureToClip('end')">📍 擷取</button>
+                                            <button class="sm danger" onclick="deleteClipKey('end')" title="刪除此端點" style="padding: 2px 6px;">🗑️</button>
+                                        </div>
+                                    </div>
+                                    <div class="input-icon-wrap"><span class="input-icon">R</span><input type="number" id="motEndR" oninput="updateSelectedClip()"></div>
+                                </div>
+
+                                <div id="scale-inputs" style="display:none;">
+                                    <div class="control-row" style="justify-content:space-between; margin-bottom:4px;">
+                                        <span class="label" style="font-weight:bold;">起始 (Start)</span>
+                                        <div style="display:flex; gap:4px;">
+                                            <button class="sm" onclick="captureToClip('start')">📍 擷取</button>
+                                            <button class="sm danger" onclick="deleteClipKey('start')" title="刪除此端點" style="padding: 2px 6px;">🗑️</button>
+                                        </div>
+                                    </div>
+                                    <div class="input-icon-wrap"><span class="input-icon">S</span><input type="number" id="motStartS" step="0.1" oninput="updateSelectedClip()"></div>
+                                    <div class="control-row" style="justify-content:space-between; margin-top:10px; margin-bottom:4px;">
+                                        <span class="label" style="font-weight:bold; color:var(--accent);">結束 (End)</span>
+                                        <div style="display:flex; gap:4px;">
+                                            <button class="sm" onclick="captureToClip('end')">📍 擷取</button>
+                                            <button class="sm danger" onclick="deleteClipKey('end')" title="刪除此端點" style="padding: 2px 6px;">🗑️</button>
+                                        </div>
+                                    </div>
+                                    <div class="input-icon-wrap"><span class="input-icon">S</span><input type="number" id="motEndS" step="0.1" oninput="updateSelectedClip()"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="section">
+                            <div class="section-header" onclick="toggleSection(this)">
+                                <div class="section-title"><span style="color:var(--phys-color);">🏀 物理掉落 (Physics)</span></div><span class="arrow">▼</span>
+                            </div>
+                            <div class="section-content">
+                                <label style="display:flex; align-items:center; gap:5px;">
+                                    <input type="checkbox" id="dropEnable" onchange="updateSelectedClip()"> 啟用 (Enable)
+                                </label>
+                                <div id="physics-controls" style="display:none; padding-left:10px; border-left:2px solid var(--phys-color); display:flex; flex-direction:column; gap:5px;">
+                                    <div class="xy-group">
+                                        <div class="input-icon-wrap" title="掉落高度"><span class="input-icon">H</span><input type="number" id="dropHeight" placeholder="Height" oninput="updateSelectedClip()"></div>
+                                        <div class="input-icon-wrap" title="彈力係數"><span class="input-icon">B</span><input type="number" id="dropBounce" step="0.1" placeholder="Bounce" oninput="updateSelectedClip()"></div>
+                                    </div>
+                                    <div class="xy-group">
+                                        <div class="input-icon-wrap" title="掉落過程時間"><span class="input-icon">Dur</span><input type="number" id="dropDur" step="0.1" placeholder="Duration" oninput="updateSelectedClip()"></div>
+                                        <div class="input-icon-wrap" title="延遲開始時間 (秒)"><span class="input-icon">Delay</span><input type="number" id="dropDelay" step="0.1" placeholder="Delay" oninput="updateSelectedClip()"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="section-content">
+                            <button class="danger full-width" onclick="deleteSelectedClip(true)">刪除整個片段</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel-footer">
+                <div style="font-size:10px; color:var(--anim-color); margin-bottom: 2px; font-weight:bold; text-align: center;">📤 匯出產物 (EXPORT)</div>
+                <button class="primary full-width" onclick="startVideoExport()" id="btn-export-video" style="padding: 8px;">🎥 錄製動態影片 (WebM)</button>
+                <button class="full-width" onclick="exportCodeSnippet()" style="padding: 8px;">📄 匯出程式碼片段 (Code)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="splitter"></div>
+
+    <div id="timeline-area">
+        <div id="timeline-toolbar">
+            <div style="display:flex; gap: 2px;">
+                <button onclick="stepFrame(-1)" title="上一幀 (左方向鍵)" class="icon-only sm" style="font-size:12px;">⏮</button>
+                <button class="primary" id="play-btn" onclick="togglePlay()" style="width:32px; border-radius:50%; margin: 0 4px;">▶</button>
+                <button onclick="stop()" style="width:32px; border-radius:50%; margin-right: 4px;">■</button>
+                <button onclick="stepFrame(1)" title="下一幀 (右方向鍵)" class="icon-only sm" style="font-size:12px;">⏭</button>
+            </div>
+            <span id="time-display" style="font-family:monospace; color:var(--accent); font-weight:bold; margin-left:10px; width: 50px;">0.00s</span>
+            
+            <div style="width: 20px;"></div>
+            <button id="rec-btn" onclick="toggleRec()">🔴 REC</button>
+            <div style="flex:1"></div>
+            <label style="font-size:11px; color:var(--text-sub); display:flex; align-items:center;"><input type="checkbox" id="loop-playback-check" style="margin-right:5px;"> 循環</label>
+            <button onclick="fitTimeline()">Fit View</button>
+        </div>
+        <div id="visualization"></div>
+    </div>
+
+<script>
+    let app, worldContainer, bgContainer, debugGraphics;
+    let bg1Sprite = null, bg2Sprite = null;
+    let characters = []; 
+    let timeline, timelineData, timelineGroups;
+    let isPlaying = false, isRecording = false;
+    let currentTime = 0;
+    
+    let selectedGroupId = null, selectedCharId = null, selectedClipId = null;
+    let selectedTrackId = null; // New: stores explicitly clicked track group ID
+
+    const SCENE_TRACK_ID = 'scene_track';
+    const clipRegistry = {}; 
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const isV3 = (urlParams.get('v') === '3.8');
+
+    function toggleSection(header) {
+        header.parentElement.classList.toggle('collapsed');
+    }
+
+    function loadScript(url) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = url;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error(`Load Error: ${url}`));
+            document.head.appendChild(script);
+        });
+    }
+
+    async function bootstrap() {
+        const statusEl = document.getElementById('loading-status');
+        document.getElementById('versionSelect').value = isV3 ? '3.8' : '4.0';
+
+        try {
+            if (isV3) {
+                statusEl.innerText = "Loading Core (3.8)...";
+                await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.3.10/pixi.min.js");
+                await loadScript("https://cdn.jsdelivr.net/npm/pixi-spine@2.1.11/dist/pixi-spine.js");
+            } else {
+                statusEl.innerText = "Loading Core (4.0)...";
+                await loadScript("https://d157l7jdn8e5sf.cloudfront.net/v7.2.4/pixi.min.js");
+                await loadScript("https://cdn.jsdelivr.net/npm/pixi-spine@4.0.3/dist/pixi-spine.js");
+            }
+            document.getElementById('loading-overlay').style.display = 'none';
+            initApp(); 
+        } catch (error) {
+            statusEl.innerText = "Error: " + error.message;
+            statusEl.style.color = "#ff453a";
+        }
+    }
+
+    function initApp() {
+        document.getElementById('ver-tag').innerText = isV3 ? "Spine 3.8" : "Spine 4.0";
+        app = new PIXI.Application({ backgroundColor: 0x000000, resizeTo: document.getElementById('canvas-container'), antialias: true });
+        document.getElementById('canvas-container').appendChild(app.view);
+        worldContainer = new PIXI.Container(); worldContainer.sortableChildren = true; app.stage.addChild(worldContainer);
+        bgContainer = new PIXI.Container(); bgContainer.sortableChildren = true; bgContainer.zIndex = -99999; worldContainer.addChild(bgContainer);
+        debugGraphics = new PIXI.Graphics(); debugGraphics.zIndex = 99999; worldContainer.addChild(debugGraphics);
+        resetView();
+        setupInteractions();
+        setupSplitter(); 
+        setupDragAndDrop(); // 👈 ===== 新增這一行來啟動拖曳功能 =====
+        app.ticker.add(onTick);
+        initTimeline();
+        setupKeyboardShortcuts();
+        switchTab('project');
+        renderSceneList();
+        
+        window.addEventListener('mouseup', () => {
+            characters.forEach(c => { 
+                if(c.spine.dragging) {
+                    c.spine.alpha = 1; 
+                    c.spine.dragging = false; 
+                }
+            });
+        });
+    }
+
+    bootstrap();
+
+    function switchVersion(v) {
+        try { const url = new URL(window.location.href); url.searchParams.set('v', v); window.location.href = url.href; } 
+        catch(e) { window.location.href = window.location.href.split('?')[0] + '?v=' + v; }
+    }
+
+    function toggleSpineMenu() {
+        const menu = document.getElementById('spine-import-menu');
+        // 切換顯示/隱藏
+        if (menu.style.display === 'none') {
+            menu.style.display = 'block';
+        } else {
+            menu.style.display = 'none';
+        }
+    }
+
+    // 點擊畫面其他地方時，自動關閉選單 (優化體驗)
+    window.addEventListener('click', function(e) {
+        const menu = document.getElementById('spine-import-menu');
+        const btn = e.target.closest('button');
+        // 如果點擊的不是"匯入Spine"按鈕，也不是選單內的東西，就關閉選單
+        if (menu.style.display === 'block' && (!btn || !btn.innerText.includes('匯入 Spine'))) {
+            menu.style.display = 'none';
+        }
+    });
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.getElementById('tab-btn-' + tabId).classList.add('active');
+        document.getElementById('tab-' + tabId).classList.add('active');
+    }
+
+    function getAnimColor(name, avoidHue = null) {
+        let hash = 0;
+        // Improved hashing (Murmur-like) to reduce name collisions like Prewin/Bingo
+        for (let i = 0; i < name.length; i++) {
+            hash = Math.imul(31, hash) + name.charCodeAt(i) | 0;
+        }
+        hash = Math.imul(hash ^ (hash >>> 15), 0x735a2d97);
+        hash = hash ^ (hash >>> 15);
+        
+        // Use Golden Angle to spread hues more evenly
+        let hue = Math.abs(hash % 360);
+        
+        // Visual collision avoidance logic
+        if (avoidHue !== null && avoidHue !== undefined) {
+            let diff = Math.abs(hue - avoidHue);
+            if (diff > 180) diff = 360 - diff; // Shortest arc distance
+            
+            // If colors are too close (within 40 degrees), shift significantly
+            if (diff < 40) {
+                hue = (avoidHue + 137) % 360; // Shift by ~Golden Angle
+            }
+        }
+        
+        return `hsl(${hue}, 75%, 35%)`; 
+    }
+
+    function selectTrack(trackId) {
+        // Remove selection from all groups
+        timelineGroups.get().forEach(g => {
+            if(g.className && g.className.includes('selected-track')) {
+                const newClass = g.className.replace(' selected-track', '');
+                timelineGroups.update({id: g.id, className: newClass});
+            }
+        });
+
+        // Add selection to target group
+        const group = timelineGroups.get(trackId);
+        if (group) {
+            const currentClass = group.className || '';
+            if (!currentClass.includes('selected-track')) {
+                timelineGroups.update({id: trackId, className: currentClass + ' selected-track'});
+            }
+            selectedTrackId = trackId;
+        } else {
+            selectedTrackId = null;
+        }
+    }
+    
+    function clearTrackSelection() {
+        timelineGroups.get().forEach(g => {
+            if(g.className && g.className.includes('selected-track')) {
+                const newClass = g.className.replace(' selected-track', '');
+                timelineGroups.update({id: g.id, className: newClass});
+            }
+        });
+        selectedTrackId = null;
+    }
+
+    function initTimeline() {
+        timelineData = new vis.DataSet(); 
+        timelineGroups = new vis.DataSet();
+        
+        const options = {
+            start: 0, end: 5000, min: 0, max: 600000,
+            showCurrentTime: false, orientation: 'top', stack: false,
+            editable: { add: false, updateTime: true, remove: true },
+            groupOrder: 'order', multiselect: false, 
+            width: '100%', height: '100%', verticalScroll: true, zoomKey: 'ctrlKey',
+            margin: { item: { horizontal: 0, vertical: 5 } },
+            snap: function (date) { return Math.round(date.getTime() / 10) * 10; },
+            
+            // Magnet/Snap Logic
+            onMoving: function (item, callback) {
+                const SNAP_DIST = 300; 
+                let start = item.start.valueOf();
+                let end = item.end.valueOf();
+                const duration = end - start;
+
+                if (Math.abs(start) < SNAP_DIST) start = 0;
+
+                if (Math.abs(start - currentTime) < SNAP_DIST) {
+                    start = currentTime;
+                } else if (Math.abs(end - currentTime) < SNAP_DIST) {
+                    start = currentTime - duration;
+                }
+
+                const neighbors = timelineData.get({
+                    filter: i => i.group === item.group && i.id !== item.id
+                });
+                
+                neighbors.forEach(n => {
+                    const nEnd = n.end.valueOf();
+                    const nStart = n.start.valueOf();
+                    if (Math.abs(start - nEnd) < SNAP_DIST) start = nEnd;
+                    if (Math.abs(start + duration - nStart) < SNAP_DIST) start = nStart - duration;
+                });
+
+                item.start = new Date(start);
+                item.end = new Date(start + duration);
+
+                // ===== 新增：讓紅線(Playhead)與畫面跟隨你正在拖曳的片段 =====
+                currentTime = start;
+                timeline.setCustomTime(currentTime, 'playhead');
+                updateTimeDisplay();
+                syncSpineToTime(currentTime);
+                // ========================================================
+
+                callback(item);
+            },
+            
+            // Push Neighbors Logic
+            onMove: function (item, callback) {
+                try {
+                    let startMs = Math.max(0, item.start.valueOf());
+                    let endMs = item.end.valueOf();
+                    let dur = endMs - startMs;
+                    item.start = new Date(startMs); item.end = new Date(startMs + dur); 
+
+                    const neighbors = timelineData.get({ filter: i => i.group === item.group && String(i.id) !== String(item.id) });
+                    let toPush = neighbors.filter(n => n.end.valueOf() > startMs); 
+                    toPush.sort((a, b) => a.start - b.start);
+                    let currentBarrier = item.end.valueOf();
+                    
+                    toPush.forEach(neighbor => {
+                        let nStart = neighbor.start.valueOf();
+                        let nEnd = neighbor.end.valueOf();
+                        let nDur = nEnd - nStart;
+                        if (nStart < currentBarrier) {
+                            let newStart = currentBarrier;
+                            let newEnd = newStart + nDur;
+                            timelineData.update({ id: neighbor.id, start: new Date(newStart), end: new Date(newEnd) });
+                            currentBarrier = newEnd;
+                        } else { currentBarrier = nEnd; }
+                    });
+
+                    if(String(selectedClipId) === String(item.id)) renderInspector();
+                    callback(item);
+                } catch(e) { console.error("Drop Error:", e); callback(item); }
+            },
+            format: { minorLabels: (d) => (d/1000).toFixed(1)+'s', majorLabels: (d) => (d/1000).toFixed(0)+'s' }
+        };
+        
+        timeline = new vis.Timeline(document.getElementById('visualization'), timelineData, timelineGroups, options);
+        timeline.addCustomTime(0, 'playhead');
+        timelineGroups.add({ id: SCENE_TRACK_ID, content: '🎬 場景事件', order: -9999, className: 'vis-group-level-0' });
+
+        timeline.on('select', (p) => {
+            selectedClipId = (p.items.length > 0) ? p.items[0] : null;
+            if (selectedClipId) {
+                const item = timelineData.get(selectedClipId);
+                if(item) {
+                    const char = characters.find(c => 
+                        c.tracks.anim === item.group || 
+                        c.tracks.move === item.group || 
+                        c.tracks.rotate === item.group || 
+                        c.tracks.scale === item.group ||
+                        (c.animTracks && c.animTracks.includes(item.group))
+                    );
+                    if (char) {
+                        selectCharacter(char.id, false);
+                        // Auto-select the track of this clip
+                        selectTrack(item.group);
+                    }
+                }
+            } else { renderInspector(); }
+        });
+
+        timeline.on('click', (p) => {
+            // Click on background (clear selection)
+            if (p.time && !p.item && !p.group) { 
+                currentTime = p.time.getTime(); 
+                timeline.setCustomTime(currentTime, 'playhead'); 
+                updateTimeDisplay(); 
+                syncSpineToTime(currentTime);
+                timeline.setSelection([]); 
+                selectedClipId = null; 
+                renderInspector(); 
+                clearTrackSelection();
+            }
+            // Click on Group (Track)
+            if (p.group) {
+                if (p.group === SCENE_TRACK_ID) return;
+                
+                // Find character by any of its tracks
+                const char = characters.find(c => 
+                    c.id === p.group ||
+                    c.tracks.anim === p.group || 
+                    c.tracks.move === p.group || 
+                    c.tracks.rotate === p.group || 
+                    c.tracks.scale === p.group ||
+                    (c.animTracks && c.animTracks.includes(p.group))
+                );
+                
+                if (char) {
+                    if (selectedCharId !== char.id) selectCharacter(char.id);
+                    // Explicitly highlight the clicked track
+                    selectTrack(p.group);
+                }
+            }
+        });
+
+        timeline.on('timechange', (p) => { if (p.id === 'playhead') { currentTime = p.time.getTime(); updateTimeDisplay(); syncSpineToTime(currentTime); } });
+    }
+
+    function onTick() {
+        if (isPlaying) {
+            currentTime += app.ticker.deltaMS;
+            const loop = document.getElementById('loop-playback-check').checked;
+            let maxEnd = 0; timelineData.get().forEach(i => { const e = i.end.valueOf(); if(e>maxEnd) maxEnd=e; });
+            const loopPoint = Math.max(2000, maxEnd + 500); 
+            if (loop && currentTime > loopPoint) { currentTime = 0; characters.forEach(c => { c.lastAnimClipId = null; }); }
+            else if (!loop && currentTime > loopPoint) { stop(); return; }
+            timeline.setCustomTime(currentTime, 'playhead'); updateTimeDisplay(); syncSpineToTime(currentTime);
+        }
+        drawDebugHelpers();
+    }
+
+    function customBounce(t, b) { const n1=7.5625,d1=2.75; if(t<1/d1)return n1*t*t; else if(t<2/d1)return n1*(t-=1.5/d1)*t+0.75; else if(t<2.5/d1)return n1*(t-=2.25/d1)*t+0.9375; else return n1*(t-=2.625/d1)*t+0.984375; }
+
+    // ===== 新增：常用緩動函數字典 =====
+    const EasingFuncs = {
+        linear: t => t,
+        easeOutQuad: t => t * (2 - t),
+        easeInOutQuad: t => t < .5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
+        easeOutBack: t => { const c1 = 1.70158; const c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
+        easeOutElastic: t => { const c4 = (2 * Math.PI) / 3; return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1; }
+    };
+
+    function getInterpolatedValue(trackId, time, defaultValue, propStart, propEnd) {
+        const clips = timelineData.get({ filter: i => i.group === trackId });
+        
+        // Find active clip
+        const activeClip = clips.find(i => time >= i.start && time <= i.end);
+        if (activeClip) {
+            const startVal = activeClip[propStart];
+            const endVal = activeClip[propEnd];
+            const duration = (activeClip.end - activeClip.start);
+            if(duration <= 0) return startVal;
+            
+            // 取得基礎進度 (0.0 ~ 1.0)
+            let t = (time - activeClip.start) / duration;
+            
+            // 套用曲線公式
+            const easeType = activeClip.easing || 'linear';
+            if (EasingFuncs[easeType]) {
+                t = EasingFuncs[easeType](t);
+            }
+            
+            return startVal + (endVal - startVal) * t;
+        }
+
+        // Find last clip before time
+        const prevClips = clips.filter(i => i.end <= time);
+        if (prevClips.length > 0) {
+            prevClips.sort((a,b) => b.end - a.end); // Sort desc
+            return prevClips[0][propEnd];
+        }
+
+        return defaultValue;
+    }
+
+    function syncSpineToTime(time) {
+        if (bg2Sprite) {
+            const sceneClips = timelineData.get({ filter: i => i.group === SCENE_TRACK_ID && (time >= i.start && time <= i.end) });
+            bg2Sprite.alpha = (sceneClips.length > 0) ? 1 : 0; 
+        }
+
+        characters.forEach(char => {
+            // 1. Animation Track (支援多軌道)
+            if (char.type !== 'image') {
+                char.spine.visible = char.visible; 
+                if(char.visible) char.spine.alpha = 1;
+
+                // 迴圈檢查每一個軌道 (Track 0, Track 1, ...)
+                char.animTracks.forEach((trackId, trackIndex) => {
+                    const animClips = timelineData.get({ filter: i => i.group === trackId && time >= i.start && time < i.end });
+                    const activeAnimClip = animClips.length > 0 ? animClips[0] : null;
+
+                    if (activeAnimClip) {
+                        const animName = activeAnimClip.content.split(' (')[0];
+                        const delayMs = (activeAnimClip.dropDelay || 0) * 1000;
+                        const localTime = (time - activeAnimClip.start - delayMs) / 1000;
+
+                        if (localTime < 0) {
+                            // 還沒開始 (考慮 Drop 預備動作)
+                            if (trackIndex === 0) { // 只重置主軌道
+                                char.spine.skeleton.setToSetupPose();
+                                char.spine.update(0);
+                            }
+                        } else {
+                            // 檢查是否需要切換動畫
+                            if (char.lastAnimClipId[trackIndex] !== activeAnimClip.id) {
+                                try { 
+                                    // Set Animation on Specific Track Index!
+                                    char.spine.state.setAnimation(trackIndex, animName, true); 
+                                } catch(e){}
+                                char.lastAnimClipId[trackIndex] = activeAnimClip.id;
+                            }
+                            
+                            const trackEntry = char.spine.state.getCurrent(trackIndex);
+                            if (trackEntry) {
+                                const dur = trackEntry.animation.duration;
+                                const isLoop = (activeAnimClip.loop !== undefined) ? activeAnimClip.loop : true;
+                                trackEntry.trackTime = isLoop ? (localTime % dur) : Math.min(localTime, dur);
+                                
+                                // 如果是 Track 1 以上，通常需要設為 mixBlend = add (疊加) 或是 replace，Spine 預設 replace
+                                // 這裡維持預設即可，Spine 會自動處理權重
+                                trackEntry.alpha = 1; 
+                            }
+                        }
+                    } else {
+                        // 該軌道目前沒有 Clip，應該清空該軌道
+                        // 注意：如果有設 lastAnimClipId 才清空，避免每幀重複清空
+                        if (char.lastAnimClipId[trackIndex]) {
+                            char.spine.state.setEmptyAnimation(trackIndex, 0.1); // 0.1s 淡出
+                            char.lastAnimClipId[trackIndex] = null;
+                        }
+                    }
+                });
+                
+                // 強制更新所有軌道
+                char.spine.update(0);
+
+            } else {
+                char.spine.visible = char.visible;
+                char.spine.alpha = 1;
+            }
+
+            // 2. 以下 Transform 邏輯保持不變 ...
+            // Move (X, Y)
+            let tx = getInterpolatedValue(char.tracks.move, time, char.baseX, 'motStartX', 'motEndX');
+            let ty = getInterpolatedValue(char.tracks.move, time, char.baseY, 'motStartY', 'motEndY');
+            
+            // 【修復 2】只要物件正在被拖曳，就優先使用滑鼠拖曳當下的座標，不要讓時間軸強制覆蓋
+            if (char.spine.dragging) {
+                tx = char.spine.x; 
+                ty = char.spine.y;
+            }
+
+            let tr = getInterpolatedValue(char.tracks.rotate, time, char.baseRot, 'motStartR', 'motEndR');
+            let ts = getInterpolatedValue(char.tracks.scale, time, char.scaleX, 'motStartS', 'motEndS');
+
+            // 物理掉落邏輯 (只抓 Track 0 的設定來做物理位移，避免多軌打架)
+            const mainTrackId = char.animTracks[0];
+            const mainClips = timelineData.get({ filter: i => i.group === mainTrackId && time >= i.start && time < i.end });
+            if (mainClips.length > 0 && mainClips[0].dropEnable) {
+                const ac = mainClips[0];
+                const delayMs = (ac.dropDelay || 0) * 1000;
+                const dropStart = ac.start.valueOf() + delayMs;
+                const dropDur = (ac.dropDur || 0.5); 
+                const localDropT = (time - dropStart) / 1000;
+                
+                if (localDropT >= 0 && localDropT < dropDur) {
+                    const dt = localDropT / dropDur;
+                    const height = ac.dropHeight || 500;
+                    const bounce = ac.dropBounce || 0.5;
+                    let progress = (bounce <= 0.05) ? (dt*dt*dt) : customBounce(dt, bounce);
+                    ty = ty - height + (height * progress);
+                } else if (localDropT < 0) {
+                     const height = ac.dropHeight || 500;
+                     ty = ty - height;
+                }
+            }
+
+            char.spine.x = tx; 
+            char.spine.y = ty;
+            char.spine.angle = tr; 
+            char.spine.scale.set(ts * (char.flipX ? -1 : 1), ts); 
+        });
+    }
+
+    function addExtraAnimTrack() {
+        if (!selectedCharId) { alert("請先選擇一個 Spine 物件"); return; }
+        const char = characters.find(c => c.id === selectedCharId);
+        if (char.type !== 'spine') { alert("只有 Spine 物件支援多軌動畫"); return; }
+
+        const newTrackIndex = char.animTracks.length; // 例如原本只有 Track 0，現在長度1，新的就是 Track 1
+        const newTrackId = char.id + '_anim_' + newTrackIndex;
+        
+        // 1. 更新資料
+        char.animTracks.push(newTrackId);
+        
+        // 2. 更新時間軸顯示
+        // 我們要把新軌道塞在其他動畫軌道下面，但在 Transform 軌道上面
+        // 這裡簡單處理：找出目前動畫軌的順序，然後 + 0.1
+        const baseOrder = char.order * 10 + 1; 
+        const newOrder = baseOrder + (newTrackIndex * 0.1); 
+
+        // 3. 更新 Group (必須把這軌道加入 nestedGroups 才能被收合)
+        const charGroup = timelineGroups.get(char.id);
+        if(charGroup && charGroup.nestedGroups) {
+            charGroup.nestedGroups.push(newTrackId);
+            timelineGroups.update(charGroup);
+        }
+
+        timelineGroups.add({ 
+            id: newTrackId, 
+            content: `動作 T${newTrackIndex} (Sub)`, 
+            order: newOrder, 
+            className: 'vis-group-level-1',
+            style: 'border-left: 3px solid #FF5555;' // 給個顏色區分
+        });
+        
+        // [FIX] Auto select the new track immediately!
+        selectTrack(newTrackId);
+
+        // [FIX] Removed annoying alert, now it just works silently.
+    }
+
+    function setupInteractions() { 
+        let drag=false, start={x:0,y:0}, cam={x:0,y:0};
+        document.getElementById('canvas-container').addEventListener('wheel', e=>{ e.preventDefault(); worldContainer.scale.set(Math.max(0.1, worldContainer.scale.x + (e.deltaY*-0.001))); });
+        app.stage.interactive=true; app.stage.hitArea=new PIXI.Rectangle(-1e4,-1e4,2e4,2e4);
+        app.stage.on('pointerdown', e=>{ if(e.target===app.stage||e.target.parent===bgContainer){ drag=true; start={x:e.data.global.x,y:e.data.global.y}; cam={x:worldContainer.x,y:worldContainer.y}; }})
+                 .on('pointermove', e=>{ if(drag){ worldContainer.x=cam.x+(e.data.global.x-start.x); worldContainer.y=cam.y+(e.data.global.y-start.y); }})
+                 .on('pointerup', ()=>drag=false).on('pointerupoutside', ()=>drag=false);
+    }
+
+    // ===== 新增拖曳匯入功能 =====
+    function setupDragAndDrop() {
+        const canvasContainer = document.getElementById('canvas-container');
+
+        // 當檔案拖曳進入畫布範圍
+        canvasContainer.addEventListener('dragover', (e) => {
+            e.preventDefault(); // 必須阻止預設行為才能觸發 drop
+            e.stopPropagation();
+            canvasContainer.classList.add('drag-over');
+        });
+
+        // 當檔案拖曳離開畫布範圍
+        canvasContainer.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            canvasContainer.classList.remove('drag-over');
+        });
+
+        // 當放開滑鼠丟下檔案
+        canvasContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            canvasContainer.classList.remove('drag-over');
+
+            const files = Array.from(e.dataTransfer.files);
+            if (files.length === 0) return;
+
+            // 智能判斷：丟進來的是 Spine 還是純圖片？
+            const hasSpineData = files.some(f => f.name.match(/\.(json|skel)$/i));
+            const hasAtlas = files.some(f => f.name.match(/\.(atlas|txt)$/i));
+            const hasImages = files.some(f => f.name.match(/\.(png|jpg|jpeg|webp)$/i));
+
+            // 模擬一個 input 元素傳給原本的讀取函數
+            const mockInput = { files: files, value: '' };
+
+            if (hasSpineData && hasAtlas) {
+                // 判定為 Spine 素材包
+                handleFiles(mockInput);
+            } else if (hasImages && !hasSpineData && !hasAtlas) {
+                // 判定為純圖片匯入
+                handleImageFiles(mockInput);
+            } else if (hasSpineData && !hasAtlas) {
+                // 防呆提示
+                alert("⚠️ 匯入 Spine 失敗：缺少 .atlas 檔案！\n請將 .json/.skel 與 .atlas/.png 一起框選後拖曳進來。");
+            }
+        });
+    }
+
+    function setupSplitter() {
+        const split = document.getElementById('splitter'); const ws = document.getElementById('workspace'); let dragging = false;
+        split.addEventListener('mousedown', (e) => { dragging = true; document.body.style.cursor = 'row-resize'; e.preventDefault(); });
+        window.addEventListener('mouseup', () => { if (dragging) { dragging = false; document.body.style.cursor = ''; if(timeline) timeline.redraw(); } });
+        window.addEventListener('mousemove', (e) => { if (dragging) { const percentage = (e.clientY / window.innerHeight) * 100; if(percentage > 10 && percentage < 90) { ws.style.height = percentage + '%'; if(app) app.resize(); } } });
+    }
+
+    function enableDrag(obj) {
+        obj.interactive = true; obj.cursor = 'move';
+        obj.on('pointerdown', function(e) { 
+            if(e.data.originalEvent) e.data.originalEvent.preventDefault();
+            this.alpha = 0.7; this.dragging = true; this.dragData = e.data; 
+            const loc = this.parent.toLocal(e.data.global); this.dragOff = { x: loc.x - this.x, y: loc.y - this.y };
+            selectCharacter(this.charId);
+        });
+        obj.on('pointerup', endDrag).on('pointerupoutside', endDrag);
+        obj.on('pointermove', function(e) { 
+            if(this.dragging) { 
+                // 【修復 1】兼容 PIXI v5 與 v7 的全域座標抓取方式，並改由傳入的事件 'e' 獲取
+                const globalPos = e.global || (e.data && e.data.global);
+                const loc = this.parent.toLocal(globalPos); 
+                const newX = loc.x - this.dragOff.x; 
+                const newY = loc.y - this.dragOff.y;
+                
+                this.x = newX; 
+                this.y = newY;
+                const char = characters.find(c=>c.id === this.charId); 
+                
+                try {
+                    if (isRecording) { 
+                        // Auto-Rec: Move only
+                        handleAutoRec(this.charId, 'move', { x: newX, y: newY }); 
+                    } else { 
+                        char.baseX = newX; char.baseY = newY; 
+                    }
+                } catch(err) { console.error("Drag Error", err); }
+                
+                syncSpineToTime(currentTime); 
+            } 
+        });
+        function endDrag() { this.alpha = 1; this.dragging = false; this.dragData = null; renderInspector(); }
+    }
+
+    // Generic function to handle clip updates for a specific track type
+    function handleAutoRec(charId, type, vals) {
+        const char = characters.find(c => c.id === charId);
+        if(!char) return;
+
+        let group;
+        if(type === 'move') group = char.tracks.move;
+        if(type === 'rotate') group = char.tracks.rotate;
+        if(type === 'scale') group = char.tracks.scale;
+
+        const SNAP_TOLERANCE = 100;
+        const POINT_TOLERANCE = 20; // 容錯放寬到 20ms，確保能正確辨識單點
+        
+        // Find if we are on top of an existing clip
+        const overlappingItems = timelineData.get({ filter: i => i.group === group && currentTime >= i.start.valueOf() && currentTime <= i.end.valueOf() });
+
+        if (overlappingItems.length > 0) {
+            // Update existing clip logic
+            overlappingItems.forEach(clip => {
+                const updates = { id: clip.id };
+                const isPoint = (clip.end.valueOf() - clip.start.valueOf()) <= POINT_TOLERANCE;
+                
+                // If near start, update start value. If near end, update end value.
+                if (isPoint || Math.abs(currentTime - clip.start.valueOf()) < SNAP_TOLERANCE) {
+                    if(type==='move') { 
+                        updates.motStartX = vals.x; updates.motStartY = vals.y; 
+                        if(isPoint){ updates.motEndX = vals.x; updates.motEndY = vals.y; }
+                    }
+                    if(type==='rotate') { 
+                        updates.motStartR = vals.r; 
+                        if(isPoint) updates.motEndR = vals.r; 
+                    }
+                    if(type==='scale') { 
+                        updates.motStartS = vals.s; 
+                        if(isPoint) updates.motEndS = vals.s; 
+                    }
+                } 
+                else if (Math.abs(currentTime - clip.end.valueOf()) < SNAP_TOLERANCE) {
+                    if(type==='move') { updates.motEndX = vals.x; updates.motEndY = vals.y; }
+                    if(type==='rotate') { updates.motEndR = vals.r; }
+                    if(type==='scale') { updates.motEndS = vals.s; }
+                } 
+                else {
+                    // Split clip logic (在片段中間打點，自動切斷並插入新數值)
+                    updates.end = new Date(currentTime);
+                    if(type==='move') { updates.motEndX = vals.x; updates.motEndY = vals.y; }
+                    if(type==='rotate') { updates.motEndR = vals.r; }
+                    if(type==='scale') { updates.motEndS = vals.s; }
+                    
+                    // Create new clip from here
+                    const newId = type + '_' + Date.now();
+                    const newClip = {
+                        id: newId, group: group, start: new Date(currentTime), end: new Date(clip.end.valueOf()),
+                        content: '', className: 'vis-item track-' + type, type: 'range'
+                    };
+                    
+                    if(type==='move') { 
+                        newClip.motStartX = vals.x; newClip.motStartY = vals.y; 
+                        newClip.motEndX = clip.motEndX; newClip.motEndY = clip.motEndY; 
+                    }
+                    if(type==='rotate') { 
+                        newClip.motStartR = vals.r; newClip.motEndR = clip.motEndR; 
+                    }
+                    if(type==='scale') { 
+                        newClip.motStartS = vals.s; newClip.motEndS = clip.motEndS; 
+                    }
+                    timelineData.add(newClip);
+                    selectedClipId = newId;
+                }
+                timelineData.update(updates);
+            });
+        } else {
+            // No clip under playhead, find previous clip to start from
+            const allClips = timelineData.get({ filter: i => i.group === group });
+            allClips.sort((a,b) => a.end.valueOf() - b.end.valueOf()); // 確保排序演算法正確處理 Date 物件
+            const prevClip = allClips.reverse().find(i => i.end.valueOf() <= currentTime);
+            
+            if (prevClip) {
+                const isPoint = (prevClip.end.valueOf() - prevClip.start.valueOf()) <= POINT_TOLERANCE;
+                
+                if (isPoint) {
+                    // 🌟 【核心修復】：如果前面是一個「單點」，直接將該單點的尾巴拉長到現在時間！(避免在旁邊生出小碎塊)
+                    const updates = {
+                        id: prevClip.id,
+                        end: new Date(currentTime)
+                    };
+                    if(type==='move') { updates.motEndX = vals.x; updates.motEndY = vals.y; }
+                    if(type==='rotate') { updates.motEndR = vals.r; }
+                    if(type==='scale') { updates.motEndS = vals.s; }
+                    
+                    timelineData.update(updates);
+                    selectedClipId = prevClip.id;
+                } else {
+                    // 如果前面已經是一個很長的區段，則接續產生一個新的相連區段
+                    const newId = type + '_' + Date.now();
+                    const newClip = {
+                        id: newId, group: group, start: new Date(prevClip.end.valueOf()), end: new Date(currentTime),
+                        content: '', className: 'vis-item track-' + type, type: 'range'
+                    };
+                    
+                    if(type==='move') { 
+                        newClip.motStartX = prevClip.motEndX; newClip.motStartY = prevClip.motEndY; 
+                        newClip.motEndX = vals.x; newClip.motEndY = vals.y; 
+                    }
+                    if(type==='rotate') { 
+                        newClip.motStartR = prevClip.motEndR; newClip.motEndR = vals.r; 
+                    }
+                    if(type==='scale') { 
+                        newClip.motStartS = prevClip.motEndS; newClip.motEndS = vals.s; 
+                    }
+                    timelineData.add(newClip);
+                    selectedClipId = newId;
+                }
+            } else {
+                // 如果這條軌道前面完全沒有任何點，就在當下時間產生一個「單點」
+                const newId = type + '_' + Date.now();
+                const newClip = {
+                    id: newId, group: group, start: new Date(currentTime), end: new Date(currentTime + 10),
+                    content: '', className: 'vis-item track-' + type, type: 'range'
+                };
+                
+                if(type==='move') { 
+                    newClip.motStartX = vals.x; newClip.motStartY = vals.y; 
+                    newClip.motEndX = vals.x; newClip.motEndY = vals.y; 
+                }
+                if(type==='rotate') { 
+                    newClip.motStartR = vals.r; newClip.motEndR = vals.r; 
+                }
+                if(type==='scale') { 
+                    newClip.motStartS = vals.s; newClip.motEndS = vals.s; 
+                }
+                timelineData.add(newClip);
+                selectedClipId = newId;
+            }
+        }
+    }
+
+    function forceKeyframe() {
+        if (!selectedCharId) return;
+        const char = characters.find(c => c.id === selectedCharId);
+        // Record all 3 tracks
+        handleAutoRec(char.id, 'move', {x:char.spine.x, y:char.spine.y});
+        handleAutoRec(char.id, 'rotate', {r:char.spine.angle});
+        handleAutoRec(char.id, 'scale', {s:char.scaleX});
+        drawDebugHelpers();
+    }
+
+    function duplicateWithDialog() {
+        if (!selectedCharId) return;
+        const original = characters.find(c => c.id === selectedCharId);
+        if (!original) return;
+
+        let baseName = original.name;
+        const nameRoot = baseName.replace(/_\d+$/, '');
+        let counter = 2;
+        let nextName = `${nameRoot}_0${counter}`;
+        
+        while(characters.some(c => c.name === nextName)) {
+            counter++;
+            nextName = `${nameRoot}_${counter < 10 ? '0'+counter : counter}`;
+        }
+
+        const copyTracks = confirm(`複製物件 "${baseName}"？\n\n【確定】: 複製物件 + 所有動畫時間軸軌道。\n【取消】: 僅複製物件 (時間軸留空)。`);
+
+        if (original.type === 'spine') {
+            createSpine(null, null, null, null, nextName, null, {
+                x: original.spine.x + 20, y: original.spine.y + 20, name: nextName,
+                scaleX: original.scaleX, scaleY: original.scaleY, flipX: original.flipX, rotation: original.baseRot,
+                skin: original.spine.skeleton.skin?.name, order: characters.length
+            }, original.assets);
+        } else {
+             createImageObject(null, nextName, null, {
+                x: original.spine.x + 20, y: original.spine.y + 20, name: nextName,
+                scaleX: original.scaleX, scaleY: original.scaleY, flipX: original.flipX, rotation: original.baseRot,
+                order: characters.length
+            }, original.assets);
+        }
+
+        setTimeout(() => {
+            const newChar = characters[characters.length - 1];
+            // Remove default empty tracks clips if any
+            
+            if (copyTracks) {
+                const originalClips = timelineData.get({ 
+                    filter: i => i.group === original.tracks.anim || i.group === original.tracks.move || i.group === original.tracks.rotate || i.group === original.tracks.scale 
+                });
+                
+                const newClips = originalClips.map(item => {
+                    const clone = JSON.parse(JSON.stringify(item));
+                    clone.id = 'clip_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                    if (item.group === original.tracks.anim) clone.group = newChar.tracks.anim;
+                    if (item.group === original.tracks.move) clone.group = newChar.tracks.move;
+                    if (item.group === original.tracks.rotate) clone.group = newChar.tracks.rotate;
+                    if (item.group === original.tracks.scale) clone.group = newChar.tracks.scale;
+                    return clone;
+                });
+                timelineData.add(newClips);
+            }
+            selectCharacter(newChar.id);
+        }, 100);
+    }
+
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function handleFiles(input) {
+        const files = Array.from(input.files); if(files.length===0) return;
+        
+        const imageAssets = {};
+        const images = files.filter(f => f.name.match(/\.(jpg|png)$/i));
+        for(let img of images) {
+            imageAssets[img.name] = await fileToBase64(img);
+        }
+
+        const skels = files.filter(f => f.name.match(/\.(json|skel)$/i));
+        const atlases = files.filter(f => f.name.match(/\.atlas|\.txt$/i));
+
+        for (let skel of skels) {
+            try {
+                const baseName = skel.name.replace(/\.(json|skel)$/i, '');
+                // 嘗試尋找檔名匹配的 atlas，如果找不到就拿第一個，如果連第一個都沒有就會是 undefined
+                const atlasFile = atlases.find(a => a.name.includes(baseName)) || atlases[0];
+                
+                // --- 修正開始：加入檢查 ---
+                if (!atlasFile) {
+                    throw new Error(`找不到對應的 Atlas 檔案 (請同時選取 .json/.skel 與 .atlas/.txt)`);
+                }
+                // --- 修正結束 ---
+
+                const atlasText = await readFile(atlasFile, 'text');
+                
+                let rawData, isBinary = false;
+                if(skel.name.endsWith('.skel')) { 
+                    const buffer = await readFile(skel, 'buffer');
+                    rawData = buffer; 
+                    isBinary = true; 
+                } else { 
+                    rawData = JSON.parse(await readFile(skel, 'text')); 
+                }
+
+                const assets = {
+                    atlas: atlasText,
+                    images: imageAssets, 
+                    skeleton: isBinary ? null : rawData,
+                    binarySkeleton: isBinary ? await fileToBase64(skel) : null 
+                };
+
+                createSpine(rawData, atlasText, null, isBinary, baseName, null, null, assets);
+            } catch(e) { console.error(e); alert("匯入錯誤: " + e.message); }
+        }
+        input.value = '';
+    }
+
+    async function handleImageFiles(input) {
+        const files = Array.from(input.files); if(files.length===0) return;
+        for (let file of files) {
+            const base64 = await fileToBase64(file);
+            const baseName = file.name.split('.')[0];
+            const assets = { texture: base64 };
+            createImageObject(null, baseName, null, null, assets);
+        }
+        input.value = '';
+    }
+    
+    function base64ToArrayBuffer(base64) {
+        const binaryString = window.atob(base64.split(',')[1]);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+
+    async function createSpine(rawData, atlasText, textureMap, isBinary, name, reuseId=null, reuseConfig=null, assets=null) {
+        let TextureAtlas, AtlasAttachmentLoader, SkeletonBinary, SkeletonJson;
+        const spineNamespace = PIXI.spine || (window.PIXI && window.PIXI.spine);
+        const core = (spineNamespace && spineNamespace.core) ? spineNamespace.core : spineNamespace;
+
+        if (!spineNamespace) {
+            alert("找不到 Spine 插件！請確認版本設定。");
+            return;
+        }
+
+        try {
+            TextureAtlas = core.TextureAtlas || spineNamespace.TextureAtlas;
+            AtlasAttachmentLoader = core.AtlasAttachmentLoader || spineNamespace.AtlasAttachmentLoader;
+            SkeletonBinary = core.SkeletonBinary || spineNamespace.SkeletonBinary;
+            SkeletonJson = core.SkeletonJson || spineNamespace.SkeletonJson;
+
+            // 【核心修正】強力清洗 Atlas 文本中的異常 Filter 參數
+            if (typeof atlasText === 'string') {
+                // 處理 filter: true,true 或 filter: false,false 或其他非字串情況
+                atlasText = atlasText.replace(/filter:\s*(?:true|false|\d+)\s*,\s*(?:true|false|\d+)/gi, 'filter: Linear,Linear');
+                atlasText = atlasText.replace(/filter:\s*(?:true|false|\d+)/gi, 'filter: Linear,Linear');
+            }
+
+            const internalTextureMap = {};
+            const sourceImages = assets ? assets.images : (textureMap || {});
+
+            for (let imgName in sourceImages) {
+                const cleanName = imgName.split('/').pop();
+                const bt = PIXI.BaseTexture.from(sourceImages[imgName]);
+                internalTextureMap[cleanName] = bt;
+                internalTextureMap[imgName] = bt;
+            }
+
+            if (assets) {
+                if (assets.binarySkeleton) {
+                    rawData = base64ToArrayBuffer(assets.binarySkeleton);
+                    isBinary = true;
+                } else {
+                    rawData = assets.skeleton;
+                    isBinary = false;
+                }
+            }
+
+            // 建立 TextureAtlas，傳入 BaseTexture 並確保有效性
+            const spineAtlas = new TextureAtlas(atlasText, (line, cb) => {
+                const cleanLine = line.split('/').pop();
+                const bt = internalTextureMap[cleanLine] || internalTextureMap[line] || 
+                        (PIXI.utils.TextureCache[line] ? PIXI.utils.TextureCache[line].baseTexture : null);
+
+                if (bt) {
+                    cb(bt);
+                } else {
+                    console.warn(`Missing: ${line}`);
+                    cb(PIXI.Texture.WHITE.baseTexture);
+                }
+            });
+
+            const loader = new AtlasAttachmentLoader(spineAtlas);
+            let spineData;
+            if (isBinary) {
+                const parser = new SkeletonBinary(loader);
+                parser.scale = 1;
+                spineData = parser.readSkeletonData(new Uint8Array(rawData));
+            } else {
+                const parser = new SkeletonJson(loader);
+                spineData = parser.readSkeletonData(rawData);
+            }
+            
+            const spine = new PIXI.spine.Spine(spineData); 
+            spine.autoUpdate = false;
+            spine.assets = assets; 
+            
+            finalizeCharacterCreation(spine, name, reuseId, reuseConfig, 'spine', spineData);
+        } catch(e) {
+            console.error("Spine Error:", e);
+            alert(`匯入失敗！\n1. 請確認檔案與所選版本(3.8/4.0)相符。\n2. 錯誤細節: ${e.message}`);
+        }
+        if (type === 'spine') {
+            // 【修復 3】強制更新一幀，確保 Spine 剛匯入時能產生正確的滑鼠感應邊界
+            displayObj.update(0); 
+        }
+        renderSceneList();
+    }
+
+    function createImageObject(texture, name, reuseId=null, reuseConfig=null, assets=null) {
+        if (assets && !texture) {
+            texture = PIXI.Texture.from(assets.texture);
+        }
+        const sprite = new PIXI.Sprite(texture);
+        sprite.anchor.set(0.5);
+        sprite.assets = assets;
+        finalizeCharacterCreation(sprite, name, reuseId, reuseConfig, 'image', null);
+    }
+
+    function finalizeCharacterCreation(displayObj, name, reuseId, reuseConfig, type, spineData) {
+        const id = reuseId || ((type==='spine'?'char_':'img_') + Date.now());
+        // 預設的主動畫軌道 (Track 0)
+        const trackAnimId = id + '_anim'; 
+        const trackMoveId = id + '_move';
+        const trackRotateId = id + '_rotate';
+        const trackScaleId = id + '_scale';
+        
+        const startX = reuseConfig ? reuseConfig.x : app.screen.width/2;
+        const startY = reuseConfig ? reuseConfig.y : app.screen.height/2;
+        
+        displayObj.x = startX; displayObj.y = startY;
+        enableDrag(displayObj); displayObj.charId = id; worldContainer.addChild(displayObj);
+
+        const charObj = {
+            id, spine: displayObj, name: reuseConfig ? reuseConfig.name : name,
+            type: type, 
+            assets: displayObj.assets, 
+            animations: spineData ? spineData.animations : [], 
+            animDurations: {}, 
+            skins: spineData ? spineData.skins.map(s => s.name) : [],
+            // 【修改重點】這裡改用 animTracks 陣列，如果讀取舊存檔沒有這個欄位，就預設放一個
+            animTracks: reuseConfig && reuseConfig.animTracks ? reuseConfig.animTracks : [trackAnimId],
+            tracks: { anim: trackAnimId, move: trackMoveId, rotate: trackRotateId, scale: trackScaleId },
+            lastAnimClipId: {}, // 【修改重點】改成物件，紀錄每個 Track 的最後 Clip
+            order: reuseConfig ? reuseConfig.order : characters.length,
+            baseX: startX, baseY: startY, baseRot: reuseConfig ? reuseConfig.rotation : 0,
+            scaleX: reuseConfig?(reuseConfig.scaleX||1):1, scaleY: reuseConfig?(reuseConfig.scaleY||1):1, flipX: reuseConfig?reuseConfig.flipX:false, 
+            visible: true
+        };
+
+        if (spineData && spineData.animations) {
+            spineData.animations.forEach(a => charObj.animDurations[a.name] = a.duration);
+        }
+
+        if(reuseConfig) {
+            displayObj.angle = charObj.baseRot; displayObj.scale.set(charObj.scaleX * (charObj.flipX ? -1 : 1), charObj.scaleY);
+            if (type === 'spine' && reuseConfig.skin && displayObj.skeleton.data.findSkin(reuseConfig.skin)) { 
+                displayObj.skeleton.setSkinByName(reuseConfig.skin); displayObj.skeleton.setSlotsToSetupPose(); 
+            }
+        }
+        characters.push(charObj);
+        
+        if(!reuseId) {
+            const nested = [trackMoveId, trackRotateId, trackScaleId];
+            if (type === 'spine') nested.unshift(trackAnimId);
+
+            timelineGroups.add({ id: id, content: `${type==='spine'?'👤':'🖼️'} ${charObj.name}`, order: charObj.order * 10, className: 'vis-group-level-0', nestedGroups: nested });
+            
+            if (type === 'spine') {
+                // 建立 Track 0
+                timelineGroups.add({ id: trackAnimId, content: '動作 T0 (Base)', order: charObj.order * 10 + 1, className: 'vis-group-level-1' });
+                addAnimClip(id, null, trackAnimId); // 預設加一個 idle
+            }
+            
+            timelineGroups.add({ id: trackMoveId, content: '位移 (Move)', order: charObj.order * 10 + 2, className: 'vis-group-level-1' });
+            timelineGroups.add({ id: trackRotateId, content: '旋轉 (Rot)', order: charObj.order * 10 + 3, className: 'vis-group-level-1' });
+            timelineGroups.add({ id: trackScaleId, content: '縮放 (Scale)', order: charObj.order * 10 + 4, className: 'vis-group-level-1' });
+            
+            selectCharacter(id); 
+            refreshZIndex();
+        }
+        renderSceneList();
+    }
+
+    async function enhancedSaveProject() {
+        const d = { 
+            version: "V118", 
+            timeline: timelineData.get(), 
+            groups: timelineGroups.get(), 
+            clipRegistry, 
+            characters: characters.map(c => ({ 
+                id: c.id, name: c.name, type: c.type, 
+                order: c.order, x: c.baseX, y: c.baseY, 
+                rotation: c.baseRot, scaleX: c.scaleX, scaleY: c.scaleY, flipX: c.flipX, 
+                skin: c.type === 'spine' ? c.spine.skeleton.skin?.name : null,
+                assets: c.assets,
+                // 【新增】儲存多軌資訊
+                animTracks: c.animTracks 
+            })) 
+        }; 
+        
+        const blob = new Blob([JSON.stringify(d)], {type:"application/json"});
+        
+        try {
+            if (window.showSaveFilePicker) {
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: 'spine_project.json',
+                    types: [{ description: 'Spine Director Project', accept: {'application/json': ['.json']} }],
+                });
+                const writable = await handle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+                return;
+            }
+        } catch (err) {
+            console.log("File Picker cancelled/not supported");
+        }
+
+        const filename = prompt("請輸入檔案名稱", "spine_project_v118");
+        if(filename) {
+            const a = document.createElement('a'); 
+            a.href = URL.createObjectURL(blob); 
+            a.download = filename.endsWith('.json') ? filename : filename + ".json"; 
+            a.click(); 
+        }
+    }
+
+    function enhancedLoadProject(file) { 
+        if(!file) return; 
+        const reader = new FileReader(); 
+        reader.onload = (e) => { 
+            try { 
+                const data = JSON.parse(e.target.result); 
+                while(characters.length > 0) {
+                    const c = characters[0];
+                    selectedCharId = c.id; 
+                    removeSelectedCharacter();
+                }
+                timelineData.clear();
+                timelineGroups.clear();
+                timelineData.add(data.timeline);
+                timelineGroups.add(data.groups);
+                Object.assign(clipRegistry, data.clipRegistry || {});
+                data.characters.forEach(c => {
+                    if (c.type === 'spine') {
+                        createSpine(null, null, null, false, c.name, c.id, c, c.assets);
+                    } else {
+                        createImageObject(null, c.name, c.id, c, c.assets);
+                    }
+                });
+                alert("專案載入成功！");
+            } catch(e) { console.error(e); alert("載入失敗: " + e.message); } 
+        }; 
+        reader.readAsText(file); 
+    }
+
+    // Helper functions
+    function updateCharTransform(type) { 
+        if (!selectedCharId) return; 
+        const char = characters.find(c => c.id === selectedCharId); 
+        char.scaleX = char.scaleY = parseFloat(document.getElementById('charScale').value); 
+        char.baseRot = parseInt(document.getElementById('charRotation').value); 
+        
+        if (isRecording) { 
+            // Only update specific track based on input source
+            if(type === 'scale') handleAutoRec(char.id, 'scale', {s: char.scaleX});
+            if(type === 'rotate') handleAutoRec(char.id, 'rotate', {r: char.baseRot});
+        } 
+        
+        renderInspector(); 
+        syncSpineToTime(currentTime); 
+    }
+    
+    function toggleFlip() { if (!selectedCharId) return; const c = characters.find(c=>c.id===selectedCharId); c.flipX = !c.flipX; renderInspector(); syncSpineToTime(currentTime); }
+    function resetTransform() { if (!selectedCharId) return; const c = characters.find(c=>c.id===selectedCharId); c.scaleX=1; c.scaleY=1; c.baseRot=0; c.flipX=false; renderInspector(); syncSpineToTime(currentTime); }
+    function refreshZIndex() { characters.sort((a,b)=>a.order-b.order); characters.forEach((c,i)=>c.spine.zIndex=i); worldContainer.sortChildren(); }
+    function moveLayer(dir) { 
+        if(!selectedCharId) return; 
+        characters.sort((a, b) => a.order - b.order); 
+        const currentIndex = characters.findIndex(c => c.id === selectedCharId); 
+        if (currentIndex === -1) return; 
+        const targetIndex = currentIndex + dir; 
+        if (targetIndex < 0 || targetIndex >= characters.length) return; 
+        const currentItem = characters[currentIndex]; 
+        const targetItem = characters[targetIndex]; 
+        const tempOrder = currentItem.order; 
+        currentItem.order = targetItem.order; 
+        targetItem.order = tempOrder; 
+        characters.sort((a, b) => a.order - b.order); 
+        characters.forEach((c, i) => { 
+            c.order = i; c.spine.zIndex = i; 
+            const updates = [{ id: c.id, order: c.order * 10 }]; 
+            if (c.type === 'spine') updates.push({ id: c.tracks.anim, order: c.order * 10 + 1 }); 
+            
+            updates.push({ id: c.tracks.move, order: c.order * 10 + 2 }); 
+            updates.push({ id: c.tracks.rotate, order: c.order * 10 + 3 }); 
+            updates.push({ id: c.tracks.scale, order: c.order * 10 + 4 }); 
+            
+            updates.forEach(u => timelineGroups.update(u)); 
+        }); 
+        worldContainer.sortChildren(); 
+        renderSceneList(); 
+    }
+    
+    function removeSelectedCharacter() { 
+        if(!selectedCharId)return; 
+        const c=characters.find(x=>x.id===selectedCharId); 
+        c.spine.destroy(); 
+        const groupsToRemove = [c.id, c.tracks.move, c.tracks.rotate, c.tracks.scale]; 
+        if (c.tracks.anim) groupsToRemove.push(c.tracks.anim); 
+        timelineGroups.remove(groupsToRemove); 
+        timelineData.remove(timelineData.get({filter:i=>groupsToRemove.includes(i.group)})); 
+        characters = characters.filter(x=>x.id!==selectedCharId); 
+        selectedCharId=null; 
+        renderInspector(); 
+    }
+    
+    // ===== 升級版：智能刪除 (支援鍵盤 Delete) =====
+    function deleteSelectedClip(forceAll = false) { 
+        if(!selectedClipId) return; 
+        const item = timelineData.get(selectedClipId);
+        if (!item) return;
+
+        // 如果是屬性軌道，且沒有強制刪除整段，則進行智能判定
+        if (!forceAll && (item.className.includes('track-move') || item.className.includes('track-rotate') || item.className.includes('track-scale'))) {
+            const SNAP_TOLERANCE = 50; // 50毫秒的容錯範圍
+            const atStart = Math.abs(currentTime - item.start.valueOf()) <= SNAP_TOLERANCE;
+            const atEnd = Math.abs(currentTime - item.end.valueOf()) <= SNAP_TOLERANCE;
+            const duration = item.end.valueOf() - item.start.valueOf();
+
+            if (duration > 10) { // 如果它是一段有長度的區塊
+                if (atStart) { deleteClipKey('start'); return; }
+                if (atEnd) { deleteClipKey('end'); return; }
+            }
+        }
+
+        // 預設行為：刪除整段
+        timelineData.remove(selectedClipId); 
+        selectedClipId = null; 
+        renderInspector(); 
+    }
+
+    // ===== 新增：端點分離刪除邏輯 =====
+    function deleteClipKey(type) {
+        if (!selectedClipId) return;
+        const item = timelineData.get(selectedClipId);
+        if (!item) return;
+
+        const duration = item.end.valueOf() - item.start.valueOf();
+        
+        // 如果這個片段已經是一個「單點 (duration接近0)」，再刪除就會整段不見
+        if (duration <= 10) {
+            timelineData.remove(selectedClipId);
+            selectedClipId = null;
+            renderInspector();
+            return;
+        }
+
+        const updates = { id: selectedClipId };
+        
+        // 邏輯：如果你刪除了「起點」，這個片段就會縮成只有「終點」的單點
+        if (type === 'start') {
+            updates.start = new Date(item.end.valueOf());
+            if (item.className.includes('track-move')) { updates.motStartX = item.motEndX; updates.motStartY = item.motEndY; }
+            if (item.className.includes('track-rotate')) { updates.motStartR = item.motEndR; }
+            if (item.className.includes('track-scale')) { updates.motStartS = item.motEndS; }
+        } else {
+            // 如果你刪除了「終點」，片段就會縮成只有「起點」的單點
+            updates.end = new Date(item.start.valueOf());
+            if (item.className.includes('track-move')) { updates.motEndX = item.motStartX; updates.motEndY = item.motStartY; }
+            if (item.className.includes('track-rotate')) { updates.motEndR = item.motStartR; }
+            if (item.className.includes('track-scale')) { updates.motEndS = item.motStartS; }
+        }
+
+        timelineData.update(updates);
+        renderInspector();
+        syncSpineToTime(currentTime);
+        drawDebugHelpers();
+    }
+    function toggleRec() { isRecording=!isRecording; document.getElementById('rec-btn').style.background = isRecording ? 'var(--rec-color)' : ''; document.getElementById('canvas-container').classList.toggle('recording', isRecording); }
+    function togglePlay() { isPlaying=!isPlaying; document.getElementById('play-btn').innerText = isPlaying?"⏸":"▶"; }
+    function stop() { isPlaying=false; currentTime=0; timeline.setCustomTime(0,'playhead'); updateTimeDisplay(); syncSpineToTime(0); document.getElementById('play-btn').innerText="▶"; }
+    // ===== 新增：逐幀控制函數 (以 60FPS 計算，每幀約 16.66ms) =====
+    function stepFrame(dir) {
+        isPlaying = false; // 切換幀時自動暫停
+        document.getElementById('play-btn').innerText = "▶";
+        
+        currentTime += dir * (1000 / 60);
+        if (currentTime < 0) currentTime = 0;
+        
+        timeline.setCustomTime(currentTime, 'playhead');
+        updateTimeDisplay();
+        syncSpineToTime(currentTime);
+    }
+
+    // ===== 修改：原本的鍵盤快捷鍵綁定 =====
+    function setupKeyboardShortcuts() { 
+        window.addEventListener('keydown', (e) => { 
+            if (e.target.tagName === 'INPUT') return; 
+            if (e.code === 'Space') { e.preventDefault(); togglePlay(); } 
+            if (e.code === 'Delete' || e.code === 'Backspace') deleteSelectedClip(); 
+            
+            // 加入這兩行：綁定左右方向鍵
+            if (e.code === 'ArrowLeft') { e.preventDefault(); stepFrame(-1); }
+            if (e.code === 'ArrowRight') { e.preventDefault(); stepFrame(1); }
+        }); 
+    }
+    function updateTimeDisplay() { document.getElementById('time-display').innerText = (currentTime/1000).toFixed(2)+"s"; }
+    function fitTimeline() { timeline.fit(); }
+    function resetView() { if(worldContainer){ worldContainer.position.set(app.screen.width/2, 0); worldContainer.scale.set(0.6); } }
+    function readFile(f, t) { return new Promise((r)=>{ const d=new FileReader(); d.onload=e=>r(e.target.result); if(t==='buffer')d.readAsArrayBuffer(f);else d.readAsText(f);}); }
+    function loadBackground(f, slot) { if(!f)return; const r=new FileReader(); r.onload=e=>{ const img=new Image(); img.src=e.target.result; img.onload=()=>{ const s=PIXI.Sprite.from(img); s.anchor.set(0.5); s.y=app.screen.height/2; if(slot===1){ if(bg1Sprite)bg1Sprite.destroy(); bg1Sprite=s; bg1Sprite.zIndex=-2;} else { if(bg2Sprite)bg2Sprite.destroy(); bg2Sprite=s; bg2Sprite.zIndex=-1; bg2Sprite.alpha=0; } bgContainer.addChild(s); bgContainer.sortChildren(); };}; r.readAsDataURL(f); }
+    function handleReloadFiles(input) { alert("此功能已由『存檔還原』功能取代。請使用上方的 💾 儲存 與 📂 開啟 功能，它們現在包含了所有素材數據。"); }
+    function changeSkin() { if(!selectedCharId) return; const c = characters.find(x=>x.id===selectedCharId); const s = document.getElementById('skinSelect').value; if(c && c.spine && c.spine.skeleton) { c.spine.skeleton.setSkinByName(s); c.spine.skeleton.setSlotsToSetupPose(); } }
+    
+    // 修改後的 addAnimClip，增加 targetTrackId 參數
+    function addAnimClip(charId, specificAnimName = null, targetTrackId = null) {
+        const char = characters.find(c => c.id === charId); 
+        if(!char || char.type !== 'spine') return;
+        
+        // [FIX] 優先使用指定的 targetTrackId
+        let destTrackId = targetTrackId;
+
+        // 如果沒有指定，才嘗試從選取項目推斷
+        if (!destTrackId) {
+            const selection = timeline.getSelection();
+            if (selection.length > 0) {
+                const item = timelineData.get(selection[0]);
+                if (item && char.animTracks.includes(item.group)) {
+                    destTrackId = item.group;
+                }
+            }
+        }
+
+        // 如果還是沒有，預設回 Track 0
+        if (!destTrackId) {
+            destTrackId = char.animTracks[0];
+        }
+
+        const items = timelineData.get({ filter: i => i.group === destTrackId });
+        
+        let avoidHue = null;
+        if (items.length > 0) {
+            items.sort((a, b) => a.start - b.start);
+            const lastItem = items[items.length - 1];
+            if (lastItem && lastItem.style) {
+                 const m = lastItem.style.match(/hsl\((\d+)/);
+                 if (m) avoidHue = parseInt(m[1]);
+            }
+        }
+
+        const lastEnd = items.length > 0 ? Math.max(...items.map(i => i.end)) : 0;
+        const start = Math.max(currentTime, lastEnd);
+        
+        const anim = specificAnimName || char.animations[0].name;
+        const dur = (char.animDurations[anim] || 1.0) * 1000;
+        
+        const color = getAnimColor(anim, avoidHue); 
+        
+        const newItemId = timelineData.add({ 
+            group: destTrackId, 
+            content: `${anim} (${(dur/1000).toFixed(2)}s)`, 
+            start: start, 
+            end: start + dur, 
+            className: 'vis-item track-anim', 
+            style: `background-color: ${color}; border-color: ${color}; color: white;` 
+        });
+        
+        if(newItemId) {
+             timeline.setSelection(newItemId);
+             selectedClipId = newItemId[0];
+             renderInspector();
+        }
+        syncSpineToTime(currentTime);
+    }
+    
+    function addSceneClip() { const items = timelineData.get({ filter: i => i.group === SCENE_TRACK_ID }); const start = items.length > 0 ? Math.max(...items.map(i => i.end)) : 0; timelineData.add({ group: SCENE_TRACK_ID, content: '顯示 BG2', start: start, end: start + 2000 }); }
+
+    function drawDebugHelpers() {
+        debugGraphics.clear();
+        if (!selectedCharId) return;
+        const char = characters.find(c => c.id === selectedCharId); if(!char) return;
+        
+        if (char.type === 'spine') {
+            const animClips = timelineData.get({ filter: i => i.group === char.tracks.anim });
+            animClips.forEach(clip => {
+                if(clip.dropEnable) {
+                    if (Math.abs(currentTime - clip.start) < 2000) {
+                        debugGraphics.lineStyle(2, 0xFF9F0A, 0.8);
+                        debugGraphics.moveTo(char.spine.x, char.spine.y);
+                        debugGraphics.lineTo(char.spine.x, char.spine.y - (clip.dropHeight||500));
+                        debugGraphics.beginFill(0xFF9F0A);
+                        debugGraphics.drawCircle(char.spine.x, char.spine.y, 5);
+                        debugGraphics.endFill();
+                    }
+                }
+            });
+        }
+
+        // Move path
+        const moveClips = timelineData.get({ filter: i => i.group === char.tracks.move });
+        moveClips.forEach(clip => {
+            const isSelected = clip.id === selectedClipId; const alpha = isSelected ? 1.0 : 0.3; const color = 0xBF5AF2;
+            if (clip.motStartX !== undefined && clip.motEndX !== undefined) {
+                debugGraphics.lineStyle(2, color, alpha); debugGraphics.moveTo(clip.motStartX, clip.motStartY); debugGraphics.lineTo(clip.motEndX, clip.motEndY);
+                debugGraphics.beginFill(color, alpha); debugGraphics.drawCircle(clip.motStartX, clip.motStartY, 3); debugGraphics.drawCircle(clip.motEndX, clip.motEndY, 3); debugGraphics.endFill();
+            }
+        });
+    }
+
+    // ==========================================
+    // UI Logic (Fixed: Panel Visibility + Anim List)
+    // ==========================================
+
+    function selectCharacter(id, focusTimeline = true) {
+        selectedCharId = id;
+        
+        const quickPanel = document.getElementById('persistent-actions');
+        if(quickPanel) {
+            if(selectedCharId) quickPanel.classList.add('active');
+            else quickPanel.classList.remove('active');
+        }
+
+        if (id) {
+            if(document.getElementById('tab-project').classList.contains('active')){
+                switchTab('inspector');
+            }
+        }
+
+        renderSceneList();
+        renderInspector();
+        drawDebugHelpers();
+    }
+
+    // ==========================================
+    // 圖層列表渲染與拖曳排序邏輯
+    // ==========================================
+
+    let draggedLayerId = null; // 記錄目前被拖曳的物件 ID
+
+    function renderSceneList() {
+        const list = document.getElementById('scene-list');
+        list.innerHTML = '';
+        
+        // UI 顯示時，Z-index 高的在上面 (order 大的在前面)
+        const sortedChars = [...characters].sort((a,b) => b.order - a.order);
+
+        if (sortedChars.length === 0) {
+            list.innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><div>尚未加入任何物件</div></div>';
+        } else {
+            sortedChars.forEach(c => {
+                const div = document.createElement('div');
+                div.className = `layer-item ${selectedCharId === c.id ? 'selected' : ''}`;
+                
+                // 啟用拖曳功能與綁定資料
+                div.draggable = true;
+                div.dataset.charId = c.id;
+                
+                div.onclick = (e) => {
+                    if(!e.target.closest('.layer-actions')) selectCharacter(c.id);
+                };
+
+                // --- 綁定拖曳事件 (Drag & Drop) ---
+                div.addEventListener('dragstart', function(e) {
+                    draggedLayerId = this.dataset.charId;
+                    this.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', this.dataset.charId); // Firefox 必須
+                });
+
+                div.addEventListener('dragover', function(e) {
+                    e.preventDefault(); // 必須阻止預設行為才能觸發 drop
+                    e.dataTransfer.dropEffect = 'move';
+                    if (this.dataset.charId === draggedLayerId) return;
+
+                    const rect = this.getBoundingClientRect();
+                    const relY = e.clientY - rect.top;
+                    
+                    this.classList.remove('drag-over-top', 'drag-over-bottom');
+                    // 判斷滑鼠在圖層項目的上半部還是下半部，決定插入位置提示
+                    if (relY < rect.height / 2) {
+                        this.classList.add('drag-over-top');
+                    } else {
+                        this.classList.add('drag-over-bottom');
+                    }
+                });
+
+                div.addEventListener('dragleave', function(e) {
+                    this.classList.remove('drag-over-top', 'drag-over-bottom');
+                });
+
+                div.addEventListener('drop', function(e) {
+                    e.stopPropagation();
+                    this.classList.remove('drag-over-top', 'drag-over-bottom');
+                    
+                    if (!draggedLayerId || draggedLayerId === this.dataset.charId) return;
+
+                    const targetId = this.dataset.charId;
+                    const rect = this.getBoundingClientRect();
+                    const relY = e.clientY - rect.top;
+                    const insertAfterUI = relY >= rect.height / 2; // 是否插在目標下方
+
+                    executeLayerReorder(draggedLayerId, targetId, insertAfterUI);
+                });
+
+                div.addEventListener('dragend', function(e) {
+                    this.classList.remove('dragging');
+                    document.querySelectorAll('.layer-item').forEach(el => {
+                        el.classList.remove('drag-over-top', 'drag-over-bottom');
+                    });
+                    draggedLayerId = null;
+                });
+                // --------------------------------
+
+                const typeBadge = c.type === 'spine' 
+                    ? '<span class="type-badge badge-spine">SPINE</span>' 
+                    : '<span class="type-badge badge-img">IMG</span>';
+
+                div.innerHTML = `
+                    <div class="layer-info">
+                        ${typeBadge}
+                        <span class="layer-name">${c.name}</span>
+                    </div>
+                    <div class="layer-actions">
+                        <span class="layer-z-disp">Z:${c.order}</span>
+                        <button class="icon-only sm" onclick="moveLayer(1); event.stopPropagation();">▲</button>
+                        <button class="icon-only sm" onclick="moveLayer(-1); event.stopPropagation();">▼</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+        
+        // 更新屬性面板的動畫下拉選單 (這段保留原本的邏輯)
+        const charSelect = document.getElementById('charAnimList');
+        if(charSelect) {
+            charSelect.innerHTML = '';
+            if (selectedCharId) {
+                const char = characters.find(c => c.id === selectedCharId);
+                if (char && char.type === 'spine') {
+                    if (char.animations.length > 0) {
+                        char.animations.forEach(a => {
+                            const opt = document.createElement('option'); opt.value = a.name; opt.text = a.name;
+                            charSelect.appendChild(opt);
+                        });
+                    } else {
+                        charSelect.innerHTML = '<option>(無動畫)</option>';
+                    }
+                } else {
+                    charSelect.innerHTML = '<option>---</option>';
+                }
+            }
+        }
+    }
+
+    // 執行圖層拖曳後的真實排序邏輯
+    function executeLayerReorder(draggedId, targetId, insertAfterUI) {
+        // 1. 先將陣列依照 Z-index (order) 升冪排序，確保底層在 index 0
+        characters.sort((a, b) => a.order - b.order);
+        
+        const draggedIdx = characters.findIndex(c => c.id === draggedId);
+        if (draggedIdx === -1) return;
+        
+        // 把拖曳的物件抽出來
+        const draggedChar = characters.splice(draggedIdx, 1)[0];
+        
+        // 找出目標物件現在的 index
+        const newTargetIdx = characters.findIndex(c => c.id === targetId);
+        
+        // 邏輯轉換：UI 越下面代表 Z-index 越小。
+        // 如果 insertAfterUI 是 true (插在目標下方)，表示 Z-index 要比目標更小，所以排在目標的「前面」。
+        let insertIdx = insertAfterUI ? newTargetIdx : newTargetIdx + 1;
+        
+        // 插入回去
+        characters.splice(insertIdx, 0, draggedChar);
+        
+        // 2. 重新配發 Order 並更新所有相關組件
+        characters.forEach((c, i) => { 
+            c.order = i; 
+            c.spine.zIndex = i; 
+            
+            // 更新 Timeline 左側群組 (Track) 的排序順序
+            const updates = [{ id: c.id, order: c.order * 10 }]; 
+            if (c.type === 'spine') {
+                c.animTracks.forEach((trackId, tIdx) => {
+                    updates.push({ id: trackId, order: c.order * 10 + 1 + (tIdx * 0.1) }); 
+                });
+            }
+            
+            updates.push({ id: c.tracks.move, order: c.order * 10 + 2 }); 
+            updates.push({ id: c.tracks.rotate, order: c.order * 10 + 3 }); 
+            updates.push({ id: c.tracks.scale, order: c.order * 10 + 4 }); 
+            
+            updates.forEach(u => {
+                if(timelineGroups.get(u.id)) timelineGroups.update(u);
+            }); 
+        }); 
+        
+        // 3. 觸發畫面與 UI 更新
+        worldContainer.sortChildren(); 
+        renderSceneList(); 
+    }
+
+    function renderInspector() {
+        const emptyEl = document.getElementById('inspector-empty');
+        const charEl = document.getElementById('inspector-char');
+        const clipEl = document.getElementById('inspector-clip');
+        
+        if (selectedCharId) {
+            const char = characters.find(c => c.id === selectedCharId);
+            if (char) {
+                emptyEl.style.display = 'none';
+                charEl.style.display = 'block';
+                
+                document.getElementById('sel-char-name').innerText = char.name;
+                document.getElementById('charScale').value = char.scaleX;
+                document.getElementById('charScaleNum').value = char.scaleX;
+                document.getElementById('charRotation').value = char.baseRot;
+                document.getElementById('charRotationNum').value = char.baseRot;
+                
+                const skinRow = document.getElementById('skin-control-row');
+                const skinSelect = document.getElementById('skinSelect');
+                if (char.type === 'spine' && char.skins.length > 0) {
+                    skinRow.style.display = 'flex';
+                    skinSelect.innerHTML = '';
+                    char.skins.forEach(s => {
+                        const opt = document.createElement('option');
+                        opt.value = s;
+                        opt.text = s;
+                        skinSelect.appendChild(opt);
+                    });
+                    if (char.spine.skeleton.skin) {
+                        skinSelect.value = char.spine.skeleton.skin.name;
+                    }
+                } else {
+                    skinRow.style.display = 'none';
+                }
+            }
+        } else {
+            charEl.style.display = 'none';
+        }
+
+        if (selectedClipId) {
+            const item = timelineData.get(selectedClipId);
+            if (item) {
+                emptyEl.style.display = 'none';
+                clipEl.style.display = 'block';
+                
+                document.getElementById('clip-type-label').innerText = 
+                    item.group === SCENE_TRACK_ID ? "SCENE EVENT" :
+                    item.className.includes('track-anim') ? "ANIMATION CLIP" : 
+                    item.className.includes('track-move') ? "MOVE KEYFRAME" :
+                    item.className.includes('track-rotate') ? "ROTATE KEYFRAME" : "SCALE KEYFRAME";
+
+                document.getElementById('clipStart').value = (item.start.valueOf() / 1000).toFixed(2);
+                document.getElementById('clipDuration').value = ((item.end.valueOf() - item.start.valueOf()) / 1000).toFixed(2);
+
+                const animControls = document.getElementById('anim-controls');
+                const propControls = document.getElementById('prop-controls');
+                const physControls = document.getElementById('physics-controls');
+                
+                // Hide all subsections first
+                document.getElementById('move-inputs').style.display = 'none';
+                document.getElementById('rotate-inputs').style.display = 'none';
+                document.getElementById('scale-inputs').style.display = 'none';
+
+                if (item.className.includes('track-anim')) {
+                    animControls.style.display = 'block';
+                    propControls.style.display = 'block';
+                    physControls.style.display = 'none';
+                    document.getElementById('dropEnable').parentElement.style.display = 'none';
+
+                    // ===== 新增這一行：讀取片段設定的曲線 =====
+                    document.getElementById('clipEasing').value = item.easing || 'linear';
+                    
+                    const char = characters.find(c => c.tracks.anim === item.group);
+                    const clipAnimSelect = document.getElementById('clipAnimSelect');
+                    clipAnimSelect.innerHTML = '';
+                    if (char) {
+                        char.animations.forEach(a => {
+                            const opt = document.createElement('option');
+                            opt.value = a.name;
+                            opt.text = a.name;
+                            clipAnimSelect.appendChild(opt);
+                        });
+                        const currentAnimName = item.content.split(' (')[0];
+                        clipAnimSelect.value = currentAnimName;
+                    }
+                    
+                    document.getElementById('clipLoop').checked = (item.loop !== false); 
+
+                    document.getElementById('dropEnable').checked = !!item.dropEnable;
+                    physControls.style.display = item.dropEnable ? 'flex' : 'none';
+                    if(item.dropEnable) {
+                        document.getElementById('dropHeight').value = item.dropHeight || 500;
+                        document.getElementById('dropBounce').value = item.dropBounce || 0.5;
+                        document.getElementById('dropDur').value = item.dropDur || 0.5;
+                        document.getElementById('dropDelay').value = item.dropDelay || 0;
+                    }
+
+                } else {
+                    // Prop Tracks
+                    animControls.style.display = 'none';
+                    propControls.style.display = 'block';
+                    physControls.style.display = 'none';
+                    document.getElementById('dropEnable').parentElement.style.display = 'none';
+
+                    if (item.className.includes('track-move')) {
+                        document.getElementById('prop-label').innerText = "🚀 位移關鍵影格";
+                        document.getElementById('move-inputs').style.display = 'block';
+                        document.getElementById('motStartX').value = Math.round(item.motStartX || 0);
+                        document.getElementById('motStartY').value = Math.round(item.motStartY || 0);
+                        document.getElementById('motEndX').value = Math.round(item.motEndX || 0);
+                        document.getElementById('motEndY').value = Math.round(item.motEndY || 0);
+                    }
+                    else if (item.className.includes('track-rotate')) {
+                        document.getElementById('prop-label').innerText = "🔄 旋轉關鍵影格";
+                        document.getElementById('rotate-inputs').style.display = 'block';
+                        document.getElementById('motStartR').value = Math.round(item.motStartR || 0);
+                        document.getElementById('motEndR').value = Math.round(item.motEndR || 0);
+                    }
+                    else if (item.className.includes('track-scale')) {
+                        document.getElementById('prop-label').innerText = "📐 縮放關鍵影格";
+                        document.getElementById('scale-inputs').style.display = 'block';
+                        document.getElementById('motStartS').value = (item.motStartS || 1).toFixed(2);
+                        document.getElementById('motEndS').value = (item.motEndS || 1).toFixed(2);
+                    }
+                }
+            }
+        } else {
+            clipEl.style.display = 'none';
+        }
+
+        if (!selectedCharId && !selectedClipId) {
+            emptyEl.style.display = 'flex';
+        }
+    }
+
+    function updateSelectedClip() {
+        if (!selectedClipId) return;
+        
+        const startVal = parseFloat(document.getElementById('clipStart').value) * 1000;
+        const durVal = parseFloat(document.getElementById('clipDuration').value) * 1000;
+        
+        const updates = {
+            id: selectedClipId,
+            start: new Date(startVal),
+            end: new Date(startVal + durVal)
+        };
+
+        const item = timelineData.get(selectedClipId);
+        
+        if (item.className.includes('track-anim')) {
+            const animName = document.getElementById('clipAnimSelect').value;
+            updates.content = `${animName} (${(durVal/1000).toFixed(2)}s)`;
+            updates.loop = document.getElementById('clipLoop').checked;
+            
+            updates.dropEnable = document.getElementById('dropEnable').checked;
+            if(updates.dropEnable) {
+                updates.dropHeight = parseFloat(document.getElementById('dropHeight').value);
+                updates.dropBounce = parseFloat(document.getElementById('dropBounce').value);
+                updates.dropDur = parseFloat(document.getElementById('dropDur').value);
+                updates.dropDelay = parseFloat(document.getElementById('dropDelay').value);
+            }
+        } 
+        // ===== 新增這一個 block 來儲存曲線 =====
+        else if (item.className.includes('track-move') || item.className.includes('track-rotate') || item.className.includes('track-scale')) {
+            updates.easing = document.getElementById('clipEasing').value;
+        }
+        else if (item.className.includes('track-move')) {
+            updates.motStartX = parseFloat(document.getElementById('motStartX').value);
+            updates.motStartY = parseFloat(document.getElementById('motStartY').value);
+            updates.motEndX = parseFloat(document.getElementById('motEndX').value);
+            updates.motEndY = parseFloat(document.getElementById('motEndY').value);
+        }
+        else if (item.className.includes('track-rotate')) {
+            updates.motStartR = parseFloat(document.getElementById('motStartR').value);
+            updates.motEndR = parseFloat(document.getElementById('motEndR').value);
+        }
+        else if (item.className.includes('track-scale')) {
+            updates.motStartS = parseFloat(document.getElementById('motStartS').value);
+            updates.motEndS = parseFloat(document.getElementById('motEndS').value);
+        }
+
+        timelineData.update(updates);
+        renderInspector(); 
+        syncSpineToTime(currentTime);
+        drawDebugHelpers();
+    }
+
+    function captureToClip(type) {
+        if (!selectedCharId || !selectedClipId) return;
+        const char = characters.find(c => c.id === selectedCharId);
+        const item = timelineData.get(selectedClipId);
+
+        if (item.className.includes('track-move')) {
+            const vals = { x: char.spine.x, y: char.spine.y };
+            if(type === 'start') {
+                document.getElementById('motStartX').value = vals.x; document.getElementById('motStartY').value = vals.y;
+            } else {
+                document.getElementById('motEndX').value = vals.x; document.getElementById('motEndY').value = vals.y;
+            }
+        }
+        else if (item.className.includes('track-rotate')) {
+            const val = char.spine.angle;
+            if(type === 'start') document.getElementById('motStartR').value = val;
+            else document.getElementById('motEndR').value = val;
+        }
+        else if (item.className.includes('track-scale')) {
+            const val = char.scaleX;
+            if(type === 'start') document.getElementById('motStartS').value = val;
+            else document.getElementById('motEndS').value = val;
+        }
+        updateSelectedClip();
+    }
+
+    function addSpecificAnim() {
+        if (!selectedCharId) return;
+        const animName = document.getElementById('charAnimList').value;
+        if (animName && animName !== "---" && animName !== "(無動畫)") {
+            
+            // Priority:
+            // 1. Visually selected track via header click (selectedTrackId)
+            // 2. Track of selected clip (if any)
+            // 3. Fallback (Track 0)
+            
+            let target = selectedTrackId;
+            const char = characters.find(c => c.id === selectedCharId);
+
+            // [FIX] Relaxed Validation
+            // Only reject if it DEFINITELY doesn't belong to this character
+            // We check:
+            // 1. Is it in the array? OR
+            // 2. Does the ID string look like it belongs to this char? (charId_anim_...)
+            if (target && char) {
+                const isValid = char.animTracks.includes(target) || (target.startsWith(char.id + '_anim'));
+                if (!isValid) {
+                    target = null;
+                }
+            }
+
+            if (!target && selectedClipId) {
+                 const item = timelineData.get(selectedClipId);
+                 if (item && char.animTracks.includes(item.group)) {
+                     target = item.group;
+                 }
+            }
+            
+            addAnimClip(selectedCharId, animName, target);
+        }
+    }
+
+    // ==========================================
+    // 匯出功能：影片錄製與程式碼生成
+    // ==========================================
+
+    let mediaRecorder;
+    let recordedChunks = [];
+    let isExportingVideo = false;
+
+    // 1. 錄製 Canvas 影片
+    function startVideoExport() {
+        const btn = document.getElementById('btn-export-video');
+        
+        // 如果正在錄影，則點擊為「停止並下載」
+        if (isExportingVideo) {
+            mediaRecorder.stop();
+            stop();
+            return;
+        }
+
+        const canvas = document.querySelector('#canvas-container canvas');
+        if (!canvas) { alert("找不到畫布！"); return; }
+
+        // 擷取 Canvas 串流 (60 FPS)
+        const stream = canvas.captureStream(60);
+        
+        try {
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+        } catch (e) {
+            mediaRecorder = new MediaRecorder(stream); // 降級相容
+        }
+
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) recordedChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 15);
+            a.download = `SpinePreview_${timestamp}.webm`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            // 重置狀態
+            recordedChunks = [];
+            isExportingVideo = false;
+            btn.innerText = "🎥 錄製動態影片 (WebM)";
+            btn.classList.remove('danger');
+        };
+
+        // 準備錄影
+        isExportingVideo = true;
+        recordedChunks = [];
+        btn.innerText = "🛑 錄影中... (點擊停止並下載)";
+        btn.classList.add('danger');
+        
+        // 強制時間軸歸零並開始播放
+        stop();
+        setTimeout(() => {
+            mediaRecorder.start();
+            togglePlay(); 
+        }, 100);
+    }
+
+    // 2. 匯出動態腳本 (Cocos / Unity DOTween 參考風格)
+    function exportCodeSnippet() {
+        if (!selectedCharId) {
+            alert("請先選擇一個 Spine 物件，才能匯出它的動態腳本！");
+            return;
+        }
+
+        const char = characters.find(c => c.id === selectedCharId);
+        let codeStr = `// 🔹 角色/物件: ${char.name}\n// [Cocos Creator 3.8 / Unity DOTween 參考腳本]\n\n`;
+
+        // 處理位移
+        const moves = timelineData.get({ filter: i => i.group === char.tracks.move });
+        moves.sort((a,b) => a.start - b.start);
+        if (moves.length > 0) {
+            codeStr += `// --- 位移 (Move) ---\n`;
+            moves.forEach(m => {
+                const startT = (m.start.valueOf()/1000).toFixed(2);
+                const dur = ((m.end.valueOf() - m.start.valueOf())/1000).toFixed(2);
+                const ease = m.easing || 'linear';
+                codeStr += `// Time: ${startT}s\n`;
+                codeStr += `tween(node).to(${dur}, { position: v3(${m.motEndX}, ${m.motEndY}, 0) }, { easing: '${ease}' }).start();\n`;
+            });
+            codeStr += `\n`;
+        }
+
+        // 處理縮放
+        const scales = timelineData.get({ filter: i => i.group === char.tracks.scale });
+        scales.sort((a,b) => a.start - b.start);
+        if (scales.length > 0) {
+            codeStr += `// --- 縮放 (Scale) ---\n`;
+            scales.forEach(m => {
+                const startT = (m.start.valueOf()/1000).toFixed(2);
+                const dur = ((m.end.valueOf() - m.start.valueOf())/1000).toFixed(2);
+                const ease = m.easing || 'linear';
+                codeStr += `// Time: ${startT}s\n`;
+                codeStr += `tween(node).to(${dur}, { scale: v3(${m.motEndS}, ${m.motEndS}, 1) }, { easing: '${ease}' }).start();\n`;
+            });
+            codeStr += `\n`;
+        }
+
+        // 處理動畫切換
+        if (char.type === 'spine') {
+            const anims = timelineData.get({ filter: i => char.animTracks.includes(i.group) });
+            anims.sort((a,b) => a.start - b.start);
+            if (anims.length > 0) {
+                codeStr += `// --- Spine 動畫切換 (Animations) ---\n`;
+                anims.forEach(m => {
+                    const startT = (m.start.valueOf()/1000).toFixed(2);
+                    const animName = m.content.split(' (')[0];
+                    const loop = m.loop !== false;
+                    // 找出是哪一個 Track
+                    const trackIndex = char.animTracks.indexOf(m.group);
+                    codeStr += `// Time: ${startT}s\n`;
+                    codeStr += `spine.setAnimation(${trackIndex}, "${animName}", ${loop});\n`;
+                });
+            }
+        }
+
+        // 複製到剪貼簿或顯示出來
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(codeStr).then(() => {
+                alert("✅ 腳本已複製到剪貼簿！\n\n預覽：\n" + codeStr);
+            });
+        } else {
+            // 如果瀏覽器不支援直接寫入剪貼簿的備案
+            const textArea = document.createElement("textarea");
+            textArea.value = codeStr;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand("Copy");
+            textArea.remove();
+            alert("✅ 腳本已複製到剪貼簿！\n\n預覽：\n" + codeStr);
+        }
+    }
+</script>
+</body>
+</html>

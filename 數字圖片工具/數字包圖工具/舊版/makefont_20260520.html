@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BMFont Gen (v3.24 Ultimate) - by 小魚骨頭</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        /* --- 🎨 設計系統 --- */
+        :root {
+            --bg-app: #121212; --bg-panel: #1e1e1e; --bg-card: #252526;
+            --bg-input: #333333; --text-primary: #e0e0e0; --text-secondary: #aaaaaa;
+            --text-muted: #666666; --accent: #3794ff; --danger: #ff4d4f;
+            --border: #3e3e42; --radius: 6px;
+        }
+        * { box-sizing: border-box; user-select: none; outline: none; }
+        body {
+            margin: 0; padding: 0; font-family: "Microsoft JhengHei", "Segoe UI", sans-serif;
+            background-color: var(--bg-app); color: var(--text-primary);
+            height: 100vh; display: flex; flex-direction: column; overflow: hidden; font-size: 13px;
+        }
+
+        header {
+            height: 48px; background-color: var(--bg-panel); border-bottom: 1px solid #000;
+            display: flex; align-items: center; padding: 0 16px; justify-content: space-between; z-index: 10; flex-shrink: 0;
+        }
+        .app-title { font-weight: 700; font-size: 15px; display: flex; align-items: center; }
+        .app-title span { color: var(--accent); }
+        .version-tag { background: #333; padding: 2px 6px; border-radius: 4px; font-size: 11px; color: #4caf50; margin-left: 8px;}
+        
+        .author-tag {
+            font-size: 12px; color: var(--text-secondary); font-weight: bold;
+            background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+
+        .sidebar {
+            width: 340px; background-color: var(--bg-panel); border-right: 1px solid var(--border);
+            display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0;
+        }
+        .group-header {
+            padding: 12px 16px 8px 16px; color: var(--text-secondary); font-size: 11px; font-weight: 700;
+            text-transform: uppercase; display: flex; align-items: center;
+        }
+        .control-panel { padding: 0 16px 8px 16px; display: flex; flex-direction: column; gap: 8px; }
+        .control-row { display: flex; align-items: center; justify-content: space-between; min-height: 28px; }
+        .control-row label { color: var(--text-primary); }
+        .control-row .desc { display: block; font-size: 11px; color: var(--text-muted); margin-top: -2px; font-weight: normal; }
+        .highlight-row {
+            background: rgba(55, 148, 255, 0.1); padding: 6px 8px; border-radius: 4px;
+            margin: 0 -8px; border-left: 3px solid var(--accent);
+        }
+
+        input[type="number"], input[type="text"] {
+            background-color: var(--bg-input); border: 1px solid transparent; color: var(--text-primary);
+            padding: 4px 8px; border-radius: 4px; width: 80px; text-align: right;
+            font-family: monospace; font-size: 12px;
+        }
+        input[type="number"]:focus, input[type="text"]:focus { border-color: var(--accent); }
+        input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+
+        .btn {
+            background-color: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary);
+            padding: 6px 12px; border-radius: var(--radius); cursor: pointer; font-size: 12px;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .btn:hover { background-color: #333; }
+        .btn.primary { background-color: var(--accent); color: white; border: none; }
+        .btn.primary:hover { filter: brightness(1.1); }
+        .btn-group { display: flex; gap: 8px; }
+        .zoom-btn { width: 24px; height: 24px; padding: 0; font-weight: bold; }
+
+        .content-column { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+        .viewport {
+            flex: 1; background-color: #000; position: relative;
+            display: flex; flex-direction: column; overflow: hidden; min-height: 100px;
+        }
+        
+        .atlas-view { flex: 1; background-color: #111; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+        .atlas-toolbar {
+            height: 32px; background: rgba(0,0,0,0.6); position: absolute; top: 10px; left: 10px;
+            display: flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 4px; z-index: 5;
+            backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1);
+        }
+        .atlas-label { font-size: 11px; color: #aaa; margin-right: 10px; }
+        .atlas-size-tag {
+            position: absolute; bottom: 10px; right: 10px; background: rgba(0, 0, 0, 0.7); border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #4caf50; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-size: 13px; font-weight: bold; z-index: 10;
+        }
+        
+        .canvas-wrapper {
+            flex: 1; overflow: hidden; display: flex; align-items: center; justify-content: center;
+            background-image: linear-gradient(45deg, #1a1a1a 25%, transparent 25%), linear-gradient(-45deg, #1a1a1a 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1a1a1a 75%), linear-gradient(-45deg, transparent 75%, #1a1a1a 75%);
+            background-size: 20px 20px; background-color: #222; cursor: grab; 
+        }
+        .canvas-wrapper:active { cursor: grabbing; }
+        #mainCanvas { box-shadow: 0 0 20px rgba(0,0,0,0.5); border: 1px solid #333; transform-origin: center center; background-color: transparent; }
+
+        .simulator-view { height: 200px; background-color: #1a1a1a; display: flex; flex-direction: column; flex-shrink: 0; min-height: 100px; }
+        .sim-toolbar { height: 36px; background: #252526; border-bottom: 1px solid #333; display: flex; align-items: center; padding: 0 10px; gap: 8px; }
+        .sim-content {
+            flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;
+            background-image: radial-gradient(#333 1px, transparent 1px); background-size: 20px 20px;
+        }
+        #previewCanvas { margin: 20px; transform-origin: center center; cursor: grab; }
+        #previewCanvas:active { cursor: grabbing; }
+
+        .resizer-handle {
+            height: 8px; background: #2d2d2d; cursor: row-resize; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+            display: flex; justify-content: center; align-items: center; flex-shrink: 0; transition: background 0.2s; z-index: 20;
+        }
+        .resizer-handle:hover { background: #444; }
+        .resizer-handle::after { content: '...'; color: #666; letter-spacing: 2px; margin-top: -8px; font-weight: bold; }
+
+        .bottom-panel { height: 240px; background-color: var(--bg-panel); display: flex; flex-direction: column; flex-shrink: 0; min-height: 100px; max-height: 80vh; }
+        .panel-header { height: 32px; padding: 0 16px; background-color: #252526; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        
+        .glyph-tray {
+            flex: 1; padding: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+            grid-auto-rows: min-content; gap: 10px; overflow-y: auto; align-content: start; position: relative;
+        }
+        .glyph-tray.drag-over { background-color: rgba(55, 148, 255, 0.1); box-shadow: inset 0 0 0 2px var(--accent); }
+        .drag-hint { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; align-items: center; color: var(--accent); font-size: 14px; font-weight: bold; pointer-events: none; opacity: 0; }
+        .glyph-tray.drag-over .drag-hint { opacity: 1; }
+
+        .glyph-card { background-color: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 6px; display: flex; flex-direction: column; gap: 6px; position: relative; }
+        .glyph-card:hover { border-color: var(--accent); }
+        .glyph-preview { height: 48px; background-color: #2a2a2a; border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .glyph-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        
+        .remove-btn {
+            position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: var(--danger); color: white; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: 0.2s; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        .glyph-card:hover .remove-btn { opacity: 1; }
+        
+        .sim-control-group { display: flex; align-items: center; gap: 5px; margin-left: 10px; border-left: 1px solid #444; padding-left: 10px;}
+        .glyph-card input[type=number]::-webkit-inner-spin-button, .glyph-card input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .mini-btn { background: #333; border: none; color: #aaa; width: 18px; height: 18px; border-radius: 2px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 9px; flex-shrink: 0; transition: background 0.1s; }
+        .mini-btn:hover { background: var(--accent); color: #fff; }
+        .mini-btn:active { transform: scale(0.9); }
+        .glyph-card input.glyph-advance { font-weight: 700; letter-spacing: 0.2px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="app-title">BMFont Gen <span>v3.24 Ultimate</span></div>
+    <div class="author-tag">Author: 小魚骨頭</div>
+</header>
+
+<div class="main-container">
+    <div class="sidebar">
+        <div class="group-header">專案與資源</div>
+        <div class="control-panel">
+            <div class="btn-group">
+                <button class="btn" onclick="saveConfig()">💾 儲存設定</button>
+                <button class="btn" onclick="document.getElementById('configInput').click()">📂 讀取設定</button>
+            </div>
+            <input type="file" id="configInput" accept=".json" style="display:none">
+            <div class="btn-group" style="margin-top:5px;">
+                <button class="btn primary" onclick="document.getElementById('fileInput').click()" style="flex:1;">➕ 批次匯入圖片</button>
+                <button class="btn" onclick="document.getElementById('folderInput').click()" style="flex:1;">📁 匯入資料夾</button>
+            </div>
+            <input type="file" id="fileInput" multiple accept="image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp" style="display:none">
+            <input type="file" id="folderInput" multiple webkitdirectory directory accept="image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp" style="display:none">
+            <div id="importStatus" style="font-size:11px; color:var(--text-muted); padding:2px 0 0 2px; min-height:16px;">可多選圖片，也可整個資料夾匯入</div>
+        </div>
+
+        <div class="group-header">裁切與排版 (Trim & Layout)</div>
+        <div class="control-panel">
+            <div class="control-row">
+                <div><label>啟用裁切</label><span class="desc">自動去除透明像素</span></div>
+                <input type="checkbox" id="trim" checked>
+            </div>
+            <div class="control-row highlight-row" style="border-color: #2196f3; background: rgba(33, 150, 243, 0.1);">
+                <div><label>保留原圖高度 (Keep Y)</label><span class="desc" style="color: #64b5f6;">解決 Unity 垂直置中偏上問題</span></div>
+                <input type="checkbox" id="keepYBounds">
+            </div>
+            <div class="control-row highlight-row" style="border-color: #e91e63; background: rgba(233, 30, 99, 0.1);">
+                <div><label>數字等寬 (Monospace)</label><span class="desc">維持原圖比例，精準置中框內</span></div>
+                <input type="checkbox" id="monospaceNum">
+            </div>
+            <div class="control-row highlight-row" style="border-color: #ff5722; background: rgba(255, 87, 34, 0.1);">
+                <div><label>標點統一 (Fix Punctuation)</label><span class="desc">自動同步 "." 與 "," 的寬度</span></div>
+                <input type="checkbox" id="fixPunctuation">
+            </div>
+            <div class="control-row">
+                <div><label>統一頂部 (Unified Y)</label><span class="desc">無視原圖差異，強制對齊頂端</span></div>
+                <input type="checkbox" id="unifiedTop" checked>
+            </div>
+            <div class="control-row">
+                <label>圖片間距</label>
+                <input type="number" id="padding" value="2">
+            </div>
+        </div>
+
+        <div class="group-header" style="color: #64b5f6;">畫布尺寸 (Canvas Size)</div>
+        <div class="control-panel">
+            <div class="control-row highlight-row" style="border-color: #9c27b0; background: rgba(156, 39, 176, 0.1);">
+                <div><label>強制正方形 (Square)</label></div>
+                <input type="checkbox" id="forceSquare">
+            </div>
+            <div class="control-row highlight-row" style="border-color: #00bcd4; background: rgba(0, 188, 212, 0.1);">
+                <div><label>2的次方 (Power of 2)</label></div>
+                <input type="checkbox" id="powerOfTwo">
+            </div>
+        </div>
+
+        <div class="group-header" style="color: #edaea9;">引擎對齊修正 (Alignment)</div>
+        <div class="control-panel">
+            <div class="control-row">
+                <label>行高 (LineHeight)</label>
+                <input type="number" id="lineHeight" value="80">
+            </div>
+            <div class="control-row highlight-row" style="border-color: #4caf50; background: rgba(76, 175, 80, 0.1);">
+                <div><label>整體置中 (Auto Center)</label><span class="desc">將最大字元置中於行高內</span></div>
+                <input type="checkbox" id="groupCenter" checked>
+            </div>
+            <div class="control-row highlight-row" style="border-color: #ff9800; background: rgba(255, 152, 0, 0.1);">
+                <div><label>全域 Y 軸微調</label><span class="desc">正數下推，負數上移</span></div>
+                <input type="number" id="yOffsetAdjust" value="0">
+            </div>
+            <div class="control-row">
+                <label>字體大小</label>
+                <input type="number" id="fontSize" value="72">
+            </div>
+        </div>
+
+        <div class="group-header">導出設定</div>
+        <div class="control-panel">
+            <div class="control-row">
+                <label>名稱</label>
+                <input type="text" id="fontName" value="myFont">
+            </div>
+            <div class="control-row highlight-row" style="border-color: #ffeb3b; background: rgba(255, 235, 59, 0.1); margin-top: 5px;">
+                <div><label>導出縮放 (Scale)</label><span class="desc">1.0=原圖 / 0.5=一半</span></div>
+                <input type="number" id="exportScale" value="1.0" step="0.1" min="0.1" max="5.0">
+            </div>
+            <div class="control-row highlight-row" style="border-color: #ffeb3b; background: rgba(255, 235, 59, 0.1);">
+                <div><label>鎖定字號 (Lock Size)</label><span class="desc">防止引擎自作聰明二次放大</span></div>
+                <input type="checkbox" id="lockInfoSize" checked>
+            </div>
+            <button class="btn primary" id="exportBtn" style="margin-top:10px;">⬇️ 導出 ZIP 包 (BMFont)</button>
+        </div>
+    </div>
+
+    <div class="content-column">
+        
+        <div class="viewport">
+            <div class="atlas-view">
+                <div class="atlas-toolbar">
+                    <span class="atlas-label">貼圖集 (滑鼠左鍵拖曳 / 滾輪縮放)</span>
+                    <button class="btn zoom-btn" onclick="changeZoom(-0.1)">-</button>
+                    <span id="zoomDisplay" style="font-family:monospace; color:#fff; width:40px; text-align:center;">100%</span>
+                    <button class="btn zoom-btn" onclick="changeZoom(0.1)">+</button>
+                </div>
+                <div class="atlas-size-tag" id="atlasSizeDisplay">0 x 0</div>
+
+                <div class="canvas-wrapper" id="canvasWrapper">
+                    <canvas id="mainCanvas"></canvas>
+                </div>
+            </div>
+            
+            <div class="resizer-handle" id="resizerSim"></div>
+            
+            <div class="simulator-view" id="simulatorView">
+                <div class="sim-toolbar">
+                    <span style="font-weight:bold; color:#fff; margin-right: 5px;">100% 所見即所得預覽區</span>
+                    <button class="btn zoom-btn" onclick="changeSimZoom(-0.1)">-</button>
+                    <span id="simZoomDisplay" style="font-family:monospace; color:#fff; width:40px; text-align:center;">100%</span>
+                    <button class="btn zoom-btn" onclick="changeSimZoom(0.1)">+</button>
+
+                    <input type="text" id="previewText" style="width: 150px; margin-left: 10px;" placeholder="輸入測試文字">
+                    
+                    <button class="btn" id="countBtn" style="padding: 2px 8px; font-size:11px; margin-left: 2px; background: #2a2a2a; border: 1px solid #444;" title="自動遞增數字，測試狂跳時寬度是否穩定">▶ 滾動</button>
+                    
+                    <div class="sim-control-group">
+                        <span style="color:#aaa; font-size:11px;">字距:</span>
+                        <input type="number" id="simSpacing" style="width:40px; padding:2px 4px;">
+                        
+                        <label style="color:#aaa; font-size:11px; display:flex; align-items:center; gap:3px; margin-left:8px; cursor:pointer;" title="顯示未設定字元的佔位符號，方便除錯">
+                            <input type="checkbox" id="simShowMissingGaps" style="width:12px;height:12px;margin:0;">
+                            保留缺字
+                        </label>
+                    </div>
+                    
+                    <div class="sim-control-group">
+                        <button class="btn" onclick="document.getElementById('bgInput').click()" style="padding: 2px 8px; font-size:11px;">🖼️ 置入底圖</button>
+                        <input type="file" id="bgInput" accept="image/*" style="display:none">
+                        
+                        <span style="color:#aaa; font-size:11px; margin-left: 5px;">縮放:</span>
+                        <input type="number" id="simBgScale" step="0.1" min="0.1" style="width:40px; padding:2px 4px;" title="調整底圖大小以符合當前數字">
+                        
+                        <span style="color:#aaa; font-size:11px; margin-left: 5px;">透明:</span>
+                        <input type="number" id="simBgOpacity" step="0.1" min="0.1" max="1.0" style="width:40px; padding:2px 4px;" title="底圖透明度">
+
+                        <button class="btn" onclick="clearSimBg()" id="clearBgBtn" style="display:none; padding: 2px 8px; font-size:11px; color: var(--danger); background:none; border: 1px solid #444; margin-left: 5px;">🗑️</button>
+                    </div>
+
+                    <div style="flex:1;"></div>
+                </div>
+                <div class="sim-content" id="simContentWrapper">
+                    <canvas id="previewCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="resizer-handle" id="resizer"></div>
+
+        <div class="bottom-panel" id="bottomPanel">
+            <div class="panel-header">
+                <span style="font-weight:600; font-size:12px;">字元列表 (可直接拖曳檔案，並精細微調 X/Y 偏移與 W 字寬；W 會置中擴張)</span>
+                <button class="btn" style="color:var(--danger); background:none; border:none;" onclick="clearAll()">🗑️ 清空全部</button>
+            </div>
+            <div class="glyph-tray" id="glyphTray">
+                <div class="drag-hint">放開滑鼠以加入圖片</div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // State
+    let state = {
+        glyphs: [],
+        config: {
+            padding: 2, maxWidth: 512, maxHeight: 512,
+            trim: true, keepYBounds: false, unifiedTop: true, groupCenter: true, fixPunctuation: false, monospaceNum: false,
+            forceSquare: false, powerOfTwo: false,
+            fontSize: 72, lineHeight: 80, yOffsetAdjust: 0,
+            fontName: 'myFont', exportScale: 1.0, lockInfoSize: true, 
+            simBgScale: 1.0, simBgOpacity: 0.6,
+            previewText: '0123456789KMBGTQxX$.,+', simSpacing: 0,
+            simBgPanX: 0, simBgPanY: 0,
+            simShowMissingGaps: false 
+        },
+        glyphOffsets: {},
+        glyphWidths: {}, // 每個字元的自訂字寬 / xadvance；0 或未設定 = 自動
+        zoom: 1.0, pan: { x: 0, y: 0 }, 
+        simZoom: 1.0, simBgImage: null,
+        isCounting: false, countInterval: null,
+        
+        globalMinY: 0, maxImgH: 0, groupOffsetY: 0
+    };
+
+    const els = {
+        fileInput: document.getElementById('fileInput'),
+        configInput: document.getElementById('configInput'),
+        bgInput: document.getElementById('bgInput'),
+        folderInput: document.getElementById('folderInput'),
+        importStatus: document.getElementById('importStatus'),
+        mainCanvas: document.getElementById('mainCanvas'),
+        mainCtx: document.getElementById('mainCanvas').getContext('2d'),
+        previewCanvas: document.getElementById('previewCanvas'),
+        previewCtx: document.getElementById('previewCanvas').getContext('2d'),
+        glyphTray: document.getElementById('glyphTray'),
+        bottomPanel: document.getElementById('bottomPanel'),
+        resizer: document.getElementById('resizer'),
+        resizerSim: document.getElementById('resizerSim'), 
+        simulatorView: document.getElementById('simulatorView'), 
+        zoomDisplay: document.getElementById('zoomDisplay'),
+        simZoomDisplay: document.getElementById('simZoomDisplay'), 
+        atlasSizeDisplay: document.getElementById('atlasSizeDisplay'),
+        canvasWrapper: document.getElementById('canvasWrapper'),
+        simContentWrapper: document.getElementById('simContentWrapper'),
+        countBtn: document.getElementById('countBtn'), 
+        inputs: {
+            padding: document.getElementById('padding'), trim: document.getElementById('trim'), keepYBounds: document.getElementById('keepYBounds'),
+            unifiedTop: document.getElementById('unifiedTop'), fontSize: document.getElementById('fontSize'),
+            lineHeight: document.getElementById('lineHeight'), fontName: document.getElementById('fontName'),
+            groupCenter: document.getElementById('groupCenter'), yOffsetAdjust: document.getElementById('yOffsetAdjust'),
+            fixPunctuation: document.getElementById('fixPunctuation'), monospaceNum: document.getElementById('monospaceNum'),
+            forceSquare: document.getElementById('forceSquare'), powerOfTwo: document.getElementById('powerOfTwo'),
+            exportScale: document.getElementById('exportScale'), lockInfoSize: document.getElementById('lockInfoSize'),
+            simBgScale: document.getElementById('simBgScale'), simBgOpacity: document.getElementById('simBgOpacity'),
+            previewText: document.getElementById('previewText'), simSpacing: document.getElementById('simSpacing'),
+            simShowMissingGaps: document.getElementById('simShowMissingGaps') 
+        }
+    };
+
+    function init() {
+        Object.keys(els.inputs).forEach(key => {
+            if(!els.inputs[key]) return;
+            els.inputs[key].addEventListener('input', (e) => {
+                const type = e.target.tagName.toLowerCase() === 'select' ? 'select' : e.target.type;
+                if (type === 'checkbox') state.config[key] = e.target.checked;
+                else if (type === 'number') state.config[key] = parseFloat(e.target.value);
+                else state.config[key] = e.target.value;
+                
+                packAndDraw(); renderPreview();
+            });
+        });
+        
+        els.fileInput.addEventListener('change', handleFileUpload);
+        els.folderInput.addEventListener('change', handleFileUpload);
+        els.configInput.addEventListener('change', handleConfigLoad);
+        document.getElementById('exportBtn').addEventListener('click', exportZip);
+        
+        els.countBtn.addEventListener('click', () => {
+            state.isCounting = !state.isCounting;
+            if(state.isCounting) {
+                els.countBtn.innerHTML = '⏹ 停止'; els.countBtn.style.color = 'var(--danger)'; els.countBtn.style.borderColor = 'var(--danger)';
+                state.countInterval = setInterval(() => {
+                    let text = els.inputs.previewText.value;
+                    let newText = text.replace(/([\d,]+)(?!.*[\d,])/, (match) => {
+                        let rawStr = match.replace(/,/g, ''); 
+                        if (!rawStr || isNaN(rawStr)) return match;
+                        let len = rawStr.length;
+                        let increment = 1;
+                        if (len >= 8) increment = 111111;
+                        else if (len >= 6) increment = 1111;
+                        else if (len >= 4) increment = 11;
+                        let num = parseInt(rawStr, 10) + increment;
+                        return String(num).padStart(len, '0').replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                    });
+                    if (newText === text) newText = text + "1"; 
+                    els.inputs.previewText.value = newText; state.config.previewText = newText; 
+                    renderPreview();
+                }, 30); 
+            } else {
+                els.countBtn.innerHTML = '▶ 滾動'; els.countBtn.style.color = ''; els.countBtn.style.borderColor = '#444';
+                clearInterval(state.countInterval);
+            }
+        });
+
+        els.bgInput.addEventListener('change', async (e) => {
+            if(e.target.files.length > 0) {
+                state.simBgImage = await loadImage(e.target.files[0]);
+                state.config.simBgPanX = 0; state.config.simBgPanY = 0;
+                document.getElementById('clearBgBtn').style.display = 'inline-block';
+                renderPreview();
+            }
+            e.target.value = ''; 
+        });
+        window.clearSimBg = function() { state.simBgImage = null; document.getElementById('clearBgBtn').style.display = 'none'; renderPreview(); };
+
+        initResizer(); initSimResizer(); initDragAndDrop();
+        
+        els.canvasWrapper.addEventListener('wheel', (e) => { e.preventDefault(); changeZoom(e.deltaY > 0 ? -0.1 : 0.1); }, { passive: false });
+        els.simContentWrapper.addEventListener('wheel', (e) => { e.preventDefault(); changeSimZoom(e.deltaY > 0 ? -0.1 : 0.1); }, { passive: false });
+
+        let isPanningAtlas = false; let startX, startY, panStartX, panStartY;
+        els.canvasWrapper.addEventListener('mousedown', (e) => {
+            if(e.button !== 0) return; 
+            isPanningAtlas = true; startX = e.clientX; startY = e.clientY;
+            panStartX = state.pan.x; panStartY = state.pan.y;
+        });
+        window.addEventListener('mousemove', (e) => {
+            if(!isPanningAtlas) return;
+            state.pan.x = panStartX + (e.clientX - startX); state.pan.y = panStartY + (e.clientY - startY);
+            updateAtlasTransform();
+        });
+        window.addEventListener('mouseup', () => { isPanningAtlas = false; });
+        els.canvasWrapper.addEventListener('mouseleave', () => { isPanningAtlas = false; });
+
+        let isPanningSim = false; let simStartX, simStartY, simPanStartX, simPanStartY;
+        els.previewCanvas.addEventListener('mousedown', (e) => {
+            if(e.button !== 0 || !state.simBgImage) return; 
+            isPanningSim = true; simStartX = e.clientX; simStartY = e.clientY;
+            simPanStartX = state.config.simBgPanX; simPanStartY = state.config.simBgPanY;
+        });
+        window.addEventListener('mousemove', (e) => {
+            if(!isPanningSim) return;
+            state.config.simBgPanX = simPanStartX + (e.clientX - simStartX) / state.simZoom;
+            state.config.simBgPanY = simPanStartY + (e.clientY - simStartY) / state.simZoom;
+            renderPreview();
+        });
+        window.addEventListener('mouseup', () => { isPanningSim = false; });
+        els.previewCanvas.addEventListener('mouseleave', () => { isPanningSim = false; });
+
+        updateUIFromState();
+    }
+
+    function updateAtlasTransform() {
+        els.zoomDisplay.textContent = Math.round(state.zoom * 100) + '%';
+        els.mainCanvas.style.transform = `translate(${state.pan.x}px, ${state.pan.y}px) scale(${state.zoom})`;
+    }
+    window.changeZoom = function(delta) { state.zoom = Math.max(0.1, Math.min(5.0, state.zoom + delta)); updateAtlasTransform(); }
+    window.changeSimZoom = function(delta) {
+        state.simZoom = Math.max(0.1, Math.min(5.0, state.simZoom + delta));
+        els.simZoomDisplay.textContent = Math.round(state.simZoom * 100) + '%';
+        els.previewCanvas.style.transform = `scale(${state.simZoom})`;
+    }
+
+    function initResizer() {
+        let isResizing = false; let startY, startHeight;
+        els.resizer.addEventListener('mousedown', (e) => {
+            isResizing = true; startY = e.clientY; startHeight = els.bottomPanel.offsetHeight;
+            document.body.style.cursor = 'row-resize'; document.body.style.userSelect = 'none';
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            const newHeight = startHeight + (startY - e.clientY);
+            if (newHeight > 100 && newHeight < window.innerHeight - 100) els.bottomPanel.style.height = `${newHeight}px`;
+        });
+        window.addEventListener('mouseup', () => { isResizing = false; document.body.style.cursor = ''; document.body.style.userSelect = ''; });
+    }
+    function initSimResizer() {
+        let isResizing = false; let startY, startHeight;
+        els.resizerSim.addEventListener('mousedown', (e) => {
+            isResizing = true; startY = e.clientY; startHeight = els.simulatorView.offsetHeight;
+            document.body.style.cursor = 'row-resize'; document.body.style.userSelect = 'none';
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            const newHeight = startHeight - (e.clientY - startY);
+            if (newHeight > 50 && newHeight < window.innerHeight - 200) els.simulatorView.style.height = `${newHeight}px`;
+        });
+        window.addEventListener('mouseup', () => { isResizing = false; document.body.style.cursor = ''; document.body.style.userSelect = ''; });
+    }
+
+    function initDragAndDrop() {
+        const tray = els.glyphTray;
+        ['dragenter', 'dragover'].forEach(n => tray.addEventListener(n, e => { e.preventDefault(); tray.classList.add('drag-over'); }, false));
+        ['dragleave', 'drop'].forEach(n => tray.addEventListener(n, e => { e.preventDefault(); tray.classList.remove('drag-over'); }, false));
+        tray.addEventListener('drop', e => processFiles(e.dataTransfer.files), false);
+    }
+
+    async function handleFileUpload(e) {
+        await processFiles(e.target.files);
+        e.target.value = '';
+    }
+
+    function isImageFile(file) {
+        if (!file) return false;
+        if (file.type && file.type.startsWith('image/')) return true;
+        // 有些瀏覽器 / 本機拖曳 / webkitdirectory 會讓 file.type 是空字串，改用副檔名補判斷。
+        return /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name || '');
+    }
+
+    function guessCharFromFileName(file) {
+        // 支援：0.png、num_0.png、digit-0.png；資料夾匯入時改讀 basename，不受路徑影響。
+        const baseName = (file.name || '').replace(/\.[^/.]+$/, '');
+        const match = baseName.match(/([^\s_\-])$/u);
+        return match ? match[1] : '?';
+    }
+
+    async function processFiles(files) {
+        const fileList = Array.from(files || [])
+            .filter(isImageFile)
+            .sort((a, b) => {
+                const ap = a.webkitRelativePath || a.name || '';
+                const bp = b.webkitRelativePath || b.name || '';
+                return ap.localeCompare(bp, undefined, { numeric: true, sensitivity: 'base' });
+            });
+
+        if (fileList.length === 0) {
+            if (els.importStatus) els.importStatus.textContent = '沒有找到可匯入的圖片。';
+            return;
+        }
+
+        if (els.importStatus) els.importStatus.textContent = `正在匯入 ${fileList.length} 張圖片...`;
+
+        let imported = 0;
+        let failed = 0;
+
+        for (const file of fileList) {
+            try {
+                const img = await loadImage(file);
+                const charStr = guessCharFromFileName(file);
+                const charCode = charStr.charCodeAt(0);
+
+                const glyph = {
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                    img: img, char: charStr, charCode: charCode,
+                    width: img.width, height: img.height, rawTrim: { x:0, y:0, w:img.width, h:img.height },
+                    customX: state.glyphOffsets[charStr] ? state.glyphOffsets[charStr].x : 0,
+                    customY: state.glyphOffsets[charStr] ? state.glyphOffsets[charStr].y : 0,
+                    customAdvance: state.glyphWidths[charStr] || 0
+                };
+                state.glyphs.push(glyph);
+                addGlyphToTray(glyph);
+                imported++;
+
+                // 大量圖片時每 20 張刷新一次，避免瀏覽器看起來像卡住。
+                if (imported % 20 === 0) {
+                    packAndDraw(); renderPreview();
+                    await new Promise(r => requestAnimationFrame(r));
+                }
+            } catch (err) {
+                failed++;
+                console.warn(err);
+            }
+        }
+
+        packAndDraw(); renderPreview();
+        if (els.importStatus) {
+            els.importStatus.textContent = failed > 0
+                ? `已匯入 ${imported} 張，失敗 ${failed} 張。`
+                : `已匯入 ${imported} 張圖片。`;
+        }
+    }
+
+    window.saveConfig = function() {
+        state.glyphs.forEach(g => {
+            if (g.customX !== 0 || g.customY !== 0) state.glyphOffsets[g.char] = { x: g.customX, y: g.customY };
+            if ((g.customAdvance || 0) > 0) state.glyphWidths[g.char] = g.customAdvance;
+        });
+        const exportData = { config: state.config, glyphOffsets: state.glyphOffsets, glyphWidths: state.glyphWidths };
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${state.config.fontName}_config.json`; a.click();
+    };
+
+    function handleConfigLoad(e) {
+        const file = e.target.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => { 
+            try {
+                const data = JSON.parse(evt.target.result);
+                if (data.config) {
+                    state.config = { ...state.config, ...data.config };
+                    if (data.glyphOffsets) {
+                        state.glyphOffsets = data.glyphOffsets;
+                        state.glyphs.forEach(g => {
+                            if (state.glyphOffsets[g.char]) {
+                                g.customX = state.glyphOffsets[g.char].x || 0; g.customY = state.glyphOffsets[g.char].y || 0;
+                                const xInput = document.getElementById('offx-' + g.id); if(xInput) xInput.value = g.customX;
+                                const yInput = document.getElementById('offy-' + g.id); if(yInput) yInput.value = g.customY;
+                            }
+                        });
+                    }
+                    if (data.glyphWidths) {
+                        state.glyphWidths = data.glyphWidths;
+                        state.glyphs.forEach(g => {
+                            g.customAdvance = state.glyphWidths[g.char] || 0;
+                            const wInput = document.getElementById('adv-' + g.id); if(wInput) wInput.value = g.customAdvance || '';
+                        });
+                    }
+                } else { state.config = { ...state.config, ...data }; }
+                updateUIFromState(); packAndDraw(); renderPreview(); 
+            } catch (err) { alert("讀取設定檔失敗，格式不正確。"); }
+        };
+        reader.readAsText(file); e.target.value = '';
+    }
+
+    function updateUIFromState() {
+        Object.keys(els.inputs).forEach(key => {
+            const input = els.inputs[key]; if (!input) return;
+            if (input.type === 'checkbox') input.checked = state.config[key]; else input.value = state.config[key];
+        });
+    }
+    
+    function loadImage(file) {
+        return new Promise((resolve, reject) => {
+            const rd = new FileReader();
+            rd.onerror = () => reject(new Error(`讀取檔案失敗：${file.name}`));
+            rd.onload = e => {
+                const i = new Image();
+                i.onload = () => resolve(i);
+                i.onerror = () => reject(new Error(`圖片解碼失敗：${file.name}`));
+                i.src = e.target.result;
+            };
+            rd.readAsDataURL(file);
+        });
+    }
+
+    window.adjustGlyphPos = function(id, axis, delta) {
+        const glyph = state.glyphs.find(g => g.id == id);
+        if (glyph) {
+            if (axis === 'x') { glyph.customX = (glyph.customX || 0) + delta; document.getElementById('offx-' + id).value = glyph.customX; } 
+            else if (axis === 'y') { glyph.customY = (glyph.customY || 0) + delta; document.getElementById('offy-' + id).value = glyph.customY; }
+            state.glyphOffsets[glyph.char] = { x: glyph.customX, y: glyph.customY };
+            renderPreview();
+        }
+    };
+
+    window.adjustGlyphAdvance = function(id, delta) {
+        const glyph = state.glyphs.find(g => g.id == id);
+        if (!glyph) return;
+        const autoW = glyph.autoAdvance || glyph.computedTrim?.w || glyph.width || 1;
+        let current = glyph.customAdvance || autoW;
+        glyph.customAdvance = Math.max(1, Math.round(current + delta));
+        state.glyphWidths[glyph.char] = glyph.customAdvance;
+        const input = document.getElementById('adv-' + id); if (input) input.value = glyph.customAdvance;
+        packAndDraw(); renderPreview();
+    };
+
+    window.resetGlyphAdvance = function(id) {
+        const glyph = state.glyphs.find(g => g.id == id);
+        if (!glyph) return;
+        glyph.customAdvance = 0;
+        delete state.glyphWidths[glyph.char];
+        const input = document.getElementById('adv-' + id); if (input) input.value = '';
+        packAndDraw(); renderPreview();
+    };
+
+    function addGlyphToTray(glyph) {
+        const div = document.createElement('div'); div.className = 'glyph-card'; div.id = 'g-'+glyph.id;
+        div.innerHTML = `<div class="remove-btn" onclick="removeGlyph('${glyph.id}')">×</div>
+            <div class="glyph-preview"><img src="${glyph.img.src}"></div>
+            <div style="display:flex; flex-direction:column; gap:4px; margin-top:4px;">
+                <div style="display:flex; align-items:center; background:#111; border:1px solid #333; border-radius:3px; padding:2px;">
+                    <span style="font-size:10px; color:#888; margin:0 2px; width: 14px; text-align: center; font-weight:bold;">字</span>
+                    <input class="glyph-input" value="${glyph.char}" maxlength="1" onfocus="this.select()" style="flex:1; width:100%; min-width:0; background:none; border:none; color:#fff; text-align:center;">
+                </div>
+                <div style="display:flex; align-items:center; background:#111; border:1px solid #333; border-radius:3px; padding:2px; gap:2px;">
+                    <span style="font-size:10px; color:#3794ff; margin:0 2px; width: 14px; text-align: center; font-weight:bold;">X</span>
+                    <button class="mini-btn" onclick="adjustGlyphPos('${glyph.id}', 'x', -1)" title="向左微調">◀</button>
+                    <input type="number" id="offx-${glyph.id}" class="glyph-x-off" value="${glyph.customX || 0}" title="X軸偏移量 (左右移動)" style="flex:1 1 42px; width:42px; min-width:42px; background:none; border:none; color:#fff; text-align:center; font-size:11px;">
+                    <button class="mini-btn" onclick="adjustGlyphPos('${glyph.id}', 'x', 1)" title="向右微調">▶</button>
+                </div>
+                <div style="display:flex; align-items:center; background:#111; border:1px solid #333; border-radius:3px; padding:2px; gap:2px;">
+                    <span style="font-size:10px; color:#4caf50; margin:0 2px; width: 14px; text-align: center; font-weight:bold;">Y</span>
+                    <button class="mini-btn" onclick="adjustGlyphPos('${glyph.id}', 'y', -1)" title="向上微調">▲</button>
+                    <input type="number" id="offy-${glyph.id}" class="glyph-y-off" value="${glyph.customY || 0}" title="Y軸偏移量 (上下移動)" style="flex:1 1 42px; width:42px; min-width:42px; background:none; border:none; color:#fff; text-align:center; font-size:11px;">
+                    <button class="mini-btn" onclick="adjustGlyphPos('${glyph.id}', 'y', 1)" title="向下微調">▼</button>
+                </div>
+                <div style="display:flex; align-items:center; background:#111; border:1px solid #333; border-radius:3px; padding:2px; gap:2px;">
+                    <span style="font-size:10px; color:#ffca28; margin:0 2px; width: 14px; text-align: center; font-weight:bold;">W</span>
+                    <button class="mini-btn" onclick="adjustGlyphAdvance('${glyph.id}', -1)" title="字寬減少 1px">－</button>
+                    <input type="number" id="adv-${glyph.id}" class="glyph-advance" value="${glyph.customAdvance || ''}" placeholder="Auto" title="字寬 / xadvance：控制下一個字的起始位置。留空或 0 = 自動" style="flex:1 1 58px; width:58px; min-width:58px; background:none; border:none; color:#fff; text-align:center; font-size:11px;">
+                    <button class="mini-btn" onclick="adjustGlyphAdvance('${glyph.id}', 1)" title="字寬增加 1px">＋</button>
+                    <button class="mini-btn" onclick="resetGlyphAdvance('${glyph.id}')" title="恢復自動字寬">A</button>
+                </div>
+            </div>`;
+        div.querySelector('.glyph-input').addEventListener('input', e => {
+            if(e.target.value) {
+                glyph.char = e.target.value; glyph.charCode = e.target.value.charCodeAt(0);
+                glyph.customAdvance = state.glyphWidths[glyph.char] || glyph.customAdvance || 0;
+                const wInput = document.getElementById('adv-' + glyph.id); if(wInput) wInput.value = glyph.customAdvance || '';
+                packAndDraw(); renderPreview();
+            }
+        });
+        div.querySelector('.glyph-x-off').addEventListener('input', e => { glyph.customX = parseInt(e.target.value) || 0; state.glyphOffsets[glyph.char] = { x: glyph.customX, y: glyph.customY }; renderPreview(); });
+        div.querySelector('.glyph-y-off').addEventListener('input', e => { glyph.customY = parseInt(e.target.value) || 0; state.glyphOffsets[glyph.char] = { x: glyph.customX, y: glyph.customY }; renderPreview(); });
+        div.querySelector('.glyph-advance').addEventListener('input', e => {
+            const v = parseInt(e.target.value);
+            glyph.customAdvance = (!isNaN(v) && v > 0) ? v : 0;
+            if (glyph.customAdvance > 0) state.glyphWidths[glyph.char] = glyph.customAdvance;
+            else delete state.glyphWidths[glyph.char];
+            packAndDraw(); renderPreview();
+        });
+        els.glyphTray.appendChild(div);
+    }
+    window.removeGlyph = function(id) { state.glyphs = state.glyphs.filter(g => g.id != id); document.getElementById('g-'+id)?.remove(); packAndDraw(); renderPreview(); };
+    window.clearAll = function() { state.glyphs = []; els.glyphTray.innerHTML = '<div class="drag-hint">放開滑鼠以加入圖片</div>'; packAndDraw(); renderPreview(); };
+
+    function calculateRawTrim(img) {
+        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+        const cx = c.getContext('2d'); cx.drawImage(img,0,0);
+        const d = cx.getImageData(0,0,img.width,img.height).data;
+        let t=null, b=null, l=null, r=null;
+        for(let i=0; i<d.length; i+=4) {
+            if(d[i+3]>0) {
+                const x = (i/4)%img.width, y = Math.floor((i/4)/img.width);
+                if(t===null) t=y; if(b===null||y>b) b=y; if(l===null||x<l) l=x; if(r===null||x>r) r=x;
+            }
+        }
+        return t===null ? {x:0,y:0,w:0,h:0,empty:true} : {x:l,y:t,w:r-l+1,h:b-t+1,empty:false};
+    }
+    function isDigit(code) { return code >= 48 && code <= 57; }
+
+    // 🌟 核心計算引擎重構：獨立處理 X 與 Y 的裁切邏輯
+    function packAndDraw() {
+        if(!state.glyphs.length) { els.mainCtx.clearRect(0,0,els.mainCanvas.width,els.mainCanvas.height); els.atlasSizeDisplay.textContent = "0 x 0"; return; }
+        const scale = parseFloat(state.config.exportScale) || 1.0;
+
+        let globalMinY = Infinity; let maxImgH = 0; 
+        
+        // 1. 計算原始邊界
+        state.glyphs.forEach(g => {
+            if (g.height > maxImgH) maxImgH = g.height;
+            g.rawTrim = calculateRawTrim(g.img);
+            if (g.rawTrim.empty) g.rawTrim = {x:0, y:0, w:0, h:0, empty:true};
+        });
+
+        // 2. 套用 XY 獨立裁切邏輯
+        state.glyphs.forEach(g => {
+            let cx = g.rawTrim.x, cy = g.rawTrim.y, cw = g.rawTrim.w, ch = g.rawTrim.h;
+            
+            if (!state.config.trim) {
+                cx = 0; cy = 0; cw = g.width; ch = g.height;
+            } else if (state.config.keepYBounds) {
+                // 🌟 只裁切 X，保留原圖完整的 Y 軸邊界以修復 Unity 置中
+                cy = 0; ch = g.height;
+            }
+            
+            g.computedTrim = { x: cx, y: cy, w: cw, h: ch, empty: g.rawTrim.empty };
+            if (!g.computedTrim.empty && g.computedTrim.y < globalMinY) {
+                globalMinY = g.computedTrim.y;
+            }
+        });
+
+        state.globalMinY = globalMinY === Infinity ? 0 : globalMinY;
+        state.maxImgH = maxImgH;
+
+        let commaTargetWidth = 0;
+        if (state.config.fixPunctuation) {
+            const comma = state.glyphs.find(g => g.charCode === 44);
+            if (comma && !comma.computedTrim.empty) commaTargetWidth = comma.computedTrim.w;
+        }
+
+        let maxNumberWidth = 0;
+        if (state.config.monospaceNum) {
+            state.glyphs.forEach(g => {
+                if (isDigit(g.charCode) && !g.computedTrim.empty && g.computedTrim.w > maxNumberWidth) {
+                    maxNumberWidth = g.computedTrim.w;
+                }
+            });
+        }
+
+        let maxDrawH = 0;
+        state.glyphs.forEach(g => { if (!g.computedTrim.empty && g.computedTrim.h > maxDrawH) maxDrawH = g.computedTrim.h; });
+        state.groupOffsetY = state.config.groupCenter ? Math.floor((state.config.lineHeight - maxDrawH) / 2) : 0;
+
+        // 3. 精算最終偏移與佔位
+        state.glyphs.forEach(g => {
+            let oy = g.computedTrim.y;
+            let advance = g.computedTrim.w;
+            let drawW = g.computedTrim.w;
+            let drawH = g.computedTrim.h;
+            let xOffsetAdj = 0;
+
+            if (state.config.trim && state.config.unifiedTop && !g.computedTrim.empty) {
+                oy = g.computedTrim.y - state.globalMinY;
+            }
+
+            if (state.config.monospaceNum && isDigit(g.charCode)) {
+                let extra = maxNumberWidth - drawW;
+                if (extra > 0) xOffsetAdj += Math.floor(extra / 2);
+                advance = maxNumberWidth;
+            }
+
+            if (state.config.fixPunctuation && commaTargetWidth > 0 && g.charCode === 46) {
+                let extra = commaTargetWidth - drawW;
+                if (extra > 0) xOffsetAdj += Math.floor(extra / 2);
+                advance = commaTargetWidth;
+            }
+
+            let customXOffset = g.customX || 0;
+            let customYOffset = g.customY || 0;
+            let globalYAdjust = state.config.yOffsetAdjust || 0;
+
+            g.autoAdvance = Math.max(1, Math.round(advance));
+            const hasCustomAdvance = (g.customAdvance && g.customAdvance > 0);
+            const finalAdvance = hasCustomAdvance ? g.customAdvance : g.autoAdvance;
+
+            // W 字寬調整時，讓字圖保持在新寬度中央。
+            // 例如自動寬 40 改成 60，左右各補 10；改成 30，左右各縮 5。
+            if (hasCustomAdvance) {
+                xOffsetAdj += (finalAdvance - g.autoAdvance) / 2;
+            }
+
+            g.exW = Math.round(finalAdvance * scale); 
+            g.exDrawW = Math.round(drawW * scale); 
+            g.exDrawH = Math.round(drawH * scale); 
+            
+            // 🔥 完美還原 X 軸裁切間距 + 自訂字寬置中補償
+            g.exOffX = Math.round((xOffsetAdj + customXOffset) * scale); 
+            g.exOffY = Math.round((oy + state.groupOffsetY + globalYAdjust + customYOffset) * scale); 
+            
+            g.packW = g.exDrawW + state.config.padding; 
+            g.packH = g.exDrawH + state.config.padding;
+        });
+
+        const list = [...state.glyphs].sort((a,b)=>b.packH-a.packH);
+        let finalW = 0, finalH = 0;
+
+        if (state.config.powerOfTwo || state.config.forceSquare) {
+            let bestArea = Infinity; let bestPack = null; let testWidths = [];
+            if (state.config.powerOfTwo) testWidths = [32, 64, 128, 256, 512, 1024, 2048, 4096];
+            else {
+                let minW = list.length ? Math.max(...list.map(g => g.exDrawW)) + state.config.padding * 2 : 128;
+                let maxW = list.reduce((sum, g) => sum + g.exDrawW + state.config.padding, state.config.padding);
+                for(let w = minW; w <= maxW; w += 32) testWidths.push(w); testWidths.push(maxW);
+            }
+
+            for (let testW of testWidths) {
+                let cx = state.config.padding, cy = state.config.padding, rh = 0, actualW = state.config.padding;
+                let rects = []; let canFit = true;
+
+                for (let g of list) {
+                    if (g.computedTrim.empty) { rects.push({x:0, y:0, w:0, h:0, g:g}); continue; }
+                    let iw = g.exDrawW, ih = g.exDrawH; 
+                    if (iw + state.config.padding * 2 > testW) { canFit = false; break; }
+                    if (cx + iw + state.config.padding > testW && cx > state.config.padding) { cx = state.config.padding; cy += rh + state.config.padding; rh = 0; }
+                    rects.push({x: cx, y: cy, w: iw, h: ih, g: g}); cx += iw + state.config.padding;
+                    if (cx > actualW) actualW = cx; if (ih > rh) rh = ih;
+                }
+                if (!canFit) continue;
+
+                let simH = cy + rh + state.config.padding; let containerW = testW; let containerH = simH;
+                if (state.config.powerOfTwo) containerH = Math.pow(2, Math.ceil(Math.log2(Math.max(1, simH))));
+                if (state.config.forceSquare) { let maxDim = Math.max(containerW, containerH); if (state.config.powerOfTwo) maxDim = Math.pow(2, Math.ceil(Math.log2(maxDim))); containerW = maxDim; containerH = maxDim; }
+                let score = state.config.forceSquare ? containerW : (containerW * containerH);
+                if (score < bestArea) { bestArea = score; bestPack = { w: containerW, h: containerH, rects: rects }; }
+            }
+            finalW = bestPack.w; finalH = bestPack.h; bestPack.rects.forEach(r => { r.g.rect = {x: r.x, y: r.y, w: r.w, h: r.h}; });
+        } else {
+            const maxW = state.config.maxWidth; let cX = state.config.padding, cY = state.config.padding, rH = 0, actualMaxW = state.config.padding; 
+            list.forEach(g => {
+                if(g.computedTrim.empty) { g.rect={x:0,y:0,w:0,h:0}; return; }
+                if(cX + g.exDrawW + state.config.padding > maxW && cX > state.config.padding) { cX = state.config.padding; cY += rH + state.config.padding; rH = 0; }
+                g.rect = {x: cX, y: cY, w: g.exDrawW, h: g.exDrawH}; cX += g.exDrawW + state.config.padding;
+                if (cX > actualMaxW) actualMaxW = cX; if(g.exDrawH > rH) rH = g.exDrawH;
+            });
+            finalW = actualMaxW; finalH = cY + rH + state.config.padding;
+        }
+
+        els.mainCanvas.width = finalW; els.mainCanvas.height = finalH; els.atlasSizeDisplay.textContent = `${finalW} x ${finalH}`; els.mainCtx.clearRect(0,0,finalW,finalH);
+
+        state.glyphs.forEach(g => {
+            if(!g.computedTrim.empty) {
+                els.mainCtx.drawImage(g.img, g.computedTrim.x, g.computedTrim.y, g.computedTrim.w, g.computedTrim.h, g.rect.x, g.rect.y, g.exDrawW, g.exDrawH);
+            }
+        });
+    }
+
+    function renderPreview() {
+        const ctx = els.previewCtx; const cvs = els.previewCanvas; 
+        const text = state.config.previewText || ""; 
+        const scale = parseFloat(state.config.exportScale) || 1.0; 
+        const lh = Math.round(state.config.lineHeight * scale);
+        const extraSpace = parseInt(state.config.simSpacing) || 0; 
+        const showMissing = state.config.simShowMissingGaps; 
+
+        const bgScale = parseFloat(state.config.simBgScale) || 1.0;
+        const bgOpacity = parseFloat(state.config.simBgOpacity) || 0.6;
+        const missingGapW = Math.round(30 * scale); 
+
+        let totalW = 0;
+        for(let char of text) {
+            const g = state.glyphs.find(gl => gl.char === char);
+            if (g && !g.computedTrim.empty) totalW += g.exW + extraSpace; 
+            else if (showMissing) totalW += missingGapW + extraSpace; 
+        }
+        if (text.length > 0 && totalW > 0) totalW -= extraSpace; 
+
+        let bgW = state.simBgImage ? state.simBgImage.width * bgScale : 0;
+        let bgH = state.simBgImage ? state.simBgImage.height * bgScale : 0;
+        
+        cvs.width = Math.max(800, totalW + 200, bgW); 
+        cvs.height = Math.max(lh * 3, 300, bgH);
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+        const cx = cvs.width / 2; const cy = cvs.height / 2;
+
+        if (state.simBgImage) {
+            ctx.globalAlpha = bgOpacity; 
+            ctx.drawImage(state.simBgImage, cx - bgW/2 + state.config.simBgPanX, cy - bgH/2 + state.config.simBgPanY, bgW, bgH);
+            ctx.globalAlpha = 1.0;
+        }
+
+        const baselineY = cy - lh / 2; const startX = cx - totalW / 2;
+        
+        ctx.fillStyle = "rgba(55, 148, 255, 0.1)"; ctx.strokeStyle = "#3794ff"; ctx.lineWidth = 1;
+        ctx.fillRect(startX, baselineY, totalW, lh); ctx.strokeRect(startX, baselineY, totalW, lh);
+        ctx.beginPath(); ctx.moveTo(startX, baselineY + lh/2); ctx.lineTo(startX + totalW, baselineY + lh/2); ctx.strokeStyle = "#ff4d4f"; ctx.stroke();
+
+        let cursorX = startX;
+        for (let char of text) {
+            const g = state.glyphs.find(gl => gl.char === char);
+            
+            if (!g || g.computedTrim.empty) {
+                if (showMissing) {
+                    ctx.strokeStyle = "rgba(255, 77, 79, 0.5)"; ctx.setLineDash([4, 4]);
+                    ctx.strokeRect(cursorX, baselineY, missingGapW, lh); ctx.setLineDash([]); 
+                    ctx.fillStyle = "rgba(255, 77, 79, 0.5)"; ctx.font = `bold ${Math.round(16 * scale)}px sans-serif`;
+                    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                    ctx.fillText("?", cursorX + missingGapW/2, baselineY + lh/2);
+                    cursorX += missingGapW + extraSpace; 
+                }
+                continue; 
+            }
+
+            const drawY = baselineY + g.exOffY;
+            ctx.drawImage(g.img, g.computedTrim.x, g.computedTrim.y, g.computedTrim.w, g.computedTrim.h, cursorX + g.exOffX, drawY, g.exDrawW, g.exDrawH);
+            
+            ctx.strokeStyle = "rgba(0, 255, 0, 0.3)"; ctx.strokeRect(cursorX + g.exOffX, drawY, g.exDrawW, g.exDrawH); 
+            cursorX += g.exW + extraSpace; 
+        }
+    }
+
+    async function exportZip() {
+        if(!state.glyphs.length) { alert("無資料"); return; }
+        const c = state.config; const scale = parseFloat(c.exportScale) || 1.0; 
+        const scaledFontSize = c.lockInfoSize ? c.fontSize : Math.round(c.fontSize * scale);
+        const scaledLineHeight = Math.round(c.lineHeight * scale); 
+        const finalName = c.fontName.trim().replace(/[^a-zA-Z0-9_\-]/g, '_');
+        const w = els.mainCanvas.width; const h = els.mainCanvas.height; 
+        
+        let trueBase = Math.round((state.groupOffsetY + state.maxImgH) * scale);
+        if (state.config.trim && state.config.keepYBounds) {
+            trueBase = Math.round(c.lineHeight * scale);
+        }
+
+        const validGlyphs = state.glyphs.filter(g => !g.computedTrim.empty);
+
+        let fnt = `info face="${finalName}" size=${scaledFontSize} bold=0 italic=0 charset="" unicode=1 stretchH=100 smooth=1 aa=1 padding=0,0,0,0 spacing=1,1\n`;
+        fnt += `common lineHeight=${scaledLineHeight} base=${trueBase} scaleW=${w} scaleH=${h} pages=1 packed=0\n`;
+        fnt += `page id=0 file="${finalName}.png"\nchars count=${validGlyphs.length}\n`; 
+
+        validGlyphs.forEach(g => {
+            fnt += `char id=${g.charCode} x=${g.rect.x} y=${g.rect.y} width=${g.exDrawW} height=${g.exDrawH} xoffset=${g.exOffX} yoffset=${g.exOffY} xadvance=${g.exW} page=0 chnl=15\n`;
+        });
+
+        const zip = new JSZip(); zip.file(`${finalName}.fnt`, fnt);
+        const pngBlob = await new Promise(r => els.mainCanvas.toBlob(r)); zip.file(`${finalName}.png`, pngBlob);
+        const content = await zip.generateAsync({type:"blob"});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(content); a.download = `${finalName}.zip`; a.click();
+    }
+
+    init();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,14 @@
+
+BMFontRainbowArtistShaderGUI.cs丟入專案內可以用簡易控制彩虹SHADER
+
+如果希望每個數字顏色同步
+需要在數字外層掛上BMFontUv2Filler.cs
+
+並在鏡頭canvas的設定上打開TexCoord2
+到「顯示這串 BMFont 數字的那個 Canvas」上：
+
+Canvas → Additional Shader Channels
+
+勾選 TexCoord1
+
+勾選 TexCoord2

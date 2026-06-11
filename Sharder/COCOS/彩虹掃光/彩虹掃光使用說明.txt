@@ -1,0 +1,122 @@
+本 Shader 專為高品質 2D 遊戲 UI 與特效字體設計，支援「底層彩虹流動」與「上層高光掃掠」雙重效果並存。具備強大的 BMFont 支援、外框保護及單字分割功能，特別適合用於 Jackpot 數字跳動、Big Win 標題等華麗展演。
+
+🚀 快速上手 (Quick Start)
+在 Cocos Creator 的 Assets 面板按右鍵 -> Create -> Shader -> Effect，將程式碼貼入並存檔。
+對著該 Effect 右鍵 -> Create Material 生成材質球。
+將材質球拖曳到 Sprite 或 Label 的 CustomMaterial 欄位。
+
+【重要】 在材質球右側面板的 Macro (巨集) 區塊，務必勾選 USE_TEXTURE，否則圖片或字體會變成一塊實心方塊。
+
+⚙️ 核心功能模組 (巨集 Macros)
+在材質球面板的上方，透過勾選巨集來開啟/關閉功能（關閉的功能完全不消耗效能）：
+
+USE_TEXTURE: 必勾。讀取原始圖片或字體的透明度與顏色。
+
+USE_MASK: 啟用自訂遮罩。勾選後需在下方 MaskTexture 放入遮罩圖（支援黑白圖或透明去背圖）。
+
+USE_SEAMLESS: 無縫循環模式。讓彩虹首尾相連，沒有黑色空隙。
+
+USE_SOLID_FLOW: 實體覆蓋模式。將彩虹從「發光疊加」改為「實體顏色像貼紙般蓋住原圖」。
+
+USE_SWEEP_FLOW: 啟用一般掃光。在彩虹上方疊加第二層獨立的高光掃掠效果。
+
+USE_BMFONT: BMFont 字體模式。若套用於使用了圖集 (SpriteAtlas) 或位圖字體 (BMFont) 的 Label，請務必勾選，確保流光能連續橫跨整個字串。
+
+PROTECT_OUTLINE: 外框保護。自動偵測原圖的暗部邊緣（如黑色描邊），讓彩虹與掃光不會覆蓋到外框。
+
+SPLIT_PER_CHAR: 單字分割。強制將流光依據指定的像素寬度切斷，讓長字串中的每個字（如 7、7、7）各自擁有獨立同步的流光。
+
+🎛️ 參數調整指南 (Properties)
+
+1. 彩虹流光 (Rainbow Flow)
+
+控制底層彩虹的動態與色彩分布。
+
+Flow Angle: 彩虹傾斜角度 (0~360度)。
+
+Flow Speed: 彩虹流動速度。可設負數反向流動。
+
+Flow Width:
+
+未勾選 Seamless 時：控制單條彩虹的光束寬度。
+
+勾選 Seamless 時：變成密度縮放。數值越小，彩虹條紋越密集。
+
+Light Intensity: 彩虹的亮度。若開啟實體模式 (USE_SOLID_FLOW)，此值代表覆蓋的不透明度 (0.0~1.0)。
+
+Color Bias (色彩偏向): 調整彩虹的色彩比例。設定小於 1 (例如 0.7) 可以拉寬黃色與紅色的顯示範圍；大於 1 則會拉寬藍紫色。
+
+
+彩虹模式
+彩虹模式
+0 = 直線
+1 = 放射
+2 = 環繞
+3 = 螺旋
+新增控制項
+流動中心 X
+流動中心 Y
+放射密度
+環繞密度
+螺旋扭曲
+
+
+2. 一般掃光 (Sweep Flow)
+
+需先勾選 USE_SWEEP_FLOW。
+
+Sweep Color: 掃光顏色（預設純白）。
+
+Sweep Angle & Speed: 掃光的角度與速度，通常速度設定比彩虹快，創造層次感。
+
+Sweep Width: 掃光的核心寬度。
+
+Sweep Intensity: 掃光的發亮強度。
+
+Sweep Softness (柔和度): 控制掃光邊緣的擴散程度。
+
+超級柔邊 (光暈)：請設定小於 1 的數值（如 0.2 ~ 0.5），並搭配較大的 Width。
+
+銳利光線 (金屬反光)：請設定大於 1 的數值（如 3.0 ~ 5.0）。
+
+
+
+3. 進階控制 (Advanced Controls)
+
+Bmfont Scale: (需勾選 USE_BMFONT)。用來校準字體的像素尺寸，預設 0.01。若發現彩虹太密，將值調小 (如 0.005)；太寬則調大。
+
+Outline Threshold: (需勾選 PROTECT_OUTLINE)。外框保護的灰階閥值 (0.0~1.0)。值越大，受到保護不被光蓋住的範圍越多。預設 0.5 適用於多數黑色描邊。
+
+Char Width: (需勾選 SPLIT_PER_CHAR)。輸入單一個字元的平均像素寬度。Shader 會依據此寬度切斷流光空間。(註：若字串包含寬度差異極大的標點符號如逗號，建議關閉此功能，改用拉寬整條彩虹的方式)。
+
+📝 實戰特效配方 (Recipes)
+
+配方 A：大獎跳字「無縫實體彩虹」 (類似 777 滿版彩虹)
+適合用在重要大獎的數字或標題，讓整個字體呈現華麗的漸層飽和色彩。
+
+勾選: USE_TEXTURE, USE_SEAMLESS, USE_SOLID_FLOW
+
+參數:
+
+Flow Width: 0.5 (若字體很大可調至 1.0)
+
+Light Intensity: 1.0 (完全覆蓋原字體顏色)
+
+Color Bias: 0.75 (讓黃色帶看起來更豐滿飽和)
+
+(若有黑框) 勾選 PROTECT_OUTLINE，讓黑邊完美保留。
+
+配方 B：金屬字體「高質感雙層光效」
+字體本身帶有金屬材質，底層有微弱彩虹光澤，表面時不時刷過一道極亮白光。
+
+勾選: USE_TEXTURE, USE_SWEEP_FLOW (不要勾 Solid Flow，保留發光疊加感)
+
+彩虹參數: Light Intensity 調低至 0.5，讓彩虹變成若隱若現的底光。
+
+掃光參數:
+
+Sweep Speed: 3.0 (快速閃過)
+
+Sweep Width: 0.6 (稍微拉寬物理空間)
+
+Sweep Softness: 0.2 (極致柔邊，創造漂亮的高光暈開效果)

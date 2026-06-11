@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+
+manager/.venv/
+manager/build/
+manager/dist/
+manager/*.spec
+manager/config.json
+
+.DS_Store
+Thumbs.db

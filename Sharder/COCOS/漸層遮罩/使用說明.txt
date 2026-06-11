@@ -1,0 +1,5 @@
+SoftMaskDirectMaterialDriver.ts掛在PREFAB最外層
+指定遮罩的材質球即可
+注意
+被指定為遮罩的圖片
+需要將他的基本設定中Packable的勾勾取消

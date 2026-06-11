@@ -1,0 +1,5 @@
+如果要將SPINE串接工具導出對應的ANIMATION丟入COCOS
+
+1.在 Cocos 3.8 裡，sp.Skeleton 本身並不自帶快速的全局透明度屬性。當你把匯出的 .anim 丟進去並播放時，請記得要在該節點上點擊「Add Component」並加入 UIOpacity 組件，動畫的淡入淡出效果才會生效！
+
+2.SpineTimelineHook.ts跟產出的動畫檔都要掛在對應的SPINE檔案上

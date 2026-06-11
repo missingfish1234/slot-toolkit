@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>老虎機美術視覺模擬器 (v37.5 - 修正模糊層消失時序)</title>
+    <style>
+        :root {
+            --primary-color: #ffb74d;
+            --bg-dark: #121212;
+            --panel-bg: #1e1e1e;
+            --border-color: #333;
+            --text-main: #e0e0e0;
+            --text-dim: #aaa;
+            
+            /* Slot Vars */
+            --reel-count: 5;
+            --row-count: 6; 
+            --symbol-width: 100px;
+            --symbol-height: 100px;
+            --symbol-gap: 10px;
+            --mask-width: 600px;
+            --mask-height: 650px;
+            --offset-x: -300px;
+            --offset-y: -325px;
+            --global-scale: 0.8;
+            
+            /* Pan Vars */
+            --pan-x: 0px;
+            --pan-y: 0px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #svg-filters { position: absolute; width: 0; height: 0; pointer-events: none; }
+
+        /* === UI Styling === */
+        .top-bar {
+            height: 50px; background: #252525; border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; padding: 0 20px; gap: 20px; flex-shrink: 0; 
+            position: relative; z-index: 10000; 
+        }
+        .app-title { font-weight: bold; color: var(--primary-color); font-size: 16px; margin-right: auto; }
+        .top-control { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-dim); }
+        .top-control input[type="range"] { width: 100px; margin: 0; }
+        .top-control input[type="number"] { 
+            width: 50px; background: #333; border: 1px solid #555; color: #fff; 
+            border-radius: 3px; padding: 2px; font-size: 12px; text-align: center;
+        }
+        .top-control input[type="checkbox"] { margin: 0; cursor: pointer; }
+        .top-control label { cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        .top-control label:hover { color: #fff; }
+        
+        .btn-reset-view {
+            background: #333; border: 1px solid #555; color: #fff; padding: 2px 8px; 
+            border-radius: 3px; cursor: pointer; font-size: 11px; margin-left: 5px;
+        }
+        .btn-reset-view:hover { background: #555; }
+
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+
+        /* === Sidebar & Layout Optimization === */
+        .sidebar {
+            width: 400px; /* 稍微加寬以容納更多資訊 */
+            background: #1e1e1e;
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 9000;
+            box-shadow: 5px 0 15px rgba(0,0,0,0.3);
+        }
+
+        /* 現代化 Scrollbar */
+        .tabs-content::-webkit-scrollbar { width: 6px; }
+        .tabs-content::-webkit-scrollbar-track { background: #1a1a1a; }
+        .tabs-content::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+        .tabs-content::-webkit-scrollbar-thumb:hover { background: #666; }
+
+        /* Tabs 優化 */
+        .tabs-header {
+            display: flex;
+            background: #181818;
+            padding: 5px 5px 0 5px;
+            border-bottom: 1px solid #333;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px 0;
+            background: transparent;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            position: relative;
+            transition: all 0.3s ease;
+            border-radius: 5px 5px 0 0;
+        }
+        .tab-btn:hover { color: #ccc; background: rgba(255,255,255,0.05); }
+        .tab-btn.active {
+            color: var(--primary-color);
+            background: #252525;
+            border-bottom: 2px solid var(--primary-color);
+        }
+        .tab-btn.active::after {
+            content: ''; position: absolute; bottom: -2px; left: 0; width: 100%; height: 2px;
+            background: var(--primary-color); box-shadow: 0 -2px 8px rgba(255, 183, 77, 0.4);
+        }
+
+        /* 內容區域 */
+        .tabs-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #252525; /*稍微亮一點的背景區分層次*/
+        }
+        
+        /* === 補上這段：分頁切換邏輯 === */
+        .tab-pane {
+            display: none; /* 預設隱藏所有分頁 */
+            animation: fadeIn 0.3s ease; /* 加入淡入動畫 */
+        }
+
+        .tab-pane.active {
+            display: block; /* 只有加上 active 類別的才顯示 */
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 控制群組卡片化 */
+        .control-group {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .control-group h3 {
+            margin: 0 0 12px 0;
+            font-size: 12px;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .control-group h3::before {
+            content: ''; display: block; width: 3px; height: 12px; background: var(--primary-color); border-radius: 2px;
+        }
+
+        /* 輸入控制項優化 */
+        .input-row {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .input-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #bbb;
+        }
+
+        /* 自定義滑桿容器 */
+        .input-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            background: #2a2a2a;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #3a3a3a;
+        }
+        .input-controls:focus-within { border-color: #555; }
+
+        /* 自定義 Range Slider */
+        input[type=range] {
+            flex: 1;
+            -webkit-appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; background: #444; border-radius: 2px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px; width: 16px; border-radius: 50%;
+            background: #fff; margin-top: -6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+            transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); background: var(--primary-color); }
+
+        /* 數值輸入框 */
+        .input-controls input[type="number"] {
+            width: 50px;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+            text-align: right;
+            padding: 0;
+        }
+        .input-controls input[type="number"]:focus { outline: none; color: var(--primary-color); }
+
+        /* 下拉選單 */
+        select.style-select {
+            width: 100%;
+            background: #2a2a2a;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            outline: none;
+        }
+        select.style-select:hover { border-color: #666; }
+
+        /* 圖片列表優化 */
+        .image-list {
+            background: #181818;
+            border: 1px solid #333;
+            padding: 8px;
+            border-radius: 6px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .img-item {
+            display: flex;
+            align-items: center;
+            background: #252525;
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            border: 1px solid #333;
+            transition: background 0.2s;
+        }
+        .img-item:hover { background: #2f2f2f; border-color: #444; }
+        .img-thumb {
+            width: 48px; height: 48px;
+            object-fit: contain;
+            background: #000;
+            border-radius: 4px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        .img-details { flex: 1; min-width: 0; }
+        .img-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .span-select {
+            background: #111; color: #aaa; border: 1px solid #333;
+            padding: 2px 5px; font-size: 11px; border-radius: 3px; width: auto; display: inline-block;
+        }
+
+        /* 固定底部 Footer */
+        .sidebar-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #333;
+            background: #1e1e1e;
+            z-index: 10;
+            box-shadow: 0 -5px 10px rgba(0,0,0,0.1);
+        }
+
+        .spin-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #ffa726 0%, #fb8c00 100%);
+            border: none;
+            color: #000;
+            font-weight: 800;
+            font-size: 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
+            transition: all 0.1s;
+            position: relative; overflow: hidden;
+        }
+        .spin-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .spin-btn:active { transform: translateY(1px); box-shadow: 0 2px 5px rgba(255, 152, 0, 0.4); }
+        .spin-btn:disabled { background: #333; color: #555; box-shadow: none; cursor: not-allowed; }
+
+        /* 按鈕群組化 */
+        .btn-group-row { display: flex; gap: 8px; margin-bottom: 10px; }
+        .btn-small {
+            flex: 1; padding: 10px; font-size: 12px;
+            background: #333; border: none; color: #ccc;
+            border-radius: 4px; font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-small:hover { background: #444; color: #fff; }
+        .spin-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #f57c00; }
+        .spin-btn:disabled { background: #555; color: #888; box-shadow: none; cursor: not-allowed; transform: none; }
+        
+        .reset-btn { width: 100%; background: transparent; border: none; color: #666; font-size: 12px; margin-top: 8px; cursor: pointer; }
+        .reset-btn:hover { color: #999; }
+        .sys-btn { width: 100%; padding: 10px; margin-bottom: 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .btn-save { background: #42a5f5; color: #fff; }
+        .btn-load { background: #66bb6a; color: #fff; }
+        .btn-export { background: #333; color: #ddd; border: 1px solid #555; }
+        
+        .btn-auto-fit {
+            width: 100%; background: linear-gradient(45deg, #ffb74d, #ff9800); 
+            border: none; color: #000; font-weight: bold; padding: 10px; 
+            border-radius: 4px; cursor: pointer; margin-bottom: 10px;
+            font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .btn-auto-fit:hover { filter: brightness(1.1); }
+
+        .stage {
+            flex: 1; display: flex; justify-content: center; align-items: center;
+            position: relative; background-image: radial-gradient(#333 1px, transparent 1px);
+            background-size: 20px 20px; overflow: hidden; cursor: grab;
+        }
+        .stage:active { cursor: grabbing; }
+
+        .slot-wrapper {
+            position: relative; display: flex; justify-content: center; align-items: center;
+            transform: translate(var(--pan-x), var(--pan-y)) scale(var(--global-scale)); 
+            transform-origin: center center; will-change: transform;
+        }
+        .ui-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 1; max-width: none; }
+        .ui-overlay.front { z-index: 4000; }
+        
+        .viewport {
+            width: var(--mask-width); height: var(--mask-height); 
+            overflow: hidden; 
+            border: 2px dashed #ff5722; position: absolute; top: 50%; left: 50%;
+            transform: translate(var(--offset-x), calc(-100% - var(--offset-y)));
+            display: flex; justify-content: center; z-index: 10; box-sizing: content-box;
+            background: rgba(0,0,0,0.2);
+            align-items: flex-end; 
+        }
+        .viewport.noborder { border: none; background: transparent; }
+        
+        .reels-container { display: flex; gap: var(--symbol-gap); height: 100%; }
+        .reel { width: var(--symbol-width); height: 100%; position: relative; }
+        .reel-strip {
+            display: flex; flex-direction: column; gap: var(--symbol-gap); width: 100%;
+            transform: translateY(0); flex-shrink: 0;
+            z-index: 1; 
+        }
+        
+        .symbol {
+            width: var(--symbol-width); height: var(--symbol-height); background: #2c2c2c;
+            border: 1px solid rgba(255,255,255,0.1); box-sizing: border-box;
+            display: flex; align-items: flex-start; 
+            justify-content: center; position: relative; overflow: visible;
+            flex-shrink: 0; 
+        }
+        .symbol.is-placeholder { z-index: -1000 !important; background: transparent !important; border: none !important; opacity: 0 !important; }
+        .hide-bg .symbol { background: transparent !important; border: none !important; }
+        .symbol img.main-img { display: block; pointer-events: none; z-index: 2; position: relative; width: 100%; }
+        
+        /* === v37.1 修正: 模糊層繼承原始位置並放大 === */
+        .blur-clone {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            /* 移除 flex，改用 absolute 定位內部 img */
+            pointer-events: none; z-index: 5; 
+            opacity: 1; transition: opacity 0.1s linear; mix-blend-mode: normal; will-change: opacity; 
+        }
+        .blur-clone img {
+            position: absolute !important;
+            top: 0; left: 0;
+            width: 100%; 
+            /* 關鍵: 高度設為 auto，讓它讀取 inline style 的實際 px 高度 */
+            height: auto !important; 
+            object-fit: contain;
+            filter: url(#vertical-blur); 
+            
+            /* 放大效果 */
+            transform: scale(1.1, 1.6); 
+            transform-origin: center center; /* 從圖片中心放大 */
+            opacity: 0.9; will-change: filter, transform;
+        }
+        
+        .reels-container:not(.native) .symbol img:not(.big) { width: 100%; height: 100%; object-fit: contain; }
+        
+        /* 共用基礎設定：水平置中、絕對定位 */
+        .reels-container.native .symbol img, .symbol img.big {
+            position: absolute; 
+            left: 50%; 
+            width: auto; 
+            max-width: none;
+        }
+
+        /* 情況 1：跨格圖騰 (Big) 
+           因為要往下延伸，必須保持靠上對齊 (top: 0) */
+        .symbol img.big {
+            top: 0;
+            transform: translate(-50%, 0);
+        }
+
+        /* 情況 2：原圖模式 (Native) 下的【單格圖騰】 
+           修正重點：改為 top: 50% 配合 translateY(-50%) 達到完全垂直置中 */
+        .reels-container.native .symbol img:not(.big) {
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .symbol.debug-box::after {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: var(--debug-height, 100%); 
+            border: 2px solid #00ff00; z-index: 20; pointer-events: none; box-sizing: border-box;
+        }
+        .viewport.noborder .symbol.debug-box::after { display: none; }
+
+        .text-sym { font-size: 24px; color: #666; margin-top: 30px;}
+        .hide-bg .text-sym { text-shadow: 0 0 5px #000; color: #fff; }
+
+    </style>
+</head>
+<body>
+    <svg id="svg-filters"><defs><filter id="vertical-blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur in="SourceGraphic" stdDeviation="0 0" /></filter></defs></svg>
+
+    <div class="top-bar">
+        <div class="app-title">SLOT SIM v37.5 (Blur Fade Sync Fix)</div>
+        <div class="top-control"><label>縮放</label><input type="range" id="global-scale" min="0.2" max="2.0" step="0.05" value="0.8"><input type="number" id="num-global-scale" min="0.2" max="2.0" step="0.05" value="0.8"><button class="btn-reset-view" id="btn-reset-view">回正</button></div>
+        <div class="top-control" style="margin-left:20px; border-left:1px solid #444; padding-left:20px;"><label><input type="checkbox" id="hide-bg-toggle"> 隱藏底框</label></div>
+        <div class="top-control"><label><input type="checkbox" id="native-size-toggle" style="accent-color:#29b6f6;"> <span style="color:#81d4fa">原圖尺寸</span></label></div>
+        <div class="top-control"><label><input type="checkbox" id="ui-front-toggle"> UI置頂</label></div>
+        <div class="top-control"><label><input type="checkbox" id="border-toggle"> 隱藏輔助線</label></div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="tabs-header"><button class="tab-btn active" onclick="openTab('tab-assets', this)">📂 素材</button><button class="tab-btn" onclick="openTab('tab-layout', this)">📐 佈局</button><button class="tab-btn" onclick="openTab('tab-motion', this)">⚡ 動態</button><button class="tab-btn" onclick="openTab('tab-system', this)">💾 系統</button></div>
+            <div class="tabs-content">
+                <div id="tab-assets" class="tab-pane active">
+                    <div class="control-group"><h3>圖騰管理</h3><div class="upload-area"><button class="btn-small" onclick="document.getElementById('file-reset').click()">🔄 重置上傳</button><button class="btn-small" onclick="document.getElementById('file-add').click()">➕ 追加圖片</button></div><input type="file" id="file-reset" multiple accept="image/*" style="display:none"><input type="file" id="file-add" multiple accept="image/*" style="display:none"><div id="weight-list" class="image-list" style="display:none;"></div></div>
+                    <div class="control-group"><h3>背景 / UI</h3><button class="btn-small" style="width:100%" onclick="document.getElementById('ui-input').click()">上傳介面圖</button><input type="file" id="ui-input" accept="image/*" style="display:none"></div>
+                </div>
+                <div id="tab-layout" class="tab-pane">
+                     <div class="control-group"><h3>結構</h3><div id="ctrl-reels"></div><div id="ctrl-rows"></div><div id="ctrl-gap"></div></div>
+                     <div class="control-group"><h3>格子尺寸</h3><button class="btn-auto-fit" onclick="autoFitDimensions()">📐 智能填滿</button><div id="ctrl-w"></div><div id="ctrl-h"></div></div>
+                     <div class="control-group"><h3>可視範圍</h3><div id="ctrl-mask-w"></div><div id="ctrl-mask-h"></div></div>
+                     <div class="control-group"><h3>左下角錨點</h3><div id="ctrl-off-x"></div><div id="ctrl-off-y"></div></div>
+                </div>
+                <div id="tab-motion" class="tab-pane">
+                    <div class="control-group"><h3>速度與節奏</h3>
+                        <div id="ctrl-spin-duration"></div>
+                        <div id="ctrl-speed"></div><div id="ctrl-interval"></div>
+                    </div>
+                    <div class="control-group"><h3>特效細節</h3><div class="input-row"><div class="input-header"><span class="input-label">演出模式</span></div><select id="anim-mode" class="style-select"><option value="spin">標準轉輪</option><option value="cascade" selected>掉落消除</option></select></div><div class="input-row"><div class="input-header"><span class="input-label">煞車曲線</span></div>
+                        <select id="ease-type" class="style-select">
+                            <option value="bounceBack" selected>觸底反彈 (Bounce Back)</option>
+                            <option value="std">標準 (Standard)</option>
+                            <option value="heavy">重力急停 (Heavy Drop)</option>
+                            <option value="elastic">Q彈 (Elastic)</option>
+                        </select>
+                    </div><div id="ctrl-bounce"></div><div id="ctrl-blur"></div></div>
+                    <div class="control-group" style="border-top:1px solid #333; padding-top:15px;"><h3>掉落專用設定</h3><div id="ctrl-cascade-speed"></div><div id="ctrl-cascade-bounce"></div></div>
+                </div>
+                <div id="tab-system" class="tab-pane">
+                     <div class="control-group"><h3>設定檔管理</h3><button class="sys-btn btn-save" id="btn-save">暫存設定</button><button class="sys-btn btn-load" id="btn-load">讀取暫存</button><hr style="border:0; border-top:1px solid #333; margin:15px 0;"><button class="sys-btn btn-export" id="btn-export">匯出 JSON</button><button class="sys-btn btn-export" onclick="document.getElementById('file-import').click()">匯入 JSON</button><input type="file" id="file-import" accept=".json" style="display:none"></div>
+                </div>
+            </div>
+            <div class="sidebar-footer"><button id="btn-spin" class="spin-btn">SPIN</button><button id="btn-reset-all" class="reset-btn">重置所有設定</button></div>
+        </div>
+        <div class="stage" id="stage-area"><div class="slot-wrapper" id="slot-wrapper"><img id="ui-layer" class="ui-overlay" src="" style="display:none;"><div class="viewport" id="viewport"><div class="reels-container" id="reels-container"></div></div></div></div>
+    </div>
+
+    <script>
+        const settings = {
+            symbols: ['A', 'B', 'C', 'D', 'E', '1', '2', '3'], images: [],
+            spinSpeed: 1500, stopDelay: 60, bounce: 20, reels: 5, rows: 6, ease: 'bounceBack',
+            spinDuration: 2000,
+            mode: 'cascade', cascadeSpeed: 300, cascadeBounce: 30
+        };
+        let isSpinning = false;
+
+        // ===== v37.3 Patch: constants & helpers =====
+        const APP_VERSION = '37.4';
+        const PAD_TOP = 2;
+        const PAD_BOTTOM = 1;
+        const BLUR_WINDOW_MARGIN = 2; // blur window extends above/below visible rows
+        let _uiLayerBlobUrl = null;
+
+        function _revokeBlobUrl(url) {
+            try {
+                if (typeof url === 'string' && url.startsWith('blob:')) URL.revokeObjectURL(url);
+            } catch (_) {}
+        }
+        function _revokeAllSymbolImageUrls() {
+            try { (settings.images || []).forEach(img => _revokeBlobUrl(img && img.url)); } catch (_) {}
+        }
+        function _clearStripBlurClones(strip) {
+            if (!strip) return;
+            strip.querySelectorAll('.blur-clone').forEach(b => b.remove());
+        }
+
+        const _stripBlurState = new Map(); // Map<HTMLElement, {active:boolean, raf:number, token:number, rows:number}>
+
+        function _getTranslateY(el) {
+            const tr = getComputedStyle(el).transform;
+            if (!tr || tr === 'none') return 0;
+            // matrix(a,b,c,d,tx,ty) or matrix3d(...)
+            const m = tr.match(/matrix\(([^)]+)\)/);
+            if (m) {
+                const parts = m[1].split(',').map(x => parseFloat(x.trim()));
+                return parts.length >= 6 ? parts[5] : 0;
+            }
+            const m3 = tr.match(/matrix3d\(([^)]+)\)/);
+            if (m3) {
+                const parts = m3[1].split(',').map(x => parseFloat(x.trim()));
+                return parts.length >= 16 ? parts[13] : 0;
+            }
+            return 0;
+        }
+
+        function _ensureBlurClone(sym, h, g) {
+            if (!sym || sym.querySelector('.blur-clone')) return;
+            if ((sym.dataset && sym.dataset.kind) !== 'image') return;
+
+            const blurVal = parseFloat(document.getElementById('num-blur')?.value || '0');
+            if (!(blurVal > 0)) return;
+
+            const img = sym.querySelector('img.main-img');
+            if (!img) return;
+
+            const span = Math.max(1, parseInt(sym.dataset.span || '1', 10) || 1);
+
+            const cloneDiv = document.createElement('div');
+            cloneDiv.className = 'blur-clone';
+
+            const cloneImg = img.cloneNode(true);
+            if (span > 1) {
+                const totalH = (h * span) + (g * (span - 1));
+                cloneImg.style.height = totalH + 'px';
+            } else {
+                cloneImg.style.height = '100%';
+            }
+
+            cloneDiv.appendChild(cloneImg);
+            sym.appendChild(cloneDiv);
+        }
+
+        function _updateStripBlurWindow(strip, rows, h, g) {
+            if (!strip) return;
+
+            const blurVal = parseFloat(document.getElementById('num-blur')?.value || '0');
+            if (!(blurVal > 0)) {
+                _clearStripBlurClones(strip);
+                return;
+            }
+
+            const step = h + g;
+            const y = _getTranslateY(strip);
+
+            // When y == -PAD_TOP*step, the first visible index is PAD_TOP.
+            const firstVisible = Math.max(0, Math.floor((-y) / Math.max(step, 1)));
+            const start = Math.max(0, firstVisible - BLUR_WINDOW_MARGIN);
+            const end = Math.min(strip.children.length - 1, firstVisible + rows + PAD_BOTTOM + BLUR_WINDOW_MARGIN);
+
+            // Ensure clones in window
+            for (let i = start; i <= end; i++) {
+                const sym = strip.children[i];
+                _ensureBlurClone(sym, h, g);
+            }
+
+            // Remove clones outside window (keep DOM light)
+            for (let i = 0; i < strip.children.length; i++) {
+                if (i >= start && i <= end) continue;
+                const sym = strip.children[i];
+                const c = sym && sym.querySelector && sym.querySelector('.blur-clone');
+                if (c) c.remove();
+            }
+        }
+
+        
+        function _startStripBlurLoop(strip, rows) {
+            if (!strip) return;
+
+            // state object per strip to avoid rAF race conditions (e.g., first spin transitionend timing)
+            let st = _stripBlurState.get(strip);
+            if (!st) {
+                st = { active: false, raf: 0, token: 0, rows: rows || 0 };
+                _stripBlurState.set(strip, st);
+            }
+
+            st.active = true;
+            st.rows = rows || st.rows || 0;
+            st.token = (st.token || 0) + 1;
+            const myToken = st.token;
+
+            // already scheduled; keep active + latest rows
+            if (st.raf) return;
+
+            const tick = () => {
+                const st2 = _stripBlurState.get(strip);
+                if (!st2 || !st2.active || st2.token !== myToken) {
+                    if (st2) st2.raf = 0;
+                    return;
+                }
+
+                // If blur is off mid-spin, keep loop alive (so toggling back on works), but clear clones.
+                const blurVal = parseFloat(document.getElementById('num-blur')?.value || '0');
+                const h = parseInt(document.getElementById('num-h')?.value || '0', 10);
+                const g = parseInt(document.getElementById('num-gap')?.value || '0', 10);
+                const rowsNow = st2.rows || rows || 0;
+
+                if (!(blurVal > 0)) {
+                    _clearStripBlurClones(strip);
+                } else {
+                    _updateStripBlurWindow(strip, rowsNow, h, g);
+                }
+
+                st2.raf = requestAnimationFrame(tick);
+            };
+
+            st.raf = requestAnimationFrame(tick);
+        }
+
+        function _stopStripBlurLoop(strip) {
+            const st = _stripBlurState.get(strip);
+            if (!st) return;
+            st.active = false;
+            st.token = (st.token || 0) + 1; // invalidate any in-flight tick
+            if (st.raf) cancelAnimationFrame(st.raf);
+            st.raf = 0;
+        }
+
+        // ===== end patch =====
+
+
+        window.openTab = function(tabName, btn) {
+            document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            if(btn) btn.classList.add('active');
+        }
+
+        window.autoFitDimensions = function() {
+            const mw = parseInt(document.getElementById('num-mw').value);
+            const mh = parseInt(document.getElementById('num-mh').value);
+            const reels = parseInt(document.getElementById('num-reels').value);
+            const rows = parseInt(document.getElementById('num-rows').value);
+            const gap = parseInt(document.getElementById('num-gap').value);
+
+            if(reels <= 0 || rows <= 0) return;
+
+            let newW = Math.floor((mw - (reels - 1) * gap) / reels);
+            if(newW < 10) newW = 10;
+            let newH = Math.floor((mh - (rows - 1) * gap) / rows);
+            if(newH < 10) newH = 10;
+
+            const wInput = document.getElementById('num-w'); wInput.value = newW; wInput.dispatchEvent(new Event('input'));
+            const hInput = document.getElementById('num-h'); hInput.value = newH; hInput.dispatchEvent(new Event('input'));
+
+            updateGrid();
+            alert(`Auto-Fit: ${newW}x${newH}px`);
+        }
+
+        function generateReelData(totalRows) {
+            const result = new Array(totalRows).fill(null);
+            let i = 0;
+            while (i < totalRows) {
+                let img = null;
+                if (settings.images.length > 0) img = getWeightedImg();
+                
+                if (!img) {
+                    result[i] = { type: 'text', data: 'TEXT', span: 1 };
+                    i++; continue;
+                }
+
+                let span = img.span;
+                if (i + span > totalRows) {
+                    let safeImg = null;
+                    for(let k=0; k<10; k++) {
+                        let tryImg = getWeightedImg();
+                        if(tryImg.span === 1) { safeImg = tryImg; break; }
+                    }
+                    if (safeImg) { result[i] = { type: 'image', data: safeImg, span: 1 }; }
+                    else { result[i] = { type: 'text', data: '1', span: 1 }; }
+                    i++;
+                } else {
+                    result[i] = { type: 'image', data: img, span: span };
+                    for (let k = 1; k < span; k++) {
+                        result[i + k] = { type: 'placeholder', span: span };
+                    }
+                    i += span;
+                }
+            }
+            return result;
+        }
+
+        function createControl(parentId, labelText, settingKey, min, max, step, val, cssVar, isPx) {
+             const container = document.getElementById(parentId); if(!container) return;
+     
+             // 修改後的 HTML 結構：將 label 放在最上面，slider 和 number 包在 input-controls 裡
+             const html = `
+                <div class="input-row">
+                    <div class="input-header">
+                        <span class="input-label">${labelText}</span>
+                    </div>
+                    <div class="input-controls">
+                        <input type="range" id="range-${settingKey}" min="${min}" max="${max}" step="${step}" value="${val}">
+                        <input type="number" id="num-${settingKey}" min="${min}" max="${max}" step="${step}" value="${val}">
+                    </div>
+                </div>`;
+     
+             container.innerHTML = html;
+             const range = document.getElementById(`range-${settingKey}`); 
+             const num = document.getElementById(`num-${settingKey}`);
+     
+             const update = (v) => {
+                range.value = v; num.value = v;
+                if(cssVar) document.documentElement.style.setProperty(cssVar, v + (isPx ? 'px' : ''));
+        
+                // 保持原有的邏輯不變
+                if(settingKey === 'reels' || settingKey === 'rows') { settings[settingKey] = parseInt(v); updateGrid(); } 
+                else if(settingKey === 'speed') { settings.spinSpeed = parseFloat(v) * 1000; } 
+                else if(settingKey === 'interval') { settings.stopDelay = parseInt(v); } 
+                else if(settingKey === 'bounce') { settings.bounce = parseInt(v); }
+                else if(settingKey === 'duration') { const sec = parseFloat(v); settings.spinDuration = Math.max(0, isFinite(sec) ? sec : 0) * 1000; }
+                else if(settingKey === 'cascade-speed') { settings.cascadeSpeed = parseInt(v); }
+                else if(settingKey === 'cascade-bounce') { settings.cascadeBounce = parseInt(v); }
+        
+                if(settingKey === 'blur') { 
+                    const f = document.querySelector('#vertical-blur feGaussianBlur'); 
+                    if(f) f.setAttribute('stdDeviation', `0 ${v}`); 
+                }
+             };
+     
+             range.addEventListener('input', (e) => update(e.target.value)); 
+             num.addEventListener('input', (e) => update(e.target.value));
+             update(val);
+        }
+
+        function getWeightedImg() {
+            if(settings.images.length === 0) return null;
+            const total = settings.images.reduce((a,b) => a + b.weight, 0); let r = Math.random() * total;
+            for(let img of settings.images) { if(r < img.weight) return img; r -= img.weight; }
+            return settings.images[0];
+        }
+
+        function renderSymbol(div, dataObj, rowIndex) {
+            div.innerHTML = ''; div.style.background = ''; div.classList.remove('debug-box', 'is-long', 'is-placeholder', 'is-anchor');
+            // v37.3: reset symbol metadata
+            div.dataset.kind = '';
+            div.dataset.span = '1';
+    
+           // 修正：基礎值 + 行數權重 -> 下面行數 (rowIndex 大) 數值大 -> 下壓上
+           let baseZIndex = 1000 + (rowIndex * 10);
+           div.style.zIndex = baseZIndex;
+
+            if (dataObj && dataObj.type === 'placeholder') {
+                div.classList.add('is-placeholder'); div.style.zIndex = -1000; 
+                div.style.opacity = '0'; 
+                div.dataset.kind = 'placeholder';
+                return;
+            }
+
+            if (dataObj && dataObj.type === 'image') {
+                div.classList.add('is-anchor');
+                const imgData = dataObj.data;
+                const img = document.createElement('img'); img.src = imgData.url; img.className = 'main-img';
+                
+                if(imgData.span > 1) {
+                    img.classList.add('big'); div.classList.add('debug-box'); div.classList.add('is-long'); 
+                    div.style.zIndex = baseZIndex + 5; 
+                    const h = parseInt(document.getElementById('num-h').value);
+                    const g = parseInt(document.getElementById('num-gap').value);
+                    const totalSpanHeight = (h * imgData.span) + (g * (imgData.span - 1));
+                    div.style.setProperty('--debug-height', totalSpanHeight + 'px');
+                    
+                    // 核心：確保原圖有正確高度，方便模糊層讀取
+                    if(document.getElementById('native-size-toggle').checked) { 
+                        img.classList.add('force-native'); 
+                        img.style.height = ''; // Native size
+                    } else { 
+                        img.classList.remove('force-native'); 
+                        img.style.height = totalSpanHeight + 'px'; 
+                    }
+                    
+                    img.style.top = '0'; img.style.marginTop = '0'; 
+                }
+                div.appendChild(img);
+                
+                // v37.3: mark symbol metadata for lazy blur window
+                div.dataset.kind = 'image';
+                div.dataset.span = String(imgData.span || 1);
+            } else if (dataObj && dataObj.type === 'text') {
+                 const span = document.createElement('span'); span.className = 'text-sym';
+                 span.innerText = settings.symbols[Math.floor(Math.random()*settings.symbols.length)];
+                 div.appendChild(span); div.style.background = '#333';
+                 div.dataset.kind = 'text';
+            }
+        }
+
+        function updateGrid() {
+            const con = document.getElementById('reels-container'); if(!con) return;
+            const hInput = document.getElementById('num-h'); const gapInput = document.getElementById('num-gap');
+            if(!hInput || !gapInput) return;
+            con.innerHTML = ''; 
+            
+            // === 修改處：增加 bottomPaddingCount (底部緩衝) ===
+            const topPaddingCount = PAD_TOP; 
+            const bottomPaddingCount = PAD_BOTTOM; // v37.3: centralized padding constants
+            const totalRows = settings.rows + topPaddingCount + bottomPaddingCount;
+            // =================================================
+
+            for(let i=0; i<settings.reels; i++) {
+                const reelData = generateReelData(totalRows);
+                const reel = document.createElement('div'); reel.className = 'reel'; reel.id = `reel-${i}`;
+                const strip = document.createElement('div'); strip.className = 'reel-strip'; 
+                const h = parseInt(hInput.value); const g = parseInt(gapInput.value);
+                
+                // 初始位置維持只扣除 topPadding，這樣 bottomPadding 會自然的被擠到下方遮罩外
+                const initOffset = -(topPaddingCount * (h + g));
+                strip.style.transform = `translateY(${initOffset}px)`;
+
+                reelData.forEach((item, j) => {
+                    const sym = document.createElement('div'); sym.className = 'symbol';
+                    renderSymbol(sym, item, j); strip.appendChild(sym);
+                });
+                reel.appendChild(strip); con.appendChild(reel);
+            }
+        }
+
+        function spin() {
+             if(isSpinning) return; 
+             if(settings.mode === 'cascade') { performCascade(); return; }
+             isSpinning = true;
+             const spinBtn = document.getElementById('btn-spin'); spinBtn.disabled = true;
+             const safetyMs = Math.max(5000, settings.spinDuration + ((settings.reels - 1) * settings.stopDelay) + 3000 + (settings.ease === 'bounceBack' ? 600 : 0));
+             const safetyTimer = setTimeout(() => {
+                 if(isSpinning) {
+                     isSpinning = false; spinBtn.disabled = false;
+                     // v37.3: fail-safe cleanup
+                     document.querySelectorAll('.reel-strip').forEach(st => { _stopStripBlurLoop(st); _clearStripBlurClones(st); });
+                 }
+             }, safetyMs);
+
+             const reels = document.querySelectorAll('.reel');
+             const bounce = parseInt(document.getElementById('num-bounce').value);
+             const h = parseInt(document.getElementById('num-h').value); 
+             const g = parseInt(document.getElementById('num-gap').value);
+             
+             // === 修改處：定義緩衝區數量 ===
+             const topPaddingCount = PAD_TOP; 
+             const bottomPaddingCount = PAD_BOTTOM; // v37.3: centralized padding constants
+             const rows = settings.rows;
+             // ==========================
+             
+             const minDuration = settings.spinDuration; 
+             const approxSymbols = Math.ceil(minDuration / 50); 
+             const bufferCount = Math.max(20, approxSymbols);
+
+             let easeCurve = 'cubic-bezier(0.25, 0.1, 0.25, 1)'; 
+             if (settings.ease === 'bounceBack') easeCurve = 'linear';
+             else if (settings.ease === 'heavy') easeCurve = 'cubic-bezier(0.5, 1, 0.89, 1)';
+             else if (settings.ease === 'elastic') easeCurve = 'cubic-bezier(0.68, -0.55, 0.27, 1.55)';
+
+            reels.forEach((reel, idx) => {
+                let strip = reel.querySelector('.reel-strip');
+                strip.querySelectorAll('.blur-clone').forEach(b => b.remove());
+
+                const fragment = document.createDocumentFragment();
+                // 這裡生成的數量夠多，不需要改
+                const newData = generateReelData(topPaddingCount + rows + bufferCount); 
+                newData.forEach((item, i) => {
+                    const sym = document.createElement('div'); sym.className = 'symbol';
+                    renderSymbol(sym, item, i); fragment.appendChild(sym);
+                });
+                strip.prepend(fragment);
+                
+                const addedHeight = (topPaddingCount + rows + bufferCount) * (h + g);
+                const startY = -(addedHeight + (topPaddingCount * (h+g)));
+                strip.style.transition = 'none'; strip.style.transform = `translateY(${startY}px)`; strip.offsetHeight; 
+
+                const duration = minDuration + (idx * settings.stopDelay);
+                let targetY = -(topPaddingCount * (h + g));
+                
+                setTimeout(() => {
+                     strip.style.transition = `transform ${duration}ms ${easeCurve}`;
+                     strip.style.transform = `translateY(${targetY}px)`;
+                     // v37.3: keep blur clones only near visible window
+                     _startStripBlurLoop(strip, rows);
+                     
+                     const blurFade = Math.max(0, duration - 50);
+                     setTimeout(() => {
+                                // Stop blur loop before fading to prevent late-added clones.
+                                _stopStripBlurLoop(strip);
+                                const blurs = strip.querySelectorAll('.blur-clone');
+                                blurs.forEach(b => b.style.opacity = '0');
+                                // Hard guarantee removal even if transitionend timing is odd.
+                                setTimeout(() => _clearStripBlurClones(strip), 160);
+                            }, blurFade);
+
+                     const onEnd = () => {
+                         strip.removeEventListener('transitionend', onEnd);
+                         _stopStripBlurLoop(strip);
+                         const blurs = strip.querySelectorAll('.blur-clone');
+                         if (settings.ease === 'bounceBack') {
+                            strip.style.transition = `transform 100ms cubic-bezier(0.2, 0.6, 0.3, 1)`;
+                            // 回彈時往上拉，這裡如果沒有 bottomPadding，底部就會穿幫
+                            strip.style.transform = `translateY(${-topPaddingHeight - bounce}px)`;
+                            setTimeout(() => {
+                                strip.style.transition = `transform 120ms ease-in`;
+                                strip.style.transform = `translateY(${-topPaddingHeight}px)`;
+                                setTimeout(() => _clearStripBlurClones(strip), 200);
+                                finalize();
+                            }, 100);
+                        } else {
+                            setTimeout(() => _clearStripBlurClones(strip), 100);
+                            finalize();
+                        }
+                     };
+                     strip.addEventListener('transitionend', onEnd);
+                }, 50);
+            });
+            
+            let reelsDone = 0;
+            const topPaddingHeight = topPaddingCount * (h + g);
+            
+            function finalize() {
+                 setTimeout(() => {
+                     // === 修改處：清理時保留底部緩衝 ===
+                     // 原本是 topPaddingCount + rows，現在要加 bottomPaddingCount
+                     const keepCount = topPaddingCount + rows + bottomPaddingCount;
+                     // ==============================
+                     
+                     const strips = document.querySelectorAll('.reel-strip');
+                     reelsDone++;
+                     if(reelsDone === settings.reels) {
+                         strips.forEach(strip => { while (strip.children.length > keepCount) { strip.removeChild(strip.lastChild); } });
+                         isSpinning = false; spinBtn.disabled = false; clearTimeout(safetyTimer);
+                         document.querySelectorAll('.reel-strip').forEach(st => { _stopStripBlurLoop(st); _clearStripBlurClones(st); }); 
+                     }
+                 }, 200); 
+            }
+        }
+
+        function performCascade() {
+            if(isSpinning) return; isSpinning = true;
+            const spinBtn = document.getElementById('btn-spin'); spinBtn.disabled = true;
+            const reels = document.querySelectorAll('.reel');
+            const bounce = settings.cascadeBounce;
+            const h = parseInt(document.getElementById('num-h').value); 
+            const g = parseInt(document.getElementById('num-gap').value);
+            const rows = settings.rows;
+            const topPaddingCount = PAD_TOP; 
+            const topPaddingHeight = topPaddingCount * (h + g);
+            const dropOutDuration = 300;
+            const dropInDuration = settings.cascadeSpeed; 
+            const columnDelay = settings.stopDelay; 
+            let reelsDone = 0;
+
+            reels.forEach((reel, idx) => {
+                setTimeout(() => {
+                    const strip = reel.querySelector('.reel-strip');
+                    const visibleLimit = topPaddingCount + rows;
+                    while (strip.children.length > visibleLimit) {
+                        strip.removeChild(strip.lastChild);
+                    }
+                    strip.querySelectorAll('.blur-clone').forEach(b => b.remove());
+                    
+                    const allSyms = Array.from(strip.children);
+                    allSyms.reverse().forEach((sym, i) => {
+                        setTimeout(() => {
+                            sym.style.transition = `transform ${dropOutDuration}ms cubic-bezier(0.5, 0, 1, 0.5), opacity ${dropOutDuration}ms linear`;
+                            sym.style.transform = 'translateY(1000px)';
+                            sym.style.opacity = '0';
+                        }, i * 80);
+                    });
+
+                    const exitTotalTime = (allSyms.length * 80) + dropOutDuration;
+
+                    setTimeout(() => {
+                        const totalNeeded = topPaddingCount + rows;
+                        const newStackData = generateReelData(totalNeeded);
+                        strip.innerHTML = ''; 
+                        const fragment = document.createDocumentFragment();
+                        newStackData.forEach((item, i) => {
+                            const sym = document.createElement('div'); sym.className = 'symbol';
+                            renderSymbol(sym, item, i);
+                            sym.style.transform = `translateY(-1000px)`;
+                            sym.style.opacity = '0'; 
+                            if (document.getElementById('num-blur').value > 0 && item.type === 'image') {
+                                 const img = sym.querySelector('img');
+                                 if(img) { 
+                                     const cloneDiv = document.createElement('div'); cloneDiv.className = 'blur-clone'; 
+                                     const cloneImg = img.cloneNode(true); 
+                                     
+                                     // Cascade Blur Sizing Logic
+                                     if(item.data.span > 1) {
+                                         const totalH = (h * item.data.span) + (g * (item.data.span - 1));
+                                         cloneImg.style.height = totalH + 'px';
+                                     } else {
+                                         cloneImg.style.height = '100%';
+                                     }
+                                     
+                                     cloneDiv.appendChild(cloneImg); sym.appendChild(cloneDiv); 
+                                 }
+                            }
+                            fragment.appendChild(sym);
+                        });
+                        strip.appendChild(fragment);
+                        strip.style.transition = 'none';
+                        strip.style.transform = `translateY(-${topPaddingHeight}px)`;
+                        strip.offsetHeight; 
+
+                        const newSyms = Array.from(strip.children);
+                        const reversedSyms = [...newSyms].reverse();
+
+                        reversedSyms.forEach((sym, rIdx) => {
+                            const delay = rIdx * 120; 
+                            setTimeout(() => {
+                                const blurFade = Math.max(0, dropInDuration - 50);
+                                setTimeout(() => {
+                                    const blurs = sym.querySelectorAll('.blur-clone');
+                                    blurs.forEach(b => b.style.opacity = '0');
+                                    setTimeout(() => { blurs.forEach(b => b.remove()); }, 160);
+                                }, blurFade);
+                                sym.style.transition = `transform ${dropInDuration}ms linear, opacity 0.1s linear`;
+                                sym.style.transform = 'translateY(0)'; 
+                                sym.style.opacity = '1'; 
+                                setTimeout(() => {
+                                    sym.style.transition = `transform 100ms cubic-bezier(0.2, 0.6, 0.3, 1)`;
+                                    sym.style.transform = `translateY(${-bounce}px)`;
+                                    setTimeout(() => {
+                                        sym.style.transition = `transform 120ms ease-in`;
+                                        sym.style.transform = `translateY(0)`;
+                                        setTimeout(() => { const blurs = sym.querySelectorAll('.blur-clone'); blurs.forEach(b => b.remove()); }, 200);
+                                        if(rIdx === reversedSyms.length - 1) {
+                                            reelsDone++;
+                                            if(reelsDone === settings.reels) { isSpinning = false; spinBtn.disabled = false; }
+                                        }
+                                    }, 100);
+                                }, dropInDuration);
+                            }, delay);
+                        });
+                    }, exitTotalTime);
+                }, idx * columnDelay); 
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            createControl('ctrl-gap', '間距', 'gap', 0, 100, 1, 10, '--symbol-gap', true);
+            createControl('ctrl-w', '寬度', 'w', 10, 3000, 1, 100, '--symbol-width', true);
+            createControl('ctrl-h', '高度', 'h', 10, 3000, 1, 100, '--symbol-height', true);
+            createControl('ctrl-reels', '轉輪數', 'reels', 1, 10, 1, 5, '--reel-count');
+            createControl('ctrl-rows', '行數', 'rows', 1, 10, 1, 6, '--row-count');
+            createControl('ctrl-mask-w', 'Mask W', 'mw', 100, 3000, 1, 600, '--mask-width', true);
+            createControl('ctrl-mask-h', 'Mask H', 'mh', 100, 3000, 1, 650, '--mask-height', true);
+            createControl('ctrl-off-x', 'X (左下)', 'ox', -1500, 1500, 1, -300, '--offset-x', true);
+            createControl('ctrl-off-y', 'Y (左下)', 'oy', -1500, 1500, 1, -325, '--offset-y', true);
+            createControl('ctrl-spin-duration', '旋轉時間 (秒)', 'duration', 0.5, 10.0, 0.5, 2.0, null);
+            createControl('ctrl-speed', '轉速 (Speed)', 'speed', 0.1, 5.0, 0.1, 1.5, null);
+            createControl('ctrl-interval', '間隔 (Interval)', 'interval', 0, 1000, 10, 60, null);
+            createControl('ctrl-bounce', '回彈 (Bounce)', 'bounce', 0, 200, 1, 20, null);
+            createControl('ctrl-blur', '模糊 (Blur)', 'blur', 0, 50, 1, 15, null);
+            createControl('ctrl-cascade-speed', '掉落速度', 'cascade-speed', 50, 2000, 10, 300, null);
+            createControl('ctrl-cascade-bounce', '掉落回彈', 'cascade-bounce', 0, 200, 1, 30, null);
+            
+            const zRange = document.getElementById('global-scale'); const zNum = document.getElementById('num-global-scale');
+            const syncZoom = (v) => { zRange.value = v; zNum.value = v; document.documentElement.style.setProperty('--global-scale', v); };
+            zRange.addEventListener('input', e => syncZoom(e.target.value)); zNum.addEventListener('input', e => syncZoom(e.target.value));
+
+            setupMotionBindings(); setupToggles(); setupImages(); setupSystem(); setupStageDrag(); setupZoomWheel();
+            updateGrid();
+        });
+
+        function setupStageDrag() {
+            const stage = document.getElementById('stage-area'); const wrapper = document.getElementById('slot-wrapper');
+            let isDragging = false; let startX, startY, currentPanX = 0, currentPanY = 0;
+            stage.addEventListener('mousedown', (e) => { isDragging = true; startX = e.clientX - currentPanX; startY = e.clientY - currentPanY; });
+            window.addEventListener('mousemove', (e) => { if (!isDragging) return; e.preventDefault(); currentPanX = e.clientX - startX; currentPanY = e.clientY - startY; wrapper.style.setProperty('--pan-x', `${currentPanX}px`); wrapper.style.setProperty('--pan-y', `${currentPanY}px`); });
+            window.addEventListener('mouseup', () => { isDragging = false; });
+            document.getElementById('btn-reset-view').addEventListener('click', () => { currentPanX = 0; currentPanY = 0; wrapper.style.setProperty('--pan-x', '0px'); wrapper.style.setProperty('--pan-y', '0px'); document.getElementById('global-scale').value = 0.8; document.getElementById('num-global-scale').value = 0.8; document.documentElement.style.setProperty('--global-scale', 0.8); });
+        }
+
+        function setupZoomWheel() {
+            const stage = document.getElementById('stage-area'); const zRange = document.getElementById('global-scale'); const zNum = document.getElementById('num-global-scale');
+            stage.addEventListener('wheel', (e) => { e.preventDefault(); let currentScale = parseFloat(zNum.value); const delta = e.deltaY > 0 ? -0.05 : 0.05; let newScale = Math.max(0.2, Math.min(2.0, currentScale + delta)); newScale = parseFloat(newScale.toFixed(2)); zRange.value = newScale; zNum.value = newScale; document.documentElement.style.setProperty('--global-scale', newScale); }, { passive: false });
+        }
+        
+        function setupMotionBindings() {
+            document.getElementById('ease-type').addEventListener('change', e => { settings.ease = e.target.value; });
+            document.getElementById('anim-mode').addEventListener('change', e => { settings.mode = e.target.value; });
+            document.getElementById('btn-spin').addEventListener('click', () => { if(settings.mode === 'cascade') performCascade(); else spin(); });
+        }
+        
+        function setupToggles() {
+             const toggles = ['hide-bg-toggle','native-size-toggle','ui-front-toggle','border-toggle'];
+             toggles.forEach(id => {
+                 document.getElementById(id).addEventListener('change', e => {
+                     const cls = id.replace('-toggle','').replace('hide-bg','hide-bg').replace('native-size','native').replace('ui-front','front').replace('border','noborder');
+                     const tgt = id.includes('ui') ? document.getElementById('ui-layer') : (id.includes('border') ? document.getElementById('viewport') : document.getElementById('reels-container'));
+                     if(e.target.checked) tgt.classList.add(cls); else tgt.classList.remove(cls);
+                     if(id.includes('native')) updateGrid();
+                 });
+             });
+        }
+        
+        function setupImages() { document.getElementById('file-reset').addEventListener('change', e => handleImages(e, true)); document.getElementById('file-add').addEventListener('change', e => handleImages(e, false)); document.getElementById('ui-input').addEventListener('change', e => {
+            if(e.target.files[0]) {
+                if(_uiLayerBlobUrl) _revokeBlobUrl(_uiLayerBlobUrl);
+                const url = URL.createObjectURL(e.target.files[0]);
+                _uiLayerBlobUrl = url;
+                const el = document.getElementById('ui-layer');
+                el.src = url;
+                el.style.display = 'block';
+            }
+        }); }
+        function setupSystem() { document.getElementById('btn-reset-all').addEventListener('click', () => { if(confirm('重置設定？')) { localStorage.removeItem('slotSimConfig'); location.reload(); }}); initSaveLoad(); }
+        function handleImages(e, reset) { if(reset) { _revokeAllSymbolImageUrls(); settings.images = []; } if(e.target.files.length > 0) { Array.from(e.target.files).forEach(file => { const url = URL.createObjectURL(file); const uid = Date.now() + Math.random().toString(36).substr(2,5); settings.images.push({ id: uid, name: file.name, url: url, weight: 50, span: 1 }); }); renderImgList(); updateGrid(); } e.target.value = ''; }
+        function renderImgList() { const con = document.getElementById('weight-list'); con.innerHTML = ''; if(settings.images.length === 0) { con.style.display = 'none'; return; } con.style.display = 'block'; settings.images.forEach((img, idx) => { const item = document.createElement('div'); item.className = 'img-item'; item.innerHTML = `<img src="${img.url}" class="img-thumb"><div class="img-details"><div class="img-header"><span title="${img.name}">${img.name.substring(0,10)}</span><div class="img-actions"><button class="action-btn btn-rep" onclick="replaceImg(${idx})">換圖</button><button class="action-btn btn-del" onclick="delImg(${idx})">刪</button></div></div><div style="display:flex; justify-content:space-between; font-size:11px; color:#888;"><span>權重: <b id="disp-w-${img.id}">${img.weight}</b></span></div><input type="range" min="1" max="100" value="${img.weight}" oninput="updateWeight(${idx}, this.value)"><select class="span-select" onchange="updateSpan(${idx}, this.value)">${[1,2,3,4,5].map(n => `<option value="${n}" ${img.span==n?'selected':''}>佔 ${n} 格</option>`).join('')}</select></div>`; con.appendChild(item); }); }
+        window.updateWeight = (idx, val) => { settings.images[idx].weight = parseInt(val); document.getElementById(`disp-w-${settings.images[idx].id}`).innerText = val; };
+        window.updateSpan = (idx, val) => { settings.images[idx].span = parseInt(val); updateGrid(); };
+        window.delImg = (idx) => { if(confirm('刪除？')) { const it = settings.images[idx]; if(it) _revokeBlobUrl(it.url); settings.images.splice(idx, 1); renderImgList(); updateGrid(); }};
+        let replaceIdx = -1; const repInput = document.createElement('input'); repInput.type = 'file'; repInput.accept = 'image/*'; repInput.style.display = 'none'; document.body.appendChild(repInput); repInput.onchange = (e) => {
+            if(e.target.files[0] && replaceIdx > -1) {
+                const old = settings.images[replaceIdx];
+                if(old) _revokeBlobUrl(old.url);
+                settings.images[replaceIdx].url = URL.createObjectURL(e.target.files[0]);
+                settings.images[replaceIdx].name = e.target.files[0].name;
+                renderImgList(); updateGrid();
+            }
+            repInput.value = '';
+        }; window.replaceImg = (idx) => { replaceIdx = idx; repInput.click(); };
+        
+        function initSaveLoad() {
+            const buildConfig = () => {
+                const config = { app: 'slot-sim', appVersion: APP_VERSION, schemaVersion: 1, params: {}, toggles: {} };
+                document.querySelectorAll('.input-controls input[type="number"]').forEach(input => {
+                    config.params[input.id] = input.value;
+                });
+                config.params['ease-type'] = document.getElementById('ease-type').value;
+                config.params['anim-mode'] = document.getElementById('anim-mode').value;
+
+                config.toggles.bg  = document.getElementById('hide-bg-toggle').checked;
+                config.toggles.nat = document.getElementById('native-size-toggle').checked;
+                config.toggles.ui  = document.getElementById('ui-front-toggle').checked;
+                config.toggles.brd = document.getElementById('border-toggle').checked;
+                return config;
+            };
+
+            document.getElementById('btn-save').onclick = () => {
+                const config = buildConfig();
+                localStorage.setItem('slotSimConfig', JSON.stringify(config));
+                alert('已暫存');
+            };
+
+            document.getElementById('btn-load').onclick = () => {
+                const raw = localStorage.getItem('slotSimConfig');
+                if(raw) applyConfig(JSON.parse(raw));
+                else alert('無存檔');
+            };
+
+            document.getElementById('btn-export').onclick = () => {
+                const config = buildConfig();
+                let fileName = prompt('請輸入檔案名稱 (不需副檔名):', 'slot_config');
+                if (fileName === null) return;
+                if (!fileName.trim()) fileName = 'slot_config';
+
+                const raw = JSON.stringify(config, null, 2);
+                const blob = new Blob([raw], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${fileName}.json`;
+                a.click();
+
+                setTimeout(() => _revokeBlobUrl(url), 1000);
+            };
+
+            const importInput = document.getElementById('file-import');
+            if (importInput) {
+                importInput.onchange = (e) => {
+                    const file = e.target.files && e.target.files[0];
+                    if (!file) return;
+                    file.text().then(t => {
+                        try {
+                            const d = JSON.parse(t);
+                            applyConfig(d);
+                        } catch (err) {
+                            alert('JSON 解析失敗，請確認檔案內容。');
+                            console.error(err);
+                        }
+                    }).catch(err => {
+                        alert('讀取檔案失敗。');
+                        console.error(err);
+                    }).finally(() => {
+                        importInput.value = '';
+                    });
+                };
+            }
+        }
+
+        function applyConfig(d) { if(d.params) { for(let key in d.params) { const el = document.getElementById(key); if(el) { el.value = d.params[key]; el.dispatchEvent(new Event('input')); } } if(d.params['ease-type']) { const el = document.getElementById('ease-type'); el.value = d.params['ease-type']; el.dispatchEvent(new Event('change')); } if(d.params['anim-mode']) { const el = document.getElementById('anim-mode'); el.value = d.params['anim-mode']; el.dispatchEvent(new Event('change')); } } if(d.toggles) { const setChk = (id, v) => { const el = document.getElementById(id); el.checked = v; el.dispatchEvent(new Event('change')); }; setChk('hide-bg-toggle', d.toggles.bg); setChk('native-size-toggle', d.toggles.nat); setChk('ui-front-toggle', d.toggles.ui); setChk('border-toggle', d.toggles.brd); } alert('設定載入完成'); }
+    </script>
+</body>
+</html>

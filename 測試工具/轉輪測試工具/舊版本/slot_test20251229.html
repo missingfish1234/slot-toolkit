@@ -1,0 +1,1639 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>老虎機編輯器 v41.9 (Save As Support)</title>
+    <style>
+        :root {
+            --primary-color: #ffb74d;
+            --bg-dark: #121212;
+            --panel-bg: #1e1e1e;
+            --border-color: #333;
+            --text-main: #e0e0e0;
+            --text-dim: #aaa;
+            
+            /* Slot Vars (Default) */
+            --reel-count: 5;
+            --row-count: 6; 
+            --symbol-width: 100px;
+            --symbol-height: 100px;
+            --symbol-gap: 10px;
+            --mask-width: 600px;
+            --mask-height: 650px;
+            --offset-x: -300px;
+            --offset-y: -325px;
+            --global-scale: 0.8;
+            
+            /* Pan Vars */
+            --pan-x: 0px;
+            --pan-y: 0px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            transition: border-color 0.3s;
+        }
+
+        #svg-filters { position: absolute; width: 0; height: 0; pointer-events: none; }
+
+        /* === UI Styling === */
+        .top-bar {
+            height: 50px; background: #252525; border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; padding: 0 20px; gap: 20px; flex-shrink: 0; 
+            position: relative; z-index: 10000; 
+        }
+        .app-title { font-weight: bold; color: var(--primary-color); font-size: 16px; margin-right: auto; }
+        .top-control { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-dim); }
+        .top-control input[type="range"] { width: 100px; margin: 0; }
+        .top-control input[type="number"] { 
+            width: 50px; background: #333; border: 1px solid #555; color: #fff; 
+            border-radius: 3px; padding: 2px; font-size: 12px; text-align: center;
+        }
+        .top-control input[type="checkbox"] { margin: 0; cursor: pointer; }
+        .top-control label { cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        .top-control label:hover { color: #fff; }
+        
+        .btn-reset-view {
+            background: #333; border: 1px solid #555; color: #fff; padding: 2px 8px; 
+            border-radius: 3px; cursor: pointer; font-size: 11px; margin-left: 5px;
+        }
+        .btn-reset-view:hover { background: #555; }
+
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+
+        /* === Sidebar & Layout Optimization === */
+        .sidebar {
+            width: 400px;
+            background: #1e1e1e;
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 9000;
+            box-shadow: 5px 0 15px rgba(0,0,0,0.3);
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        /* Tabs 優化 */
+        .tabs-header {
+            display: flex;
+            background: #181818;
+            padding: 5px 5px 0 5px;
+            border-bottom: 1px solid #333;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px 0;
+            background: transparent;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            position: relative;
+            transition: all 0.3s ease;
+            border-radius: 5px 5px 0 0;
+        }
+        .tab-btn:hover { color: #ccc; background: rgba(255,255,255,0.05); }
+        .tab-btn.active {
+            color: var(--primary-color);
+            background: #252525;
+            border-bottom: 2px solid var(--primary-color);
+        }
+        .tab-btn.active::after {
+            content: ''; position: absolute; bottom: -2px; left: 0; width: 100%; height: 2px;
+            background: var(--primary-color); box-shadow: 0 -2px 8px rgba(255, 183, 77, 0.4);
+        }
+
+        /* 內容區域 */
+        .tabs-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #252525; 
+        }
+        .tabs-content::-webkit-scrollbar { width: 6px; }
+        .tabs-content::-webkit-scrollbar-track { background: #1a1a1a; }
+        .tabs-content::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+        
+        .tab-pane { display: none; animation: fadeIn 0.3s ease; }
+        .tab-pane.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* === 模式管理器樣式 === */
+        .mode-selector {
+            background: #2b2b2b;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        .mode-btn {
+            flex: 1;
+            padding: 10px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #888;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            transition: all 0.2s;
+            border-radius: 4px;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .mode-btn:hover { background: #333; color: #fff; }
+        .mode-btn.active {
+            background: var(--primary-color);
+            color: #000;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(255, 183, 77, 0.3);
+        }
+        
+        /* FG 模式特殊樣式 */
+        .mode-btn[data-mode="fg"].active {
+            background: #ce93d8; /* 紫色 */
+            border-color: #ce93d8;
+            box-shadow: 0 0 10px rgba(206, 147, 216, 0.4);
+        }
+        body[data-mode="fg"] .sidebar {
+            border-right: 2px solid #ce93d8;
+            box-shadow: 5px 0 20px rgba(186, 104, 200, 0.2);
+        }
+        body[data-mode="fg"] .app-title { color: #ce93d8; }
+
+        /* 一般控制項 */
+        .control-group {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .control-group h3 {
+            margin: 0 0 12px 0;
+            font-size: 12px;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            display: flex; align-items: center; gap: 5px;
+        }
+        body[data-mode="fg"] .control-group h3 { color: #ce93d8; }
+        body[data-mode="fg"] .control-group h3::before { background: #ce93d8; }
+
+        .control-group h3::before {
+            content: ''; display: block; width: 3px; height: 12px; background: var(--primary-color); border-radius: 2px;
+        }
+
+        .input-row { margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px; }
+        .input-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #bbb; }
+        .input-controls {
+            display: flex; gap: 12px; align-items: center; background: #2a2a2a; padding: 6px 10px; border-radius: 6px; border: 1px solid #3a3a3a;
+        }
+        input[type=range] { flex: 1; -webkit-appearance: none; background: transparent; cursor: pointer; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: #444; border-radius: 2px; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #fff; margin-top: -6px; box-shadow: 0 1px 3px rgba(0,0,0,0.5); transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); background: var(--primary-color); }
+        .input-controls input[type="number"] {
+            width: 50px; background: transparent; border: none; color: #fff; font-family: 'Consolas', monospace; font-size: 14px; text-align: right; padding: 0;
+        }
+        .input-controls input[type="number"]:focus { outline: none; color: var(--primary-color); }
+        select.style-select {
+            width: 100%; background: #2a2a2a; color: #e0e0e0; border: 1px solid #444; padding: 8px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; outline: none;
+        }
+        
+        .image-list { background: #181818; border: 1px solid #333; padding: 8px; border-radius: 6px; max-height: 300px; overflow-y: auto; }
+        .img-item { display: flex; align-items: center; background: #252525; padding: 8px; border-radius: 4px; margin-bottom: 8px; border: 1px solid #333; transition: background 0.2s; }
+        .img-item:hover { background: #2f2f2f; border-color: #444; }
+        .img-thumb { width: 48px; height: 48px; object-fit: contain; background: #000; border-radius: 4px; margin-right: 12px; flex-shrink: 0; }
+        .img-details { flex: 1; min-width: 0; }
+        .img-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .span-select { background: #111; color: #aaa; border: 1px solid #333; padding: 2px 5px; font-size: 11px; border-radius: 3px; width: auto; display: inline-block; }
+        .reels-input { width: 100%; margin-top: 6px; background: #111; color: #ddd; border: 1px solid #333; padding: 4px 6px; border-radius: 3px; font-size: 11px; outline: none; }
+        .reels-hint { margin-top: 4px; font-size: 10px; color: #777; line-height: 1.2; }
+
+        .sidebar-footer { padding: 15px 20px; border-top: 1px solid #333; background: #1e1e1e; z-index: 10; box-shadow: 0 -5px 10px rgba(0,0,0,0.1); }
+        .spin-btn {
+            width: 100%; padding: 16px; background: linear-gradient(135deg, #ffa726 0%, #fb8c00 100%); border: none; color: #000; font-weight: 800; font-size: 20px; border-radius: 8px; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4); transition: all 0.1s; position: relative; overflow: hidden;
+        }
+        .spin-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .spin-btn:active { transform: translateY(1px); box-shadow: 0 2px 5px rgba(255, 152, 0, 0.4); }
+        .spin-btn:disabled { background: #333; color: #555; box-shadow: none; cursor: not-allowed; }
+        body[data-mode="fg"] .spin-btn { background: linear-gradient(135deg, #e1bee7 0%, #ba68c8 100%); box-shadow: 0 4px 15px rgba(186, 104, 200, 0.4); }
+
+        .btn-group-row { display: flex; gap: 8px; margin-bottom: 10px; }
+        .btn-small { flex: 1; padding: 10px; font-size: 12px; background: #333; border: none; color: #ccc; border-radius: 4px; font-weight: 600; transition: all 0.2s; }
+        .btn-small:hover { background: #444; color: #fff; }
+        
+        .reset-btn { width: 100%; background: transparent; border: none; color: #666; font-size: 12px; margin-top: 8px; cursor: pointer; }
+        .sys-btn { width: 100%; padding: 10px; margin-bottom: 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .btn-save { background: #42a5f5; color: #fff; }
+        .btn-load { background: #66bb6a; color: #fff; }
+        .btn-export { background: #333; color: #ddd; border: 1px solid #555; }
+        .btn-auto-fit { width: 100%; background: linear-gradient(45deg, #ffb74d, #ff9800); border: none; color: #000; font-weight: bold; padding: 10px; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+
+        .stage {
+            flex: 1; display: flex; justify-content: center; align-items: center;
+            position: relative; background-image: radial-gradient(#333 1px, transparent 1px);
+            background-size: 20px 20px; overflow: hidden; cursor: grab;
+        }
+        .stage:active { cursor: grabbing; }
+
+        .slot-wrapper {
+            position: relative; display: flex; justify-content: center; align-items: center;
+            transform: translate(var(--pan-x), var(--pan-y)) scale(var(--global-scale)); 
+            transform-origin: center center; will-change: transform;
+        }
+        .ui-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 1; max-width: none; }
+        .ui-overlay.front { z-index: 4000; }
+        
+        .viewport {
+            width: var(--mask-width); height: var(--mask-height); overflow: hidden; 
+            border: 2px dashed #ff5722; position: absolute; top: 50%; left: 50%;
+            transform: translate(var(--offset-x), calc(-100% - var(--offset-y)));
+            display: flex; justify-content: center; z-index: 10; box-sizing: content-box;
+            background: rgba(0,0,0,0.2); align-items: flex-end; 
+        }
+        .viewport.noborder { border: none; background: transparent; }
+        
+        .reels-container { display: flex; gap: var(--symbol-gap); height: 100%; }
+        .reel { width: var(--symbol-width); height: 100%; position: relative; }
+        .reel-strip { display: flex; flex-direction: column; gap: var(--symbol-gap); width: 100%; transform: translateY(0); flex-shrink: 0; z-index: 1; }
+        
+        .symbol {
+            width: var(--symbol-width); height: var(--symbol-height); background: #2c2c2c;
+            border: 1px solid rgba(255,255,255,0.1); box-sizing: border-box;
+            display: flex; align-items: flex-start; justify-content: center; position: relative; 
+            overflow: visible;
+            flex-shrink: 0; 
+        }
+
+        .reels-container.clip-active .symbol { overflow: hidden; }
+
+        .symbol.is-placeholder { z-index: -1000 !important; background: transparent !important; border: none !important; opacity: 0 !important; }
+        .hide-bg .symbol { background: transparent !important; border: none !important; }
+        .symbol img.main-img { display: block; pointer-events: none; z-index: 2; position: relative; width: 100%; }
+        
+        /* NEW: Inner Strip for Single Cell Mode */
+        .inner-spin-strip {
+            position: absolute; left: 0; width: 100%;
+            display: flex; flex-direction: column; gap: var(--symbol-gap);
+            will-change: transform; z-index: 10;
+        }
+
+        .blur-clone {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; 
+            opacity: 1; transition: opacity 0.1s linear; mix-blend-mode: normal; will-change: opacity; 
+        }
+        .blur-clone img {
+            position: absolute !important; top: 0; left: 0; width: 100%; height: auto !important; 
+            object-fit: contain; filter: url(#vertical-blur); transform: scale(1.1, 1.6); transform-origin: center center; opacity: 0.9; will-change: filter, transform;
+        }
+        
+        .reels-container:not(.native) .symbol img:not(.big) { width: 100%; height: 100%; object-fit: contain; }
+        .reels-container.native .symbol img, .symbol img.big { position: absolute; left: 50%; width: auto; max-width: none; }
+        .symbol img.big { top: 0; transform: translate(-50%, 0); }
+        .reels-container.native .symbol img:not(.big) { top: 50%; transform: translate(-50%, -50%); }
+        
+        .symbol.debug-box::after {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: var(--debug-height, 100%); 
+            border: 2px solid #00ff00; z-index: 20; pointer-events: none; box-sizing: border-box;
+        }
+        .viewport.noborder .symbol.debug-box::after { display: none; }
+
+        .text-sym { font-size: 24px; color: #666; margin-top: 30px;}
+        .hide-bg .text-sym { text-shadow: 0 0 5px #000; color: #fff; }
+
+        @keyframes winPulse {
+            0%   { transform: scale(1); }
+            20%  { transform: scale(var(--win-scale, 1.16)); }
+            40%  { transform: scale(1); }
+            60%  { transform: scale(var(--win-scale, 1.16)); }
+            80%  { transform: scale(1); }
+            100% { transform: scale(1); }
+        }
+        .symbol.win-pulse { animation: winPulse var(--win-dur, 520ms) ease-in-out; transform-origin: center center; will-change: transform; }
+        .symbol.win-glow { box-shadow: 0 0 0 2px rgba(255, 183, 77, 0.85) inset, 0 0 18px rgba(255, 183, 77, 0.35); }
+
+        /* === 彈窗樣式 (Scene-Locked Version) === */
+        .feature-modal {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 5000px; height: 5000px; background: rgba(0, 0, 0, 0.85);
+            z-index: 5000; display: flex; justify-content: center; align-items: center;
+            pointer-events: auto; animation: fadeIn 0.3s ease;
+        }
+        .modal-content {
+            position: relative; background: transparent; border: none; box-shadow: none; padding: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .modal-title { 
+            color: #ffd700; font-size: 32px; margin: 0 0 20px 0; text-shadow: 0 0 10px rgba(0,0,0,0.8); font-weight: 900; 
+        }
+        .modal-desc { 
+            color: #fff; font-size: 18px; margin-bottom: 20px; text-shadow: 0 0 5px rgba(0,0,0,1);
+        }
+        .modal-icon { font-size: 60px; margin-bottom: 20px; animation: bounce 1s infinite; }
+        .modal-img {
+            display: block; width: auto; height: auto; object-fit: contain; margin: 0; filter: drop-shadow(0 5px 30px rgba(0,0,0,0.8));
+        }
+        .modal-btn {
+            background: linear-gradient(to bottom, #ffd700, #ffa000);
+            border: 2px solid #fff; padding: 15px 50px; font-size: 24px; font-weight: bold; border-radius: 50px;
+            cursor: pointer; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.6); transition: transform 0.1s;
+            min-width: 200px; z-index: 100;
+            position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%); white-space: nowrap;
+        }
+        .modal-content.no-img .modal-btn {
+            position: relative; bottom: auto; left: auto; transform: none; margin-top: 20px;
+        }
+        .modal-btn:hover { transform: translateX(-50%) scale(1.05); filter: brightness(1.1); }
+        .modal-content.no-img .modal-btn:hover { transform: scale(1.05); }
+        .modal-btn:active { transform: translateX(-50%) scale(0.95); }
+        .modal-content.no-img .modal-btn:active { transform: scale(0.95); }
+        
+        .preview-box {
+            width: 100%; height: 60px; background: #000; border: 1px dashed #444; margin-top: 5px;
+            display: flex; align-items: center; justify-content: center; color: #555; font-size: 11px; overflow: hidden;
+            cursor: pointer;
+        }
+        .preview-box img { width: 100%; height: 100%; object-fit: contain; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+</style>
+</head>
+<body data-mode="base">
+    <svg id="svg-filters"><defs><filter id="vertical-blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur in="SourceGraphic" stdDeviation="0 0" /></filter></defs></svg>
+
+    <div class="top-bar">
+        <div class="app-title">SLOT EDITOR v41.9 (Save As Support)</div>
+        <div class="top-control"><label>縮放</label><input type="range" id="global-scale" min="0.2" max="2.0" step="0.05" value="0.8"><input type="number" id="num-global-scale" min="0.2" max="2.0" step="0.05" value="0.8"><button class="btn-reset-view" id="btn-reset-view">回正</button></div>
+        <div class="top-control" style="margin-left:20px; border-left:1px solid #444; padding-left:20px;"><label><input type="checkbox" id="hide-bg-toggle"> 隱藏底框</label></div>
+        <div class="top-control"><label><input type="checkbox" id="native-size-toggle" style="accent-color:#29b6f6;"> <span style="color:#81d4fa">原圖尺寸</span></label></div>
+        <div class="top-control"><label><input type="checkbox" id="ui-front-toggle"> UI置頂</label></div>
+        <div class="top-control"><label><input type="checkbox" id="border-toggle"> 隱藏輔助線</label></div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="tabs-header"><button class="tab-btn active" onclick="openTab('tab-assets', this)">📂 素材</button><button class="tab-btn" onclick="openTab('tab-layout', this)">📐 佈局</button><button class="tab-btn" onclick="openTab('tab-motion', this)">⚡ 動態</button><button class="tab-btn" onclick="openTab('tab-system', this)">💾 系統</button></div>
+            <div class="tabs-content">
+                <div id="mode-controls" class="control-group mode-selector">
+                    <h3 style="margin-bottom:10px;">編輯模式 (Game Mode)</h3>
+                    <div class="btn-group-row">
+                        <button class="mode-btn active" data-mode="base" onclick="ModeManager.switchMode('base')">🏠 Base Game</button>
+                        <button class="mode-btn" data-mode="fg" onclick="ModeManager.switchMode('fg')">🎰 Free Game</button>
+                    </div>
+                    <div style="font-size:11px; color:#777; margin-top:5px; text-align:center;">
+                         FG 剩餘局數: <span id="fg-counter-disp" style="color:#ce93d8; font-weight:bold;">-</span>
+                    </div>
+                </div>
+
+                <div id="tab-assets" class="tab-pane active">
+                    <div class="control-group">
+                        <h3>流程圖片管理 (Flow Images)</h3>
+                        <div class="input-row" style="margin-bottom:10px;">
+                            <div class="input-header"><span>觸發過場圖 (Trigger Cutscene)</span></div>
+                            <div class="preview-box" id="preview-cutscene" onclick="document.getElementById('file-cutscene').click()">點擊上傳圖片</div>
+                            <input type="file" id="file-cutscene" accept="image/*" style="display:none">
+                        </div>
+                        <div class="input-row">
+                            <div class="input-header"><span>結算報獎圖 (Win Panel)</span></div>
+                            <div class="preview-box" id="preview-win" onclick="document.getElementById('file-win').click()">點擊上傳圖片</div>
+                            <input type="file" id="file-win" accept="image/*" style="display:none">
+                        </div>
+                    </div>
+
+                    <div class="control-group"><h3>圖騰管理 (目前模式)</h3><div class="upload-area"><button class="btn-small" onclick="document.getElementById('file-reset').click()">🔄 圖騰上傳</button><button class="btn-small" onclick="document.getElementById('file-add').click()">➕ 追加圖片</button></div><input type="file" id="file-reset" multiple accept="image/*" style="display:none"><input type="file" id="file-add" multiple accept="image/*" style="display:none"><div id="weight-list" class="image-list" style="display:none;"></div></div>
+                    <div class="control-group"><h3>背景 / UI (目前模式)</h3><button class="btn-small" style="width:100%" onclick="document.getElementById('ui-input').click()">上傳介面圖</button><input type="file" id="ui-input" accept="image/*" style="display:none"></div>
+                </div>
+                <div id="tab-layout" class="tab-pane">
+                     <div class="control-group"><h3>遊戲結構 (目前模式)</h3><div id="ctrl-reels"></div><div id="ctrl-rows"></div><div id="ctrl-gap"></div></div>
+                     <div class="control-group"><h3>格子尺寸 (目前模式)</h3><button class="btn-auto-fit" onclick="autoFitDimensions()">📐 智能填滿</button><div id="ctrl-w"></div><div id="ctrl-h"></div></div>
+                     <div class="control-group"><h3>可視範圍 (目前模式)</h3><div id="ctrl-mask-w"></div><div id="ctrl-mask-h"></div></div>
+                     <div class="control-group"><h3>左下角錨點 (目前模式)</h3><div id="ctrl-off-x"></div><div id="ctrl-off-y"></div></div>
+                </div>
+                <div id="tab-motion" class="tab-pane">
+                    <div class="control-group"><h3>FG 流程設定</h3>
+                        <div id="ctrl-fg-rounds"></div>
+                    </div>
+                    <div class="control-group"><h3>速度與節奏 (目前模式)</h3>
+                        <div id="ctrl-spin-duration"></div>
+                        <div id="ctrl-speed"></div><div id="ctrl-interval"></div>
+                    </div>
+                    <div class="control-group"><h3>特效細節 (目前模式)</h3><div class="input-row"><div class="input-header"><span class="input-label">演出模式</span></div>
+                    <select id="anim-mode" class="style-select">
+                        <option value="spin">標準轉輪</option>
+                        <option value="cascade" selected>掉落消除</option>
+                        <option value="single">單格獨立旋轉 (Single Cell)</option>
+                    </select>
+                </div><div class="input-row"><div class="input-header"><span class="input-label">煞車曲線</span></div>
+                        <select id="ease-type" class="style-select">
+                            <option value="bounceBack" selected>觸底反彈 (Bounce Back)</option>
+                            <option value="std">標準 (Standard)</option>
+                            <option value="heavy">重力急停 (Heavy Drop)</option>
+                            <option value="elastic">Q彈 (雙向/Bi-direct)</option>
+                            <option value="elasticEnd">Q彈 (僅結尾/End Only)</option>
+                        </select>
+                    </div><div id="ctrl-bounce"></div><div id="ctrl-blur"></div></div>
+                    <div class="control-group" style="border-top:1px solid #333; padding-top:15px;"><h3>掉落專用設定</h3><div id="ctrl-cascade-speed"></div><div id="ctrl-cascade-bounce"></div></div>
+                </div>
+                <div id="tab-system" class="tab-pane">
+                     <div class="control-group"><h3>設定檔管理</h3><button class="sys-btn btn-save" id="btn-save">暫存設定 (LocalStorage)</button><button class="sys-btn btn-load" id="btn-load">讀取暫存</button><hr style="border:0; border-top:1px solid #333; margin:15px 0;"><button class="sys-btn btn-export" id="btn-export" style="background:#ff9800; color:#000;">📦 完整專案打包 (JSON+Images)</button><button class="sys-btn btn-export" onclick="document.getElementById('file-import').click()">📂 載入完整專案</button><input type="file" id="file-import" accept=".json" style="display:none"><hr style="border:0; border-top:1px solid #333; margin:15px 0;"><button class="sys-btn btn-export" id="btn-export-cocos">匯出 Cocos3.8 Config</button><button class="sys-btn btn-export" id="btn-export-unity">匯出 Unity Config</button></div>
+                </div>
+            </div>
+            <div class="sidebar-footer"><button id="btn-spin" class="spin-btn">SPIN</button><button id="btn-reset-all" class="reset-btn">重置所有設定</button></div>
+        </div>
+        <div class="stage" id="stage-area"><div class="slot-wrapper" id="slot-wrapper">
+            <img id="ui-layer" class="ui-overlay" src="" style="display:none;">
+            <div class="viewport" id="viewport"><div class="reels-container" id="reels-container"></div></div>
+            
+            <div id="feature-modal" class="feature-modal" style="display:none;">
+                <div class="modal-content" id="modal-content-cutscene">
+                    <h1 class="modal-title">✨ FREE GAME ✨</h1>
+                    <img id="modal-img-cutscene" class="modal-img" style="display:none;">
+                    <div id="modal-default-content">
+                        <p class="modal-desc">恭喜獲得免費遊戲！</p>
+                        <div class="modal-icon">🎰</div>
+                    </div>
+                    <button class="modal-btn" onclick="enterFreeGame()">START</button>
+                </div>
+            </div>
+
+            <div id="win-modal" class="feature-modal" style="display:none;">
+                <div class="modal-content" id="modal-content-win">
+                    <h1 class="modal-title">💰 TOTAL WIN 💰</h1>
+                    <img id="modal-img-win" class="modal-img" style="display:none;">
+                    <div id="win-default-content">
+                        <p class="modal-desc">免費遊戲結束</p>
+                        <div class="modal-icon">🏆</div>
+                    </div>
+                    <button class="modal-btn" onclick="backToBaseGame()">CONFIRM</button>
+                </div>
+            </div>
+            
+        </div></div>
+    </div>
+
+    <script>
+        // v41.9: Save As (File System Access API)
+        const settings = {
+            symbols: ['A', 'B', 'C', 'D', 'E', '1', '2', '3'], images: [],
+            spinSpeed: 1500, stopDelay: 60, bounce: 20, reels: 5, rows: 6, ease: 'bounceBack',
+            spinDuration: 2000,
+            mode: 'cascade', cascadeSpeed: 300, cascadeBounce: 30,
+            fgCount: 10,
+            // Layout params
+            gap: 10, w: 100, h: 100, mw: 600, mh: 650, ox: -300, oy: -325
+        };
+        let isSpinning = false;
+        
+        const projectData = {
+            currentModeId: 'base',
+            modes: {
+                base: { settings: null, bgImage: null },
+                fg: { settings: null, bgImage: null }
+            },
+            assets: {
+                cutscene: null,
+                winPanel: null
+            },
+            runtime: {
+                fgCurrentRound: 0,
+                fgTotalRounds: 10
+            }
+        };
+
+        const APP_VERSION = '41.9';
+        const PAD_TOP = 2;
+        const PAD_BOTTOM = 1;
+        const BLUR_WINDOW_MARGIN = 2;
+        let _winToken = 0;
+
+        function _delay(ms) { return new Promise(res => setTimeout(res, ms)); }
+        function _revokeBlobUrl(url) { try { if (typeof url === 'string' && url.startsWith('blob:')) URL.revokeObjectURL(url); } catch (_) {} }
+        function _revokeAllSymbolImageUrls() { try { (settings.images || []).forEach(img => _revokeBlobUrl(img && img.url)); } catch (_) {} }
+
+        // --- Helper: Base64 Handling ---
+        async function blobToBase64(blobUrl) {
+            if (!blobUrl || !blobUrl.startsWith('blob:')) return null;
+            try {
+                const response = await fetch(blobUrl);
+                const blob = await response.blob();
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.readAsDataURL(blob);
+                });
+            } catch (e) { console.error('Base64 Fail:', e); return null; }
+        }
+
+        function base64ToBlobUrl(base64) {
+            if (!base64 || !base64.startsWith('data:')) return null;
+            try {
+                const bin = atob(base64.split(',')[1]);
+                const arr = new Uint8Array(bin.length);
+                for(let i=0; i<bin.length; i++) arr[i] = bin.charCodeAt(i);
+                const blob = new Blob([arr], {type: 'image/png'}); 
+                return URL.createObjectURL(blob);
+            } catch (e) { return null; }
+        }
+
+        // --- Helper: Get Bezier String for Export ---
+        function _getBezierDefinition(easeType) {
+            switch(easeType) {
+                case 'heavy': return { css: 'cubic-bezier(0.5, 1, 0.89, 1)', p1x:0.5, p1y:1, p2x:0.89, p2y:1, desc: 'Heavy Drop (Slow start, fast end)' };
+                case 'elastic': return { css: 'cubic-bezier(0.68, -0.55, 0.27, 1.55)', p1x:0.68, p1y:-0.55, p2x:0.27, p2y:1.55, desc: 'Elastic (Anticipation & Overshoot)' };
+                case 'elasticEnd': return { css: 'manual-2-step', p1x:0.2, p1y:0, p2x:0.35, p2y:1.5, desc: 'Elastic End (Manual Distance Control)' };
+                case 'std': return { css: 'cubic-bezier(0.25, 0.1, 0.25, 1)', p1x:0.25, p1y:0.1, p2x:0.25, p2y:1, desc: 'Standard Ease Out' };
+                case 'bounceBack': default: return { css: 'linear', p1x:0, p1y:0, p2x:1, p2y:1, desc: 'Linear (Manual Code Bounce)' };
+            }
+        }
+
+        // --- Core Logic ---
+        function _isElementVisible(el) {
+            if (!el) return false;
+            const viewport = document.getElementById('viewport');
+            if (!viewport) return false;
+            const rect = el.getBoundingClientRect();
+            const mask = viewport.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            return (centerY >= mask.top && centerY <= mask.bottom && centerX >= mask.left && centerX <= mask.right);
+        }
+
+        function _getVisibleSymbolsOnReel(reelIdx) {
+            const reel = document.getElementById(`reel-${reelIdx}`);
+            if (!reel) return [];
+            const strip = reel.querySelector('.reel-strip');
+            if (!strip) return [];
+            const out = [];
+            for (let i = 0; i < strip.children.length; i++) {
+                const sym = strip.children[i];
+                if (!sym) continue;
+                if (!_isElementVisible(sym)) continue;
+                const kind = (sym.dataset && sym.dataset.kind) ? sym.dataset.kind : '';
+                const id = (sym.dataset && sym.dataset.symId) ? sym.dataset.symId : '';
+                if (!id) continue;
+                let el = sym;
+                if (kind === 'placeholder') {
+                    const aIdx = parseInt((sym.dataset && sym.dataset.anchorIndex) ? sym.dataset.anchorIndex : '-1', 10);
+                    if (!Number.isNaN(aIdx) && aIdx >= 0 && strip.children && strip.children[aIdx]) el = strip.children[aIdx];
+                }
+                out.push({ el, id, kind });
+            }
+            return out;
+        }
+
+        function _isImgAllowedForReel(img, reelIndex) { return true; }
+        function _buildReelPredicate(specRaw) { return (reelIndex) => true; }
+
+        function _collectWaysWins(minConsecutive = 3) {
+            const cols = settings.reels;
+            if (cols <= 0) return [];
+            const wildIds = new Set();
+            try { (settings.images || []).forEach(img => { if (img && img.isWild && img.id) wildIds.add(String(img.id)); }); } catch (_) {}
+            const _isWildId = (id) => wildIds.has(String(id));
+            const reelSyms = new Array(cols);
+            const reelSets = new Array(cols);
+            const reelHasWild = new Array(cols).fill(false);
+            for (let c = 0; c < cols; c++) {
+                const syms = _getVisibleSymbolsOnReel(c);
+                reelSyms[c] = syms;
+                const set = new Set();
+                for (const s of syms) {
+                    if (!s || !s.id) continue;
+                    const sid = String(s.id);
+                    set.add(sid);
+                    if (_isWildId(sid)) reelHasWild[c] = true;
+                }
+                reelSets[c] = set;
+            }
+            const candidates = [];
+            const seen = new Set();
+            if (reelHasWild[0]) {
+                for (let c = 0; c < cols; c++) {
+                    for (const s of reelSyms[c]) {
+                        const sid = String(s.id || '');
+                        if (!sid) continue; if (_isWildId(sid)) continue; if (seen.has(sid)) continue;
+                        seen.add(sid); candidates.push(sid);
+                    }
+                }
+            } else {
+                for (const s of reelSyms[0]) {
+                    const sid = String(s.id || '');
+                    if (!sid) continue; if (_isWildId(sid)) continue; if (seen.has(sid)) continue;
+                    seen.add(sid); candidates.push(sid);
+                }
+            }
+            if (wildIds.size > 0 && reelHasWild.some(v => v)) candidates.push("__WILD__");
+            const wins = [];
+            for (const id of candidates) {
+                const isWildGroup = (id === "__WILD__");
+                let len = 0; let hasReal = false;
+                for (let c = 0; c < cols; c++) {
+                    const set = reelSets[c];
+                    const ok = isWildGroup ? reelHasWild[c] : ((set && set.has(id)) || reelHasWild[c]);
+                    if (!ok) break;
+                    if (!isWildGroup && set && set.has(id)) hasReal = true;
+                    len++;
+                }
+                if (len >= minConsecutive && (isWildGroup || hasReal)) {
+                    const divSet = new Set();
+                    for (let c = 0; c < len; c++) {
+                        for (const s of reelSyms[c]) {
+                            if (!s || !s.el) continue;
+                            const sid = String(s.id || '');
+                            if (isWildGroup) { if (_isWildId(sid)) divSet.add(s.el); }
+                            else { if (sid === id || _isWildId(sid)) divSet.add(s.el); }
+                        }
+                    }
+                    const divs = Array.from(divSet);
+                    wins.push({ id, len, divs });
+                }
+            }
+            return wins;
+        }
+
+        async function _pulseGroup(divs, scale, durMs) {
+            if (!divs || divs.length === 0) return;
+            for (const sym of divs) {
+                sym.classList.remove('win-pulse', 'win-glow');
+                sym.style.setProperty('--win-scale', String(scale));
+                sym.style.setProperty('--win-dur', String(durMs) + 'ms');
+            }
+            void divs[0].offsetWidth;
+            for (const sym of divs) { sym.classList.add('win-glow'); sym.classList.add('win-pulse'); }
+            await _delay(durMs);
+            for (const sym of divs) { sym.classList.remove('win-pulse', 'win-glow'); }
+        }
+
+        async function _playWaysWins() {
+            const token = _winToken;
+            const wins = _collectWaysWins(3);
+            if (!wins.length) return;
+            const spinBtn = document.getElementById('btn-spin');
+            if (spinBtn) spinBtn.disabled = true;
+            try {
+                for (const w of wins) {
+                    if (token !== _winToken) return;
+                    const scale = 1.16 + Math.min(0.10, (w.len - 3) * 0.03);
+                    const dur = 520 + Math.min(200, (w.len - 3) * 60);
+                    await _pulseGroup(w.divs, scale, dur);
+                    await _delay(220);
+                }
+            } finally { if (token === _winToken && spinBtn) spinBtn.disabled = false; }
+        }
+
+        function _scheduleWinCheck() {
+            const token = ++_winToken;
+            setTimeout(() => { if (token !== _winToken) return; if (isSpinning) return; _playWaysWins(); }, 50); 
+        }
+
+        function _clearStripBlurClones(strip) { if (!strip) return; strip.querySelectorAll('.blur-clone').forEach(b => b.remove()); }
+        const _stripBlurState = new Map();
+        function _updateStripBlurWindow(strip, rows, h, g) {
+            if (!strip) return;
+            const blurVal = parseFloat(document.getElementById('num-blur')?.value || '0');
+            if (!(blurVal > 0)) { _clearStripBlurClones(strip); return; }
+            const step = h + g;
+            const y = _getTranslateY(strip);
+            const firstVisible = Math.max(0, Math.floor((-y) / Math.max(step, 1)));
+            const start = Math.max(0, firstVisible - BLUR_WINDOW_MARGIN);
+            const end = Math.min(strip.children.length - 1, firstVisible + rows + PAD_BOTTOM + BLUR_WINDOW_MARGIN);
+            for (let i = start; i <= end; i++) { _ensureBlurClone(strip.children[i], h, g); }
+            for (let i = 0; i < strip.children.length; i++) { if (i >= start && i <= end) continue; const c = strip.children[i].querySelector('.blur-clone'); if (c) c.remove(); }
+        }
+        function _getTranslateY(el) {
+            const tr = getComputedStyle(el).transform;
+            if (!tr || tr === 'none') return 0;
+            const m = tr.match(/matrix\(([^)]+)\)/);
+            if (m) { const parts = m[1].split(',').map(x => parseFloat(x.trim())); return parts.length >= 6 ? parts[5] : 0; }
+            const m3 = tr.match(/matrix3d\(([^)]+)\)/);
+            if (m3) { const parts = m3[1].split(',').map(x => parseFloat(x.trim())); return parts.length >= 16 ? parts[13] : 0; }
+            return 0;
+        }
+        function _ensureBlurClone(sym, h, g) {
+            if (!sym || sym.querySelector('.blur-clone')) return;
+            if ((sym.dataset && sym.dataset.kind) !== 'image') return;
+            const blurVal = parseFloat(document.getElementById('num-blur')?.value || '0');
+            if (!(blurVal > 0)) return;
+            const img = sym.querySelector('img.main-img');
+            if (!img) return;
+            const span = Math.max(1, parseInt(sym.dataset.span || '1', 10) || 1);
+            const cloneDiv = document.createElement('div');
+            cloneDiv.className = 'blur-clone';
+            const cloneImg = img.cloneNode(true);
+            if (span > 1) { const totalH = (h * span) + (g * (span - 1)); cloneImg.style.height = totalH + 'px'; }
+            else { cloneImg.style.height = '100%'; }
+            cloneDiv.appendChild(cloneImg);
+            sym.appendChild(cloneDiv);
+        }
+        function _startStripBlurLoop(strip, rows) {
+            if (!strip) return;
+            let st = _stripBlurState.get(strip);
+            if (!st) { st = { active: false, raf: 0, token: 0, rows: rows || 0 }; _stripBlurState.set(strip, st); }
+            st.active = true; st.rows = rows || st.rows || 0; st.token = (st.token || 0) + 1; const myToken = st.token;
+            if (st.raf) return;
+            const tick = () => {
+                const st2 = _stripBlurState.get(strip);
+                if (!st2 || !st2.active || st2.token !== myToken) { if (st2) st2.raf = 0; return; }
+                const blurVal = parseFloat(document.getElementById('num-blur')?.value || '0');
+                const h = parseInt(document.getElementById('num-h')?.value || '0', 10);
+                const g = parseInt(document.getElementById('num-gap')?.value || '0', 10);
+                const rowsNow = st2.rows || rows || 0;
+                if (!(blurVal > 0)) _clearStripBlurClones(strip); else _updateStripBlurWindow(strip, rowsNow, h, g);
+                st2.raf = requestAnimationFrame(tick);
+            };
+            st.raf = requestAnimationFrame(tick);
+        }
+        function _stopStripBlurLoop(strip) {
+            const st = _stripBlurState.get(strip);
+            if (!st) return;
+            st.active = false; st.token = (st.token || 0) + 1; if (st.raf) cancelAnimationFrame(st.raf); st.raf = 0;
+        }
+
+        window.openTab = function(tabName, btn) {
+            document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            if(btn) btn.classList.add('active');
+        }
+
+        window.autoFitDimensions = function() {
+            const mw = parseInt(document.getElementById('num-mw').value);
+            const mh = parseInt(document.getElementById('num-mh').value);
+            const reels = parseInt(document.getElementById('num-reels').value);
+            const rows = parseInt(document.getElementById('num-rows').value);
+            const gap = parseInt(document.getElementById('num-gap').value);
+            if(reels <= 0 || rows <= 0) return;
+            let newW = Math.floor((mw - (reels - 1) * gap) / reels); if(newW < 10) newW = 10;
+            let newH = Math.floor((mh - (rows - 1) * gap) / rows); if(newH < 10) newH = 10;
+            const wInput = document.getElementById('num-w'); wInput.value = newW; wInput.dispatchEvent(new Event('input'));
+            const hInput = document.getElementById('num-h'); hInput.value = newH; hInput.dispatchEvent(new Event('input'));
+            updateGrid();
+            alert(`Auto-Fit: ${newW}x${newH}px`);
+        }
+
+        function generateReelData(totalRows, reelIndex, initialHasScatter = false) {
+            const result = new Array(totalRows).fill(null);
+            let i = 0; let hasScatterOnReel = initialHasScatter;
+            while (i < totalRows) {
+                let img = null;
+                if (settings.images.length > 0) { img = getWeightedImg(reelIndex, hasScatterOnReel); }
+                if (!img) { result[i] = { type: 'text', data: 'TEXT', span: 1 }; i++; continue; }
+                if (img.isScatter) { hasScatterOnReel = true; }
+                let span = img.span;
+                if (i + span > totalRows) {
+                    let safeImg = null;
+                    let safePool = settings.images.filter(im => im.span === 1 && !im.isScatter && _isImgAllowedForReel(im, reelIndex));
+                    if(safePool.length > 0) { safeImg = safePool[Math.floor(Math.random() * safePool.length)]; }
+                    if (safeImg) { result[i] = { type: 'image', data: safeImg, span: 1 }; } else { result[i] = { type: 'text', data: '1', span: 1 }; }
+                    i++;
+                } else {
+                    result[i] = { type: 'image', data: img, span: span };
+                    for (let k = 1; k < span; k++) { result[i + k] = { type: 'placeholder', span: span, symId: (img && img.id) ? img.id : '', anchorIndex: i }; }
+                    i += span;
+                }
+            }
+            return result;
+        }
+
+        function createControl(parentId, labelText, settingKey, min, max, step, val, cssVar, isPx) {
+             const container = document.getElementById(parentId); if(!container) return;
+             const html = `<div class="input-row"><div class="input-header"><span class="input-label">${labelText}</span></div><div class="input-controls"><input type="range" id="range-${settingKey}" min="${min}" max="${max}" step="${step}" value="${val}"><input type="number" id="num-${settingKey}" min="${min}" max="${max}" step="${step}" value="${val}"></div></div>`;
+             container.innerHTML = html;
+             const range = document.getElementById(`range-${settingKey}`); 
+             const num = document.getElementById(`num-${settingKey}`);
+             const update = (v) => {
+                range.value = v; num.value = v;
+                if(cssVar) document.documentElement.style.setProperty(cssVar, v + (isPx ? 'px' : ''));
+                settings[settingKey] = (settingKey === 'duration' || settingKey === 'speed') ? parseFloat(v) : parseInt(v); 
+                if(settingKey === 'reels' || settingKey === 'rows') { updateGrid(); } 
+                else if(settingKey === 'speed') { settings.spinSpeed = parseFloat(v) * 1000; } 
+                else if(settingKey === 'interval') { settings.stopDelay = parseInt(v); } 
+                else if(settingKey === 'bounce') { settings.bounce = parseInt(v); }
+                else if(settingKey === 'duration') { const sec = parseFloat(v); settings.spinDuration = Math.max(0, isFinite(sec) ? sec : 0) * 1000; }
+                else if(settingKey === 'cascade-speed') { settings.cascadeSpeed = parseInt(v); }
+                else if(settingKey === 'cascade-bounce') { settings.cascadeBounce = parseInt(v); }
+                else if(settingKey === 'fgCount') { settings.fgCount = parseInt(v); }
+                if(settingKey === 'blur') { const f = document.querySelector('#vertical-blur feGaussianBlur'); if(f) f.setAttribute('stdDeviation', `0 ${v}`); }
+             };
+             range.addEventListener('input', (e) => update(e.target.value)); 
+             num.addEventListener('input', (e) => update(e.target.value));
+             update(val);
+        }
+
+        function getWeightedImg(reelIndex, excludeScatter = false) {
+            if (!settings.images || settings.images.length === 0) return null;
+            const r = Math.max(1, parseInt(reelIndex, 10) || 1);
+            let pool = settings.images.filter(img => _isImgAllowedForReel(img, r));
+            if (excludeScatter) { pool = pool.filter(img => !img.isScatter); }
+            if (pool.length === 0) { pool = settings.images.filter(img => !img.isScatter); if (pool.length === 0) return null; }
+            const total = pool.reduce((a, b) => a + (parseInt(b.weight, 10) || 0), 0);
+            if (!(total > 0)) return pool[0] || null;
+            let rr = Math.random() * total;
+            for (let img of pool) { const w = (parseInt(img.weight, 10) || 0); if (rr < w) return img; rr -= w; }
+            return pool[0] || null;
+        }
+
+        function renderSymbol(div, dataObj, rowIndex) {
+            div.innerHTML = ''; div.style.background = ''; div.classList.remove('debug-box', 'is-long', 'is-placeholder', 'is-anchor');
+            div.dataset.kind = ''; div.dataset.span = '1'; div.dataset.symId = '';
+            let baseZIndex = 1000 + (rowIndex * 10); div.style.zIndex = baseZIndex;
+            if (dataObj && dataObj.type === 'placeholder') {
+                div.classList.add('is-placeholder'); div.style.zIndex = -1000; div.style.opacity = '0'; div.dataset.kind = 'placeholder';
+                div.dataset.symId = (dataObj.symId != null) ? String(dataObj.symId) : ''; div.dataset.anchorIndex = (dataObj.anchorIndex != null) ? String(dataObj.anchorIndex) : '';
+                return;
+            }
+            if (dataObj && dataObj.type === 'image') {
+                div.classList.add('is-anchor');
+                const imgData = dataObj.data;
+                const img = document.createElement('img'); img.src = imgData.url; img.className = 'main-img';
+                if (imgData.isScatter) div.dataset.isScatter = 'true';
+                if(imgData.span > 1) {
+                    img.classList.add('big'); div.classList.add('debug-box'); div.classList.add('is-long'); div.style.zIndex = baseZIndex + 5; 
+                    const h = parseInt(document.getElementById('num-h').value); const g = parseInt(document.getElementById('num-gap').value);
+                    const totalSpanHeight = (h * imgData.span) + (g * (imgData.span - 1));
+                    div.style.setProperty('--debug-height', totalSpanHeight + 'px');
+                    if(document.getElementById('native-size-toggle').checked) { img.classList.add('force-native'); img.style.height = ''; } else { img.classList.remove('force-native'); img.style.height = totalSpanHeight + 'px'; }
+                    img.style.top = '0'; img.style.marginTop = '0'; 
+                }
+                div.appendChild(img);
+                div.dataset.kind = 'image'; div.dataset.span = String(imgData.span || 1); div.dataset.symId = String(imgData.id || imgData.name || imgData.url || '');
+            } else if (dataObj && dataObj.type === 'text') {
+                 const span = document.createElement('span'); span.className = 'text-sym';
+                 span.innerText = settings.symbols[Math.floor(Math.random()*settings.symbols.length)];
+                 div.appendChild(span); div.style.background = '#333';
+                 div.dataset.kind = 'text'; div.dataset.symId = 'text:' + String(dataObj && dataObj.data != null ? dataObj.data : '');
+            }
+        }
+
+        function updateGrid() {
+            const con = document.getElementById('reels-container'); if(!con) return;
+            const hInput = document.getElementById('num-h'); const gapInput = document.getElementById('num-gap');
+            if(!hInput || !gapInput) return;
+            con.innerHTML = ''; 
+            const topPaddingCount = PAD_TOP; const bottomPaddingCount = PAD_BOTTOM;
+            const totalRows = settings.rows + topPaddingCount + bottomPaddingCount;
+            for(let i=0; i<settings.reels; i++) {
+                const reelData = generateReelData(totalRows, i+1);
+                const reel = document.createElement('div'); reel.className = 'reel'; reel.id = `reel-${i}`;
+                const strip = document.createElement('div'); strip.className = 'reel-strip'; 
+                const h = parseInt(hInput.value); const g = parseInt(gapInput.value);
+                const initOffset = -(topPaddingCount * (h + g));
+                strip.style.transform = `translateY(${initOffset}px)`;
+                reelData.forEach((item, j) => { const sym = document.createElement('div'); sym.className = 'symbol'; renderSymbol(sym, item, j); strip.appendChild(sym); });
+                reel.appendChild(strip); con.appendChild(reel);
+            }
+        }
+
+        // v41.6: Dynamic Masking Toggle
+        function updateClipMode() {
+            const container = document.getElementById('reels-container');
+            if(settings.mode === 'single') { container.classList.add('clip-active'); }
+            else { container.classList.remove('clip-active'); }
+        }
+
+        function spin() {
+             if(isSpinning) return; 
+             if(settings.mode === 'cascade') { performCascade(); return; }
+             if(settings.mode === 'single') { performSingleCellSpin(); return; }
+
+             isSpinning = true;
+             const spinBtn = document.getElementById('btn-spin'); spinBtn.disabled = true;
+
+             // v41.7 Fix: Apply Speed Multiplier to Base Duration
+             const rawSpeedVal = parseFloat(document.getElementById('num-speed').value) || 1.0;
+             const minDuration = settings.spinDuration / rawSpeedVal;
+
+             const safetyMs = Math.max(5000, minDuration + ((settings.reels - 1) * settings.stopDelay) + 3000 + (settings.ease === 'bounceBack' ? 600 : 0));
+             const safetyTimer = setTimeout(() => {
+                 if(isSpinning) { isSpinning = false; spinBtn.disabled = false; document.querySelectorAll('.reel-strip').forEach(st => { _stopStripBlurLoop(st); _clearStripBlurClones(st); }); }
+             }, safetyMs);
+
+             const reels = document.querySelectorAll('.reel');
+             const bounce = parseInt(document.getElementById('num-bounce').value);
+             const h = parseInt(document.getElementById('num-h').value); const g = parseInt(document.getElementById('num-gap').value);
+             const topPaddingCount = PAD_TOP; const bottomPaddingCount = PAD_BOTTOM; const rows = settings.rows;
+             const approxSymbols = Math.ceil(minDuration / 50); const bufferCount = Math.max(20, approxSymbols);
+
+             // Define curve
+             let easeCurve = 'cubic-bezier(0.25, 0.1, 0.25, 1)'; 
+             let useManualOvershoot = false;
+
+             if (settings.ease === 'bounceBack') { easeCurve = 'linear'; useManualOvershoot = true; }
+             else if (settings.ease === 'heavy') easeCurve = 'cubic-bezier(0.5, 1, 0.89, 1)';
+             else if (settings.ease === 'elastic') easeCurve = 'cubic-bezier(0.68, -0.55, 0.27, 1.55)';
+             else if (settings.ease === 'elasticEnd') { 
+                 easeCurve = 'linear'; 
+                 useManualOvershoot = true; 
+             }
+
+            reels.forEach((reel, idx) => {
+                let strip = reel.querySelector('.reel-strip');
+                _clearStripBlurClones(strip);
+                const fragment = document.createDocumentFragment();
+                const newData = generateReelData(topPaddingCount + rows + bufferCount, idx+1); 
+                newData.forEach((item, i) => { const sym = document.createElement('div'); sym.className = 'symbol'; renderSymbol(sym, item, i); fragment.appendChild(sym); });
+                strip.prepend(fragment);
+                const addedHeight = (topPaddingCount + rows + bufferCount) * (h + g);
+                const startY = -(addedHeight + (topPaddingCount * (h+g)));
+                strip.style.transition = 'none'; strip.style.transform = `translateY(${startY}px)`; strip.offsetHeight; 
+                const duration = minDuration + (idx * settings.stopDelay);
+                let targetY = -(topPaddingCount * (h + g));
+                
+                setTimeout(() => {
+                     strip.style.transition = `transform ${duration}ms ${easeCurve}`;
+                     strip.style.transform = `translateY(${targetY}px)`;
+                     _startStripBlurLoop(strip, rows);
+                     
+                     const blurFade = Math.max(0, duration - 300);
+                     setTimeout(() => {
+                         _stopStripBlurLoop(strip);
+                         const blurs = strip.querySelectorAll('.blur-clone');
+                         blurs.forEach(b => b.style.opacity = '0');
+                         setTimeout(() => _clearStripBlurClones(strip), 160);
+                     }, blurFade);
+
+                     const onEnd = () => {
+                         strip.removeEventListener('transitionend', onEnd);
+                         _stopStripBlurLoop(strip);
+                         
+                         if (useManualOvershoot) {
+                            // Manual 2-step Animation
+                            let overshootTime = 100;
+                            let settleTime = 120;
+                            let overshootY = targetY;
+                            let settleCurve = 'ease-in';
+
+                            if (settings.ease === 'bounceBack') {
+                                overshootY = targetY - bounce; 
+                                settleCurve = 'cubic-bezier(0.2, 0.6, 0.3, 1)';
+                            } 
+                            else if (settings.ease === 'elasticEnd') {
+                                overshootY = targetY + bounce; 
+                                overshootTime = 120; 
+                                settleTime = 300; 
+                                settleCurve = 'cubic-bezier(0.2, 0, 0.35, 1.5)';
+                            }
+
+                            strip.style.transition = `transform ${overshootTime}ms cubic-bezier(0.2, 0.6, 0.3, 1)`;
+                            strip.style.transform = `translateY(${overshootY}px)`;
+                            
+                            setTimeout(() => {
+                                strip.style.transition = `transform ${settleTime}ms ${settleCurve}`;
+                                strip.style.transform = `translateY(${targetY}px)`;
+                                setTimeout(() => _clearStripBlurClones(strip), settleTime + 50);
+                                finalize(); 
+                            }, overshootTime);
+                        } else { 
+                            setTimeout(() => _clearStripBlurClones(strip), 100); 
+                            finalize(); 
+                        }
+                     };
+                     strip.addEventListener('transitionend', onEnd);
+                }, 50);
+            });
+            
+            let reelsDone = 0;
+            function finalize() {
+                 setTimeout(() => {
+                     const keepCount = topPaddingCount + rows + bottomPaddingCount;
+                     const strips = document.querySelectorAll('.reel-strip');
+                     reelsDone++;
+                     if(reelsDone === settings.reels) {
+                         strips.forEach(strip => { while (strip.children.length > keepCount) { strip.removeChild(strip.lastChild); } });
+                         
+                         clearTimeout(safetyTimer);
+                         handleSpinComplete();
+                     }
+                 }, 0); 
+            }
+        }
+
+        function performSingleCellSpin() {
+            if(isSpinning) return; 
+            isSpinning = true;
+            document.getElementById('btn-spin').disabled = true;
+
+            const h = parseInt(document.getElementById('num-h').value); 
+            const g = parseInt(document.getElementById('num-gap').value);
+            const totalRows = settings.rows + PAD_TOP + PAD_BOTTOM;
+            
+            // v41.7 Fix: Use Settings.spinDuration / Speed
+            const rawSpeedVal = parseFloat(document.getElementById('num-speed').value) || 1.0;
+            const dropDuration = settings.spinDuration / rawSpeedVal; 
+
+            const rhythm = settings.stopDelay;
+            const bounceDist = settings.bounce;
+            const easeType = settings.ease;
+
+            let easeCurve = 'cubic-bezier(0.25, 0.1, 0.25, 1)'; 
+            let manualBounce = false;
+
+            if (easeType === 'bounceBack') {
+                easeCurve = 'linear';
+                manualBounce = true;
+            } else if (easeType === 'heavy') {
+                easeCurve = 'cubic-bezier(0.5, 1, 0.89, 1)';
+            } else if (easeType === 'elastic') {
+                easeCurve = 'cubic-bezier(0.68, -0.55, 0.27, 1.55)';
+            } else if (easeType === 'elasticEnd') {
+                easeCurve = 'linear';
+                manualBounce = true;
+            }
+
+            let cellsCompleted = 0;
+            let totalCellsToSpin = settings.reels * settings.rows;
+
+            const targets = [];
+            for(let r=0; r<settings.reels; r++) { targets.push(generateReelData(totalRows, r+1, false)); }
+
+            for(let c=0; c<settings.reels; c++) {
+                const reel = document.getElementById(`reel-${c}`);
+                const strip = reel.querySelector('.reel-strip');
+                if(!strip) continue;
+                while(strip.children.length > totalRows) { strip.removeChild(strip.lastChild); }
+                strip.style.transition = 'none';
+                strip.style.transform = `translateY(-${PAD_TOP * (h+g)}px)`;
+
+                for(let r=0; r<settings.rows; r++) {
+                    const dataIndex = PAD_TOP + r;
+                    const cell = strip.children[dataIndex];
+                    if(!cell) continue;
+                    if(cell.classList.contains('is-placeholder')) { totalCellsToSpin--; continue; }
+
+                    const delay = (c * rhythm) + (r * (rhythm * 0.4)); 
+                    setTimeout(() => {
+                        const targetData = targets[c][dataIndex];
+                        const currentHtml = cell.innerHTML;
+                        cell.innerHTML = ''; 
+                        const innerStrip = document.createElement('div');
+                        innerStrip.className = 'inner-spin-strip';
+                        const fragment = document.createDocumentFragment();
+
+                        const divTarget = document.createElement('div');
+                        divTarget.className = 'symbol';
+                        renderSymbol(divTarget, targetData, 0); 
+                        const targetH = (targetData.span > 1 ? ((targetData.span*h)+((targetData.span-1)*g)) : h);
+                        divTarget.style.height = targetH + 'px';
+                        fragment.appendChild(divTarget);
+
+                        const blurCount = 3; 
+                        let totalBlurH = 0;
+                        for(let b=0; b<blurCount; b++) {
+                            const divBlur = document.createElement('div');
+                            divBlur.className = 'symbol';
+                            divBlur.style.height = h + 'px';
+                            totalBlurH += (h + g); 
+                            const randImg = settings.images.length > 0 ? settings.images[Math.floor(Math.random()*settings.images.length)] : null;
+                            if(randImg) {
+                                const img = document.createElement('img');
+                                img.src = randImg.url; img.className = 'main-img'; img.style.filter = 'url(#vertical-blur)'; 
+                                divBlur.appendChild(img);
+                            }
+                            fragment.appendChild(divBlur);
+                        }
+
+                        const divCurrent = document.createElement('div');
+                        divCurrent.className = 'symbol'; divCurrent.style.height = h + 'px'; divCurrent.innerHTML = currentHtml;
+                        fragment.appendChild(divCurrent);
+
+                        innerStrip.appendChild(fragment); cell.appendChild(innerStrip);
+                        const moveDist = targetH + g + (blurCount * (h + g)); 
+                        innerStrip.style.transform = `translateY(-${moveDist}px)`; innerStrip.offsetHeight; 
+                        innerStrip.style.transition = `transform ${dropDuration}ms ${easeCurve}`;
+                        innerStrip.style.transform = `translateY(0)`;
+
+                        setTimeout(() => {
+                            if (manualBounce) {
+                                // v41.6: Single Cell Manual Bounce Logic
+                                let bounceY = 0;
+                                let settleTime = 120;
+                                let settleCurve = 'ease-in';
+                                
+                                if (easeType === 'bounceBack') {
+                                    bounceY = bounceDist; // Go down (positive relative to 0)
+                                    settleCurve = 'cubic-bezier(0.2, 0.6, 0.3, 1)';
+                                } else if (easeType === 'elasticEnd') {
+                                    bounceY = bounceDist; // Go down
+                                    settleTime = 300;
+                                    settleCurve = 'cubic-bezier(0.2, 0, 0.35, 1.5)';
+                                }
+
+                                innerStrip.style.transition = `transform 100ms cubic-bezier(0.2, 0.6, 0.3, 1)`;
+                                innerStrip.style.transform = `translateY(${bounceY}px)`;
+                                setTimeout(() => {
+                                    innerStrip.style.transition = `transform ${settleTime}ms ${settleCurve}`; 
+                                    innerStrip.style.transform = `translateY(0)`;
+                                    setTimeout(() => finishCell(), settleTime);
+                                }, 100);
+                            } else { finishCell(); }
+
+                            function finishCell() {
+                                cell.innerHTML = ''; renderSymbol(cell, targetData, r); 
+                                cellsCompleted++;
+                                if(cellsCompleted >= totalCellsToSpin) { handleSpinComplete(); }
+                            }
+                        }, dropDuration);
+                    }, delay);
+                }
+            }
+        }
+
+        function performCascade() {
+            if(isSpinning) return; isSpinning = true;
+            const spinBtn = document.getElementById('btn-spin'); spinBtn.disabled = true;
+            const reels = document.querySelectorAll('.reel');
+            const bounce = settings.cascadeBounce;
+            const h = parseInt(document.getElementById('num-h').value); const g = parseInt(document.getElementById('num-gap').value);
+            const rows = settings.rows; const topPaddingCount = PAD_TOP; const topPaddingHeight = topPaddingCount * (h + g);
+            
+            // v41.7 Fix: Apply Multiplier to Cascade Speed too for consistency
+            const rawSpeedVal = parseFloat(document.getElementById('num-speed').value) || 1.0;
+            const dropOutDuration = 300 / rawSpeedVal; 
+            const dropInDuration = settings.cascadeSpeed / rawSpeedVal; 
+            const columnDelay = settings.stopDelay; 
+           
+            let reelsDone = 0;
+            reels.forEach((reel, idx) => {
+                setTimeout(() => {
+                    const strip = reel.querySelector('.reel-strip');
+                    const visibleLimit = topPaddingCount + rows;
+                    while (strip.children.length > visibleLimit) { strip.removeChild(strip.lastChild); }
+                    _clearStripBlurClones(strip);
+                    const allSyms = Array.from(strip.children);
+                    allSyms.reverse().forEach((sym, i) => {
+                        setTimeout(() => { sym.style.transition = `transform ${dropOutDuration}ms cubic-bezier(0.5, 0, 1, 0.5), opacity ${dropOutDuration}ms linear`; sym.style.transform = 'translateY(1000px)'; sym.style.opacity = '0'; }, i * 80);
+                    });
+                    const exitTotalTime = (allSyms.length * 80) + dropOutDuration;
+                    setTimeout(() => {
+                        const totalNeeded = topPaddingCount + rows; 
+                        const newStackData = generateReelData(totalNeeded, idx+1, false);
+                        strip.innerHTML = ''; const fragment = document.createDocumentFragment();
+                        newStackData.forEach((item, i) => {
+                            const sym = document.createElement('div'); sym.className = 'symbol'; renderSymbol(sym, item, i);
+                            sym.style.transform = `translateY(-1000px)`; sym.style.opacity = '0'; 
+                            if (document.getElementById('num-blur').value > 0 && item.type === 'image') {
+                                 const img = sym.querySelector('img');
+                                 if(img) { 
+                                     const cloneDiv = document.createElement('div'); cloneDiv.className = 'blur-clone'; 
+                                     const cloneImg = img.cloneNode(true); 
+                                     if(item.data.span > 1) { const totalH = (h * item.data.span) + (g * (item.data.span - 1)); cloneImg.style.height = totalH + 'px'; } else { cloneImg.style.height = '100%'; }
+                                     cloneDiv.appendChild(cloneImg); sym.appendChild(cloneDiv); 
+                                 }
+                            }
+                            fragment.appendChild(sym);
+                        });
+                        strip.appendChild(fragment); strip.style.transition = 'none'; strip.style.transform = `translateY(-${topPaddingHeight}px)`; strip.offsetHeight; 
+                        const newSyms = Array.from(strip.children); const reversedSyms = [...newSyms].reverse();
+                        reversedSyms.forEach((sym, rIdx) => {
+                            const delay = rIdx * 120; 
+                            setTimeout(() => {
+                                const blurFade = Math.max(0, dropInDuration - 150);
+                                setTimeout(() => {
+                                    const blurs = sym.querySelectorAll('.blur-clone');
+                                    blurs.forEach(b => b.style.opacity = '0');
+                                    setTimeout(() => { blurs.forEach(b => b.remove()); }, 160);
+                                }, blurFade);
+                                sym.style.transition = `transform ${dropInDuration}ms linear, opacity 0.1s linear`; sym.style.transform = 'translateY(0)'; sym.style.opacity = '1'; 
+                                setTimeout(() => {
+                                    sym.style.transition = `transform 100ms cubic-bezier(0.2, 0.6, 0.3, 1)`; sym.style.transform = `translateY(${-bounce}px)`;
+                                    setTimeout(() => {
+                                        sym.style.transition = `transform 120ms ease-in`; sym.style.transform = `translateY(0)`;
+                                        setTimeout(() => { const blurs = sym.querySelectorAll('.blur-clone'); blurs.forEach(b => b.remove()); }, 200);
+                                        if(rIdx === reversedSyms.length - 1) { reelsDone++; if(reelsDone === settings.reels) { handleSpinComplete(); } }
+                                    }, 100);
+                                }, dropInDuration);
+                            }, delay);
+                        });
+                    }, exitTotalTime);
+                }, idx * columnDelay); 
+            });
+        }
+
+        function _countVisibleScatters() {
+            let count = 0; const reels = document.querySelectorAll('.reel');
+            reels.forEach(reel => {
+                const strip = reel.querySelector('.reel-strip'); if (!strip) return;
+                for (let i = 0; i < strip.children.length; i++) { const sym = strip.children[i]; if (_isElementVisible(sym) && sym.dataset.isScatter === 'true') { count++; } }
+            });
+            return count;
+        }
+
+        function handleSpinComplete() {
+            if (projectData.currentModeId === 'base') {
+                const scatterCount = _countVisibleScatters();
+                if (scatterCount >= 3) { setTimeout(() => { showFeatureModal(); }, 500); return; }
+            } 
+            else if (projectData.currentModeId === 'fg') {
+                 projectData.runtime.fgCurrentRound++;
+                 updateFgCounterDisplay();
+                 if (projectData.runtime.fgCurrentRound >= projectData.runtime.fgTotalRounds) { setTimeout(() => { showWinPanelModal(); }, 800); return; }
+            }
+            _resumeGameInterface();
+        }
+
+        function _resumeGameInterface() {
+            isSpinning = false; document.getElementById('btn-spin').disabled = false;
+            _scheduleWinCheck(); 
+            document.querySelectorAll('.reel-strip').forEach(st => { _stopStripBlurLoop(st); _clearStripBlurClones(st); });
+        }
+        
+        function updateFgCounterDisplay() {
+            const el = document.getElementById('fg-counter-disp');
+            if (projectData.currentModeId === 'fg') {
+                const left = Math.max(0, projectData.runtime.fgTotalRounds - projectData.runtime.fgCurrentRound);
+                el.innerText = `${left} / ${projectData.runtime.fgTotalRounds}`;
+            } else { el.innerText = '-'; }
+        }
+
+        function showFeatureModal() {
+            const modal = document.getElementById('feature-modal'); const content = document.getElementById('modal-content-cutscene');
+            const img = document.getElementById('modal-img-cutscene'); const def = document.getElementById('modal-default-content'); const title = content.querySelector('.modal-title');
+            if (projectData.assets.cutscene) { img.src = projectData.assets.cutscene; img.style.display = 'block'; def.style.display = 'none'; title.style.display = 'none'; content.classList.remove('no-img'); } 
+            else { img.style.display = 'none'; def.style.display = 'block'; title.style.display = 'block'; content.classList.add('no-img'); }
+            modal.style.display = 'flex';
+        }
+        function enterFreeGame() { const modal = document.getElementById('feature-modal'); modal.style.display = 'none'; ModeManager.switchMode('fg'); projectData.runtime.fgTotalRounds = settings.fgCount || 10; projectData.runtime.fgCurrentRound = 0; updateFgCounterDisplay(); _resumeGameInterface(); }
+        function showWinPanelModal() {
+            const modal = document.getElementById('win-modal'); const content = document.getElementById('modal-content-win');
+            const img = document.getElementById('modal-img-win'); const def = document.getElementById('win-default-content'); const title = content.querySelector('.modal-title');
+            if (projectData.assets.winPanel) { img.src = projectData.assets.winPanel; img.style.display = 'block'; def.style.display = 'none'; title.style.display = 'none'; content.classList.remove('no-img'); } 
+            else { img.style.display = 'none'; def.style.display = 'block'; title.style.display = 'block'; content.classList.add('no-img'); }
+            modal.style.display = 'flex';
+        }
+        function backToBaseGame() { const modal = document.getElementById('win-modal'); modal.style.display = 'none'; ModeManager.switchMode('base'); _resumeGameInterface(); }
+
+        const ModeManager = {
+            isInitialized: false,
+            init: function() {
+                if (this.isInitialized) return;
+                projectData.modes.base.settings = JSON.parse(JSON.stringify(settings));
+                projectData.modes.fg.settings = JSON.parse(JSON.stringify(settings));
+                this.isInitialized = true;
+                updateClipMode();
+            },
+            switchMode: function(targetModeId) {
+                if (!this.isInitialized) this.init();
+                if (projectData.currentModeId === targetModeId) return;
+                
+                projectData.modes[projectData.currentModeId].settings = JSON.parse(JSON.stringify(settings));
+                projectData.currentModeId = targetModeId;
+                const newSettings = projectData.modes[targetModeId].settings;
+                Object.keys(settings).forEach(key => delete settings[key]);
+                Object.assign(settings, JSON.parse(JSON.stringify(newSettings)));
+                
+                document.body.setAttribute('data-mode', targetModeId);
+                document.querySelectorAll('.mode-btn').forEach(btn => {
+                    if (btn.dataset.mode === targetModeId) btn.classList.add('active'); else btn.classList.remove('active');
+                });
+                const titleEl = document.querySelector('.app-title');
+                if(targetModeId === 'fg') titleEl.innerText = `SLOT EDITOR v${APP_VERSION} - FREE GAME MODE`;
+                else titleEl.innerText = `SLOT EDITOR v${APP_VERSION} (Project Pack Mode)`;
+
+                this.syncUIFromSettings();
+                
+                const nextBg = projectData.modes[targetModeId].bgImage;
+                const el = document.getElementById('ui-layer');
+                if (nextBg) { el.src = nextBg; el.style.display = 'block'; } else { el.style.display = 'none'; el.src = ''; }
+                renderImgList(); updateGrid(); updateFgCounterDisplay(); updateClipMode();
+            },
+            syncUIFromSettings: function() {
+                const map = {
+                    'reels': ['num-reels', 5], 'rows': ['num-rows', 6],
+                    'spinDuration': ['num-duration', 2], 'spinSpeed': ['num-speed', 1.5],
+                    'stopDelay': ['num-interval', 60], 'bounce': ['num-bounce', 20],
+                    'cascadeSpeed': ['num-cascade-speed', 300], 'cascadeBounce': ['num-cascade-bounce', 30],
+                    'ease': ['ease-type', 'bounceBack'], 'mode': ['anim-mode', 'cascade'],
+                    'fgCount': ['num-fgCount', 10],
+                    'gap': ['num-gap', 10], 'w': ['num-w', 100], 'h': ['num-h', 100],
+                    'mw': ['num-mw', 600], 'mh': ['num-mh', 650],
+                    'ox': ['num-ox', -300], 'oy': ['num-oy', -325]
+                };
+                Object.keys(map).forEach(key => {
+                    const [id, def] = map[key]; const el = document.getElementById(id); if (!el) return;
+                    let val = settings[key];
+                    if (key === 'spinDuration') val = val / 1000;
+                    if (key === 'spinSpeed') val = val / 1000;
+                    if (val === undefined || val === null) val = def;
+                    el.value = val;
+                    el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); 
+                });
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            createControl('ctrl-gap', '間距 (px)', 'gap', 0, 100, 1, 10, '--symbol-gap', true);
+            createControl('ctrl-w', '寬度 (px)', 'w', 10, 3000, 1, 100, '--symbol-width', true);
+            createControl('ctrl-h', '高度 (px)', 'h', 10, 3000, 1, 100, '--symbol-height', true);
+            createControl('ctrl-reels', '轉輪數 (Cols)', 'reels', 1, 10, 1, 5, '--reel-count');
+            createControl('ctrl-rows', '行數 (Rows)', 'rows', 1, 10, 1, 6, '--row-count');
+            createControl('ctrl-mask-w', 'Mask W (px)', 'mw', 100, 3000, 1, 600, '--mask-width', true);
+            createControl('ctrl-mask-h', 'Mask H (px)', 'mh', 100, 3000, 1, 650, '--mask-height', true);
+            createControl('ctrl-off-x', 'X (左下/px)', 'ox', -1500, 1500, 1, -300, '--offset-x', true);
+            createControl('ctrl-off-y', 'Y (左下/px)', 'oy', -1500, 1500, 1, -325, '--offset-y', true);
+            createControl('ctrl-spin-duration', '旋轉時間 (秒/Sec)', 'duration', 0.5, 10.0, 0.5, 2.0, null);
+            createControl('ctrl-speed', '轉速倍率 (Speed)', 'speed', 0.1, 5.0, 0.1, 1.5, null);
+            createControl('ctrl-interval', '停輪間隔 (毫秒/ms)', 'interval', 0, 1000, 10, 60, null);
+            createControl('ctrl-bounce', '回彈 (像素/px)', 'bounce', 0, 200, 1, 20, null);
+            createControl('ctrl-blur', '模糊 (Blur)', 'blur', 0, 50, 1, 15, null);
+            createControl('ctrl-cascade-speed', '掉落速度 (毫秒/ms)', 'cascade-speed', 50, 2000, 10, 300, null);
+            createControl('ctrl-cascade-bounce', '掉落回彈 (像素/px)', 'cascade-bounce', 0, 200, 1, 30, null);
+            createControl('ctrl-fg-rounds', 'FG 總局數', 'fgCount', 1, 100, 1, 10, null);
+            
+            const zRange = document.getElementById('global-scale'); const zNum = document.getElementById('num-global-scale');
+            const syncZoom = (v) => { zRange.value = v; zNum.value = v; document.documentElement.style.setProperty('--global-scale', v); };
+            zRange.addEventListener('input', e => syncZoom(e.target.value)); zNum.addEventListener('input', e => syncZoom(e.target.value));
+
+            setupMotionBindings(); setupToggles(); setupImages(); setupSystem(); setupStageDrag(); setupZoomWheel();
+            setupFlowAssets();
+            updateGrid();
+            
+            setTimeout(() => { ModeManager.init(); }, 500);
+        });
+
+        function setupFlowAssets() {
+            document.getElementById('file-cutscene').addEventListener('change', e => {
+                if(e.target.files[0]) {
+                    if(projectData.assets.cutscene) _revokeBlobUrl(projectData.assets.cutscene);
+                    const url = URL.createObjectURL(e.target.files[0]);
+                    projectData.assets.cutscene = url;
+                    document.getElementById('preview-cutscene').innerHTML = `<img src="${url}">`;
+                }
+            });
+            document.getElementById('file-win').addEventListener('change', e => {
+                if(e.target.files[0]) {
+                    if(projectData.assets.winPanel) _revokeBlobUrl(projectData.assets.winPanel);
+                    const url = URL.createObjectURL(e.target.files[0]);
+                    projectData.assets.winPanel = url;
+                    document.getElementById('preview-win').innerHTML = `<img src="${url}">`;
+                }
+            });
+        }
+
+        function setupStageDrag() {
+            const stage = document.getElementById('stage-area'); const wrapper = document.getElementById('slot-wrapper');
+            let isDragging = false; let startX, startY, currentPanX = 0, currentPanY = 0;
+            stage.addEventListener('mousedown', (e) => { isDragging = true; startX = e.clientX - currentPanX; startY = e.clientY - currentPanY; });
+            window.addEventListener('mousemove', (e) => { if (!isDragging) return; e.preventDefault(); currentPanX = e.clientX - startX; currentPanY = e.clientY - startY; wrapper.style.setProperty('--pan-x', `${currentPanX}px`); wrapper.style.setProperty('--pan-y', `${currentPanY}px`); });
+            window.addEventListener('mouseup', () => { isDragging = false; });
+            document.getElementById('btn-reset-view').addEventListener('click', () => { currentPanX = 0; currentPanY = 0; wrapper.style.setProperty('--pan-x', '0px'); wrapper.style.setProperty('--pan-y', '0px'); document.getElementById('global-scale').value = 0.8; document.getElementById('num-global-scale').value = 0.8; document.documentElement.style.setProperty('--global-scale', 0.8); });
+        }
+
+        function setupZoomWheel() {
+            const stage = document.getElementById('stage-area'); const zRange = document.getElementById('global-scale'); const zNum = document.getElementById('num-global-scale');
+            stage.addEventListener('wheel', (e) => { e.preventDefault(); let currentScale = parseFloat(zNum.value); const delta = e.deltaY > 0 ? -0.05 : 0.05; let newScale = Math.max(0.2, Math.min(2.0, currentScale + delta)); newScale = parseFloat(newScale.toFixed(2)); zRange.value = newScale; zNum.value = newScale; document.documentElement.style.setProperty('--global-scale', newScale); }, { passive: false });
+        }
+        
+        function setupMotionBindings() {
+            document.getElementById('ease-type').addEventListener('change', e => { settings.ease = e.target.value; });
+            document.getElementById('anim-mode').addEventListener('change', e => { 
+                settings.mode = e.target.value; 
+                updateClipMode();
+            });
+            document.getElementById('btn-spin').addEventListener('click', () => { if(settings.mode === 'cascade') performCascade(); else spin(); });
+        }
+        
+        function setupToggles() {
+             const toggles = ['hide-bg-toggle','native-size-toggle','ui-front-toggle','border-toggle'];
+             toggles.forEach(id => {
+                 document.getElementById(id).addEventListener('change', e => {
+                     const cls = id.replace('-toggle','').replace('hide-bg','hide-bg').replace('native-size','native').replace('ui-front','front').replace('border','noborder');
+                     const tgt = id.includes('ui') ? document.getElementById('ui-layer') : (id.includes('border') ? document.getElementById('viewport') : document.getElementById('reels-container'));
+                     if(e.target.checked) tgt.classList.add(cls); else tgt.classList.remove(cls);
+                     if(id.includes('native')) updateGrid();
+                 });
+             });
+        }
+        
+        function setupImages() { 
+            document.getElementById('file-reset').addEventListener('change', e => handleImages(e, true)); 
+            document.getElementById('file-add').addEventListener('change', e => handleImages(e, false)); 
+            document.getElementById('ui-input').addEventListener('change', e => {
+                if(e.target.files[0]) {
+                    const url = URL.createObjectURL(e.target.files[0]);
+                    projectData.modes[projectData.currentModeId].bgImage = url;
+                    const el = document.getElementById('ui-layer'); el.src = url; el.style.display = 'block';
+                }
+            }); 
+        }
+        function setupSystem() { document.getElementById('btn-reset-all').addEventListener('click', () => { if(confirm('重置設定？')) { localStorage.removeItem('slotSimConfig'); location.reload(); }}); initSaveLoad(); }
+        function handleImages(e, reset) { if(reset) { _revokeAllSymbolImageUrls(); settings.images = []; } if(e.target.files.length > 0) { Array.from(e.target.files).forEach(file => { const url = URL.createObjectURL(file); const uid = Date.now() + Math.random().toString(36).substr(2,5); settings.images.push({ id: uid, name: file.name, url: url, weight: 50, span: 1, reelsSpec: '' }); settings.images[settings.images.length-1]._reelPred = _buildReelPredicate(''); }); renderImgList(); updateGrid(); } e.target.value = ''; }
+        function renderImgList() { 
+            const con = document.getElementById('weight-list'); con.innerHTML = ''; 
+            if(settings.images.length === 0) { con.style.display = 'none'; return; } con.style.display = 'block'; 
+            settings.images.forEach((img, idx) => { 
+                const item = document.createElement('div'); item.className = 'img-item'; 
+                item.innerHTML = `<img src="${img.url}" class="img-thumb"><div class="img-details"><div class="img-header"><span title="${img.name}">${img.name.substring(0,10)}</span><div class="img-actions"><button class="action-btn btn-rep" onclick="replaceImg(${idx})">換圖</button><button class="action-btn btn-del" onclick="delImg(${idx})">刪</button></div></div><div style="display:flex; justify-content:space-between; font-size:11px; color:#888;"><span>權重: <b id="disp-w-${img.id}">${img.weight}</b></span></div><input type="range" min="1" max="100" value="${img.weight}" oninput="updateWeight(${idx}, this.value)"><select class="span-select" onchange="updateSpan(${idx}, this.value)">${[1,2,3,4,5].map(n => `<option value="${n}" ${img.span==n?'selected':''}>佔 ${n} 格</option>`).join('')}</select><input class="reels-input" type="text" placeholder="轉輪：全部 / 1 / 1,3-5 / >=2" value="${img.reelsSpec||''}" oninput="updateReels(${idx}, this.value)"><div style="display:flex; gap:10px; margin-top:6px;"><label style="font-size:12px; display:flex; align-items:center;"><input type="checkbox" ${img.isWild?'checked':''} onchange="updateWild(${idx}, this.checked)"> WILD</label><label style="font-size:12px; display:flex; align-items:center; color:#ffb74d;"><input type="checkbox" ${img.isScatter?'checked':''} onchange="updateScatter(${idx}, this.checked)"> SCATTER</label></div><div class="reels-hint">例：<b>1</b>、<b>1,3,5</b>、<b>2-4</b>、<b>>=2</b>（空白=全部轉輪）</div></div>`; 
+                con.appendChild(item); 
+            }); 
+        }
+        window.updateWeight = (idx, val) => { settings.images[idx].weight = parseInt(val); document.getElementById(`disp-w-${settings.images[idx].id}`).innerText = val; };
+        window.updateSpan = (idx, val) => { settings.images[idx].span = parseInt(val); updateGrid(); };
+        window.updateReels = (idx, val) => { const img = settings.images[idx]; if (!img) return; img.reelsSpec = String(val || ''); img._reelPred = _buildReelPredicate(img.reelsSpec); updateGrid(); }
+        window.updateWild = (idx, checked) => { const img = settings.images[idx]; if (!img) return; img.isWild = !!checked; updateGrid(); };
+        window.updateScatter = (idx, checked) => { const img = settings.images[idx]; if (!img) return; img.isScatter = !!checked; updateGrid(); };
+        window.delImg = (idx) => { if(confirm('刪除？')) { const it = settings.images[idx]; if(it) _revokeBlobUrl(it.url); settings.images.splice(idx, 1); renderImgList(); updateGrid(); }};
+        let replaceIdx = -1; const repInput = document.createElement('input'); repInput.type = 'file'; repInput.accept = 'image/*'; repInput.style.display = 'none'; document.body.appendChild(repInput); repInput.onchange = (e) => {
+            if(e.target.files[0] && replaceIdx > -1) { const old = settings.images[replaceIdx]; if(old) _revokeBlobUrl(old.url); settings.images[replaceIdx].url = URL.createObjectURL(e.target.files[0]); settings.images[replaceIdx].name = e.target.files[0].name; renderImgList(); updateGrid(); } repInput.value = '';
+        }; window.replaceImg = (idx) => { replaceIdx = idx; repInput.click(); };
+        
+        function initSaveLoad() {
+            const buildConfig = () => {
+                const config = { app: 'slot-sim', appVersion: APP_VERSION, schemaVersion: 2, params: {}, toggles: {} };
+                document.querySelectorAll('.input-controls input[type="number"]').forEach(input => { config.params[input.id] = input.value; });
+                config.params['ease-type'] = document.getElementById('ease-type').value; config.params['anim-mode'] = document.getElementById('anim-mode').value;
+                config.toggles.bg  = document.getElementById('hide-bg-toggle').checked; config.toggles.nat = document.getElementById('native-size-toggle').checked;
+                config.toggles.ui  = document.getElementById('ui-front-toggle').checked; config.toggles.brd = document.getElementById('border-toggle').checked;
+                return config;
+            };
+
+            const _packData = async (cfg) => {
+                cfg.pack = { symbols: [], assets: {}, bg: {} };
+                // Pack Symbols
+                for(let img of settings.images) {
+                    const b64 = await blobToBase64(img.url);
+                    if(b64) cfg.pack.symbols.push({ id: img.id, b64: b64, name: img.name, weight: img.weight, span: img.span, reelsSpec: img.reelsSpec, isWild: img.isWild, isScatter: img.isScatter });
+                }
+                // Pack Assets
+                if(projectData.assets.cutscene) cfg.pack.assets.cutscene = await blobToBase64(projectData.assets.cutscene);
+                if(projectData.assets.winPanel) cfg.pack.assets.winPanel = await blobToBase64(projectData.assets.winPanel);
+                // Pack BGs
+                if(projectData.modes.base.bgImage) cfg.pack.bg.base = await blobToBase64(projectData.modes.base.bgImage);
+                if(projectData.modes.fg.bgImage) cfg.pack.bg.fg = await blobToBase64(projectData.modes.fg.bgImage);
+                return cfg;
+            };
+
+            document.getElementById('btn-save').onclick = async () => { 
+                try {
+                    const cfg = buildConfig(); 
+                    localStorage.setItem('slotSimConfig', JSON.stringify(cfg)); 
+                    alert('設定已暫存 (不含圖片)'); 
+                } catch(e) { alert('暫存失敗 (LocalStorage 配額不足)'); }
+            };
+
+            document.getElementById('btn-load').onclick = () => { const raw = localStorage.getItem('slotSimConfig'); if(raw) applyConfig(JSON.parse(raw)); else alert('無存檔'); };
+            
+            // v41.9 New: Export with "Save As" Dialog
+            document.getElementById('btn-export').onclick = async () => { 
+                const btn = document.getElementById('btn-export'); const oldText = btn.innerText; btn.innerText = '打包中...'; btn.disabled = true;
+                try {
+                    let cfg = buildConfig();
+                    cfg = await _packData(cfg);
+                    
+                    // Try Native File System API first
+                    if ('showSaveFilePicker' in window) {
+                        try {
+                            const handle = await window.showSaveFilePicker({
+                                suggestedName: 'slot_project_pack.json',
+                                types: [{ description: 'Slot Project JSON', accept: {'application/json': ['.json']} }]
+                            });
+                            const writable = await handle.createWritable();
+                            await writable.write(JSON.stringify(cfg));
+                            await writable.close();
+                            btn.innerText = oldText; btn.disabled = false;
+                            return; // Success
+                        } catch (err) {
+                            if (err.name === 'AbortError') { btn.innerText = oldText; btn.disabled = false; return; } // User cancelled
+                            // If other error, fall through to blob download
+                        }
+                    }
+
+                    // Fallback for old browsers
+                    const blob = new Blob([JSON.stringify(cfg)], {type: 'application/json'}); 
+                    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'slot_project_pack.json'; a.click(); 
+                    setTimeout(() => _revokeBlobUrl(url), 1000);
+
+                } catch(e) { console.error(e); alert('打包失敗'); }
+                btn.innerText = oldText; btn.disabled = false;
+            };
+            
+            const _cssNum = (varName, fallback=0) => { try { const v = getComputedStyle(document.documentElement).getPropertyValue(varName).trim(); const n = parseFloat(v); return isFinite(n) ? n : fallback; } catch (_) { return fallback; } };
+            const _getBlurY = () => { try { const f = document.querySelector('#vertical-blur feGaussianBlur'); if (!f) return 0; const s = (f.getAttribute('stdDeviation') || '0 0').trim(); const parts = s.split(/[\s,]+/).filter(Boolean); const y = parts.length >= 2 ? parseFloat(parts[1]) : parseFloat(parts[0]); return isFinite(y) ? y : 0; } catch (_) { return 0; } };
+            const _normalizeSymbolsForExport = () => { return (settings.images || []).map((img, idx) => ({ id: (img.id != null && String(img.id).trim()) ? String(img.id).trim() : `SYM_${idx}`, spriteKey: (img.id != null) ? String(img.id).trim() : `SYM_${idx}`, fileName: img.name || '', weight: Math.max(0, parseInt(img.weight, 10) || 0), span: Math.max(1, parseInt(img.span, 10) || 1), allowedReels: (img.reelsSpec && String(img.reelsSpec).trim()) ? String(img.reelsSpec).trim() : '*', isWild: !!img.isWild })); };
+            
+            const _buildCommonEnginePayload = () => { 
+                const easeId = document.getElementById('ease-type')?.value || settings.ease;
+                const bezierData = _getBezierDefinition(easeId);
+                return { 
+                    source: { app: 'slot-sim', appVersion: APP_VERSION, schemaVersion: 2 }, 
+                    reels: settings.reels, rows: settings.rows, 
+                    techSpecs: { 
+                        motionCurveCSS: bezierData.css,
+                        motionCurvePoints: [bezierData.p1x, bezierData.p1y, bezierData.p2x, bezierData.p2y],
+                        motionDescription: bezierData.desc,
+                        manualBouncePx: (easeId === 'bounceBack' || easeId === 'elasticEnd') ? settings.bounce : 0,
+                        totalDurationEstimateMs: (settings.spinDuration || 2000) + ((settings.reels - 1) * (settings.stopDelay || 60))
+                    },
+                    timing: { 
+                        spinSpeedSec: (settings.spinSpeed || 0) / 1000, 
+                        spinDurationSec: (settings.spinDuration || 0) / 1000, 
+                        stopDelaySec: (settings.stopDelay || 0) / 1000, 
+                        ease: easeId, 
+                        mode: document.getElementById('anim-mode')?.value || settings.mode 
+                    }, 
+                    motion: { 
+                        bouncePx: (settings.bounce || 0), 
+                        cascadeSpeedMs: (settings.cascadeSpeed || 0), 
+                        cascadeBouncePx: (settings.cascadeBounce || 0), 
+                        blurY: _getBlurY() 
+                    }, 
+                    layout: { 
+                        symbolWidthPx: _cssNum('--symbol-width', 100), 
+                        symbolHeightPx: _cssNum('--symbol-height', 100), 
+                        symbolGapPx: _cssNum('--symbol-gap', 10), 
+                        maskWidthPx: _cssNum('--mask-width', 280), 
+                        maskHeightPx: _cssNum('--mask-height', 420), 
+                        offsetXPx: _cssNum('--offset-x', 0), 
+                        offsetYPx: _cssNum('--offset-y', 0), 
+                        globalScale: _cssNum('--global-scale', 1.0) 
+                    }, 
+                    symbols: _normalizeSymbolsForExport() 
+                }; 
+            };
+            const _downloadJson = (obj, baseName) => { const blob = new Blob([JSON.stringify(obj, null, 2)], {type: 'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${baseName}.json`; a.click(); setTimeout(() => _revokeBlobUrl(url), 1500); };
+            document.getElementById('btn-export-cocos').onclick = () => { const cfg = _buildCommonEnginePayload(); cfg.engineTarget = 'cocos-creator-3.8'; cfg.waysWin = { minReelsFromLeft: 3, wildId: (cfg.symbols.find(s=>s.isWild)||{id:'WILD'}).id, allowWildSelfWin: true }; cfg.winFx = { pulseCount: 2 }; _downloadJson(cfg, 'slot_cocos'); };
+            document.getElementById('btn-export-unity').onclick = () => { const cfg = _buildCommonEnginePayload(); cfg.engineTarget = 'unity-2022.3.44'; cfg.waysWin = { minReelsFromLeft: 3, wildId: (cfg.symbols.find(s=>s.isWild)||{id:'WILD'}).id, allowWildSelfWin: true }; cfg.winFx = { pulseCount: 2 }; cfg.spin = { spinSpeedMs: Math.round(cfg.timing.spinSpeedSec * 1000), spinDurationMs: Math.round(cfg.timing.spinDurationSec * 1000), stopDelayMs: Math.round(cfg.timing.stopDelaySec * 1000), ease: cfg.timing.ease, mode: cfg.timing.mode, bouncePx: cfg.motion.bouncePx }; cfg.cascade = { speedMs: cfg.motion.cascadeSpeedMs, bouncePx: cfg.motion.cascadeBouncePx }; cfg.blur = { y: cfg.motion.blurY }; _downloadJson(cfg, 'slot_unity'); };
+            const importInput = document.getElementById('file-import'); if (importInput) { importInput.onchange = (e) => { const file = e.target.files && e.target.files[0]; if (!file) return; file.text().then(t => { try { applyConfig(JSON.parse(t)); } catch (err) { console.error(err); alert('JSON Error'); } }).finally(() => { importInput.value = ''; }); }; }
+        }
+
+        function applyConfig(d) { 
+            if(d.params) { 
+                for(let key in d.params) { const el = document.getElementById(key); if(el) { el.value = d.params[key]; el.dispatchEvent(new Event('input')); } } 
+                if(d.params['ease-type']) { const el = document.getElementById('ease-type'); el.value = d.params['ease-type']; el.dispatchEvent(new Event('change')); } 
+                if(d.params['anim-mode']) { const el = document.getElementById('anim-mode'); el.value = d.params['anim-mode']; el.dispatchEvent(new Event('change')); } 
+            } 
+            if(d.toggles) { 
+                const setChk = (id, v) => { const el = document.getElementById(id); el.checked = v; el.dispatchEvent(new Event('change')); }; 
+                setChk('hide-bg-toggle', d.toggles.bg); setChk('native-size-toggle', d.toggles.nat); setChk('ui-front-toggle', d.toggles.ui); setChk('border-toggle', d.toggles.brd); 
+            }
+            
+            // v41.8: Unpack Images
+            if(d.pack) {
+                // Clear Old
+                _revokeAllSymbolImageUrls(); settings.images = [];
+                if(projectData.assets.cutscene) _revokeBlobUrl(projectData.assets.cutscene); projectData.assets.cutscene = null;
+                if(projectData.assets.winPanel) _revokeBlobUrl(projectData.assets.winPanel); projectData.assets.winPanel = null;
+                if(projectData.modes.base.bgImage) _revokeBlobUrl(projectData.modes.base.bgImage); projectData.modes.base.bgImage = null;
+                if(projectData.modes.fg.bgImage) _revokeBlobUrl(projectData.modes.fg.bgImage); projectData.modes.fg.bgImage = null;
+
+                // Load Symbols
+                if(d.pack.symbols) {
+                    d.pack.symbols.forEach(s => {
+                        const url = base64ToBlobUrl(s.b64);
+                        if(url) {
+                            settings.images.push({ id: s.id, name: s.name, url: url, weight: s.weight, span: s.span, reelsSpec: s.reelsSpec, isWild: s.isWild, isScatter: s.isScatter });
+                            settings.images[settings.images.length-1]._reelPred = _buildReelPredicate(s.reelsSpec);
+                        }
+                    });
+                }
+                
+                // Load Assets
+                if(d.pack.assets.cutscene) {
+                     const url = base64ToBlobUrl(d.pack.assets.cutscene);
+                     if(url) { projectData.assets.cutscene = url; document.getElementById('preview-cutscene').innerHTML = `<img src="${url}">`; }
+                }
+                if(d.pack.assets.winPanel) {
+                     const url = base64ToBlobUrl(d.pack.assets.winPanel);
+                     if(url) { projectData.assets.winPanel = url; document.getElementById('preview-win').innerHTML = `<img src="${url}">`; }
+                }
+
+                // Load BGs
+                if(d.pack.bg.base) projectData.modes.base.bgImage = base64ToBlobUrl(d.pack.bg.base);
+                if(d.pack.bg.fg) projectData.modes.fg.bgImage = base64ToBlobUrl(d.pack.bg.fg);
+                
+                // Refresh UI for current mode
+                const currentBg = projectData.modes[projectData.currentModeId].bgImage;
+                const el = document.getElementById('ui-layer');
+                if (currentBg) { el.src = currentBg; el.style.display = 'block'; } else { el.style.display = 'none'; el.src = ''; }
+                renderImgList(); updateGrid();
+            }
+
+            if(ModeManager.isInitialized) { projectData.modes[projectData.currentModeId].settings = JSON.parse(JSON.stringify(settings)); }
+            alert('專案載入完成 (含圖片資源)'); 
+        }
+    </script>
+</body>
+</html>

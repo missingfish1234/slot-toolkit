@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>假3D傾斜效果測試</title>
+    <style>
+        body {
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+
+        .fake3d-mode {
+            perspective: 800px;
+            perspective-origin: center 30%;
+        }
+
+        .viewport {
+            width: 400px;
+            height: 300px;
+            border: 2px solid #fff;
+            position: relative;
+            overflow: hidden;
+            background: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .reels-container {
+            display: flex;
+            gap: 10px;
+            height: 100%;
+            position: relative;
+            z-index: 1;
+            transform-style: preserve-3d;
+            transform: rotateX(15deg) translateZ(0px);
+            transform-origin: center top;
+            transition: transform 0.4s ease-out;
+        }
+
+        .spinning {
+            transform: rotateX(20deg) translateZ(30px) scale(1.02) !important;
+        }
+
+        .reel {
+            width: 80px;
+            height: 100%;
+            background: #222;
+            border-radius: 5px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #fff;
+        }
+
+        .reel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to bottom,
+                rgba(0,0,0,0.4) 0%,
+                rgba(0,0,0,0.2) 20%,
+                transparent 50%,
+                rgba(255,255,255,0.1) 80%,
+                rgba(255,255,255,0.2) 100%);
+            pointer-events: none;
+            z-index: 2;
+            border-radius: 10px;
+            box-shadow:
+                inset 0 3px 6px rgba(255,255,255,0.15),
+                inset 0 -3px 6px rgba(0,0,0,0.3),
+                0 0 25px rgba(0,0,0,0.4);
+            transition: all 0.4s ease-out;
+        }
+
+        .spinning .reel::before {
+            background: linear-gradient(to bottom,
+                rgba(0,0,0,0.5) 0%,
+                rgba(0,0,0,0.3) 15%,
+                transparent 45%,
+                rgba(255,255,255,0.15) 75%,
+                rgba(255,255,255,0.3) 100%);
+            box-shadow:
+                inset 0 5px 10px rgba(255,255,255,0.2),
+                inset 0 -5px 10px rgba(0,0,0,0.4),
+                0 0 35px rgba(0,0,0,0.5);
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="fake3d-mode">
+        <div class="viewport">
+            <div class="reels-container" id="reelsContainer">
+                <div class="reel">🎰</div>
+                <div class="reel">⭐</div>
+                <div class="reel">💎</div>
+                <div class="reel">🔔</div>
+                <div class="reel">🍒</div>
+            </div>
+        </div>
+        <button onclick="toggleSpin()">測試假3D傾斜效果</button>
+    </div>
+
+    <script>
+        function toggleSpin() {
+            const container = document.getElementById('reelsContainer');
+            container.classList.toggle('spinning');
+        }
+    </script>
+</body>
+</html>

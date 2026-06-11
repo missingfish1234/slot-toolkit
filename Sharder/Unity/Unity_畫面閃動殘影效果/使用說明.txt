@@ -1,0 +1,573 @@
+Unity 全畫面殘影三段式演出教學
+
+適用環境：
+
+Unity Built-in Render Pipeline
+
+以 Camera 後處理方式製作全畫面殘影
+
+可搭配 Animator / Animation Event 控制
+
+適合做「起爆 → 爆發 → 收尾」的演出節奏
+
+一、這套效果的目標
+
+這套效果不是單純常駐濾鏡，而是做成演出型全畫面殘影。
+可以表現出：
+起爆前的蓄勢感
+爆發瞬間的章魚式殘像外擴
+收尾時的殘影拖尾與回落
+很適合用在：
+技能爆發
+大獎演出
+轉場
+角色進入特殊狀態
+特效高潮段
+
+
+二、整體結構
+
+這套系統主要由三部分組成：
+
+1. FullScreenAfterimageEffect.cs
+
+掛在 Main Camera 上。
+負責真正執行全畫面殘影效果。
+
+2. FullScreenAfterimageBuiltIn.shader
+
+後處理 Shader。
+負責把目前畫面與殘影歷史做混合。
+
+3. AfterimageEffectController.cs
+
+控制器。
+負責切換參數、控制三段式節奏。
+
+4. AfterimageAnimEventProxy.cs
+
+動畫事件代理。
+讓動畫 clip 可以直接呼叫三段式播放。
+
+
+
+三、檔案應該放哪些
+
+你至少要有這幾個檔案：
+
+FullScreenAfterimageBuiltIn.shader
+
+FullScreenAfterimageEffect.cs
+
+AfterimageEffectController.cs
+
+AfterimageAnimEventProxy.cs
+
+如果你還有做 Prefab 自主控制版本，才會另外用到：
+
+AfterimageEffectProxy.cs
+
+
+
+四、場景內怎麼掛
+1. Main Camera
+
+在主攝影機上掛：
+
+FullScreenAfterimageEffect
+
+並指定你的效果材質。
+
+需要確認
+
+Camera 是真正輸出畫面的主 Camera
+
+Effect Material 已指定正確材質
+
+材質用的是你的全畫面殘影 Shader
+
+2. 同一台 Camera 或全域物件
+
+掛上：
+
+AfterimageEffectController
+
+然後把：
+
+Target Effect
+
+指定到剛剛同一台 Camera 上的：
+
+FullScreenAfterimageEffect
+
+3. 演出 Prefab
+
+在會播放動畫的 Prefab Root 上掛：
+
+AfterimageAnimEventProxy
+
+這樣動畫 clip 才能用 Animation Event 呼叫殘影效果。
+
+
+
+
+五、先確認效果有沒有正常運作
+方法
+
+先不要急著接動畫，先直接測：
+
+在 FullScreenAfterimageEffect
+
+勾選 播放時啟用效果
+
+預覽風格選 章魚強烈
+
+按一下 立即套用預設
+
+然後按 Play
+
+只要畫面有移動，你就應該能看到：
+
+全畫面殘影
+
+色偏
+
+爆閃
+
+外擴感
+
+如果有看到，代表底層效果正常。
+
+
+
+
+六、三段式演出的概念
+
+這套三段式分成：
+
+1. 起爆（PreBurst）
+
+特徵：
+
+輕微殘影
+
+略亮
+
+開始有外擴感
+
+不會太炸
+
+用途：
+
+技能蓄力
+
+畫面進入異常狀態
+
+爆發前半拍
+
+2. 爆發（Burst）
+
+特徵：
+
+RGB 色偏最明顯
+
+白爆最強
+
+外擴最強
+
+亮部最炸
+
+用途：
+
+主爆點
+
+角色斬擊命中瞬間
+
+中獎核心爆發
+
+3. 收尾（Release）
+
+特徵：
+
+保留尾韻
+
+強度下降
+
+留下一點拖影後消失
+
+用途：
+
+爆發後回落
+
+餘韻
+
+演出結尾
+
+
+
+
+七、如何在動畫中控制
+
+你有兩種方式：
+
+方式 A：一鍵自動播放整段
+
+在動畫事件中呼叫：
+
+Anim_PlayOctoSequence
+
+這樣系統會自動依序播放：
+
+起爆
+
+爆發
+
+收尾
+
+最後自動停止
+
+適合
+
+快速上手
+
+先測味道
+
+不想逐幀切時間
+
+方式 B：動畫中自己切三段
+
+在動畫不同時間點加入 Animation Event：
+
+範例
+
+0.00 秒 → Anim_PlayOcto_PreBurst
+
+0.10 秒 → Anim_PlayOcto_Burst
+
+0.22 秒 → Anim_PlayOcto_Release
+
+0.50 秒 → Anim_StopAfterimage
+
+適合
+
+需要精準卡節奏
+
+爆點和動作要完全對拍
+
+要更接近商業演出
+
+
+
+
+八、Animation Event 怎麼掛
+步驟
+
+選你的動畫物件
+
+打開 Animation 視窗
+
+選中對應的動畫 clip
+
+在時間軸上選你要觸發的時間點
+
+新增 Animation Event
+
+在 Function 欄位選擇方法名稱
+
+常用方法名稱
+基本
+
+Anim_PlayAfterimage
+
+Anim_StopAfterimage
+
+Anim_PlayAfterimageStrong
+
+Anim_PlayAfterimageSoft
+
+Anim_PlayAfterimage_05s
+
+Anim_PlayAfterimage_10s
+
+三段式
+
+Anim_PlayOctoSequence
+
+Anim_PlayOcto_PreBurst
+
+Anim_PlayOcto_Burst
+
+Anim_PlayOcto_Release
+
+
+
+
+九、三段式時間建議
+
+在 AfterimageEffectController 上，你可以直接調這三個：
+
+起爆時間
+
+爆發時間
+
+收尾時間
+
+推薦起始值
+標準版
+
+起爆時間：0.10
+
+爆發時間：0.12
+
+收尾時間：0.28
+
+更俐落
+
+起爆時間：0.08
+
+爆發時間：0.10
+
+收尾時間：0.20
+
+更妖、更拖尾
+
+起爆時間：0.12
+
+爆發時間：0.15
+
+收尾時間：0.35
+
+
+
+
+十、最重要的幾個參數怎麼理解
+殘影混合強度
+
+越高，殘影越厚、越重。
+
+適合調整：
+
+想更有拖尾感
+
+想讓殘影更明顯
+
+殘影保留衰減
+
+越高，殘影停留越久。
+
+適合調整：
+
+想讓收尾更有餘韻
+
+想讓畫面更拖
+
+RGB 色偏
+
+越高，紅綠藍分離越明顯。
+
+適合調整：
+
+想更像章魚感
+
+想更妖、更彩
+
+中心往外推力
+
+越高，越有從畫面中心往外炸開的感覺。
+
+適合調整：
+
+想加強爆發瞬間
+
+想讓畫面更有外衝感
+
+白爆強度
+
+越高，亮部越容易接近洗白爆閃。
+
+適合調整：
+
+想更刺激
+
+想讓主爆點更亮
+
+第三層放大
+
+越高，最外圈殘影越誇張。
+
+適合調整：
+
+想讓外擴更明顯
+
+想加強「炸開」感
+
+
+
+
+十一、調整建議
+起爆不夠明顯
+
+提升：
+
+殘影混合強度
+
+亮部增強
+
+白爆強度
+
+爆發不夠炸
+
+提升：
+
+RGB 色偏
+
+中心往外推力
+
+第三層放大
+
+白爆強度
+
+收尾太短
+
+提升：
+
+殘影保留衰減
+
+收尾時間
+
+第二層 / 第三層強度
+
+收尾太髒
+
+降低：
+
+殘影混合強度
+
+殘影保留衰減
+
+白爆強度
+
+
+
+
+十二、建議的實戰工作流程
+第一步：先在未播放時預覽風格
+
+利用 FullScreenAfterimageEffect 的編輯器預覽功能，先看：
+
+色偏
+
+對比
+
+爆白
+
+外擴
+
+先把大方向調到接近參考影片。
+
+第二步：用 Anim_PlayOctoSequence
+
+先確認整體味道是否正確。
+
+這一步只看：
+
+節奏是否順
+
+味道是否接近
+
+不要先糾結極小參數
+
+第三步：改成三段獨立事件
+
+等整體感覺對了，再把動畫事件拆成：
+
+起爆
+
+爆發
+
+收尾
+
+這樣可以精準卡住角色動作和特效點。
+
+
+
+
+十三、常見問題
+Q1：為什麼不播放時看起來和正式播放不完全一樣？
+
+因為這是時間型效果。
+未播放時只能預覽大致風格，真正的殘影節奏還是要在 Play 中看。
+
+Q2：為什麼 UI 也會一起被影響？
+
+因為這是全畫面效果。
+如果不想讓 UI 被殘影影響，要把 UI 分到另一個 Camera 或後繪製。
+
+Q3：為什麼畫面會太亮或太髒？
+
+通常是：
+
+白爆強度太高
+
+亮部增強太高
+
+殘影保留衰減太高
+
+先把這三個降低試試。
+
+Q4：為什麼效果一直殘留？
+
+通常是：
+
+沒有在結束時呼叫 Anim_StopAfterimage
+
+或沒有清掉 history
+
+你可以在演出結束加上停止事件。
+
+
+
+
+十四、推薦的起手配置
+快速起手
+
+先用 章魚強烈 預設
+
+動畫先打 Anim_PlayOctoSequence
+
+時間先設：
+
+起爆 0.10
+
+爆發 0.12
+
+收尾 0.28
+
+進一步微調
+
+優先調這 5 個：
+
+殘影混合強度
+
+殘影保留衰減
+
+RGB 色偏
+
+中心往外推力
+
+白爆強度
+
+
+
+
+十五、最終建議
+
+如果你現在是第一次接這套，最穩的順序是：
+
+先確認 Camera 上效果正常
+
+再用 Anim_PlayOctoSequence 快速驗證
+
+最後才拆成 起爆 / 爆發 / 收尾 三段精修
+
+這樣效率最高，也最不容易亂掉。

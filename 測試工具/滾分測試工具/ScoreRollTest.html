@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>BMFONT 滾分工具 (v6.0 純淨模糊版)</title>
+    <style>
+        body { font-family: 'Microsoft JhengHei', 'Segoe UI', sans-serif; background: #1e1e1e; color: #ddd; display: flex; height: 100vh; margin: 0; overflow: hidden; }
+        
+        /* 左側控制面板 */
+        .controls { width: 340px; background: #252526; padding: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.3); overflow-y: auto; display: flex; flex-direction: column; gap: 15px; border-right: 1px solid #333; z-index: 10; }
+        h2 { margin: 0 0 10px 0; color: #4fc1ff; font-size: 18px; }
+        h3 { margin: 10px 0 5px 0; font-size: 14px; color: #aaa; border-bottom: 1px solid #444; padding-bottom: 2px;}
+        
+        label { display: block; font-size: 13px; margin-bottom: 4px; color: #ccc; }
+        input[type="file"] { width: 100%; font-size: 12px; color: #888; }
+        input[type="number"], input[type="range"], select { width: 100%; background: #3c3c3c; border: 1px solid #555; color: #fff; padding: 5px; border-radius: 4px; box-sizing: border-box; font-family: 'Microsoft JhengHei', sans-serif;}
+        input[type="range"] { cursor: pointer; }
+
+        button { background: #0e639c; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; font-family: 'Microsoft JhengHei', sans-serif;}
+        button:hover { background: #1177bb; }
+        button:active { transform: scale(0.98); }
+        .btn-secondary { background: #444; margin-top: 5px; }
+
+        /* 右側畫布區域 */
+        .canvas-area { 
+            flex: 1; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            background-image: linear-gradient(45deg, #2a2a2a 25%, #222 25%, #222 50%, #2a2a2a 50%, #2a2a2a 75%, #222 75%, #222 100%); 
+            background-size: 20px 20px; 
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover; 
+            position: relative; 
+            overflow: hidden; 
+            user-select: none;
+        }
+
+        .canvas-wrapper {
+            transform-origin: center center;
+            transition: transform 0.1s ease-out;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+
+        canvas { 
+            background: transparent; 
+            border: 2px dashed rgba(255,100,100,0.5); 
+            cursor: move; 
+            display: block;
+        }
+
+        .value-display { float: right; color: #4fc1ff; font-weight: bold; }
+        .note { font-size: 12px; color: #888; margin-top: 5px; }
+
+        /* --- 新增：拖曳覆蓋層 UI --- */
+        #drop-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(14, 99, 156, 0.6);
+            border: 4px dashed #4fc1ff;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 28px;
+            color: white;
+            font-weight: bold;
+            z-index: 999;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+        }
+        body.drag-active #drop-overlay {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+<div id="drop-overlay">📥 鬆開滑鼠以載入字型與圖片</div>
+
+<div class="controls">
+    <h2>🔢 滾分特效測試器 v6.0</h2>
+
+    <h3>1. 資源載入 (支援直接拖曳)</h3>
+    <div>
+        <label>底圖 (填滿背景):</label>
+        <input type="file" id="bgFile" accept="image/*">
+    </div>
+    <div>
+        <label>BMFONT 字型檔 (.fnt):</label>
+        <input type="file" id="fntFile" accept=".fnt,.txt">
+    </div>
+    <div>
+        <label>字型圖集 (.png):</label>
+        <input type="file" id="imgFile" accept="image/*">
+    </div>
+
+    <h3>2. 排版與對齊</h3>
+    <div>
+        <label>對齊錨點 (Anchor):</label>
+        <select id="textAlign">
+            <option value="center" selected>置中對齊 (Center)</option>
+            <option value="right">靠右固定 (Right)</option>
+            <option value="left">靠左固定 (Left)</option>
+        </select>
+    </div>
+    <div>
+        <label>文字縮放比例 (Scale):</label>
+        <input type="number" id="scale" value="1.0" step="0.1">
+    </div>
+
+    <h3>3. 滾分動畫設定</h3>
+    <div>
+        <label>起始數值 (Start Value):</label>
+        <input type="number" id="startVal" value="0">
+    </div>
+    <div>
+        <label>目標數值 (Target Value):</label>
+        <input type="number" id="targetVal" value="1234567">
+    </div>
+    <div>
+        <label>動畫時間 (秒):</label>
+        <input type="number" id="duration" value="2.0" step="0.1">
+    </div>
+    <div>
+        <label>緩動函數 (Easing):</label>
+        <select id="easing">
+            <option value="linear">線性等速 (Linear)</option>
+            <option value="easeOutQuad">漸慢 (Ease Out Quad)</option>
+            <option value="easeOutExpo" selected>急停 (Ease Out Expo)</option>
+            <option value="easeOutBack">回彈 (Ease Out Back)</option>
+        </select>
+    </div>
+
+    <h3>4. 特效微調</h3>
+    <div>
+        <label>動態模糊強度 (Blur): <span id="blurVal" class="value-display">0.5</span></label>
+        <input type="range" id="blurStr" min="0" max="10" value="0.5" step="0.1">
+        <p class="note">* 僅使用模糊濾鏡，無拉伸變形。</p>
+    </div>
+
+    <h3>5. 畫布操作</h3>
+    <div>
+        <label>作業區縮放 (Zoom): <span id="zoomVal" class="value-display">1.0</span>x</label>
+        <input type="range" id="zoomStr" min="0.2" max="3.0" value="1.0" step="0.1">
+    </div>
+    <div>
+        <button id="btnResetPos" class="btn-secondary">↺ 重置錨點位置至中心</button>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <button id="btnRun">▶ 開始滾分演示 (Run)</button>
+    </div>
+</div>
+
+<div class="canvas-area">
+    <div class="canvas-wrapper" id="canvasWrapper">
+        <canvas id="stage" width="800" height="600"></canvas>
+    </div>
+</div>
+
+<script>
+// --- 核心變數 ---
+const cvs = document.getElementById('stage');
+const ctx = cvs.getContext('2d');
+const canvasArea = document.querySelector('.canvas-area');
+const canvasWrapper = document.getElementById('canvasWrapper');
+
+let resources = { fontImg: null, fontData: null };
+let viewState = {
+    zoom: 1.0,
+    textX: cvs.width / 2, 
+    textY: cvs.height / 2, 
+    isDragging: false,
+    lastMouseX: 0,
+    lastMouseY: 0
+};
+let animState = {
+    isRunning: false,
+    startTime: 0,
+    startVal: 0,
+    endVal: 0,
+    currentVal: 0,
+    duration: 2000
+};
+
+const Easings = {
+    linear: t => t,
+    easeOutQuad: t => t * (2 - t),
+    easeOutExpo: t => t === 1 ? 1 : 1 - Math.pow(2, -10 * t),
+    easeOutBack: t => {
+        const c1 = 1.70158; const c3 = c1 + 1;
+        return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    }
+};
+
+// --- 初始化與預覽 ---
+const updatePreview = () => { 
+    if (!animState.isRunning) {
+        const sv = parseInt(document.getElementById('startVal').value, 10);
+        animState.currentVal = sv; 
+        draw(0); 
+    }
+};
+
+document.getElementById('blurStr').oninput = (e) => {
+    document.getElementById('blurVal').innerText = e.target.value;
+    updatePreview();
+};
+document.getElementById('scale').oninput = updatePreview;
+document.getElementById('textAlign').onchange = updatePreview;
+document.getElementById('startVal').oninput = updatePreview;
+
+document.getElementById('zoomStr').oninput = (e) => {
+    viewState.zoom = parseFloat(e.target.value);
+    document.getElementById('zoomVal').innerText = viewState.zoom;
+    canvasWrapper.style.transform = `scale(${viewState.zoom})`;
+};
+
+document.getElementById('btnResetPos').onclick = () => {
+    viewState.textX = cvs.width / 2;
+    viewState.textY = cvs.height / 2;
+    updatePreview();
+};
+
+document.getElementById('btnRun').onclick = () => {
+    if (!resources.fontData || !resources.fontImg) {
+        alert("請先載入 .fnt 和 .png 字型檔案！");
+        return;
+    }
+    const sv = parseInt(document.getElementById('startVal').value, 10);
+    const tv = parseInt(document.getElementById('targetVal').value, 10);
+    const dur = parseFloat(document.getElementById('duration').value) * 1000;
+    
+    startAnimation(sv, tv, dur);
+};
+
+// --- 拖曳邏輯 (畫布) ---
+cvs.addEventListener('mousedown', (e) => {
+    viewState.isDragging = true;
+    viewState.lastMouseX = e.clientX;
+    viewState.lastMouseY = e.clientY;
+});
+window.addEventListener('mousemove', (e) => {
+    if (!viewState.isDragging) return;
+    const dx = e.clientX - viewState.lastMouseX;
+    const dy = e.clientY - viewState.lastMouseY;
+    viewState.lastMouseX = e.clientX;
+    viewState.lastMouseY = e.clientY;
+    
+    viewState.textX += dx / viewState.zoom;
+    viewState.textY += dy / viewState.zoom;
+    updatePreview();
+});
+window.addEventListener('mouseup', () => viewState.isDragging = false);
+
+
+// --- 獨立的檔案載入與解析邏輯 ---
+function processBgFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => canvasArea.style.backgroundImage = `url('${event.target.result}')`;
+    reader.readAsDataURL(file);
+}
+
+function processFontImgFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => { resources.fontImg = img; updatePreview(); };
+        img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function processFntFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => parseFnt(event.target.result);
+    reader.readAsText(file);
+}
+
+function parseFnt(text) {
+    const chars = {};
+    const lines = text.split(/\r?\n/);
+    let lineHeight = 0;
+    lines.forEach(line => {
+        if (line.startsWith('common')) {
+            const lh = line.match(/lineHeight=(\d+)/);
+            if (lh) lineHeight = parseInt(lh[1]);
+        }
+        if (line.startsWith('char ')) {
+            const getData = (key) => {
+                const regex = new RegExp(`${key}=(-?\\d+)`);
+                const match = line.match(regex);
+                return match ? parseInt(match[1]) : 0;
+            };
+            const id = getData('id');
+            chars[id] = {
+                x: getData('x'), y: getData('y'),
+                w: getData('width'), h: getData('height'),
+                xo: getData('xoffset'), yo: getData('yoffset'),
+                xa: getData('xadvance')
+            };
+        }
+    });
+    resources.fontData = { chars, lineHeight };
+    updatePreview();
+}
+
+// 綁定原生 input 按鈕
+document.getElementById('bgFile').onchange = (e) => processBgFile(e.target.files[0]);
+document.getElementById('imgFile').onchange = (e) => processFontImgFile(e.target.files[0]);
+document.getElementById('fntFile').onchange = (e) => processFntFile(e.target.files[0]);
+
+
+// --- 全域拖曳檔案載入邏輯 (Drag and Drop) ---
+let dragCounter = 0;
+
+window.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dragCounter++;
+    document.body.classList.add('drag-active');
+});
+
+window.addEventListener('dragover', (e) => {
+    e.preventDefault(); // 必須阻止預設行為才能觸發 drop
+});
+
+window.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter === 0) {
+        document.body.classList.remove('drag-active');
+    }
+});
+
+window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragCounter = 0;
+    document.body.classList.remove('drag-active');
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+
+    files.forEach(file => {
+        const name = file.name.toLowerCase();
+        
+        // 判斷是否為字型資訊檔
+        if (name.endsWith('.fnt') || name.endsWith('.txt')) {
+            processFntFile(file);
+            // 同步更新 input UI 的顯示 (選做，讓使用者知道檔案有吃進去)
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            document.getElementById('fntFile').files = dataTransfer.files;
+        } 
+        // 判斷是否為圖片檔
+        else if (file.type.startsWith('image/')) {
+            if (name.includes('bg') || name.includes('background')) {
+                processBgFile(file);
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                document.getElementById('bgFile').files = dataTransfer.files;
+            } else {
+                processFontImgFile(file);
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                document.getElementById('imgFile').files = dataTransfer.files;
+            }
+        }
+    });
+});
+
+// --- 動畫 ---
+function startAnimation(start, end, duration) {
+    animState.startVal = start;
+    animState.endVal = end;
+    animState.currentVal = start;
+    draw(0); 
+
+    animState.duration = duration;
+    animState.startTime = performance.now();
+    animState.isRunning = true;
+    
+    requestAnimationFrame(loop);
+}
+
+function loop(time) {
+    if (!animState.isRunning) return;
+    
+    const elapsed = time - animState.startTime;
+    const progress = Math.min(elapsed / animState.duration, 1);
+    const easingName = document.getElementById('easing').value;
+    const easeFn = Easings[easingName] || Easings.linear;
+    
+    const valDiff = animState.endVal - animState.startVal;
+    const newVal = animState.startVal + (valDiff * easeFn(progress));
+    
+    // 計算速度
+    const velocity = Math.abs(newVal - animState.currentVal); 
+    animState.currentVal = newVal;
+
+    draw(velocity);
+
+    if (progress < 1) {
+        requestAnimationFrame(loop);
+    } else {
+        animState.isRunning = false;
+        animState.currentVal = animState.endVal;
+        draw(0); 
+    }
+}
+
+function draw(velocity = 0) {
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+    if (!resources.fontData || !resources.fontImg) {
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.font = "20px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("請拖曳 Font (.fnt) 與 Image (.png) 檔案至此", cvs.width/2, cvs.height/2);
+        return;
+    }
+
+    // --- 特效邏輯 (純模糊版) ---
+    const userStrength = parseFloat(document.getElementById('blurStr').value);
+    
+    // 計算模糊半徑：因為移除了拉伸，我們稍微調高係數讓模糊更容易出現
+    // 並限制最大模糊半徑，避免效能問題或糊到看不見
+    const blurRadius = Math.min((velocity * userStrength * 0.005), 20); 
+
+    ctx.save();
+    
+    // 當模糊半徑大於微小值時才套用濾鏡
+    if (blurRadius > 0.2) {
+        // 注意：Canvas 原生只支援高斯模糊 (Gaussian blur)，不支援純直線方向模糊。
+        // 這會讓字體整體變糊，而不是只有垂直方向。
+        ctx.filter = `blur(${blurRadius}px)`;
+    }
+
+    // 2. 準備文字
+    const scale = parseFloat(document.getElementById('scale').value);
+    const textStr = Math.floor(animState.currentVal).toLocaleString('en-US');
+    
+    let totalWidth = 0;
+    const renderQueue = [];
+    let cursorX = 0;
+
+    for (let i = 0; i < textStr.length; i++) {
+        const charCode = textStr.charCodeAt(i);
+        const charData = resources.fontData.chars[charCode];
+        if (charData) {
+            renderQueue.push({ data: charData, x: cursorX });
+            cursorX += charData.xa;
+        } else {
+             cursorX += 10; 
+        }
+    }
+    totalWidth = cursorX * scale;
+
+    // 3. 計算對齊位置
+    const alignMode = document.getElementById('textAlign').value;
+    let startX = 0;
+
+    if (alignMode === 'center') {
+        startX = viewState.textX - (totalWidth / 2);
+    } else if (alignMode === 'right') {
+        startX = viewState.textX - totalWidth;
+    } else if (alignMode === 'left') {
+        startX = viewState.textX;
+    }
+
+    const startY = viewState.textY - ((resources.fontData.lineHeight * scale) / 2);
+
+    // 4. 繪製文字 (無拉伸)
+    renderQueue.forEach(item => {
+        const c = item.data;
+        const dx = startX + (item.x + c.xo) * scale;
+        const dy = startY + (c.yo * scale);
+        const dw = c.w * scale;
+        const dh = c.h * scale; // 保持原始高度比例
+
+        ctx.drawImage(resources.fontImg, c.x, c.y, c.w, c.h, dx, dy, dw, dh);
+    });
+
+    ctx.restore();
+    
+    // 5. 繪製輔助錨點
+    if (!animState.isRunning) {
+        ctx.strokeStyle = 'rgba(255, 255, 0, 0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(viewState.textX - 15, viewState.textY);
+        ctx.lineTo(viewState.textX + 15, viewState.textY);
+        ctx.moveTo(viewState.textX, viewState.textY - 15);
+        ctx.lineTo(viewState.textX, viewState.textY + 15);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)';
+        ctx.beginPath();
+        ctx.moveTo(viewState.textX, viewState.textY - 30);
+        ctx.lineTo(viewState.textX, viewState.textY + 30);
+        ctx.stroke();
+        
+        ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
+        ctx.font = '12px "Microsoft JhengHei"';
+        ctx.textAlign = 'left';
+        // 顯示中文對齊模式
+        let alignText = "置中";
+        if (alignMode === 'right') alignText = "靠右";
+        if (alignMode === 'left') alignText = "靠左";
+        ctx.fillText(alignText + "錨點", viewState.textX + 5, viewState.textY - 5);
+    }
+}
+</script>
+
+</body>
+</html>
