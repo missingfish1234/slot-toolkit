@@ -2,6 +2,12 @@ $ErrorActionPreference = "Stop"
 
 Set-Location $PSScriptRoot
 
+$distConfig = Join-Path $PSScriptRoot "dist\ToolkitManager\config.json"
+$configBackup = Join-Path $env:TEMP "ToolkitManager.config.backup.json"
+if (Test-Path $distConfig) {
+    Copy-Item -LiteralPath $distConfig -Destination $configBackup -Force
+}
+
 if (-not (Test-Path ".venv")) {
     python -m venv .venv
 }
@@ -18,6 +24,11 @@ if (-not (Test-Path ".venv")) {
 
 if ($LASTEXITCODE -ne 0) {
     throw "PyInstaller failed with exit code $LASTEXITCODE"
+}
+
+$newDistDir = Join-Path $PSScriptRoot "dist\ToolkitManager"
+if (Test-Path $configBackup) {
+    Copy-Item -LiteralPath $configBackup -Destination (Join-Path $newDistDir "config.json") -Force
 }
 
 Write-Host "Build complete: $PSScriptRoot\dist\ToolkitManager\ToolkitManager.exe"

@@ -56,30 +56,30 @@ class ToolCard(QFrame):
     selected = Signal(object)
     action_requested = Signal(str, object)
 
-    def __init__(self, tool: ToolInfo, status: str, local_version: str) -> None:
+    def __init__(self, tool: ToolInfo, status: str, local_version: str, is_selected: bool = False) -> None:
         super().__init__()
         self.tool = tool
         self.status = status
         self.setObjectName("ToolCard")
-        self.setProperty("selected", "false")
-        self.setMinimumHeight(168)
+        self.setProperty("selected", "true" if is_selected else "false")
+        self.setMinimumHeight(178)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 14, 14, 12)
-        layout.setSpacing(10)
+        layout.setContentsMargins(16, 15, 16, 14)
+        layout.setSpacing(11)
 
         header = QHBoxLayout()
-        icon = QLabel(tool.name[:1].upper() if tool.name else "T")
-        icon.setFixedSize(48, 48)
+        header.setSpacing(12)
+        icon = QLabel(tool_initial(tool.name))
+        icon.setObjectName("ToolIcon")
+        icon.setFixedSize(50, 50)
         icon.setAlignment(Qt.AlignCenter)
-        icon.setStyleSheet(
-            "background:#1f2937;color:white;border-radius:8px;"
-            "font-size:22px;font-weight:700;"
-        )
+        icon.setStyleSheet(f"background:{tool_color(tool.category)};")
         header.addWidget(icon)
 
         title_box = QVBoxLayout()
+        title_box.setSpacing(2)
         name = QLabel(tool.name)
         name.setObjectName("ToolName")
         category = QLabel(tool.category)
@@ -91,16 +91,17 @@ class ToolCard(QFrame):
         layout.addLayout(header)
 
         desc = QLabel(tool.description or "尚未填寫工具用途描述。")
-        desc.setObjectName("Muted")
+        desc.setObjectName("CardDescription")
         desc.setWordWrap(True)
-        desc.setMaximumHeight(38)
+        desc.setMaximumHeight(42)
         layout.addWidget(desc)
 
-        meta = QLabel(f"本機 {local_version or '-'}    雲端 {tool.version}    更新：{tool.updated_at or '-'}")
-        meta.setObjectName("Muted")
+        meta = QLabel(f"本機 {local_version or '-'}    雲端 {tool.version}    更新 {tool.updated_at or '-'}")
+        meta.setObjectName("Meta")
         layout.addWidget(meta)
 
         actions = QHBoxLayout()
+        actions.setSpacing(8)
         primary_text = primary_action_text(status)
         primary = QPushButton(primary_text)
         primary.setObjectName("PrimaryButton")
@@ -108,10 +109,12 @@ class ToolCard(QFrame):
         actions.addWidget(primary)
 
         folder = QPushButton("資料夾")
+        folder.setObjectName("SecondaryButton")
         folder.clicked.connect(lambda: self.action_requested.emit("資料夾", self.tool))
         actions.addWidget(folder)
 
         more = QPushButton("...")
+        more.setObjectName("GhostButton")
         more.setFixedWidth(42)
         more.clicked.connect(lambda: self.action_requested.emit("詳情", self.tool))
         actions.addWidget(more)
@@ -144,11 +147,16 @@ class DetailsPanel(QFrame):
 
     def render_empty(self) -> None:
         self.clear()
+        empty_mark = QLabel("TM")
+        empty_mark.setObjectName("BrandMark")
+        empty_mark.setFixedSize(54, 54)
+        empty_mark.setAlignment(Qt.AlignCenter)
         title = QLabel("選擇一個工具")
         title.setObjectName("Title")
         body = QLabel("點選左側工具卡片後，這裡會顯示版本、安裝位置、GitHub 來源與更新日誌。")
         body.setObjectName("Muted")
         body.setWordWrap(True)
+        self.layout.addWidget(empty_mark)
         self.layout.addWidget(title)
         self.layout.addWidget(body)
         self.layout.addStretch(1)
@@ -157,15 +165,15 @@ class DetailsPanel(QFrame):
         self.clear()
 
         top = QHBoxLayout()
-        icon = QLabel(tool.name[:1].upper() if tool.name else "T")
+        top.setSpacing(14)
+        icon = QLabel(tool_initial(tool.name))
+        icon.setObjectName("ToolIcon")
         icon.setFixedSize(64, 64)
         icon.setAlignment(Qt.AlignCenter)
-        icon.setStyleSheet(
-            "background:#1f2937;color:white;border-radius:10px;"
-            "font-size:28px;font-weight:700;"
-        )
+        icon.setStyleSheet(f"background:{tool_color(tool.category)};font-size:28px;")
         top.addWidget(icon)
         title_box = QVBoxLayout()
+        title_box.setSpacing(3)
         title = QLabel(tool.name)
         title.setObjectName("Title")
         category = QLabel(tool.category)
@@ -177,6 +185,7 @@ class DetailsPanel(QFrame):
         self.layout.addLayout(top)
 
         desc = QLabel(tool.description or "尚未填寫工具用途描述。")
+        desc.setObjectName("CardDescription")
         desc.setWordWrap(True)
         self.layout.addWidget(desc)
 
@@ -187,10 +196,11 @@ class DetailsPanel(QFrame):
         self.layout.addWidget(primary)
 
         folder = QPushButton("開啟資料夾")
+        folder.setObjectName("SecondaryButton")
         folder.clicked.connect(lambda: self.action_requested.emit("資料夾", tool))
         self.layout.addWidget(folder)
 
-        self.layout.addSpacing(8)
+        self.layout.addSpacing(12)
         self.layout.addWidget(section("工具資訊"))
         for key, value in [
             ("本機版本", local_version or "-"),
@@ -204,7 +214,7 @@ class DetailsPanel(QFrame):
         ]:
             self.layout.addWidget(meta_row(key, value))
 
-        self.layout.addSpacing(8)
+        self.layout.addSpacing(12)
         self.layout.addWidget(section("更新日誌"))
         if tool.changelog:
             for item in tool.changelog:
@@ -346,6 +356,8 @@ class MainWindow(QMainWindow):
         self.selected_tool: ToolInfo | None = None
         self.current_category = "全部工具"
         self.worker_thread: QThread | None = None
+        self.worker: Worker | None = None
+        self._last_card_columns = 0
 
         root = QWidget()
         root_layout = QVBoxLayout(root)
@@ -363,12 +375,24 @@ class MainWindow(QMainWindow):
         bar = QFrame()
         bar.setObjectName("TopBar")
         layout = QHBoxLayout(bar)
-        layout.setContentsMargins(16, 10, 16, 10)
-        layout.setSpacing(12)
+        layout.setContentsMargins(18, 12, 18, 12)
+        layout.setSpacing(14)
 
+        brand = QLabel("TM")
+        brand.setObjectName("BrandMark")
+        brand.setFixedSize(42, 42)
+        brand.setAlignment(Qt.AlignCenter)
+        layout.addWidget(brand)
+
+        title_box = QVBoxLayout()
+        title_box.setSpacing(1)
         title = QLabel("工具包管理器")
         title.setObjectName("Title")
-        layout.addWidget(title)
+        subtitle = QLabel("GitHub 雲端工具同步中心")
+        subtitle.setObjectName("AppSubtitle")
+        title_box.addWidget(title)
+        title_box.addWidget(subtitle)
+        layout.addLayout(title_box)
 
         self.sync_status = QLabel("GitHub 同步狀態：尚未同步")
         self.sync_status.setObjectName("Muted")
@@ -383,6 +407,10 @@ class MainWindow(QMainWindow):
         admin.clicked.connect(self.open_admin)
         settings = QPushButton("設定")
         settings.clicked.connect(self.open_settings)
+        refresh.setObjectName("SecondaryButton")
+        check.setObjectName("SecondaryButton")
+        admin.setObjectName("SecondaryButton")
+        settings.setObjectName("GhostButton")
         layout.addWidget(refresh)
         layout.addWidget(check)
         layout.addWidget(admin)
@@ -395,10 +423,10 @@ class MainWindow(QMainWindow):
 
         sidebar = QFrame()
         sidebar.setObjectName("Sidebar")
-        sidebar.setMinimumWidth(260)
-        sidebar.setMaximumWidth(300)
+        sidebar.setMinimumWidth(250)
+        sidebar.setMaximumWidth(290)
         side_layout = QVBoxLayout(sidebar)
-        side_layout.setContentsMargins(0, 12, 0, 12)
+        side_layout.setContentsMargins(0, 18, 0, 18)
         self.category_list = QListWidget()
         self.category_list.currentItemChanged.connect(self.category_changed)
         side_layout.addWidget(self.category_list, 1)
@@ -406,10 +434,11 @@ class MainWindow(QMainWindow):
 
         main = QWidget()
         main_layout = QVBoxLayout(main)
-        main_layout.setContentsMargins(20, 18, 20, 18)
-        main_layout.setSpacing(12)
+        main_layout.setContentsMargins(24, 22, 24, 22)
+        main_layout.setSpacing(14)
 
         controls = QHBoxLayout()
+        controls.setSpacing(10)
         self.search = QLineEdit()
         self.search.setPlaceholderText("搜尋工具、用途或標籤...")
         self.search.textChanged.connect(self.render_tools)
@@ -427,6 +456,7 @@ class MainWindow(QMainWindow):
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.cards_host = QWidget()
         self.cards_grid = QGridLayout(self.cards_host)
         self.cards_grid.setContentsMargins(0, 0, 0, 0)
@@ -536,22 +566,38 @@ class MainWindow(QMainWindow):
 
         tools = self.filtered_tools()
         self.count_label.setText(f"共 {len(tools)} 個工具")
+        columns = self.card_column_count()
+        self._last_card_columns = columns
         for index, tool in enumerate(tools):
-            card = ToolCard(tool, self.library.status_for(tool), self.local_version(tool))
+            is_selected = bool(self.selected_tool and self.selected_tool.id == tool.id)
+            card = ToolCard(tool, self.library.status_for(tool), self.local_version(tool), is_selected)
             card.selected.connect(self.select_tool)
             card.action_requested.connect(self.handle_action)
-            row = index // 2
-            col = index % 2
+            row = index // columns
+            col = index % columns
             self.cards_grid.addWidget(card, row, col)
-        self.cards_grid.setColumnStretch(0, 1)
-        self.cards_grid.setColumnStretch(1, 1)
-        self.cards_grid.setRowStretch((len(tools) + 1) // 2, 1)
+        for col in range(columns):
+            self.cards_grid.setColumnStretch(col, 1)
+        self.cards_grid.setRowStretch((len(tools) + columns - 1) // columns, 1)
 
         if self.selected_tool:
             self.update_details()
 
+    def card_column_count(self) -> int:
+        width = self.scroll.viewport().width() if hasattr(self, "scroll") else self.width()
+        return 2 if width >= 920 else 1
+
+    def resizeEvent(self, event) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        if hasattr(self, "scroll") and self.tools:
+            columns = self.card_column_count()
+            if columns != self._last_card_columns:
+                self._last_card_columns = columns
+                self.render_tools()
+
     def select_tool(self, tool: ToolInfo) -> None:
         self.selected_tool = tool
+        self.render_tools()
         self.update_details()
 
     def update_details(self) -> None:
@@ -598,6 +644,9 @@ class MainWindow(QMainWindow):
         self.start_worker(job, done)
 
     def start_worker(self, fn: Callable, on_done: Callable) -> None:
+        if self.worker_thread and self.worker_thread.isRunning():
+            QMessageBox.information(self, APP_NAME, "目前已有操作正在執行，請稍候。")
+            return
         thread = QThread(self)
         worker = Worker(fn)
         worker.moveToThread(thread)
@@ -609,9 +658,15 @@ class MainWindow(QMainWindow):
         worker.failed.connect(thread.quit)
         worker.failed.connect(worker.deleteLater)
         worker.progress.connect(self.worker_progress)
+        thread.finished.connect(self.clear_worker)
         thread.finished.connect(thread.deleteLater)
         self.worker_thread = thread
+        self.worker = worker
         thread.start()
+
+    def clear_worker(self) -> None:
+        self.worker_thread = None
+        self.worker = None
 
     def worker_progress(self, message: str, percent: int) -> None:
         self.sync_status.setText(f"{message} {percent}%")
@@ -643,6 +698,26 @@ class MainWindow(QMainWindow):
     def local_version(self, tool: ToolInfo) -> str:
         installed = self.library.installed.get(tool.id)
         return installed.version if installed else ""
+
+
+def tool_initial(name: str) -> str:
+    cleaned = name.strip()
+    if not cleaned:
+        return "T"
+    return cleaned[0].upper()
+
+
+def tool_color(category: str) -> str:
+    palette = {
+        "Sharder": "#6f9f00",
+        "SPINE相關工具": "#3a464d",
+        "數字圖片工具": "#0f766e",
+        "測試工具": "#8a6f13",
+    }
+    if category in palette:
+        return palette[category]
+    colors = ["#5f6b3a", "#364148", "#0f766e", "#7a6412", "#4f6f00"]
+    return colors[sum(ord(char) for char in category) % len(colors)]
 
 
 def status_label(status: str) -> QLabel:
