@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 from typing import Callable
 
-from PySide6.QtCore import QObject, Qt, QThread, Signal
+from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QApplication,
@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPlainTextEdit,
+    QProgressBar,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -62,7 +63,7 @@ class ToolCard(QFrame):
         self.status = status
         self.setObjectName("ToolCard")
         self.setProperty("selected", "true" if is_selected else "false")
-        self.setMinimumHeight(178)
+        self.setFixedHeight(178)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         layout = QVBoxLayout(self)
@@ -143,6 +144,7 @@ class DetailsPanel(QFrame):
             item = self.layout.takeAt(0)
             widget = item.widget()
             if widget:
+                widget.setParent(None)
                 widget.deleteLater()
 
     def render_empty(self) -> None:
@@ -358,6 +360,7 @@ class MainWindow(QMainWindow):
         self.worker_thread: QThread | None = None
         self.worker: Worker | None = None
         self._last_card_columns = 0
+        self.progress_bar: QProgressBar | None = None
 
         root = QWidget()
         root_layout = QVBoxLayout(root)
@@ -397,6 +400,14 @@ class MainWindow(QMainWindow):
         self.sync_status = QLabel("GitHub 同步狀態：尚未同步")
         self.sync_status.setObjectName("Muted")
         layout.addWidget(self.sync_status)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setObjectName("DownloadProgress")
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setFixedWidth(220)
+        self.progress_bar.setTextVisible(True)
+        self.progress_bar.hide()
+        layout.addWidget(self.progress_bar)
         layout.addStretch(1)
 
         refresh = QPushButton("重新整理")
@@ -562,12 +573,14 @@ class MainWindow(QMainWindow):
             item = self.cards_grid.takeAt(0)
             widget = item.widget()
             if widget:
+                widget.setParent(None)
                 widget.deleteLater()
 
         tools = self.filtered_tools()
         self.count_label.setText(f"共 {len(tools)} 個工具")
         columns = self.card_column_count()
         self._last_card_columns = columns
+        row_count = (len(tools) + columns - 1) // columns
         for index, tool in enumerate(tools):
             is_selected = bool(self.selected_tool and self.selected_tool.id == tool.id)
             card = ToolCard(tool, self.library.status_for(tool), self.local_version(tool), is_selected)
@@ -576,9 +589,12 @@ class MainWindow(QMainWindow):
             row = index // columns
             col = index % columns
             self.cards_grid.addWidget(card, row, col)
+        for row in range(row_count):
+            self.cards_grid.setRowMinimumHeight(row, 178)
         for col in range(columns):
             self.cards_grid.setColumnStretch(col, 1)
-        self.cards_grid.setRowStretch((len(tools) + columns - 1) // columns, 1)
+        self.cards_grid.setRowStretch(row_count, 1)
+        self.cards_host.setMinimumHeight(max(0, row_count * 192))
 
         if self.selected_tool:
             self.update_details()
@@ -629,6 +645,7 @@ class MainWindow(QMainWindow):
             return
         destination = self.library.install_path_for(tool)
         self.sync_status.setText(f"正在下載：{tool.name}")
+        self.show_progress(0)
 
         def job(progress):
             self.github.download_tool(tool, destination, progress)
@@ -637,6 +654,8 @@ class MainWindow(QMainWindow):
         def done(path: Path):
             self.library.mark_installed(tool, path)
             self.sync_status.setText(f"已完成：{tool.name}")
+            self.show_progress(100)
+            QTimer.singleShot(1200, self.hide_progress)
             self.render_categories()
             self.render_tools()
             self.update_details()
@@ -670,9 +689,11 @@ class MainWindow(QMainWindow):
 
     def worker_progress(self, message: str, percent: int) -> None:
         self.sync_status.setText(f"{message} {percent}%")
+        self.show_progress(percent)
 
     def worker_failed(self, message: str) -> None:
         self.sync_status.setText("操作失敗")
+        self.hide_progress()
         QMessageBox.warning(self, APP_NAME, message)
 
     def open_admin(self) -> None:
@@ -698,6 +719,17 @@ class MainWindow(QMainWindow):
     def local_version(self, tool: ToolInfo) -> str:
         installed = self.library.installed.get(tool.id)
         return installed.version if installed else ""
+
+    def show_progress(self, percent: int) -> None:
+        if not self.progress_bar:
+            return
+        self.progress_bar.setValue(max(0, min(100, percent)))
+        self.progress_bar.show()
+
+    def hide_progress(self) -> None:
+        if not self.progress_bar:
+            return
+        self.progress_bar.hide()
 
 
 def tool_initial(name: str) -> str:
@@ -751,11 +783,16 @@ def meta_row(key: str, value: str) -> QWidget:
     row = QWidget()
     layout = QHBoxLayout(row)
     layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(8)
     key_label = QLabel(key)
     key_label.setObjectName("Muted")
     key_label.setFixedWidth(82)
     value_label = QLabel(value)
+    value_label.setObjectName("MetaValue")
     value_label.setWordWrap(True)
+    value_label.setMinimumWidth(0)
+    value_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+    value_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
     layout.addWidget(key_label)
     layout.addWidget(value_label, 1)
     return row

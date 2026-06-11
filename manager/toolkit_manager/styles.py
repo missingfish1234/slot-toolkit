@@ -98,6 +98,21 @@ QLineEdit, QComboBox {
     selection-color: #10140c;
 }
 
+QProgressBar#DownloadProgress {
+    background: #12171a;
+    border: 1px solid #4b5a42;
+    border-radius: 7px;
+    color: #eaffc7;
+    text-align: center;
+    height: 20px;
+    font-weight: 800;
+}
+
+QProgressBar#DownloadProgress::chunk {
+    background: #91e600;
+    border-radius: 6px;
+}
+
 QLineEdit:focus, QComboBox:focus {
     border: 1px solid #a8ff16;
 }
@@ -224,6 +239,10 @@ QLabel#Category {
 
 QLabel#Muted, QLabel#Meta {
     color: #9aa69d;
+}
+
+QLabel#MetaValue {
+    color: #eef5ee;
 }
 
 QLabel#CardDescription {

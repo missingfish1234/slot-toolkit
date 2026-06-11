@@ -15,10 +15,12 @@
 ## 管理者更新工具流程
 
 1. 將新工具資料夾放進對應分類。
-2. 執行 `manager/run.py`，打開「管理者模式」。
-3. 掃描工具包根目錄。
-4. 儲存 `tools-index.json`。
-5. Commit 並 push 到 GitHub。
+2. 需要工具名稱、用途描述、版本、入口檔時，在工具資料夾新增 `tool.json`。
+3. 參考 `manager/docs/tool-metadata-guide.md` 撰寫工具描述。
+4. 執行 `manager/run.py`，打開「管理者模式」。
+5. 掃描工具包根目錄。
+6. 儲存 `tools-index.json`。
+7. Commit 並 push 到 GitHub。
 
 ## 同事使用流程
 
