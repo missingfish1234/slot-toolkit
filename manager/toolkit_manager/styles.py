@@ -34,6 +34,10 @@ QFrame#DetailsPanel {
     border-left: 1px solid #2a3035;
 }
 
+QWidget#DetailsContent {
+    background: #111417;
+}
+
 QSplitter::handle {
     background: #20262b;
 }
@@ -241,8 +245,20 @@ QLabel#Muted, QLabel#Meta {
     color: #9aa69d;
 }
 
+QFrame#MetaRow {
+    background: #151a1a;
+    border: 1px solid #24302b;
+    border-radius: 6px;
+}
+
+QLabel#MetaKey {
+    color: #9aa69d;
+    font-size: 12px;
+}
+
 QLabel#MetaValue {
     color: #eef5ee;
+    line-height: 140%;
 }
 
 QLabel#CardDescription {

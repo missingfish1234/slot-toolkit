@@ -139,9 +139,19 @@ class DetailsPanel(QFrame):
         self.setObjectName("DetailsPanel")
         self.setMinimumWidth(380)
         self.setMaximumWidth(460)
-        self.layout = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.content = QWidget()
+        self.content.setObjectName("DetailsContent")
+        self.layout = QVBoxLayout(self.content)
         self.layout.setContentsMargins(24, 24, 24, 24)
         self.layout.setSpacing(12)
+        self.scroll.setWidget(self.content)
+        outer.addWidget(self.scroll, 1)
         self.render_empty()
 
     def clear(self) -> None:
@@ -183,8 +193,10 @@ class DetailsPanel(QFrame):
         title_box.setSpacing(3)
         title = QLabel(tool.name)
         title.setObjectName("Title")
+        title.setWordWrap(True)
         category = QLabel(tool.category)
         category.setObjectName("Category")
+        category.setWordWrap(True)
         title_box.addWidget(title)
         title_box.addWidget(category)
         top.addLayout(title_box, 1)
@@ -1065,22 +1077,28 @@ def section(text: str) -> QLabel:
 
 
 def meta_row(key: str, value: str) -> QWidget:
-    row = QWidget()
+    row = QFrame()
+    row.setObjectName("MetaRow")
     layout = QHBoxLayout(row)
-    layout.setContentsMargins(0, 0, 0, 0)
-    layout.setSpacing(8)
+    layout.setContentsMargins(10, 7, 10, 7)
+    layout.setSpacing(10)
     key_label = QLabel(key)
-    key_label.setObjectName("Muted")
-    key_label.setFixedWidth(82)
-    value_label = QLabel(value)
+    key_label.setObjectName("MetaKey")
+    key_label.setFixedWidth(76)
+    key_label.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+    value_label = QLabel(soft_wrap_text(value))
     value_label.setObjectName("MetaValue")
     value_label.setWordWrap(True)
     value_label.setMinimumWidth(0)
-    value_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+    value_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
     value_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
     layout.addWidget(key_label)
     layout.addWidget(value_label, 1)
     return row
+
+
+def soft_wrap_text(value: str) -> str:
+    return value.replace("\\", "\\\u200b").replace("/", "/\u200b").replace("_", "_\u200b")
 
 
 def labeled_input(layout: QVBoxLayout, label: str, value: str) -> QLineEdit:
