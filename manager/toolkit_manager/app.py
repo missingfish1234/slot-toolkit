@@ -554,7 +554,7 @@ class MainWindow(QMainWindow):
 
         title_box = QVBoxLayout()
         title_box.setSpacing(1)
-        title = QLabel("工具包管理器")
+        title = QLabel(APP_NAME)
         title.setObjectName("Title")
         subtitle = QLabel(f"GitHub 雲端工具同步中心  v{APP_VERSION}")
         subtitle.setObjectName("AppSubtitle")
@@ -883,7 +883,7 @@ class MainWindow(QMainWindow):
         choice = QMessageBox.question(
             self,
             APP_NAME,
-            f"發現新版工具包管理器。\n\n{detail}\n\n是否立即下載並更新？",
+            f"發現新版{APP_NAME}。\n\n{detail}\n\n是否立即下載並更新？",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.Yes,
         )

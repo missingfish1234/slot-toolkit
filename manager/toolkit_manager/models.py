@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Any
 
 
-APP_NAME = "工具包管理器"
-APP_VERSION = "1.1.3"
+APP_NAME = "小魚骨頭工作包管理器"
+APP_VERSION = "1.1.4"
 INDEX_FILE_NAME = "tools-index.json"
 
 
