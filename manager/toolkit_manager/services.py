@@ -162,7 +162,7 @@ class GitHubClient:
         try:
             if progress:
                 progress("下載 GitHub 壓縮包", 5)
-            download_file(self.archive_url(), zip_path)
+            download_file(self.archive_url(), zip_path, progress, "下載 GitHub 壓縮包", 5, 40)
 
             if progress:
                 progress("解壓工具檔案", 45)
@@ -264,12 +264,15 @@ def download_file(
     target: Path,
     progress: ProgressCallback | None = None,
     label: str = "下載檔案",
+    start_percent: int = 0,
+    end_percent: int = 100,
 ) -> None:
     url = encode_url(url)
     request = urllib.request.Request(url, headers={"User-Agent": "ToolkitManager/1.0"})
     with urllib.request.urlopen(request, timeout=300) as response:
         total = int(response.headers.get("Content-Length") or 0)
         done = 0
+        last_percent = -1
         target.parent.mkdir(parents=True, exist_ok=True)
         with target.open("wb") as output:
             while True:
@@ -279,9 +282,13 @@ def download_file(
                 output.write(chunk)
                 done += len(chunk)
                 if progress and total:
-                    progress(label, min(95, int(done / total * 95)))
+                    span = max(0, end_percent - start_percent)
+                    percent = min(end_percent, start_percent + int(done / total * span))
+                    if percent != last_percent:
+                        progress(label, percent)
+                        last_percent = percent
         if progress:
-            progress(label, 100)
+            progress(label, end_percent)
 
 
 def select_manager_asset(assets: list[dict]) -> dict | None:
@@ -310,6 +317,7 @@ def extract_tool_from_archive(
             if not info.is_dir() and archive_inner_path(info.filename, normalized_tool_path)
         ]
         total = max(len(members), 1)
+        last_percent = -1
         for index, info in enumerate(members, start=1):
             rel_path = archive_inner_path(info.filename, normalized_tool_path)
             if not rel_path:
@@ -321,7 +329,10 @@ def extract_tool_from_archive(
                 shutil.copyfileobj(source, output)
             extracted += 1
             if progress:
-                progress(f"解壓 {rel_path}", 45 + int(index / total * 50))
+                percent = 45 + int(index / total * 50)
+                if percent != last_percent:
+                    progress("解壓工具檔案", percent)
+                    last_percent = percent
     if progress:
         progress("下載完成", 100)
     return extracted

@@ -7,7 +7,7 @@ from typing import Any
 
 
 APP_NAME = "工具包管理器"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.1.1"
 INDEX_FILE_NAME = "tools-index.json"
 
 

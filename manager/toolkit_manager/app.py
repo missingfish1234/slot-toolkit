@@ -509,6 +509,8 @@ class MainWindow(QMainWindow):
         self.current_category = "全部工具"
         self.worker_thread: QThread | None = None
         self.worker: Worker | None = None
+        self.worker_done_callback: Callable[[object], None] | None = None
+        self.worker_failed_callback: Callable[[str], None] | None = None
         self._last_card_columns = 0
         self.progress_bar: QProgressBar | None = None
         self.manager_update_checked = False
@@ -921,11 +923,13 @@ class MainWindow(QMainWindow):
         thread = QThread(self)
         worker = Worker(fn)
         worker.moveToThread(thread)
+        self.worker_done_callback = on_done
+        self.worker_failed_callback = on_failed
         thread.started.connect(worker.run)
-        worker.finished.connect(on_done)
+        worker.finished.connect(self.worker_finished)
         worker.finished.connect(thread.quit)
         worker.finished.connect(worker.deleteLater)
-        worker.failed.connect(on_failed or self.worker_failed)
+        worker.failed.connect(self.worker_failed_dispatch)
         worker.failed.connect(thread.quit)
         worker.failed.connect(worker.deleteLater)
         worker.progress.connect(self.worker_progress)
@@ -938,6 +942,24 @@ class MainWindow(QMainWindow):
     def clear_worker(self) -> None:
         self.worker_thread = None
         self.worker = None
+        self.worker_done_callback = None
+        self.worker_failed_callback = None
+
+    def worker_finished(self, result: object) -> None:
+        callback = self.worker_done_callback
+        if not callback:
+            return
+        try:
+            callback(result)
+        except Exception as exc:
+            self.worker_failed(str(exc))
+
+    def worker_failed_dispatch(self, message: str) -> None:
+        callback = self.worker_failed_callback or self.worker_failed
+        try:
+            callback(message)
+        except Exception as exc:
+            self.worker_failed(str(exc))
 
     def worker_progress(self, message: str, percent: int) -> None:
         self.sync_status.setText(f"{message} {percent}%")
