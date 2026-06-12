@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 import sys
+import zipfile
 from pathlib import Path
 from typing import Callable
 
@@ -34,8 +37,8 @@ from PySide6.QtWidgets import (
 )
 
 from .indexer import save_all_tool_metadata, save_index, save_tool_metadata, scan_tools
-from .models import APP_NAME, INDEX_FILE_NAME, AppConfig, ToolIndex, ToolInfo
-from .services import ConfigStore, GitHubClient, StateStore, ToolLibrary, app_data_dir
+from .models import APP_NAME, APP_VERSION, INDEX_FILE_NAME, AppConfig, ManagerRelease, ToolIndex, ToolInfo
+from .services import ConfigStore, GitHubClient, StateStore, ToolLibrary, app_data_dir, compare_versions, ensure_safe_child
 from .styles import APP_QSS
 
 
@@ -467,6 +470,7 @@ class SettingsDialog(QDialog):
         self.branch = labeled_input(layout, "Branch", config.github_branch)
         self.install_root = labeled_input(layout, "工具安裝位置", config.install_root)
         self.admin_password = labeled_input(layout, "管理者密碼", config.admin_password)
+        self.admin_password.setEchoMode(QLineEdit.Password)
 
         buttons = QHBoxLayout()
         save = QPushButton("儲存")
@@ -507,6 +511,7 @@ class MainWindow(QMainWindow):
         self.worker: Worker | None = None
         self._last_card_columns = 0
         self.progress_bar: QProgressBar | None = None
+        self.manager_update_checked = False
 
         root = QWidget()
         root_layout = QVBoxLayout(root)
@@ -537,7 +542,7 @@ class MainWindow(QMainWindow):
         title_box.setSpacing(1)
         title = QLabel("工具包管理器")
         title.setObjectName("Title")
-        subtitle = QLabel("GitHub 雲端工具同步中心")
+        subtitle = QLabel(f"GitHub 雲端工具同步中心  v{APP_VERSION}")
         subtitle.setObjectName("AppSubtitle")
         title_box.addWidget(title)
         title_box.addWidget(subtitle)
@@ -560,16 +565,20 @@ class MainWindow(QMainWindow):
         refresh.clicked.connect(self.refresh_from_github)
         check = QPushButton("檢查更新")
         check.clicked.connect(self.refresh_from_github)
+        manager_update = QPushButton("管理器更新")
+        manager_update.clicked.connect(self.check_manager_update)
         admin = QPushButton("管理者模式")
         admin.clicked.connect(self.open_admin)
         settings = QPushButton("設定")
         settings.clicked.connect(self.open_settings)
         refresh.setObjectName("SecondaryButton")
         check.setObjectName("SecondaryButton")
+        manager_update.setObjectName("SecondaryButton")
         admin.setObjectName("SecondaryButton")
         settings.setObjectName("GhostButton")
         layout.addWidget(refresh)
         layout.addWidget(check)
+        layout.addWidget(manager_update)
         layout.addWidget(admin)
         layout.addWidget(settings)
         return bar
@@ -657,6 +666,8 @@ class MainWindow(QMainWindow):
         self.sync_status.setText(f"GitHub 同步狀態：已同步（{index.updated_at or '剛剛'}）")
         self.render_categories()
         self.render_tools()
+        if not self.manager_update_checked:
+            QTimer.singleShot(300, self.check_manager_update_silent)
 
     def render_categories(self) -> None:
         self.category_list.blockSignals(True)
@@ -808,7 +819,102 @@ class MainWindow(QMainWindow):
 
         self.start_worker(job, done)
 
-    def start_worker(self, fn: Callable, on_done: Callable) -> None:
+    def check_manager_update_silent(self) -> None:
+        self.check_manager_update_impl(silent=True)
+
+    def check_manager_update(self) -> None:
+        self.check_manager_update_impl(silent=False)
+
+    def check_manager_update_impl(self, silent: bool) -> None:
+        if not self.github.is_configured:
+            if not silent:
+                QMessageBox.information(self, APP_NAME, "請先到設定填入 GitHub Owner 與 Repo。")
+            return
+        self.manager_update_checked = True
+        if not silent:
+            self.sync_status.setText("正在檢查管理器本體更新...")
+
+        def job(_progress):
+            return self.github.fetch_latest_manager_release()
+
+        def done(release: ManagerRelease | None):
+            self.handle_manager_release(release, silent)
+
+        self.start_worker(
+            job,
+            done,
+            on_failed=lambda message: self.manager_update_failed(message, silent),
+        )
+
+    def manager_update_failed(self, message: str, silent: bool) -> None:
+        if silent:
+            return
+        self.sync_status.setText("管理器更新檢查失敗")
+        QMessageBox.warning(self, APP_NAME, message)
+
+    def handle_manager_release(self, release: ManagerRelease | None, silent: bool) -> None:
+        if not release:
+            if not silent:
+                QMessageBox.information(self, APP_NAME, "GitHub Release 找不到 ToolkitManager.zip 更新包。")
+            return
+        if compare_versions(APP_VERSION, release.version) >= 0:
+            if not silent:
+                QMessageBox.information(self, APP_NAME, f"目前已是最新版：v{APP_VERSION}")
+            return
+
+        body = release.body.strip()
+        detail = f"目前版本：v{APP_VERSION}\n雲端版本：{release.tag_name}\n更新包：{release.asset_name}"
+        if body:
+            detail += f"\n\n更新說明：\n{body[:800]}"
+        choice = QMessageBox.question(
+            self,
+            APP_NAME,
+            f"發現新版工具包管理器。\n\n{detail}\n\n是否立即下載並更新？",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        )
+        if choice == QMessageBox.Yes:
+            self.download_manager_update(release)
+
+    def download_manager_update(self, release: ManagerRelease) -> None:
+        if not getattr(sys, "frozen", False):
+            QMessageBox.information(
+                self,
+                APP_NAME,
+                "目前是開發模式，管理器本體更新只會在打包後的 ToolkitManager.exe 中執行。",
+            )
+            return
+        updates_dir = app_data_dir() / "updates"
+        self.sync_status.setText(f"正在下載管理器更新：{release.tag_name}")
+        self.show_progress(0)
+
+        def job(progress):
+            return self.github.download_manager_release(release, updates_dir, progress)
+
+        def done(zip_path: Path):
+            self.show_progress(100)
+            self.install_manager_update(zip_path)
+
+        self.start_worker(job, done)
+
+    def install_manager_update(self, zip_path: Path) -> None:
+        updates_dir = app_data_dir() / "updates"
+        extract_dir = updates_dir / "extracted"
+        if extract_dir.exists():
+            shutil.rmtree(extract_dir)
+        extract_dir.mkdir(parents=True, exist_ok=True)
+        extract_update_zip(zip_path, extract_dir)
+        source_dir = find_update_source_dir(extract_dir)
+        target_dir = manager_dir()
+        script_path = write_update_script(source_dir, target_dir)
+        QMessageBox.information(self, APP_NAME, "更新包已下載完成。按下確定後，管理器會關閉、套用更新並重新啟動。")
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        subprocess.Popen(["cmd", "/c", str(script_path)], cwd=str(target_dir), creationflags=flags)
+        app = QApplication.instance()
+        if app:
+            app.quit()
+
+    def start_worker(self, fn: Callable, on_done: Callable, on_failed: Callable[[str], None] | None = None) -> None:
         if self.worker_thread and self.worker_thread.isRunning():
             QMessageBox.information(self, APP_NAME, "目前已有操作正在執行，請稍候。")
             return
@@ -819,7 +925,7 @@ class MainWindow(QMainWindow):
         worker.finished.connect(on_done)
         worker.finished.connect(thread.quit)
         worker.finished.connect(worker.deleteLater)
-        worker.failed.connect(self.worker_failed)
+        worker.failed.connect(on_failed or self.worker_failed)
         worker.failed.connect(thread.quit)
         worker.failed.connect(worker.deleteLater)
         worker.progress.connect(self.worker_progress)
@@ -962,6 +1068,47 @@ def labeled_input(layout: QVBoxLayout, label: str, value: str) -> QLineEdit:
     row.addWidget(field, 1)
     layout.addLayout(row)
     return field
+
+
+def extract_update_zip(zip_path: Path, destination: Path) -> None:
+    with zipfile.ZipFile(zip_path) as archive:
+        for info in archive.infolist():
+            target = destination / info.filename
+            ensure_safe_child(destination, target)
+            if info.is_dir():
+                target.mkdir(parents=True, exist_ok=True)
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with archive.open(info) as source, target.open("wb") as output:
+                shutil.copyfileobj(source, output)
+
+
+def find_update_source_dir(extract_dir: Path) -> Path:
+    matches = sorted(extract_dir.rglob("ToolkitManager.exe"), key=lambda path: len(path.parts))
+    if not matches:
+        raise RuntimeError("更新包內找不到 ToolkitManager.exe。")
+    return matches[0].parent
+
+
+def write_update_script(source_dir: Path, target_dir: Path) -> Path:
+    updates_dir = app_data_dir() / "updates"
+    updates_dir.mkdir(parents=True, exist_ok=True)
+    script_path = updates_dir / "apply_toolkit_manager_update.bat"
+    script = f"""@echo off
+setlocal
+chcp 65001 >nul
+set "SOURCE={source_dir}"
+set "TARGET={target_dir}"
+set "CONFIG_BACKUP=%TEMP%\\ToolkitManager.config.backup.json"
+timeout /t 2 /nobreak >nul
+if exist "%TARGET%\\config.json" copy /Y "%TARGET%\\config.json" "%CONFIG_BACKUP%" >nul
+xcopy "%SOURCE%\\*" "%TARGET%\\" /E /I /Y /Q >nul
+if exist "%CONFIG_BACKUP%" copy /Y "%CONFIG_BACKUP%" "%TARGET%\\config.json" >nul
+start "" "%TARGET%\\ToolkitManager.exe"
+endlocal
+"""
+    script_path.write_text(script, encoding="utf-8")
+    return script_path
 
 
 def manager_dir() -> Path:

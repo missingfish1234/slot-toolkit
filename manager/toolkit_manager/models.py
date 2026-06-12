@@ -7,6 +7,7 @@ from typing import Any
 
 
 APP_NAME = "工具包管理器"
+APP_VERSION = "1.1.0"
 INDEX_FILE_NAME = "tools-index.json"
 
 
@@ -143,6 +144,16 @@ class InstalledTool:
             "installedAt": self.installed_at,
             "path": self.path,
         }
+
+
+@dataclass(slots=True)
+class ManagerRelease:
+    tag_name: str
+    version: str
+    name: str
+    body: str
+    asset_name: str
+    asset_url: str
 
 
 def normalize_slash(value: str) -> str:

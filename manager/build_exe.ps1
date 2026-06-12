@@ -31,4 +31,11 @@ if (Test-Path $configBackup) {
     Copy-Item -LiteralPath $configBackup -Destination (Join-Path $newDistDir "config.json") -Force
 }
 
+$zipPath = Join-Path $PSScriptRoot "dist\ToolkitManager.zip"
+if (Test-Path $zipPath) {
+    Remove-Item -LiteralPath $zipPath -Force
+}
+Compress-Archive -Path (Join-Path $newDistDir "*") -DestinationPath $zipPath -Force
+
 Write-Host "Build complete: $PSScriptRoot\dist\ToolkitManager\ToolkitManager.exe"
+Write-Host "Update package: $zipPath"

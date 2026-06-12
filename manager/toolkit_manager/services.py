@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable
 
-from .models import AppConfig, INDEX_FILE_NAME, InstalledTool, ToolIndex, ToolInfo
+from .models import AppConfig, INDEX_FILE_NAME, InstalledTool, ManagerRelease, ToolIndex, ToolInfo
 
 
 ProgressCallback = Callable[[str, int], None]
@@ -109,6 +109,43 @@ class GitHubClient:
             raise RuntimeError("尚未設定 GitHub owner/repo。")
         data = request_json(self.raw_url(INDEX_FILE_NAME))
         return ToolIndex.from_dict(data)
+
+    def latest_release_url(self) -> str:
+        return f"https://api.github.com/repos/{self.config.github_owner}/{self.config.github_repo}/releases/latest"
+
+    def fetch_latest_manager_release(self) -> ManagerRelease | None:
+        if not self.is_configured:
+            raise RuntimeError("尚未設定 GitHub owner/repo。")
+        data = request_json(self.latest_release_url())
+        if not isinstance(data, dict):
+            return None
+        asset = select_manager_asset(data.get("assets", []))
+        if not asset:
+            return None
+        tag_name = str(data.get("tag_name", "")).strip()
+        return ManagerRelease(
+            tag_name=tag_name,
+            version=tag_name.lstrip("vV"),
+            name=str(data.get("name") or tag_name),
+            body=str(data.get("body") or ""),
+            asset_name=str(asset.get("name") or ""),
+            asset_url=str(asset.get("browser_download_url") or ""),
+        )
+
+    def download_manager_release(
+        self,
+        release: ManagerRelease,
+        target: Path,
+        progress: ProgressCallback | None = None,
+    ) -> Path:
+        if not release.asset_url:
+            raise RuntimeError("Release 找不到可下載的更新包。")
+        target.mkdir(parents=True, exist_ok=True)
+        zip_path = target / release.asset_name
+        if zip_path.exists():
+            zip_path.unlink()
+        download_file(release.asset_url, zip_path, progress, "下載管理器更新包")
+        return zip_path
 
     def download_tool(self, tool: ToolInfo, destination: Path, progress: ProgressCallback | None = None) -> None:
         if not self.is_configured:
@@ -222,11 +259,41 @@ def request_json(url: str) -> dict | list:
         raise RuntimeError(f"GitHub 連線失敗：{exc.reason}") from exc
 
 
-def download_file(url: str, target: Path) -> None:
+def download_file(
+    url: str,
+    target: Path,
+    progress: ProgressCallback | None = None,
+    label: str = "下載檔案",
+) -> None:
     url = encode_url(url)
     request = urllib.request.Request(url, headers={"User-Agent": "ToolkitManager/1.0"})
     with urllib.request.urlopen(request, timeout=300) as response:
-        target.write_bytes(response.read())
+        total = int(response.headers.get("Content-Length") or 0)
+        done = 0
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("wb") as output:
+            while True:
+                chunk = response.read(1024 * 256)
+                if not chunk:
+                    break
+                output.write(chunk)
+                done += len(chunk)
+                if progress and total:
+                    progress(label, min(95, int(done / total * 95)))
+        if progress:
+            progress(label, 100)
+
+
+def select_manager_asset(assets: list[dict]) -> dict | None:
+    zip_assets = [
+        asset for asset in assets
+        if str(asset.get("name", "")).lower().endswith(".zip")
+        and asset.get("browser_download_url")
+    ]
+    for asset in zip_assets:
+        if "toolkitmanager" in str(asset.get("name", "")).lower():
+            return asset
+    return zip_assets[0] if zip_assets else None
 
 
 def extract_tool_from_archive(

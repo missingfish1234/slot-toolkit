@@ -33,6 +33,18 @@
 3. 按「重新整理」讀取工具清單。
 4. 點選工具後即可下載、更新、開啟或打開資料夾。
 
+## 管理器本體更新
+
+管理器會讀取 GitHub Release 最新版本。如果 Release tag 高於目前版本，會提示同事下載並更新管理器本體。
+
+發布新版管理器流程：
+
+1. 修改程式後確認 `manager/toolkit_manager/models.py` 內的 `APP_VERSION` 已升版。
+2. 執行打包腳本。
+3. 到 GitHub 建立新的 Release，Tag 例如 `v1.1.0`。
+4. 上傳 `manager/dist/ToolkitManager.zip` 到該 Release。
+5. 同事打開管理器後會自動檢查；也可手動按「管理器更新」。
+
 ## 打包工具管理器
 
 ```powershell
@@ -44,9 +56,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build_exe.ps1
 
 ```text
 manager/dist/ToolkitManager/ToolkitManager.exe
+manager/dist/ToolkitManager.zip
 ```
 
-建議將打包結果上傳到 GitHub Release，讓同事下載 Release 裡的 EXE，不要把 `manager/dist/` 直接 commit 到 repo。
+請將 `ToolkitManager.zip` 上傳到 GitHub Release，讓管理器本體更新功能下載使用；不要把 `manager/dist/` 直接 commit 到 repo。
 
 ## 注意
 
