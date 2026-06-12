@@ -1,0 +1,17 @@
+{
+  "id": "spine76f895dc5de55177-spine540857165de55177",
+  "name": "SPINE合圖工具",
+  "category": "SPINE相關工具",
+  "description": "",
+  "version": "1.0.0",
+  "path": "SPINE相關工具/SPINE合圖工具",
+  "entry": "spine_atlas_merge.html",
+  "icon": "",
+  "tags": [
+    "SPINE相關工具",
+    "SPINE合圖工具"
+  ],
+  "updatedAt": "2026-06-11",
+  "size": "35.8 KB",
+  "changelog": []
+}

@@ -4,6 +4,7 @@
   "github_branch": "main",
   "install_root": "%USERPROFILE%\\Documents\\ToolkitManager\\Tools",
   "admin_tools_root": "..",
+  "admin_password": "12345678",
   "auto_check_on_start": true,
   "auto_check_minutes": 30
 }

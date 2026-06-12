@@ -1,0 +1,17 @@
+{
+  "id": "65785b57571672475de55177-54084f7565785b57571662c652065de55177",
+  "name": "合併數字圖拆分工具",
+  "category": "數字圖片工具",
+  "description": "",
+  "version": "1.0.0",
+  "path": "數字圖片工具/合併數字圖拆分工具",
+  "entry": "split_glyph_tool_dragdrop_v5.html",
+  "icon": "",
+  "tags": [
+    "數字圖片工具",
+    "合併數字圖拆分工具"
+  ],
+  "updatedAt": "2026-06-11",
+  "size": "199.2 KB",
+  "changelog": []
+}

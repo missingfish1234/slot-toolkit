@@ -15,12 +15,13 @@
 ## 管理者更新工具流程
 
 1. 將新工具資料夾放進對應分類。
-2. 需要工具名稱、用途描述、版本、入口檔時，在工具資料夾新增 `tool.json`。
-3. 參考 `manager/docs/tool-metadata-guide.md` 撰寫工具描述。
-4. 執行 `manager/run.py`，打開「管理者模式」。
-5. 掃描工具包根目錄。
-6. 儲存 `tools-index.json`。
-7. Commit 並 push 到 GitHub。
+2. 執行 `manager/run.py`，打開「管理者模式」。
+3. 輸入管理者密碼，預設為 `12345678`。
+4. 按「掃描並更新文件」，程式會自動建立或更新每個工具資料夾的 `tool.json`，並更新根目錄 `tools-index.json`。
+5. 在管理者模式右側欄位編輯工具名稱、用途描述、版本、入口檔、標籤與更新日誌。
+6. 按「儲存目前工具」或「儲存全部並更新總索引」。
+7. 參考 `manager/docs/tool-metadata-guide.md` 撰寫清楚的工具描述。
+8. Commit 並 push 到 GitHub。
 
 ## 同事使用流程
 
@@ -52,3 +53,4 @@ manager/dist/ToolkitManager/ToolkitManager.exe
 - 目前 repo 需要設為 Public，管理器不需要 GitHub Token。
 - GitHub 未登入 API 有流量限制，日常內部使用通常夠用。
 - 有些資源型工具沒有啟動檔，下載後主要使用「資料夾」開啟。
+- 管理者密碼可在「設定」調整；預設密碼是 `12345678`。

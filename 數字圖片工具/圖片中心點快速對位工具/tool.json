@@ -1,0 +1,17 @@
+{
+  "id": "65785b57571672475de55177-571672474e2d5fc39ede5feb901f5c0d4f4d5de55177",
+  "name": "圖片中心點快速對位工具",
+  "category": "數字圖片工具",
+  "description": "",
+  "version": "1.0.0",
+  "path": "數字圖片工具/圖片中心點快速對位工具",
+  "entry": "slot_symbol_center_align_tool.html",
+  "icon": "",
+  "tags": [
+    "數字圖片工具",
+    "圖片中心點快速對位工具"
+  ],
+  "updatedAt": "2026-06-11",
+  "size": "23.9 KB",
+  "changelog": []
+}

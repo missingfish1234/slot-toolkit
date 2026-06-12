@@ -149,3 +149,18 @@ def save_index(index: ToolIndex, output_path: Path) -> None:
         json.dumps(index.to_dict(), ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+
+
+def save_tool_metadata(root: Path, tool: ToolInfo) -> Path:
+    metadata_path = root.resolve() / tool.path / "tool.json"
+    metadata_path.write_text(
+        json.dumps(tool.to_dict(), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return metadata_path
+
+
+def save_all_tool_metadata(root: Path, index: ToolIndex) -> None:
+    root = root.resolve()
+    for tool in index.tools:
+        save_tool_metadata(root, tool)

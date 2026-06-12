@@ -12,9 +12,11 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QFileDialog,
+    QFormLayout,
     QFrame,
     QGridLayout,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -31,7 +33,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .indexer import save_index, scan_tools
+from .indexer import save_all_tool_metadata, save_index, save_tool_metadata, scan_tools
 from .models import APP_NAME, INDEX_FILE_NAME, AppConfig, ToolIndex, ToolInfo
 from .services import ConfigStore, GitHubClient, StateStore, ToolLibrary, app_data_dir
 from .styles import APP_QSS
@@ -235,8 +237,10 @@ class AdminDialog(QDialog):
         super().__init__(parent)
         self.config = config
         self.config_store = config_store
+        self.index: ToolIndex | None = None
+        self.current_tool: ToolInfo | None = None
         self.setWindowTitle("管理者模式")
-        self.resize(860, 680)
+        self.resize(1040, 720)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 18, 18, 18)
@@ -256,23 +260,75 @@ class AdminDialog(QDialog):
         layout.addLayout(path_row)
 
         actions = QHBoxLayout()
-        scan = QPushButton("掃描工具")
+        scan = QPushButton("掃描並更新文件")
         scan.setObjectName("PrimaryButton")
         scan.clicked.connect(self.scan)
-        save = QPushButton("儲存 tools-index.json")
-        save.clicked.connect(self.save)
+        save_current = QPushButton("儲存目前工具")
+        save_current.clicked.connect(self.save_current)
+        save_all = QPushButton("儲存全部並更新總索引")
+        save_all.clicked.connect(self.save_all)
         actions.addWidget(scan)
-        actions.addWidget(save)
+        actions.addWidget(save_current)
+        actions.addWidget(save_all)
         actions.addStretch(1)
         layout.addLayout(actions)
 
-        self.summary = QLabel("尚未掃描。")
+        self.summary = QLabel("尚未掃描。掃描後會自動建立每個工具資料夾的 tool.json，並更新根目錄 tools-index.json。")
         self.summary.setObjectName("Muted")
         layout.addWidget(self.summary)
 
-        self.preview = QPlainTextEdit()
-        self.preview.setReadOnly(True)
-        layout.addWidget(self.preview, 1)
+        body = QSplitter(Qt.Horizontal)
+        body.setChildrenCollapsible(False)
+        self.tool_list = QListWidget()
+        self.tool_list.setMinimumWidth(280)
+        self.tool_list.currentItemChanged.connect(self.tool_changed)
+        body.addWidget(self.tool_list)
+
+        editor = QWidget()
+        editor_layout = QVBoxLayout(editor)
+        editor_layout.setContentsMargins(14, 0, 0, 0)
+        editor_layout.setSpacing(10)
+
+        form = QFormLayout()
+        form.setLabelAlignment(Qt.AlignRight)
+        form.setFormAlignment(Qt.AlignTop)
+        form.setHorizontalSpacing(12)
+        form.setVerticalSpacing(10)
+
+        self.path_value = QLabel("-")
+        self.path_value.setWordWrap(True)
+        self.id_input = QLineEdit()
+        self.name_input = QLineEdit()
+        self.category_input = QLineEdit()
+        self.version_input = QLineEdit()
+        self.entry_input = QLineEdit()
+        self.updated_input = QLineEdit()
+        self.tags_input = QLineEdit()
+        self.description_input = QPlainTextEdit()
+        self.description_input.setFixedHeight(92)
+        self.changelog_input = QPlainTextEdit()
+        self.changelog_input.setFixedHeight(118)
+
+        form.addRow("資料夾路徑", self.path_value)
+        form.addRow("工具 ID", self.id_input)
+        form.addRow("工具名稱", self.name_input)
+        form.addRow("分類", self.category_input)
+        form.addRow("版本", self.version_input)
+        form.addRow("啟動檔", self.entry_input)
+        form.addRow("更新日期", self.updated_input)
+        form.addRow("標籤", self.tags_input)
+        form.addRow("用途描述", self.description_input)
+        form.addRow("更新日誌", self.changelog_input)
+        editor_layout.addLayout(form)
+
+        hint = QLabel("標籤可用逗號分隔；更新日誌一行一筆。用途描述會顯示在工具卡片與右側資訊欄。")
+        hint.setObjectName("Muted")
+        hint.setWordWrap(True)
+        editor_layout.addWidget(hint)
+        editor_layout.addStretch(1)
+        body.addWidget(editor)
+        body.setSizes([320, 700])
+        layout.addWidget(body, 1)
 
         close = QPushButton("關閉")
         close.clicked.connect(self.accept)
@@ -283,27 +339,115 @@ class AdminDialog(QDialog):
         if selected:
             self.root_input.setText(selected)
 
+    def root_path(self) -> Path:
+        return Path(self.root_input.text()).resolve()
+
     def scan(self) -> None:
-        root = Path(self.root_input.text()).resolve()
+        root = self.root_path()
         if not root.exists():
             QMessageBox.warning(self, APP_NAME, "工具包根目錄不存在。")
             return
         index = scan_tools(root)
-        self.preview.setPlainText(json.dumps(index.to_dict(), ensure_ascii=False, indent=2))
-        self.summary.setText(f"掃描完成：{len(index.tools)} 個工具。")
+        save_all_tool_metadata(root, index)
+        save_index(index, root / INDEX_FILE_NAME)
+        self.index = index
+        self.populate_tool_list()
+        self.persist_admin_root(root)
+        self.summary.setText(f"已掃描 {len(index.tools)} 個工具，並更新 tool.json / {INDEX_FILE_NAME}。")
 
-    def save(self) -> None:
-        if not self.preview.toPlainText().strip():
+    def populate_tool_list(self) -> None:
+        self.tool_list.blockSignals(True)
+        self.tool_list.clear()
+        self.current_tool = None
+        if not self.index:
+            self.tool_list.blockSignals(False)
+            return
+        for tool in self.index.tools:
+            item = QListWidgetItem(f"{tool.name}    {tool.category}")
+            item.setData(Qt.UserRole, tool)
+            self.tool_list.addItem(item)
+        self.tool_list.blockSignals(False)
+        if self.tool_list.count():
+            self.tool_list.setCurrentRow(0)
+            self.load_tool(self.tool_list.currentItem().data(Qt.UserRole))
+
+    def tool_changed(self, current: QListWidgetItem | None, _previous: QListWidgetItem | None) -> None:
+        if self.current_tool:
+            self.apply_fields_to_tool(self.current_tool)
+        if current:
+            self.load_tool(current.data(Qt.UserRole))
+
+    def load_tool(self, tool: ToolInfo) -> None:
+        self.current_tool = tool
+        self.path_value.setText(tool.path or "-")
+        self.id_input.setText(tool.id)
+        self.name_input.setText(tool.name)
+        self.category_input.setText(tool.category)
+        self.version_input.setText(tool.version)
+        self.entry_input.setText(tool.entry)
+        self.updated_input.setText(tool.updated_at)
+        self.tags_input.setText(", ".join(tool.tags))
+        self.description_input.setPlainText(tool.description)
+        self.changelog_input.setPlainText("\n".join(tool.changelog))
+
+    def apply_fields_to_tool(self, tool: ToolInfo) -> None:
+        tool.id = self.id_input.text().strip() or tool.id
+        tool.name = self.name_input.text().strip() or tool.name
+        tool.category = self.category_input.text().strip() or tool.category
+        tool.version = self.version_input.text().strip() or "1.0.0"
+        tool.entry = self.entry_input.text().strip().replace("\\", "/").strip("/")
+        tool.updated_at = self.updated_input.text().strip()
+        tool.description = self.description_input.toPlainText().strip()
+        tool.tags = self.parse_tags(self.tags_input.text())
+        tool.changelog = [
+            line.lstrip("-").strip()
+            for line in self.changelog_input.toPlainText().splitlines()
+            if line.lstrip("-").strip()
+        ]
+
+    def parse_tags(self, value: str) -> list[str]:
+        normalized = value
+        for separator in ["，", "、", ";", "；", "\n"]:
+            normalized = normalized.replace(separator, ",")
+        return [item.strip() for item in normalized.split(",") if item.strip()]
+
+    def save_current(self) -> None:
+        if not self.index or not self.current_tool:
+            QMessageBox.information(self, APP_NAME, "請先掃描工具。")
+            return
+        root = self.root_path()
+        self.apply_fields_to_tool(self.current_tool)
+        save_tool_metadata(root, self.current_tool)
+        save_index(self.index, root / INDEX_FILE_NAME)
+        self.update_current_item_text()
+        self.persist_admin_root(root)
+        self.summary.setText(f"已儲存：{self.current_tool.name}")
+
+    def save_all(self) -> None:
+        if not self.index:
             self.scan()
-        root = Path(self.root_input.text()).resolve()
-        data = json.loads(self.preview.toPlainText())
-        save_index(ToolIndex.from_dict(data), root / INDEX_FILE_NAME)
+            return
+        root = self.root_path()
+        if self.current_tool:
+            self.apply_fields_to_tool(self.current_tool)
+        save_all_tool_metadata(root, self.index)
+        save_index(self.index, root / INDEX_FILE_NAME)
+        self.update_current_item_text()
+        self.persist_admin_root(root)
+        self.summary.setText(f"已儲存全部工具，並更新 {INDEX_FILE_NAME}。")
+        QMessageBox.information(self, APP_NAME, "工具文件已更新完成。")
+
+    def update_current_item_text(self) -> None:
+        item = self.tool_list.currentItem()
+        if item and self.current_tool:
+            item.setText(f"{self.current_tool.name}    {self.current_tool.category}")
+
+    def persist_admin_root(self, root: Path) -> None:
         try:
             self.config.admin_tools_root = str(root.relative_to(manager_dir()))
         except ValueError:
             self.config.admin_tools_root = str(root)
         self.config_store.save(self.config)
-        QMessageBox.information(self, APP_NAME, f"已儲存：{root / INDEX_FILE_NAME}")
 
 
 class SettingsDialog(QDialog):
@@ -312,7 +456,7 @@ class SettingsDialog(QDialog):
         self.config = config
         self.config_store = config_store
         self.setWindowTitle("設定")
-        self.resize(560, 340)
+        self.resize(560, 390)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 18, 18, 18)
@@ -322,6 +466,7 @@ class SettingsDialog(QDialog):
         self.repo = labeled_input(layout, "GitHub Repo", config.github_repo)
         self.branch = labeled_input(layout, "Branch", config.github_branch)
         self.install_root = labeled_input(layout, "工具安裝位置", config.install_root)
+        self.admin_password = labeled_input(layout, "管理者密碼", config.admin_password)
 
         buttons = QHBoxLayout()
         save = QPushButton("儲存")
@@ -339,6 +484,7 @@ class SettingsDialog(QDialog):
         self.config.github_repo = self.repo.text().strip()
         self.config.github_branch = self.branch.text().strip() or "main"
         self.config.install_root = self.install_root.text().strip()
+        self.config.admin_password = self.admin_password.text().strip() or "12345678"
         self.config_store.save(self.config)
         self.accept()
 
@@ -697,6 +843,17 @@ class MainWindow(QMainWindow):
         QMessageBox.warning(self, APP_NAME, message)
 
     def open_admin(self) -> None:
+        password, ok = QInputDialog.getText(
+            self,
+            "管理者驗證",
+            "請輸入管理者密碼",
+            QLineEdit.Password,
+        )
+        if not ok:
+            return
+        if password != self.config.admin_password:
+            QMessageBox.warning(self, APP_NAME, "管理者密碼錯誤。")
+            return
         dialog = AdminDialog(self, self.config, self.config_store)
         if dialog.exec():
             self.load_local_index()

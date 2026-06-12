@@ -1,0 +1,17 @@
+{
+  "id": "6e2c8a665de55177-8f498f2a6e2c8a665de55177",
+  "name": "轉輪測試工具",
+  "category": "測試工具",
+  "description": "",
+  "version": "1.0.0",
+  "path": "測試工具/轉輪測試工具",
+  "entry": "啟動本地伺服器.bat",
+  "icon": "",
+  "tags": [
+    "測試工具",
+    "轉輪測試工具"
+  ],
+  "updatedAt": "2026-06-11",
+  "size": "120.3 MB",
+  "changelog": []
+}

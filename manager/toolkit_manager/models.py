@@ -17,6 +17,7 @@ class AppConfig:
     github_branch: str = "main"
     install_root: str = "%USERPROFILE%\\Documents\\ToolkitManager\\Tools"
     admin_tools_root: str = ".."
+    admin_password: str = "12345678"
     auto_check_on_start: bool = True
     auto_check_minutes: int = 30
 
@@ -29,6 +30,7 @@ class AppConfig:
             github_branch=str(data.get("github_branch", defaults.github_branch)),
             install_root=str(data.get("install_root", defaults.install_root)),
             admin_tools_root=str(data.get("admin_tools_root", defaults.admin_tools_root)),
+            admin_password=str(data.get("admin_password", defaults.admin_password)),
             auto_check_on_start=bool(data.get("auto_check_on_start", defaults.auto_check_on_start)),
             auto_check_minutes=int(data.get("auto_check_minutes", defaults.auto_check_minutes)),
         )
@@ -40,6 +42,7 @@ class AppConfig:
             "github_branch": self.github_branch,
             "install_root": self.install_root,
             "admin_tools_root": self.admin_tools_root,
+            "admin_password": self.admin_password,
             "auto_check_on_start": self.auto_check_on_start,
             "auto_check_minutes": self.auto_check_minutes,
         }

@@ -1,0 +1,17 @@
+{
+  "id": "6e2c8a665de55177-5f717247865574065de55177-5f7172475c0e51fa90237e8c57168ddf53bb80cc5de55177",
+  "name": "影片導出連續圖跟去背工具",
+  "category": "測試工具",
+  "description": "",
+  "version": "1.0.0",
+  "path": "測試工具/影片處理工具/影片導出連續圖跟去背工具",
+  "entry": "video_sequence_bgremover_tool.html",
+  "icon": "",
+  "tags": [
+    "測試工具",
+    "影片導出連續圖跟去背工具"
+  ],
+  "updatedAt": "2026-06-11",
+  "size": "19.3 KB",
+  "changelog": []
+}

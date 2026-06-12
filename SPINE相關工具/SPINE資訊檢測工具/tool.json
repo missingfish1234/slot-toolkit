@@ -1,0 +1,17 @@
+{
+  "id": "spine76f895dc5de55177-spine8cc78a0a6aa26e2c5de55177",
+  "name": "SPINE資訊檢測工具",
+  "category": "SPINE相關工具",
+  "description": "",
+  "version": "1.0.0",
+  "path": "SPINE相關工具/SPINE資訊檢測工具",
+  "entry": "checkspine_gui.py",
+  "icon": "",
+  "tags": [
+    "SPINE相關工具",
+    "SPINE資訊檢測工具"
+  ],
+  "updatedAt": "2026-06-11",
+  "size": "31.3 MB",
+  "changelog": []
+}

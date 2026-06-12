@@ -1,0 +1,17 @@
+{
+  "id": "spine76f895dc5de55177-spine8f496a945de55177",
+  "name": "SPINE轉檔工具",
+  "category": "SPINE相關工具",
+  "description": "",
+  "version": "1.0.0",
+  "path": "SPINE相關工具/SPINE轉檔工具",
+  "entry": "spine_converter_gui.py",
+  "icon": "",
+  "tags": [
+    "SPINE相關工具",
+    "SPINE轉檔工具"
+  ],
+  "updatedAt": "2026-06-11",
+  "size": "21.8 KB",
+  "changelog": []
+}
