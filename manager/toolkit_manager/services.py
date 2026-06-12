@@ -5,6 +5,8 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -153,6 +155,7 @@ class GitHubClient:
         destination.parent.mkdir(parents=True, exist_ok=True)
         temp_dir = destination.with_name(destination.name + ".download")
         zip_path = destination.with_name(destination.name + ".zipdownload")
+        backup_dir: Path | None = None
         if temp_dir.exists():
             shutil.rmtree(temp_dir)
         if zip_path.exists():
@@ -170,13 +173,22 @@ class GitHubClient:
             if extracted == 0:
                 raise RuntimeError(f"GitHub 壓縮包中找不到工具路徑：{tool.path}")
 
+            if progress:
+                progress("套用工具檔案", 96)
             ensure_safe_child(destination.parent, destination)
             if destination.exists():
-                shutil.rmtree(destination)
+                backup_dir = unique_backup_path(destination)
+                destination.rename(backup_dir)
             temp_dir.rename(destination)
+            if backup_dir:
+                cleanup_path_async(backup_dir)
+            if progress:
+                progress("下載完成", 100)
         except Exception:
             if temp_dir.exists():
                 shutil.rmtree(temp_dir)
+            if backup_dir and backup_dir.exists() and not destination.exists():
+                backup_dir.rename(destination)
             raise
         finally:
             if zip_path.exists():
@@ -329,13 +341,29 @@ def extract_tool_from_archive(
                 shutil.copyfileobj(source, output)
             extracted += 1
             if progress:
-                percent = 45 + int(index / total * 50)
+                percent = 45 + int(index / total * 45)
                 if percent != last_percent:
                     progress("解壓工具檔案", percent)
                     last_percent = percent
-    if progress:
-        progress("下載完成", 100)
     return extracted
+
+
+def unique_backup_path(destination: Path) -> Path:
+    stamp = f"{int(time.time())}-{os.getpid()}"
+    backup = destination.with_name(f"{destination.name}.backup-{stamp}")
+    counter = 1
+    while backup.exists():
+        backup = destination.with_name(f"{destination.name}.backup-{stamp}-{counter}")
+        counter += 1
+    return backup
+
+
+def cleanup_path_async(path: Path) -> None:
+    def cleanup() -> None:
+        shutil.rmtree(path, ignore_errors=True)
+
+    thread = threading.Thread(target=cleanup, name="ToolkitManagerCleanup", daemon=True)
+    thread.start()
 
 
 def archive_inner_path(filename: str, tool_path: str) -> str:
