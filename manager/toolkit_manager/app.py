@@ -248,6 +248,8 @@ class DetailsPanel(QFrame):
 
 
 class AdminDialog(QDialog):
+    index_updated = Signal()
+
     def __init__(self, parent: QWidget, config: AppConfig, config_store: ConfigStore) -> None:
         super().__init__(parent)
         self.config = config
@@ -282,9 +284,13 @@ class AdminDialog(QDialog):
         save_current.clicked.connect(self.save_current)
         save_all = QPushButton("儲存全部並更新總索引")
         save_all.clicked.connect(self.save_all)
+        push_git = QPushButton("推送工具更新到 Git")
+        push_git.setObjectName("SecondaryButton")
+        push_git.clicked.connect(self.push_tool_updates_to_git)
         actions.addWidget(scan)
         actions.addWidget(save_current)
         actions.addWidget(save_all)
+        actions.addWidget(push_git)
         actions.addStretch(1)
         layout.addLayout(actions)
 
@@ -369,6 +375,7 @@ class AdminDialog(QDialog):
         self.populate_tool_list()
         self.persist_admin_root(root)
         self.summary.setText(f"已掃描 {len(index.tools)} 個工具，並更新 tool.json / {INDEX_FILE_NAME}。")
+        self.index_updated.emit()
 
     def populate_tool_list(self) -> None:
         self.tool_list.blockSignals(True)
@@ -437,6 +444,7 @@ class AdminDialog(QDialog):
         self.update_current_item_text()
         self.persist_admin_root(root)
         self.summary.setText(f"已儲存：{self.current_tool.name}")
+        self.index_updated.emit()
 
     def save_all(self) -> None:
         if not self.index:
@@ -450,7 +458,73 @@ class AdminDialog(QDialog):
         self.update_current_item_text()
         self.persist_admin_root(root)
         self.summary.setText(f"已儲存全部工具，並更新 {INDEX_FILE_NAME}。")
+        self.index_updated.emit()
         QMessageBox.information(self, APP_NAME, "工具文件已更新完成。")
+
+    def push_tool_updates_to_git(self) -> None:
+        root = self.root_path()
+        if not root.exists():
+            QMessageBox.warning(self, APP_NAME, "工具包根目錄不存在。")
+            return
+        if not (root / ".git").exists():
+            QMessageBox.warning(self, APP_NAME, "工具包根目錄不是 Git repository。")
+            return
+        try:
+            if self.index:
+                if self.current_tool:
+                    self.apply_fields_to_tool(self.current_tool)
+                save_all_tool_metadata(root, self.index)
+                save_index(self.index, root / INDEX_FILE_NAME)
+                self.index_updated.emit()
+
+            status = git_output(root, ["status", "--short"])
+            if not status.strip():
+                QMessageBox.information(self, APP_NAME, "目前沒有需要推送的工具更新。")
+                return
+            paths = git_tool_update_paths(root, status)
+            if not paths:
+                QMessageBox.information(self, APP_NAME, "目前沒有工具更新需要推送；管理器或設計檔變更請用命令列提交。")
+                return
+
+            preview = "\n".join(git_status_lines_for_paths(status, paths))
+            if len(preview) > 2400:
+                preview = preview[:2400] + "\n..."
+            choice = QMessageBox.question(
+                self,
+                APP_NAME,
+                f"即將提交並推送以下工具更新：\n\n{preview}\n\n是否繼續？",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes,
+            )
+            if choice != QMessageBox.Yes:
+                return
+
+            message, ok = QInputDialog.getText(
+                self,
+                "Git Commit",
+                "請輸入提交訊息",
+                QLineEdit.Normal,
+                "更新工具包版本",
+            )
+            if not ok:
+                return
+            message = message.strip()
+            if not message:
+                QMessageBox.warning(self, APP_NAME, "提交訊息不可空白。")
+                return
+
+            git_run(root, ["add", "-A", "--", *paths])
+            staged = git_output(root, ["diff", "--cached", "--name-only"])
+            if not staged.strip():
+                QMessageBox.information(self, APP_NAME, "沒有可提交的工具更新。")
+                return
+            git_run(root, ["commit", "-m", message])
+            branch = git_output(root, ["branch", "--show-current"]).strip() or "main"
+            git_run(root, ["push", "origin", branch])
+            self.summary.setText(f"已提交並推送到 origin/{branch}：{message}")
+            QMessageBox.information(self, APP_NAME, f"工具更新已推送到 Git：origin/{branch}")
+        except Exception as exc:
+            QMessageBox.warning(self, APP_NAME, f"Git 推送失敗：\n{exc}")
 
     def update_current_item_text(self) -> None:
         item = self.tool_list.currentItem()
@@ -470,6 +544,8 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
         self.config = config
         self.config_store = config_store
+        self.original_admin_password = config.admin_password
+        self.admin_password_unlocked = False
         self.setWindowTitle("設定")
         self.resize(560, 390)
 
@@ -481,8 +557,19 @@ class SettingsDialog(QDialog):
         self.repo = labeled_input(layout, "GitHub Repo", config.github_repo)
         self.branch = labeled_input(layout, "Branch", config.github_branch)
         self.install_root = labeled_input(layout, "工具安裝位置", config.install_root)
-        self.admin_password = labeled_input(layout, "管理者密碼", config.admin_password)
+
+        password_row = QHBoxLayout()
+        password_row.addWidget(QLabel("管理者密碼"))
+        self.admin_password = QLineEdit("********")
         self.admin_password.setEchoMode(QLineEdit.Password)
+        self.admin_password.setReadOnly(True)
+        self.admin_password.setPlaceholderText("需驗證後才能修改")
+        password_row.addWidget(self.admin_password, 1)
+        self.unlock_admin_password_button = QPushButton("修改")
+        self.unlock_admin_password_button.setObjectName("SecondaryButton")
+        self.unlock_admin_password_button.clicked.connect(self.unlock_admin_password)
+        password_row.addWidget(self.unlock_admin_password_button)
+        layout.addLayout(password_row)
 
         buttons = QHBoxLayout()
         save = QPushButton("儲存")
@@ -495,12 +582,39 @@ class SettingsDialog(QDialog):
         buttons.addWidget(save)
         layout.addLayout(buttons)
 
+    def unlock_admin_password(self) -> None:
+        password, ok = QInputDialog.getText(
+            self,
+            "管理者驗證",
+            "請先輸入目前管理者密碼",
+            QLineEdit.Password,
+        )
+        if not ok:
+            return
+        if password != self.original_admin_password:
+            QMessageBox.warning(self, APP_NAME, "管理者密碼錯誤。")
+            return
+        self.admin_password_unlocked = True
+        self.admin_password.clear()
+        self.admin_password.setReadOnly(False)
+        self.admin_password.setPlaceholderText("輸入新的管理者密碼")
+        self.admin_password.setFocus()
+        self.unlock_admin_password_button.setText("已解鎖")
+        self.unlock_admin_password_button.setEnabled(False)
+
     def save(self) -> None:
         self.config.github_owner = self.owner.text().strip()
         self.config.github_repo = self.repo.text().strip()
         self.config.github_branch = self.branch.text().strip() or "main"
         self.config.install_root = self.install_root.text().strip()
-        self.config.admin_password = self.admin_password.text().strip() or "12345678"
+        if self.admin_password_unlocked:
+            new_password = self.admin_password.text().strip()
+            if not new_password:
+                QMessageBox.warning(self, APP_NAME, "請輸入新的管理者密碼，或按取消放棄修改。")
+                return
+            self.config.admin_password = new_password
+        else:
+            self.config.admin_password = self.original_admin_password
         self.config_store.save(self.config)
         self.accept()
 
@@ -660,6 +774,7 @@ class MainWindow(QMainWindow):
         else:
             self.tools = []
             self.sync_status.setText("GitHub 同步狀態：尚未設定，請先用管理者模式產生索引")
+        self.reconcile_selected_tool()
         self.render_categories()
         self.render_tools()
 
@@ -678,10 +793,19 @@ class MainWindow(QMainWindow):
     def apply_remote_index(self, index: ToolIndex) -> None:
         self.tools = index.tools
         self.sync_status.setText(f"GitHub 同步狀態：已同步（{index.updated_at or '剛剛'}）")
+        self.reconcile_selected_tool()
         self.render_categories()
         self.render_tools()
         if not self.manager_update_checked:
             QTimer.singleShot(300, self.check_manager_update_silent)
+
+    def reconcile_selected_tool(self) -> None:
+        if not self.selected_tool:
+            return
+        selected_id = self.selected_tool.id
+        self.selected_tool = next((tool for tool in self.tools if tool.id == selected_id), None)
+        if not self.selected_tool:
+            self.details.render_empty()
 
     def render_categories(self) -> None:
         self.category_list.blockSignals(True)
@@ -995,6 +1119,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, APP_NAME, "管理者密碼錯誤。")
             return
         dialog = AdminDialog(self, self.config, self.config_store)
+        dialog.index_updated.connect(self.load_local_index)
         if dialog.exec():
             self.load_local_index()
 
@@ -1108,6 +1233,64 @@ def labeled_input(layout: QVBoxLayout, label: str, value: str) -> QLineEdit:
     row.addWidget(field, 1)
     layout.addLayout(row)
     return field
+
+
+def git_run(root: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
+    command = ["git", "-c", "core.quotepath=false", *args]
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    result = subprocess.run(
+        command,
+        cwd=str(root),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=300,
+        creationflags=flags,
+    )
+    if result.returncode != 0:
+        output = (result.stderr or result.stdout or "").strip()
+        raise RuntimeError(output or f"git {' '.join(args)} 執行失敗。")
+    return result
+
+
+def git_output(root: Path, args: list[str]) -> str:
+    return git_run(root, args).stdout
+
+
+def git_tool_update_paths(root: Path, status: str) -> list[str]:
+    ignored_roots = {".git", ".github", "manager", "design", "dist", "build"}
+    root_entries = {
+        path.name
+        for path in root.iterdir()
+        if path.is_dir() and path.name not in ignored_roots
+    }
+    allowed_paths = {INDEX_FILE_NAME, *root_entries}
+    result: list[str] = []
+    for line in status.splitlines():
+        path = git_status_path(line)
+        if not path:
+            continue
+        top = path.split("/", 1)[0]
+        if top in allowed_paths:
+            result.append(path)
+    return result
+
+
+def git_status_path(line: str) -> str:
+    path = line[3:].strip()
+    if " -> " in path:
+        path = path.rsplit(" -> ", 1)[1].strip()
+    return path
+
+
+def git_status_lines_for_paths(status: str, paths: list[str]) -> list[str]:
+    allowed = set(paths)
+    return [
+        line
+        for line in status.splitlines()
+        if git_status_path(line) in allowed
+    ]
 
 
 def extract_update_zip(zip_path: Path, destination: Path) -> None:

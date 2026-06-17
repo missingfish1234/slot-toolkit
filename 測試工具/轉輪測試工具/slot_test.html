@@ -100,6 +100,7 @@
             --symbol-width: 100px;
             --symbol-height: 100px;
             --symbol-gap: 10px;
+            --symbol-content-scale: 1;
             --mask-width: 600px;
             --mask-height: 650px;
             --offset-x: -300px;
@@ -489,7 +490,10 @@
 
         .symbol.is-placeholder { z-index: -1000 !important; background: transparent !important; border: none !important; opacity: 0 !important; }
         .hide-bg .symbol { background: transparent !important; border: none !important; }
-        .symbol img.main-img { display: block; pointer-events: none; z-index: 2; position: relative; width: 100%; }
+        .symbol img.main-img {
+            display: block; pointer-events: none; z-index: 2; position: relative; width: 100%;
+            transform-origin: center center;
+        }
         
         .inner-spin-strip {
             position: absolute; left: 0; width: 100%;
@@ -506,12 +510,22 @@
             object-fit: contain; filter: url(#vertical-blur); transform: scale(1.1, 1.6); transform-origin: center center; opacity: 0.9; will-change: filter, transform;
         }
         
-        .reels-container:not(.native) .symbol img:not(.big) { width: 100%; height: 100%; object-fit: contain; }
+        .reels-container:not(.native) .symbol img.main-img:not(.big) {
+            width: 100%; height: 100%; object-fit: contain;
+            transform: scale(var(--symbol-content-scale));
+        }
         .reels-container.native .symbol img, .symbol img.big { position: absolute; left: 50%; width: auto; max-width: none; }
         .symbol img.big { 
-            transform: translate(-50%, -50%); 
+            transform: translate(-50%, -50%) scale(var(--symbol-content-scale)); 
         }
-        .reels-container.native .symbol img:not(.big) { top: 50%; transform: translate(-50%, -50%); }
+        .reels-container.native .symbol img.main-img:not(.big) {
+            top: 50%;
+            transform: translate(-50%, -50%) scale(var(--symbol-content-scale));
+        }
+        .spine-player {
+            transform: scale(var(--symbol-content-scale));
+            transform-origin: center center;
+        }
         
         .symbol.debug-box::after {
             content: ''; position: absolute; top: 0; left: 0; width: 100%; height: var(--debug-height, 100%); 
@@ -519,7 +533,7 @@
         }
         .viewport.noborder .symbol.debug-box::after { display: none; }
 
-        .text-sym { font-size: 24px; color: #666; margin-top: 30px;}
+        .text-sym { font-size: 24px; color: #666; margin-top: 30px; transform: scale(var(--symbol-content-scale)); transform-origin: center center; }
         .hide-bg .text-sym { text-shadow: 0 0 5px #000; color: #fff; }
 
         @keyframes winPulse {
@@ -802,7 +816,7 @@
                             <div style="text-align:center; color:#666; font-size:12px; padding:10px;">點擊上方展開按鈕以設定</div>
                         </div>
                     </div>
-                     <div class="control-group"><h3>格子尺寸 (目前模式)</h3><button class="btn-auto-fit" onclick="autoFitDimensions()">📐 智能填滿</button><div id="ctrl-w"></div><div id="ctrl-h"></div></div>
+                     <div class="control-group"><h3>格子尺寸 (目前模式)</h3><button class="btn-auto-fit" onclick="autoFitDimensions()">📐 智能填滿</button><div id="ctrl-w"></div><div id="ctrl-h"></div><div id="ctrl-symbol-scale"></div></div>
                      <div class="control-group"><h3>可視範圍 (目前模式)</h3><div id="ctrl-mask-w"></div><div id="ctrl-mask-h"></div></div>
                      <div class="control-group"><h3>左下角錨點 (目前模式)</h3><div id="ctrl-off-x"></div><div id="ctrl-off-y"></div></div>
                 </div>
@@ -1004,6 +1018,7 @@
             mode: 'cascade', cascadeSpeed: 300, cascadeBounce: 30,
             fgCount: 10,
             gap: 10, w: 100, h: 100, mw: 600, mh: 650, ox: -300, oy: -325,
+            symbolScale: 1,
             
             forceComplete: false, 
             enableWinCheck: true, 
@@ -1801,7 +1816,7 @@
                    if(settingKey === 'top-oy') settings.topReel.oy = parseInt(v);
                    updateTopGrid();
                 } else {
-                    settings[settingKey] = (settingKey === 'duration' || settingKey === 'speed') ? parseFloat(v) : parseInt(v); 
+                    settings[settingKey] = (settingKey === 'duration' || settingKey === 'speed' || settingKey === 'symbolScale') ? parseFloat(v) : parseInt(v); 
                     if(settingKey === 'reels' || settingKey === 'rows') { updateGrid(); } 
                     else if(settingKey === 'speed') { settings.spinSpeed = parseFloat(v) * 1000; } 
                     else if(settingKey === 'interval') { settings.stopDelay = parseInt(v); } 
@@ -2893,6 +2908,7 @@
                     'ease': ['ease-type', 'bounceBack'], 'mode': ['anim-mode', 'cascade'],
                     'fgCount': ['num-fgCount', 10],
                     'gap': ['num-gap', 10], 'w': ['num-w', 100], 'h': ['num-h', 100],
+                    'symbolScale': ['num-symbolScale', 1],
                     'mw': ['num-mw', 600], 'mh': ['num-mh', 650],
                     'ox': ['num-ox', -300], 'oy': ['num-oy', -325],
                     'top-cols': ['num-top-cols', 4],
@@ -2943,6 +2959,7 @@
             createControl('ctrl-gap', '間距 (px)', 'gap', 0, 100, 1, 10, '--symbol-gap', true);
             createControl('ctrl-w', '寬度 (px)', 'w', 10, 3000, 1, 100, '--symbol-width', true);
             createControl('ctrl-h', '高度 (px)', 'h', 10, 3000, 1, 100, '--symbol-height', true);
+            createControl('ctrl-symbol-scale', '圖騰縮放 (倍)', 'symbolScale', 0.2, 2.0, 0.05, 1, '--symbol-content-scale');
             createControl('ctrl-reels', '轉輪數 (Cols)', 'reels', 1, 10, 1, 5, '--reel-count');
             createControl('ctrl-rows', '行數 (Rows)', 'rows', 1, 10, 1, 6, '--row-count');
             createControl('ctrl-mask-w', 'Mask W (px)', 'mw', 100, 3000, 1, 600, '--mask-width', true);
