@@ -75,6 +75,7 @@ class StateStore:
 class GitHubClient:
     def __init__(self, config: AppConfig) -> None:
         self.config = config
+        self._auth_token: str | None = None
 
     @property
     def is_configured(self) -> bool:
@@ -106,10 +107,16 @@ class GitHubClient:
             f"{encoded_branch}"
         )
 
+    @property
+    def auth_token(self) -> str:
+        if self._auth_token is None:
+            self._auth_token = resolve_github_token(self.config)
+        return self._auth_token
+
     def fetch_index(self) -> ToolIndex:
         if not self.is_configured:
             raise RuntimeError("尚未設定 GitHub owner/repo。")
-        data = request_json(self.raw_url(INDEX_FILE_NAME))
+        data = request_json(self.raw_url(INDEX_FILE_NAME), self.auth_token)
         return ToolIndex.from_dict(data)
 
     def latest_release_url(self) -> str:
@@ -118,7 +125,7 @@ class GitHubClient:
     def fetch_latest_manager_release(self) -> ManagerRelease | None:
         if not self.is_configured:
             raise RuntimeError("尚未設定 GitHub owner/repo。")
-        data = request_json(self.latest_release_url())
+        data = request_json(self.latest_release_url(), self.auth_token)
         if not isinstance(data, dict):
             return None
         asset = select_manager_asset(data.get("assets", []))
@@ -146,7 +153,7 @@ class GitHubClient:
         zip_path = target / release.asset_name
         if zip_path.exists():
             zip_path.unlink()
-        download_file(release.asset_url, zip_path, progress, "下載管理器更新包")
+        download_file(release.asset_url, zip_path, progress, "下載管理器更新包", token=self.auth_token)
         return zip_path
 
     def download_tool(self, tool: ToolInfo, destination: Path, progress: ProgressCallback | None = None) -> None:
@@ -165,7 +172,7 @@ class GitHubClient:
         try:
             if progress:
                 progress("下載 GitHub 壓縮包", 5)
-            download_file(self.archive_url(), zip_path, progress, "下載 GitHub 壓縮包", 5, 40)
+            download_file(self.archive_url(), zip_path, progress, "下載 GitHub 壓縮包", 5, 40, self.auth_token)
 
             if progress:
                 progress("解壓工具檔案", 45)
@@ -195,7 +202,7 @@ class GitHubClient:
                 zip_path.unlink()
 
     def _list_files(self, path: str) -> list[dict]:
-        items = request_json(self.api_contents_url(path))
+        items = request_json(self.api_contents_url(path), self.auth_token)
         if isinstance(items, dict) and items.get("type") == "file":
             return [items]
         files: list[dict] = []
@@ -259,14 +266,54 @@ def app_data_dir() -> Path:
     return Path.home() / ".toolkit-manager"
 
 
-def request_json(url: str) -> dict | list:
+def resolve_github_token(config: AppConfig) -> str:
+    configured = config.github_token.strip()
+    if configured:
+        return configured
+    for key in ("GITHUB_TOKEN", "GH_TOKEN"):
+        value = os.environ.get(key, "").strip()
+        if value:
+            return value
+    return gh_auth_token()
+
+
+def gh_auth_token() -> str:
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    try:
+        result = subprocess.run(
+            ["gh", "auth", "token"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=5,
+            creationflags=flags,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    if result.returncode != 0:
+        return ""
+    return result.stdout.strip()
+
+
+def github_headers(token: str = "") -> dict[str, str]:
+    headers = {
+        "User-Agent": "ToolkitManager/1.0",
+        "Accept": "application/vnd.github+json",
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
+
+
+def request_json(url: str, token: str = "") -> dict | list:
     url = encode_url(url)
-    request = urllib.request.Request(url, headers={"User-Agent": "ToolkitManager/1.0"})
+    request = urllib.request.Request(url, headers=github_headers(token))
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             return json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        raise RuntimeError(f"GitHub 讀取失敗：HTTP {exc.code}") from exc
+        raise RuntimeError(github_http_error_message(exc, "GitHub 讀取失敗")) from exc
     except urllib.error.URLError as exc:
         raise RuntimeError(f"GitHub 連線失敗：{exc.reason}") from exc
 
@@ -278,29 +325,52 @@ def download_file(
     label: str = "下載檔案",
     start_percent: int = 0,
     end_percent: int = 100,
+    token: str = "",
 ) -> None:
     url = encode_url(url)
-    request = urllib.request.Request(url, headers={"User-Agent": "ToolkitManager/1.0"})
-    with urllib.request.urlopen(request, timeout=300) as response:
-        total = int(response.headers.get("Content-Length") or 0)
-        done = 0
-        last_percent = -1
-        target.parent.mkdir(parents=True, exist_ok=True)
-        with target.open("wb") as output:
-            while True:
-                chunk = response.read(1024 * 256)
-                if not chunk:
-                    break
-                output.write(chunk)
-                done += len(chunk)
-                if progress and total:
-                    span = max(0, end_percent - start_percent)
-                    percent = min(end_percent, start_percent + int(done / total * span))
-                    if percent != last_percent:
-                        progress(label, percent)
-                        last_percent = percent
-        if progress:
-            progress(label, end_percent)
+    request = urllib.request.Request(url, headers=github_headers(token))
+    try:
+        with urllib.request.urlopen(request, timeout=300) as response:
+            total = int(response.headers.get("Content-Length") or 0)
+            done = 0
+            last_percent = -1
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with target.open("wb") as output:
+                while True:
+                    chunk = response.read(1024 * 256)
+                    if not chunk:
+                        break
+                    output.write(chunk)
+                    done += len(chunk)
+                    if progress and total:
+                        span = max(0, end_percent - start_percent)
+                        percent = min(end_percent, start_percent + int(done / total * span))
+                        if percent != last_percent:
+                            progress(label, percent)
+                            last_percent = percent
+            if progress:
+                progress(label, end_percent)
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(github_http_error_message(exc, "GitHub 下載失敗")) from exc
+
+
+def github_http_error_message(exc: urllib.error.HTTPError, prefix: str) -> str:
+    detail = ""
+    try:
+        data = json.loads(exc.read().decode("utf-8"))
+        detail = str(data.get("message") or "").strip()
+    except Exception:
+        detail = str(exc.reason or "").strip()
+    message = f"{prefix}：HTTP {exc.code}"
+    if detail:
+        message += f" - {detail}"
+    remaining = exc.headers.get("X-RateLimit-Remaining")
+    reset = exc.headers.get("X-RateLimit-Reset")
+    if exc.code == 403 and remaining == "0":
+        message += "\nGitHub API 額度已用完，請在設定填入 GitHub Token，或稍後再試。"
+        if reset:
+            message += f"\nRate limit reset：{reset}"
+    return message
 
 
 def select_manager_asset(assets: list[dict]) -> dict | None:

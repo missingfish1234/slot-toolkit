@@ -2,6 +2,7 @@
   "github_owner": "",
   "github_repo": "",
   "github_branch": "main",
+  "github_token": "",
   "install_root": "%USERPROFILE%\\Documents\\ToolkitManager\\Tools",
   "admin_tools_root": "..",
   "admin_password": "12345678",

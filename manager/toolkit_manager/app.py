@@ -547,7 +547,7 @@ class SettingsDialog(QDialog):
         self.original_admin_password = config.admin_password
         self.admin_password_unlocked = False
         self.setWindowTitle("設定")
-        self.resize(560, 390)
+        self.resize(560, 430)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 18, 18, 18)
@@ -556,6 +556,9 @@ class SettingsDialog(QDialog):
         self.owner = labeled_input(layout, "GitHub Owner", config.github_owner)
         self.repo = labeled_input(layout, "GitHub Repo", config.github_repo)
         self.branch = labeled_input(layout, "Branch", config.github_branch)
+        self.github_token = labeled_input(layout, "GitHub Token", config.github_token)
+        self.github_token.setEchoMode(QLineEdit.Password)
+        self.github_token.setPlaceholderText("選填；可避免 GitHub API 403")
         self.install_root = labeled_input(layout, "工具安裝位置", config.install_root)
 
         password_row = QHBoxLayout()
@@ -606,6 +609,7 @@ class SettingsDialog(QDialog):
         self.config.github_owner = self.owner.text().strip()
         self.config.github_repo = self.repo.text().strip()
         self.config.github_branch = self.branch.text().strip() or "main"
+        self.config.github_token = self.github_token.text().strip()
         self.config.install_root = self.install_root.text().strip()
         if self.admin_password_unlocked:
             new_password = self.admin_password.text().strip()

@@ -16,6 +16,7 @@ class AppConfig:
     github_owner: str = ""
     github_repo: str = ""
     github_branch: str = "main"
+    github_token: str = ""
     install_root: str = "%USERPROFILE%\\Documents\\ToolkitManager\\Tools"
     admin_tools_root: str = ".."
     admin_password: str = "12345678"
@@ -29,6 +30,7 @@ class AppConfig:
             github_owner=str(data.get("github_owner", defaults.github_owner)),
             github_repo=str(data.get("github_repo", defaults.github_repo)),
             github_branch=str(data.get("github_branch", defaults.github_branch)),
+            github_token=str(data.get("github_token", defaults.github_token)),
             install_root=str(data.get("install_root", defaults.install_root)),
             admin_tools_root=str(data.get("admin_tools_root", defaults.admin_tools_root)),
             admin_password=str(data.get("admin_password", defaults.admin_password)),
@@ -41,6 +43,7 @@ class AppConfig:
             "github_owner": self.github_owner,
             "github_repo": self.github_repo,
             "github_branch": self.github_branch,
+            "github_token": self.github_token,
             "install_root": self.install_root,
             "admin_tools_root": self.admin_tools_root,
             "admin_password": self.admin_password,
