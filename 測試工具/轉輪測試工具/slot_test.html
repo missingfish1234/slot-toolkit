@@ -512,18 +512,18 @@
         
         .reels-container:not(.native) .symbol img.main-img:not(.big) {
             width: 100%; height: 100%; object-fit: contain;
-            transform: scale(var(--symbol-content-scale));
+            transform: scale(var(--symbol-content-scale)) scale(var(--symbol-instance-scale, 1));
         }
         .reels-container.native .symbol img, .symbol img.big { position: absolute; left: 50%; width: auto; max-width: none; }
         .symbol img.big { 
-            transform: translate(-50%, -50%) scale(var(--symbol-content-scale)); 
+            transform: translate(-50%, -50%) scale(var(--symbol-content-scale)) scale(var(--symbol-instance-scale, 1)); 
         }
         .reels-container.native .symbol img.main-img:not(.big) {
             top: 50%;
-            transform: translate(-50%, -50%) scale(var(--symbol-content-scale));
+            transform: translate(-50%, -50%) scale(var(--symbol-content-scale)) scale(var(--symbol-instance-scale, 1));
         }
         .spine-player {
-            transform: scale(var(--symbol-content-scale));
+            transform: scale(var(--symbol-content-scale)) scale(var(--symbol-instance-scale, 1));
             transform-origin: center center;
         }
         
@@ -533,7 +533,7 @@
         }
         .viewport.noborder .symbol.debug-box::after { display: none; }
 
-        .text-sym { font-size: 24px; color: #666; margin-top: 30px; transform: scale(var(--symbol-content-scale)); transform-origin: center center; }
+        .text-sym { font-size: 24px; color: #666; margin-top: 30px; transform: scale(var(--symbol-content-scale)) scale(var(--symbol-instance-scale, 1)); transform-origin: center center; }
         .hide-bg .text-sym { text-shadow: 0 0 5px #000; color: #fff; }
 
         @keyframes winPulse {
@@ -1851,6 +1851,7 @@
         function renderSymbol(div, dataObj, rowIndex) {
             div.innerHTML = ''; div.style.background = ''; div.classList.remove('debug-box', 'is-long', 'is-placeholder', 'is-anchor');
             div.dataset.kind = ''; div.dataset.span = '1'; div.dataset.symId = '';
+            div.style.removeProperty('--symbol-instance-scale');
             let baseZIndex = 1000 + (rowIndex * 10); div.style.zIndex = baseZIndex;
             
             if (dataObj && dataObj.type === 'empty') {
@@ -1867,6 +1868,9 @@
                 div.classList.add('is-anchor');
                 const imgData = dataObj.data;
                 const img = document.createElement('img'); img.src = imgData.url; img.className = 'main-img';
+                const symbolScale = Math.max(0.2, Math.min(2, parseFloat(imgData.scale) || 1));
+                div.style.setProperty('--symbol-instance-scale', symbolScale);
+                img.style.setProperty('--symbol-instance-scale', symbolScale);
                 if (imgData.isScatter) div.dataset.isScatter = 'true';
                 if (imgData.span > 1) {
                     img.classList.add('big'); div.classList.add('debug-box'); div.classList.add('is-long'); div.style.zIndex = baseZIndex + 5; 
@@ -3200,7 +3204,7 @@
                 const baseName = jsonFile.name.replace(/\.[^/.]+$/, "");
                 settings.images.push({
                     id: uid, name: baseName + ' (Spine)', url: staticPngUrl, 
-                    weight: 50, span: 1, reelsSpec: '', allowMain: true, allowTop: true, isSpine: true,
+                    weight: 50, span: 1, scale: 1, reelsSpec: '', allowMain: true, allowTop: true, isSpine: true,
                     spineData: { jsonName: jsonFile.name, atlasName: atlasFile.name, rawDataURIs: rawDataURIs }
                 });
                 settings.images[settings.images.length - 1]._reelPred = _buildReelPredicate('');
@@ -3216,7 +3220,7 @@
                 Array.from(e.target.files).forEach(file => { 
                     const url = URL.createObjectURL(file); 
                     const uid = Date.now() + Math.random().toString(36).substr(2,5); 
-                    settings.images.push({ id: uid, name: file.name, url: url, weight: 50, span: 1, reelsSpec: '', allowMain: true, allowTop: true }); 
+                    settings.images.push({ id: uid, name: file.name, url: url, weight: 50, span: 1, scale: 1, reelsSpec: '', allowMain: true, allowTop: true }); 
                     settings.images[settings.images.length-1]._reelPred = _buildReelPredicate(''); 
                 }); 
                 renderImgList(); updateGrid(); 
@@ -3228,6 +3232,7 @@
             const con = document.getElementById('weight-list'); con.innerHTML = ''; 
             if(settings.images.length === 0) { con.style.display = 'none'; return; } con.style.display = 'block'; 
             settings.images.forEach((img, idx) => { 
+                const scaleVal = Math.max(0.2, Math.min(2, parseFloat(img.scale) || 1));
                 const item = document.createElement('div'); item.className = 'img-item'; 
                 item.innerHTML = `
                     <img src="${img.url}" class="img-thumb">
@@ -3238,6 +3243,11 @@
                         </div>
                         <div style="display:flex; justify-content:space-between; font-size:11px; color:#888;"><span>權重: <b id="disp-w-${img.id}">${img.weight}</b></span></div>
                         <input type="range" min="1" max="100" value="${img.weight}" oninput="updateWeight(${idx}, this.value)">
+                        <div style="display:flex; justify-content:space-between; font-size:11px; color:#888; margin-top:6px;"><span>個別縮放: <b id="disp-scale-${img.id}">${scaleVal.toFixed(2)}</b> 倍</span></div>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <input type="range" min="0.2" max="2" step="0.05" value="${scaleVal}" oninput="updateSymbolScale(${idx}, this.value)">
+                            <input type="number" min="0.2" max="2" step="0.05" value="${scaleVal}" style="width:52px; background:#111; border:1px solid #333; color:#ddd; border-radius:3px; padding:2px 4px; font-size:11px;" oninput="updateSymbolScale(${idx}, this.value)">
+                        </div>
                         <div style="margin-top:4px;">
                             <input type="text" class="reels-input" placeholder="指定卷軸 (例: 1,3,5 或 2-4)" value="${img.reelsSpec || ''}" onchange="updateReelsSpec(${idx}, this.value)">
                             <div class="reels-hint">留空=全卷軸。可用逗號或連字號。</div>
@@ -3268,6 +3278,20 @@
         }
 
         window.updateWeight = (idx, val) => { settings.images[idx].weight = parseInt(val); document.getElementById(`disp-w-${settings.images[idx].id}`).innerText = val; };
+        window.updateSymbolScale = (idx, val) => {
+            const img = settings.images[idx]; if (!img) return;
+            const scale = Math.max(0.2, Math.min(2, parseFloat(val) || 1));
+            img.scale = scale;
+            const item = document.querySelectorAll('#weight-list .img-item')[idx];
+            if(item) {
+                item.querySelectorAll('input[type="range"], input[type="number"]').forEach(input => {
+                    if(input.min === '0.2' && input.max === '2') input.value = scale;
+                });
+            }
+            const disp = document.getElementById(`disp-scale-${img.id}`);
+            if(disp) disp.innerText = scale.toFixed(2);
+            updateGrid();
+        };
         window.updateReelsSpec = (idx, val) => { const img = settings.images[idx]; if (!img) return; img.reelsSpec = val; img._reelPred = _buildReelPredicate(val); updateGrid(); };
         window.updateSpan = (idx, val) => { settings.images[idx].span = parseInt(val); updateGrid(); };
         window.updateWild = (idx, checked) => { const img = settings.images[idx]; if (!img) return; img.isWild = !!checked; updateGrid(); };
@@ -3304,7 +3328,7 @@
                 for(let img of settings.images) {
                     const b64 = await blobToBase64(img.url);
                     if(b64) cfg.pack.symbols.push({ 
-                        id: img.id, b64: b64, name: img.name, weight: img.weight, span: img.span, 
+                        id: img.id, b64: b64, name: img.name, weight: img.weight, span: img.span, scale: img.scale || 1, 
                         reelsSpec: img.reelsSpec, isWild: img.isWild, isScatter: img.isScatter,
                         collectType: img.collectType || '',
                         allowMain: img.allowMain, allowTop: img.allowTop 
@@ -3360,6 +3384,7 @@
                             name: img.name,
                             weight: img.weight || 1,
                             span: img.span || 1,
+                            scale: img.scale || 1,
                             isWild: img.isWild || false,
                             isScatter: img.isScatter || false,
                             collectType: img.collectType || '',
@@ -3403,6 +3428,7 @@
                             displayName: img.name,
                             weight: img.weight || 1,
                             multiplyRows: img.span || 1,
+                            scale: img.scale || 1,
                             isWild: img.isWild || false,
                             isBonus: img.isScatter || false,
                             collectType: img.collectType || '',
@@ -3489,7 +3515,7 @@
                         const url = base64ToBlobUrl(s.b64);
                         if(url) {
                             settings.images.push({ 
-                                id: s.id, name: s.name, url: url, weight: s.weight, span: s.span, reelsSpec: s.reelsSpec, 
+                                id: s.id, name: s.name, url: url, weight: s.weight, span: s.span, scale: s.scale || 1, reelsSpec: s.reelsSpec, 
                                 isWild: s.isWild, isScatter: s.isScatter, collectType: s.collectType || '',
                                 allowMain: (s.allowMain !== undefined) ? s.allowMain : true, 
                                 allowTop: (s.allowTop !== undefined) ? s.allowTop : true 
