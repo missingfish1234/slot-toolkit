@@ -7,9 +7,18 @@ Shader "ArkGame/UI-Spine/Dissolve Multi Mode"
 
         [Header(Dissolve Core)]
         _DissolveAmount ("溶解進度 Dissolve Amount", Range(0,1)) = 0
-        [Enum(Noise,0, Linear,1, Radial,2, Ring,3, Spiral,4, Stripe,5)]
-        _DissolveMode ("溶解方式 Dissolve Mode", Float) = 0
+        [Toggle] _AutoDissolve ("Auto Dissolve By Time", Float) = 0
+        [HideInInspector] _DissolveStartTime ("Dissolve Start Time", Float) = 0
+        _DissolveDelay ("Delay Time", Float) = 0
+        _DissolveDuration ("Duration", Float) = 1
+        [Toggle] _ReverseAutoDissolve ("Reverse Auto Dissolve", Float) = 0
+        [KeywordEnum(Noise, Linear, Radial, Ring, Spiral, Stripe, CenterVertical, Ink)]
+        _DissolveMode ("Dissolve Mode", Float) = 0
         [Toggle] _InvertDissolve ("反轉溶解 Invert", Float) = 0
+
+        [Header(Ink Dissolve)]
+        _InkSoftness ("Ink Softness", Range(0.01,1)) = 0.35
+        _InkNoise ("Ink Noise", Range(0,1)) = 0.65
 
         [Header(Noise Texture)]
         _NoiseTex ("溶解雜訊 Noise Texture", 2D) = "white" {}
@@ -36,11 +45,17 @@ Shader "ArkGame/UI-Spine/Dissolve Multi Mode"
         _StripeSoftness ("條紋柔邊 Stripe Softness", Range(0.001,0.5)) = 0.08
 
         [Header(Edge Glow)]
-        _EdgeWidth ("邊緣寬度 Edge Width", Range(0,0.5)) = 0.08
+        _EdgeWidth ("外層光暈寬度 Glow Width", Range(0,0.5)) = 0.08
         _EdgeSoftness ("邊緣柔和 Edge Softness", Range(0.001,0.3)) = 0.05
+        _EdgeCoverWidth ("黑邊覆蓋寬度 Cover Width", Range(0,0.25)) = 0.025
+        _EdgeCoverStrength ("黑邊覆蓋強度 Cover Strength", Range(0,1)) = 1
+        _EdgeAlphaBoost ("覆蓋帶不透明補強 Alpha Boost", Range(0,1)) = 1
         _EdgeColor ("邊緣顏色 Edge Color", Color) = (1,0.45,0.05,1)
         _EdgeIntensity ("邊緣亮度 Edge Intensity", Range(0,8)) = 2.5
-        [Toggle] _EdgeAdditive ("邊緣加亮 Additive Edge", Float) = 1
+        [Toggle] _EdgeAdditive ("外層光暈加亮 Additive Glow", Float) = 1
+        [Toggle] _RainbowEdgeGlow ("彩光光暈 Rainbow Glow", Float) = 0
+        _RainbowEdgeSpeed ("彩光流動速度 Rainbow Speed", Range(0,6)) = 1.5
+        _RainbowEdgeScale ("彩光密度 Rainbow Scale", Range(0,12)) = 4
 
         [Header(Alpha Control)]
         _AlphaCutoff ("透明裁切 Alpha Cutoff", Range(0,1)) = 0.001
@@ -112,8 +127,16 @@ Shader "ArkGame/UI-Spine/Dissolve Multi Mode"
             fixed4 _TextureSampleAdd;
 
             float _DissolveAmount;
+            float _AutoDissolve;
+            float _DissolveStartTime;
+            float _DissolveDelay;
+            float _DissolveDuration;
+            float _ReverseAutoDissolve;
             float _DissolveMode;
             float _InvertDissolve;
+
+            float _InkSoftness;
+            float _InkNoise;
 
             float _NoiseScale;
             float _NoiseStrength;
@@ -134,9 +157,15 @@ Shader "ArkGame/UI-Spine/Dissolve Multi Mode"
 
             float _EdgeWidth;
             float _EdgeSoftness;
+            float _EdgeCoverWidth;
+            float _EdgeCoverStrength;
+            float _EdgeAlphaBoost;
             fixed4 _EdgeColor;
             float _EdgeIntensity;
             float _EdgeAdditive;
+            float _RainbowEdgeGlow;
+            float _RainbowEdgeSpeed;
+            float _RainbowEdgeScale;
 
             float _AlphaCutoff;
             float _AlphaPower;
@@ -264,11 +293,11 @@ Shader "ArkGame/UI-Spine/Dissolve Multi Mode"
                 return saturate(d);
             }
 
-            float RingMask(float2 uv)
+            float RingMask(float2 uv, float amount)
             {
                 float2 p = uv - _Origin.xy;
                 float d = length(p) * 1.41421356;
-                float ring = abs(d - _DissolveAmount);
+                float ring = abs(d - amount);
                 float m = 1.0 - smoothstep(0.0, _RingWidth, ring);
                 return saturate(m);
             }
@@ -291,7 +320,36 @@ Shader "ArkGame/UI-Spine/Dissolve Multi Mode"
                 return lerp(baseDir, stripe, 0.75);
             }
 
-            float GetPattern(float2 uv)
+            float CenterVerticalMask(float2 uv)
+            {
+                return saturate(abs(uv.y - _Origin.y) * 2.0);
+            }
+
+            float InkMask(float2 uv, float noise)
+            {
+                float radial = RadialMask(uv);
+                float wash = smoothstep(0.0, max(_InkSoftness, 0.0001), radial);
+                float feather = lerp(wash, noise, saturate(_InkNoise));
+                return saturate(feather);
+            }
+            float GetDissolveAmount()
+            {
+                float manualAmount = saturate(_DissolveAmount);
+                float timedAmount = saturate((_Time.y - _DissolveStartTime - _DissolveDelay) / max(_DissolveDuration, 0.0001));
+                timedAmount = lerp(timedAmount, 1.0 - timedAmount, step(0.5, _ReverseAutoDissolve));
+                return lerp(manualAmount, timedAmount, step(0.5, _AutoDissolve));
+            }
+
+            fixed3 GetRainbowEdgeColor(float2 uv, float amount)
+            {
+                float2 centeredUv = uv - _Origin.xy;
+                float anglePhase = atan2(centeredUv.y, centeredUv.x) * 0.15915494;
+                float uvPhase = dot(uv, float2(1.0, 1.37));
+                float phase = anglePhase + uvPhase * _RainbowEdgeScale + amount + _Time.y * _RainbowEdgeSpeed;
+                return 0.5 + 0.5 * cos(6.2831853 * (phase + fixed3(0.0, 0.3333333, 0.6666667)));
+            }
+
+            float GetPattern(float2 uv, float amount)
             {
                 float noise = SampleNoise(uv);
                 float pattern = noise;
@@ -310,22 +368,30 @@ Shader "ArkGame/UI-Spine/Dissolve Multi Mode"
                 }
                 else if (_DissolveMode < 3.5)
                 {
-                    pattern = RingMask(uv);
+                    pattern = RingMask(uv, amount);
                 }
                 else if (_DissolveMode < 4.5)
                 {
                     pattern = SpiralMask(uv);
                 }
-                else
+                else if (_DissolveMode < 5.5)
                 {
                     pattern = StripeMask(uv);
+                }
+                else if (_DissolveMode < 6.5)
+                {
+                    pattern = CenterVerticalMask(uv);
+                }
+                else
+                {
+                    pattern = InkMask(uv, noise);
                 }
 
                 if (_DissolveMode > 0.5 && _DissolveMode < 3.5)
                 {
                     pattern = lerp(pattern, noise, _NoiseStrength);
                 }
-                else if (_DissolveMode >= 3.5)
+                else if (_DissolveMode >= 3.5 && _DissolveMode < 6.5)
                 {
                     pattern = lerp(pattern, noise, _NoiseStrength * 0.5);
                 }
@@ -347,44 +413,70 @@ Shader "ArkGame/UI-Spine/Dissolve Multi Mode"
                 col.a *= UnityGet2DClipping(IN.worldPosition.xy, _ClipRect);
                 #endif
 
-                float pattern = GetPattern(IN.uv);
-                float amount = saturate(_DissolveAmount);
+                float amount = GetDissolveAmount();
+                float pattern = GetPattern(IN.uv, amount);
 
-                float keep = smoothstep(amount, amount + _EdgeSoftness, pattern);
+                // signedDistance < 0：已溶解側；> 0：保留側。
+                float signedDistance = pattern - amount;
+                float edgeSoft = max(_EdgeSoftness, 0.0001);
+                float coverWidth = max(_EdgeCoverWidth, 0.0);
+                float glowWidth = max(_EdgeWidth, coverWidth);
+
+                // 原本的保留遮罩。切線本身仍會淡出，但下方的實色覆蓋帶會補回邊緣。
+                float keep = smoothstep(0.0, edgeSoft, signedDistance);
 
                 if (_DissolveMode > 2.5 && _DissolveMode < 3.5)
                 {
-                    float ring = RingMask(IN.uv);
-                    keep = saturate(max(ring, smoothstep(amount, amount + _EdgeSoftness, pattern)));
+                    float ring = RingMask(IN.uv, amount);
+                    keep = saturate(max(ring, keep));
                 }
 
-                float edgeInner = smoothstep(amount, amount + _EdgeSoftness, pattern);
-                float edgeOuter = 1.0 - smoothstep(amount + _EdgeWidth, amount + _EdgeWidth + _EdgeSoftness, pattern);
-                float edge = saturate(edgeInner * edgeOuter);
+                // 實色覆蓋帶跨過切線，專門遮住溶解交界處的黑色 RGB／黑邊。
+                float coverEnter = smoothstep(-coverWidth - edgeSoft, -coverWidth, signedDistance);
+                float coverExit = 1.0 - smoothstep(coverWidth, coverWidth + edgeSoft, signedDistance);
+                float edgeCover = saturate(coverEnter * coverExit);
 
-                if (_DissolveAmount <= 0.001)
+                // 外層光暈從覆蓋帶開始，向保留側延伸；寬度由 Edge Width 獨立控制。
+                float glowEnter = coverEnter;
+                float glowExit = 1.0 - smoothstep(glowWidth, glowWidth + edgeSoft, signedDistance);
+                float edgeGlow = saturate(glowEnter * glowExit);
+
+                if (amount <= 0.001)
                 {
                     keep = 1.0;
-                    edge = 0.0;
+                    edgeCover = 0.0;
+                    edgeGlow = 0.0;
                 }
 
-                if (_DissolveAmount >= 0.999)
+                if (amount >= 0.999)
                 {
                     keep = 0.0;
-                    edge = 0.0;
+                    edgeCover = 0.0;
+                    edgeGlow = 0.0;
                 }
 
-                col.a *= pow(keep, _AlphaPower);
+                float sourceAlpha = col.a;
+                float dissolveAlpha = sourceAlpha * pow(keep, _AlphaPower);
+                float coverAlpha = sourceAlpha * edgeCover * saturate(_EdgeAlphaBoost);
+                col.a = max(dissolveAlpha, coverAlpha);
 
-                fixed3 edgeRGB = _EdgeColor.rgb * _EdgeIntensity * edge * _EdgeColor.a;
+                float coverMask = saturate(edgeCover * _EdgeCoverStrength * _EdgeColor.a);
+                float glowMask = saturate(edgeGlow * _EdgeColor.a);
+                fixed3 edgeColor = lerp(_EdgeColor.rgb, GetRainbowEdgeColor(IN.uv, amount), step(0.5, _RainbowEdgeGlow));
+                fixed3 edgeTarget = edgeColor * _EdgeIntensity;
 
+                // 先用實色取代原圖顏色，確保黑邊真的被遮住，而不是只在黑色上加亮。
+                col.rgb = lerp(col.rgb, edgeTarget, coverMask);
+
+                // 再疊加外層光暈。扣除實色核心，避免同一區域被重複加亮。
+                float outerGlow = saturate(glowMask - coverMask);
                 if (_EdgeAdditive > 0.5)
                 {
-                    col.rgb += edgeRGB;
+                    col.rgb += edgeTarget * outerGlow;
                 }
                 else
                 {
-                    col.rgb = lerp(col.rgb, _EdgeColor.rgb * _EdgeIntensity, edge);
+                    col.rgb = lerp(col.rgb, edgeTarget, outerGlow);
                 }
 
                 clip(col.a - _AlphaCutoff);
