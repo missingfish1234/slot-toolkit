@@ -13,8 +13,8 @@ INDEX_FILE_NAME = "tools-index.json"
 
 @dataclass(slots=True)
 class AppConfig:
-    github_owner: str = ""
-    github_repo: str = ""
+    github_owner: str = "missingfish1234"
+    github_repo: str = "slot-toolkit"
     github_branch: str = "main"
     github_token: str = ""
     install_root: str = "%USERPROFILE%\\Documents\\ToolkitManager\\Tools"
@@ -27,9 +27,9 @@ class AppConfig:
     def from_dict(cls, data: dict[str, Any]) -> "AppConfig":
         defaults = cls()
         return cls(
-            github_owner=str(data.get("github_owner", defaults.github_owner)),
-            github_repo=str(data.get("github_repo", defaults.github_repo)),
-            github_branch=str(data.get("github_branch", defaults.github_branch)),
+            github_owner=str(data.get("github_owner") or defaults.github_owner),
+            github_repo=str(data.get("github_repo") or defaults.github_repo),
+            github_branch=str(data.get("github_branch") or defaults.github_branch),
             github_token=str(data.get("github_token", defaults.github_token)),
             install_root=str(data.get("install_root", defaults.install_root)),
             admin_tools_root=str(data.get("admin_tools_root", defaults.admin_tools_root)),
