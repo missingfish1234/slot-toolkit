@@ -2,12 +2,6 @@ $ErrorActionPreference = "Stop"
 
 Set-Location $PSScriptRoot
 
-$distConfig = Join-Path $PSScriptRoot "dist\ToolkitManager\config.json"
-$configBackup = Join-Path $env:TEMP "ToolkitManager.config.backup.json"
-if (Test-Path $distConfig) {
-    Copy-Item -LiteralPath $distConfig -Destination $configBackup -Force
-}
-
 if (-not (Test-Path ".venv")) {
     python -m venv .venv
 }
@@ -27,9 +21,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $newDistDir = Join-Path $PSScriptRoot "dist\ToolkitManager"
-if (Test-Path $configBackup) {
-    Copy-Item -LiteralPath $configBackup -Destination (Join-Path $newDistDir "config.json") -Force
-}
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot "config.example.json") -Destination (Join-Path $newDistDir "config.json") -Force
 
 $zipPath = Join-Path $PSScriptRoot "dist\ToolkitManager.zip"
 if (Test-Path $zipPath) {
