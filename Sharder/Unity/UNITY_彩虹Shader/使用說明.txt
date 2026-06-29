@@ -1,10 +1,14 @@
 
-BMFontRainbowArtistShaderGUI.cs丟入專案內可以用簡易控制彩虹SHADER
+BMFontRainbowArtistShaderGUI.cs 丟入專案內可以用美術面板控制彩虹 Shader
 
 如果希望每個數字顏色同步
-需要在數字外層掛上BMFontUv2Filler.cs
+需要在顯示 BMFont 數字的 UI 物件掛上 BMFontUv2Filler.cs
 
-並在鏡頭canvas的設定上打開TexCoord2
+BMFontUv2Filler 會寫入：
+uv1 = 每個字自己的 Local 0~1 座標
+uv2 = 整串文字的 Global 0~1 座標
+
+並在鏡頭 Canvas 的設定上打開 TexCoord1 與 TexCoord2
 到「顯示這串 BMFont 數字的那個 Canvas」上：
 
 Canvas → Additional Shader Channels
@@ -12,3 +16,8 @@ Canvas → Additional Shader Channels
 勾選 TexCoord1
 
 勾選 TexCoord2
+
+材質面板建議：
+「填色群組」選每物件/每字
+「每物件座標」選整串連續 GlobalUV，可讓整串文字接成一條連續彩虹
+「每物件座標」選每字重複 LocalUV，則每個字各自跑完整彩虹

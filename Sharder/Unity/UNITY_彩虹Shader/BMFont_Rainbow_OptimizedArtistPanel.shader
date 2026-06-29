@@ -3,10 +3,18 @@ Shader "Custom/BMFont_Rainbow_OptimizedArtistPanel"
     Properties
     {
         // === 基本設定 ===
-        _MainTex        ("BMFont 字型圖集 (RGBA)", 2D) = "white" {}
+        [PerRendererData] _MainTex ("BMFont 字型圖集 (RGBA)", 2D) = "white" {}
         _UseSrcRGB      ("乘上原圖 RGB (0..1)", Range(0,1)) = 1
 
         [Toggle(_PARTICLEMODE_ON)] _ParticleMode ("Particle Mode：忽略 UV1/UV2（用在粒子避免條紋）", Float) = 0
+
+        [HideInInspector] _StencilComp ("Stencil Comparison", Float) = 8
+        [HideInInspector] _Stencil ("Stencil ID", Float) = 0
+        [HideInInspector] _StencilOp ("Stencil Operation", Float) = 0
+        [HideInInspector] _StencilWriteMask ("Stencil Write Mask", Float) = 255
+        [HideInInspector] _StencilReadMask ("Stencil Read Mask", Float) = 255
+        [HideInInspector] _ColorMask ("Color Mask", Float) = 15
+        [HideInInspector] _UseUIAlphaClip ("Use Alpha Clip", Float) = 0
 
         // ==============================================
         //             ★ 彩虹填色 (第一層) ★
@@ -160,10 +168,28 @@ Shader "Custom/BMFont_Rainbow_OptimizedArtistPanel"
 
     SubShader
     {
-        Tags { "Queue"="Transparent" "RenderType"="Transparent" }
+        Tags
+        {
+            "Queue"="Transparent"
+            "IgnoreProjector"="True"
+            "RenderType"="Transparent"
+            "PreviewType"="Plane"
+            "CanUseSpriteAtlas"="True"
+        }
+
+        Stencil
+        {
+            Ref [_Stencil]
+            Comp [_StencilComp]
+            Pass [_StencilOp]
+            ReadMask [_StencilReadMask]
+            WriteMask [_StencilWriteMask]
+        }
+
         Cull Off
         ZWrite Off
         Blend SrcAlpha OneMinusSrcAlpha
+        ColorMask [_ColorMask]
 
         Pass
         {
@@ -172,23 +198,27 @@ Shader "Custom/BMFont_Rainbow_OptimizedArtistPanel"
             #pragma fragment frag
             #pragma target 3.0
             
-            #pragma shader_feature _FILL_ON
-            #pragma shader_feature _FILL_L2_ON
-            #pragma shader_feature _FILL_MASK_ON
-            #pragma shader_feature _FILL_NOISE_ON
-            #pragma shader_feature _DIAMOND_ON
-            #pragma shader_feature _DIAMOND_L2_ON
-            #pragma shader_feature _INNER_SWEEP_ON
-            #pragma shader_feature _SWEEP_ON
-            #pragma shader_feature _SWEEP_MASK_ON
-            #pragma shader_feature _PARTICLEMODE_ON
+            #pragma shader_feature_local _FILL_ON
+            #pragma shader_feature_local _FILL_L2_ON
+            #pragma shader_feature_local _FILL_MASK_ON
+            #pragma shader_feature_local _FILL_NOISE_ON
+            #pragma shader_feature_local _DIAMOND_ON
+            #pragma shader_feature_local _DIAMOND_L2_ON
+            #pragma shader_feature_local _INNER_SWEEP_ON
+            #pragma shader_feature_local _SWEEP_ON
+            #pragma shader_feature_local _SWEEP_MASK_ON
+            #pragma shader_feature_local _PARTICLEMODE_ON
+            #pragma multi_compile_local _ UNITY_UI_CLIP_RECT
+            #pragma multi_compile_local _ UNITY_UI_ALPHACLIP
 
             #include "UnityCG.cginc"
+            #include "UnityUI.cginc"
 
             // === Uniforms ===
             sampler2D _MainTex;
             float4 _MainTex_ST; float4 _MainTex_TexelSize;
             float _UseSrcRGB;
+            float4 _ClipRect;
 
             // Fill
             float _FillFlowMode, _FillAngle, _FillSpeed, _FillPixelsPerCycle, _FillRefHeight;
@@ -263,6 +293,7 @@ Shader "Custom/BMFont_Rainbow_OptimizedArtistPanel"
                 float4 uvMinSize : TEXCOORD1;
                 float2 wxy       : TEXCOORD2; 
                 float2 objScaleXY: TEXCOORD3;
+                float4 localPos  : TEXCOORD4;
                 fixed4 color     : COLOR; 
                 float4 screenPos : TEXCOORD5;
             };
@@ -410,6 +441,7 @@ Shader "Custom/BMFont_Rainbow_OptimizedArtistPanel"
                 #endif
 
                 o.screenPos = ComputeScreenPos(o.pos);
+                o.localPos = v.vertex;
                 float4 wpos = mul(unity_ObjectToWorld, v.vertex);
                 o.wxy = wpos.xy;
                 float2 col0 = float2(unity_ObjectToWorld._m00, unity_ObjectToWorld._m01);
@@ -598,6 +630,9 @@ half3 calcDiamondSpec(sampler2D normTex, float2 baseUV, float tiling, float scro
             {
                 fixed4 src = tex2D(_MainTex, i.uv);
                 fixed  a   = src.a;
+                #ifdef UNITY_UI_CLIP_RECT
+                a *= UnityGet2DClipping(i.localPos.xy, _ClipRect);
+                #endif
                 float2 screenUV = i.screenPos.xy / i.screenPos.w;   // 0..1
                 float2 posPx    = screenUV * _ScreenParams.xy;      // pixels
                 fixed3 rgb = lerp(fixed3(1,1,1), src.rgb, _UseSrcRGB);
@@ -742,19 +777,13 @@ half3 calcDiamondSpec(sampler2D normTex, float2 baseUV, float tiling, float scro
                         {
                             // C# 腳本同步支援：使用 float flag，避免部分行動平台對動態 bool 分支不穩定。
                             float useForcedUV = step(50.0, i.uvMinSize.z);
-                            float hasUV2 = step(1e-6, i.uvMinSize.z) * step(1e-6, i.uvMinSize.w);
+                            float uv12Mag = max(abs(i.uvMinSize.x) + abs(i.uvMinSize.y), abs(i.uvMinSize.z) + abs(i.uvMinSize.w));
+                            float hasUV12 = step(1e-6, uv12Mag);
 
-                            if (useForcedUV > 0.5)
+                            if (max(useForcedUV, hasUV12) > 0.5)
                             {
-                                // [C# Mode] TEXCOORD1.xy 已經是每字 LocalUV 0..1。
+                                // [C# Mode] TEXCOORD1.xy 是每字 LocalUV 0..1；TEXCOORD2.xy 可保留給整串 GlobalUV。
                                 float2 localPos = i.uvMinSize.xy - 0.5;
-                                band = sweepBand_object_linear(localPos, float2(1,1), _SweepAngle, 1.0, _SweepObjWidth, _SweepObjFeather, tSweep, 0.0);
-                            }
-                            else if (hasUV2 > 0.5)
-                            {
-                                // [Fallback Mode] uvMinSize.xy=uv min, uvMinSize.zw=uv size。
-                                float2 uvLocal01 = (i.uv - i.uvMinSize.xy) / max(i.uvMinSize.zw, 1e-6);
-                                float2 localPos = uvLocal01 - 0.5;
                                 band = sweepBand_object_linear(localPos, float2(1,1), _SweepAngle, 1.0, _SweepObjWidth, _SweepObjFeather, tSweep, 0.0);
                             }
                             else
@@ -807,6 +836,9 @@ half3 calcDiamondSpec(sampler2D normTex, float2 baseUV, float tiling, float scro
                 rgb *= i.color.rgb;
                 fixed outA = a * i.color.a * _Alpha;
                 if (_DebugView > 0.5) return fixed4(a, 0, 0, 1);
+                #ifdef UNITY_UI_ALPHACLIP
+                clip(outA - 0.001);
+                #endif
                 return fixed4(rgb, outA);
             }
             ENDCG

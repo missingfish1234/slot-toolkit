@@ -3,7 +3,7 @@ using UnityEngine.UI;
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
-public class BMFontUv2Normalizer : BaseMeshEffect
+public class BMFontUv2Filler : BaseMeshEffect
 {
     public override void ModifyMesh(VertexHelper vh)
     {
@@ -11,6 +11,22 @@ public class BMFontUv2Normalizer : BaseMeshEffect
 
         int count = vh.currentVertCount;
         var v = new UIVertex();
+
+        float globalMinX = float.MaxValue, globalMinY = float.MaxValue;
+        float globalMaxX = float.MinValue, globalMaxY = float.MinValue;
+
+        for (int i = 0; i < count; i++)
+        {
+            vh.PopulateUIVertex(ref v, i);
+            Vector3 pos = v.position;
+            if (pos.x < globalMinX) globalMinX = pos.x;
+            if (pos.y < globalMinY) globalMinY = pos.y;
+            if (pos.x > globalMaxX) globalMaxX = pos.x;
+            if (pos.y > globalMaxY) globalMaxY = pos.y;
+        }
+
+        float globalWidth = globalMaxX - globalMinX;
+        float globalHeight = globalMaxY - globalMinY;
 
         // 遍歷所有頂點，預設每 4 個頂點組成一個字 (Quad)
         for (int i = 0; i < count; i += 4)
@@ -48,10 +64,11 @@ public class BMFontUv2Normalizer : BaseMeshEffect
                 // ★ 關鍵修改：
                 // uv1 存放歸一化座標 (0~1)，這就是彩虹的進度
                 v.uv1 = new Vector2(normX, normY);
-                
-                // uv2 存放一個 "訊號"，告訴 Shader "我有正確的資料了"
-                // 我們設為 (100, 100) 這種不可能在字體 Atlas 出現的大小作為標記
-                v.uv2 = new Vector2(100f, 100f);
+
+                // uv2 存放整串文字的歸一化座標，供「整串連續彩虹」模式使用。
+                float globalX = (globalWidth > 0) ? (v.position.x - globalMinX) / globalWidth : 0;
+                float globalY = (globalHeight > 0) ? (v.position.y - globalMinY) / globalHeight : 0;
+                v.uv2 = new Vector2(globalX, globalY);
 
                 vh.SetUIVertex(v, i + k);
             }

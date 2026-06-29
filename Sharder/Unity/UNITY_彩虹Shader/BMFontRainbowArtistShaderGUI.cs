@@ -19,6 +19,13 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
     private static bool _showAdvanced = false;
     private static bool _showDebug = false;
 
+    private static readonly string[] FillFlowModes = { "線性", "放射", "螺旋", "放射色帶" };
+    private static readonly string[] SweepFlowModes = { "線性", "放射" };
+    private static readonly string[] GroupModes = { "整體同步", "每物件/每字" };
+    private static readonly string[] PerObjectCoordModes = { "每字重複 LocalUV", "整串連續 GlobalUV" };
+    private static readonly string[] SweepColorModes = { "相加", "濾色", "取代" };
+    private static readonly string[] NoiseStyles = { "標準", "液態", "雲霧", "碎裂", "火焰電流" };
+
     public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] properties)
     {
         _editor = materialEditor;
@@ -90,7 +97,7 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
             Toggle("_FillEnable", "啟用彩虹填色", "_FILL_ON");
             if (Float("_FillEnable") < 0.5f) return;
 
-            Slider("_FillFlowMode", "流動模式 0線性 1放射 2螺旋 3色帶");
+            Popup("_FillFlowMode", "流動模式", FillFlowModes);
             Slider("_FillAngle", "彩虹方向");
             Slider("_FillSpeed", "彩虹速度");
             Slider("_FillPixelsPerCycle", "彩虹帶寬 / 像素");
@@ -133,8 +140,13 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
                 Slider("_SweepObjFeather", "物件模式羽化");
                 Color("_SweepColor", "外掃光顏色");
                 Slider("_SweepColorIntensity", "外掃光強度");
-                Slider("_SweepColorMode", "混合模式 0相加 1濾色 2取代");
-                Slider("_SweepExcludeFill", "避免覆蓋填色區");
+                Popup("_SweepColorMode", "混合模式", SweepColorModes);
+                ToggleFloat("_SweepUseGradient", "使用漸層掃光");
+                if (Float("_SweepUseGradient") > 0.5f)
+                {
+                    Texture("_SweepGradient", "掃光漸層貼圖");
+                }
+                ToggleFloat("_SweepExcludeFill", "避免覆蓋填色區");
             }
 
             Toggle("_InnerSweepEnable", "啟用內側掃光", "_INNER_SWEEP_ON");
@@ -169,9 +181,14 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
             Slider("_DiamondIntensity", "鑽石高光強度");
             Slider("_DiamondBaseDim", "壓暗底層彩虹");
             Slider("_DiamondTiling", "鑽石密度");
+            Slider("_DiamondScrollX", "鑽石流動 X");
+            Slider("_DiamondScrollY", "鑽石流動 Y");
             Slider("_DiamondSparkleSpeed", "閃爍速度");
             Slider("_DiamondNormalFlat", "光滑度");
             Slider("_DiamondContrast", "陰影對比");
+            Slider("_DiamondSoftShininess", "玻璃高光");
+            Slider("_DiamondHardShininess", "閃耀高光");
+            Slider("_DiamondLightZ", "光源集中度");
 
             Toggle("_DiamondL2Enable", "第二層鑽石", "_DIAMOND_L2_ON");
             if (Float("_DiamondL2Enable") > 0.5f)
@@ -194,10 +211,13 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
         using (new EditorGUI.IndentLevelScope())
         {
             EditorGUILayout.LabelField("彩虹座標同步", EditorStyles.boldLabel);
-            Slider("_FillGroupMode", "填色群組 0整體 1每物件");
-            Slider("_FillPerObjCoord", "每物件座標 0單字 1整串");
+            Popup("_FillGroupMode", "填色群組", GroupModes);
+            Popup("_FillPerObjCoord", "每物件座標", PerObjectCoordModes);
+            EditorGUILayout.HelpBox("每物件/整串連續模式需要在 Canvas 的 Additional Shader Channels 勾選 TexCoord1、TexCoord2，並在文字物件掛上 BMFontUv2Filler。", MessageType.None);
+            ToggleFloat("_FillObjUsePx", "每物件使用像素循環");
             Slider("_FillObjPixelsPerCycle", "每物件循環像素");
             Slider("_FillObjTiling", "每物件座標平鋪");
+            Slider("_FillObjScaleComp", "每物件縮放補償");
             Slider("_FillObjFreqGain", "每物件密度增益");
             Vector("_FillRadialCenter", "放射中心偏移");
             Slider("_FillRadialTurns", "放射/螺旋手臂數");
@@ -212,8 +232,13 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
                 Slider("_FillNoiseScale", "Noise 尺寸");
                 Slider("_FillNoiseStrength", "Noise 擾動強度");
                 Slider("_FillNoiseWarp", "Noise 扭曲感");
-                Slider("_FillNoiseStyle", "Noise 風格");
+                Slider("_FillNoiseContrast", "Noise 邊界銳利度");
+                Popup("_FillNoiseStyle", "Noise 風格", NoiseStyles);
                 Slider("_FillNoiseStyleMix", "風格強度");
+                Slider("_FillNoiseBreakup", "碎裂/斷層量");
+                Slider("_FillNoiseJitter", "跳動感");
+                Slider("_FillNoiseScrollX", "Noise 流動 X");
+                Slider("_FillNoiseScrollY", "Noise 流動 Y");
             }
 
             EditorGUILayout.Space(5);
@@ -223,7 +248,7 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
             {
                 Texture("_FillMaskTex", "填色遮罩");
                 Slider("_FillMaskFeatherPx", "填色遮罩羽化");
-                Slider("_FillMaskInvert", "填色遮罩反相");
+                ToggleFloat("_FillMaskInvert", "填色遮罩反相");
             }
 
             Toggle("_SweepMaskEnable", "啟用掃光遮罩", "_SWEEP_MASK_ON");
@@ -231,14 +256,14 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
             {
                 Texture("_SweepMaskTex", "掃光遮罩");
                 Slider("_SweepMaskFeatherPx", "掃光遮罩羽化");
-                Slider("_SweepMaskInvert", "掃光遮罩反相");
+                ToggleFloat("_SweepMaskInvert", "掃光遮罩反相");
             }
 
             EditorGUILayout.Space(5);
             EditorGUILayout.LabelField("外掃光座標", EditorStyles.boldLabel);
-            Slider("_SweepGroupMode", "外掃光群組 0整體 1每物件");
-            Slider("_SweepFlowMode", "外掃光模式 0線性 1放射");
-            Slider("_SweepUseObject", "線性使用物件座標");
+            Popup("_SweepGroupMode", "外掃光群組", GroupModes);
+            Popup("_SweepFlowMode", "外掃光模式", SweepFlowModes);
+            ToggleFloat("_SweepUseObject", "線性使用物件座標");
             Slider("_SweepObjTiling", "物件平鋪密度");
             Slider("_SweepPixelsPerCycle", "螢幕每循環像素");
             Slider("_SweepRefHeight", "螢幕參考高度");
@@ -263,28 +288,36 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
     {
         Set("_FillEnable", 1); Set("_FillL2Enable", 0); Set("_FillNoiseEnable", 0);
         Set("_DiamondEnable", 0); Set("_DiamondL2Enable", 0); Set("_InnerSweepEnable", 0);
+        Set("_ParticleMode", 0); Set("_FillGroupMode", 0); Set("_SweepGroupMode", 0);
         Set("_SweepEnable", 1); Set("_FillIntensity", 1.05f); Set("_FillPixelsPerCycle", 220);
-        Set("_SweepColorIntensity", 0.9f); Set("_SweepWidthPx", 32); Set("_SweepFeatherPx", 5);
-        SyncKeywords(_mat);
+        Set("_FillDetailBoost", 0.15f); Set("_SweepColorIntensity", 0.9f); Set("_SweepWidthPx", 32); Set("_SweepFeatherPx", 5);
+        Set("_SweepUseGradient", 0); Set("_SweepUseObject", 0);
+        SyncKeywordsForTargets();
     }
 
     private void ApplyPresetStandard()
     {
         Set("_FillEnable", 1); Set("_FillL2Enable", 0); Set("_FillNoiseEnable", 0);
         Set("_DiamondEnable", 0); Set("_InnerSweepEnable", 1); Set("_SweepEnable", 1);
+        Set("_ParticleMode", 0); Set("_FillGroupMode", 1); Set("_FillPerObjCoord", 1);
         Set("_FillIntensity", 1.25f); Set("_FillSaturation", 1); Set("_FillPixelsPerCycle", 180);
-        Set("_InnerSweepIntensity", 0.65f); Set("_SweepColorIntensity", 1.15f);
-        SyncKeywords(_mat);
+        Set("_FillDetailBoost", 0.25f); Set("_InnerSweepIntensity", 0.65f); Set("_SweepColorIntensity", 1.15f);
+        Set("_SweepUseGradient", 0); Set("_SweepColorMode", 1);
+        SyncKeywordsForTargets();
     }
 
     private void ApplyPresetBigWin()
     {
         Set("_FillEnable", 1); Set("_FillL2Enable", 1); Set("_FillNoiseEnable", 1);
         Set("_DiamondEnable", 1); Set("_DiamondL2Enable", 1); Set("_InnerSweepEnable", 1); Set("_SweepEnable", 1);
+        Set("_ParticleMode", 0); Set("_FillGroupMode", 1); Set("_FillPerObjCoord", 1);
         Set("_FillIntensity", 1.55f); Set("_FillPixelsPerCycle", 135); Set("_FillL2Mix", 0.42f);
-        Set("_FillNoiseStrength", 0.08f); Set("_DiamondIntensity", 1.15f); Set("_DiamondBaseDim", 0.35f);
-        Set("_SweepColorIntensity", 1.65f); Set("_InnerSweepIntensity", 1.0f);
-        SyncKeywords(_mat);
+        Set("_FillL2Angle", 88); Set("_FillL2Speed", -0.75f); Set("_FillDetailBoost", 0.45f);
+        Set("_FillNoiseStrength", 0.08f); Set("_FillNoiseWarp", 0.16f); Set("_FillNoiseStyle", 1);
+        Set("_DiamondIntensity", 1.15f); Set("_DiamondBaseDim", 0.35f); Set("_DiamondScrollX", 0.04f); Set("_DiamondScrollY", 0.07f);
+        Set("_SweepColorIntensity", 1.65f); Set("_SweepColorMode", 1); Set("_SweepUseGradient", 1);
+        Set("_InnerSweepIntensity", 1.0f);
+        SyncKeywordsForTargets();
     }
 
     private void ApplyPresetParticle()
@@ -292,7 +325,7 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
         ApplyPresetMobile();
         Set("_ParticleMode", 1); Set("_FillGroupMode", 0); Set("_SweepGroupMode", 0); Set("_SweepUseObject", 0);
         Set("_FillNoiseEnable", 0); Set("_FillPixelsPerCycle", 160); Set("_SweepPixelsPerCycle", 210);
-        SyncKeywords(_mat);
+        SyncKeywordsForTargets();
     }
 
     private void SyncKeywords(Material m)
@@ -308,6 +341,14 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
         Keyword(m, "_SWEEP_MASK_ON", "_SweepMaskEnable");
         Keyword(m, "_PARTICLEMODE_ON", "_ParticleMode");
         EditorUtility.SetDirty(m);
+    }
+
+    private void SyncKeywordsForTargets()
+    {
+        foreach (Object target in _editor.targets)
+        {
+            if (target is Material m) SyncKeywords(m);
+        }
     }
 
     private void Keyword(Material m, string keyword, string prop)
@@ -342,6 +383,39 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
     {
         MaterialProperty p = P(name);
         if (p != null) _editor.ShaderProperty(p, label);
+    }
+
+    private void Popup(string name, string label, string[] options)
+    {
+        MaterialProperty p = P(name);
+        if (p == null) return;
+
+        EditorGUI.BeginChangeCheck();
+        EditorGUI.showMixedValue = p.hasMixedValue;
+        int value = Mathf.Clamp(Mathf.RoundToInt(p.floatValue), 0, options.Length - 1);
+        int newValue = EditorGUILayout.Popup(label, value, options);
+        EditorGUI.showMixedValue = false;
+
+        if (EditorGUI.EndChangeCheck())
+        {
+            p.floatValue = newValue;
+        }
+    }
+
+    private void ToggleFloat(string name, string label)
+    {
+        MaterialProperty p = P(name);
+        if (p == null) return;
+
+        EditorGUI.BeginChangeCheck();
+        EditorGUI.showMixedValue = p.hasMixedValue;
+        bool value = EditorGUILayout.Toggle(label, p.floatValue > 0.5f);
+        EditorGUI.showMixedValue = false;
+
+        if (EditorGUI.EndChangeCheck())
+        {
+            p.floatValue = value ? 1f : 0f;
+        }
     }
 
     private void Toggle(string name, string label, string keyword)
