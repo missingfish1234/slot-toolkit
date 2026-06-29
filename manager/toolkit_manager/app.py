@@ -36,7 +36,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .indexer import save_all_tool_metadata, save_index, save_tool_metadata, scan_tools
+from .indexer import save_all_tool_metadata, save_index, scan_tools
 from .models import APP_NAME, APP_VERSION, INDEX_FILE_NAME, AppConfig, ManagerRelease, ToolIndex, ToolInfo
 from .services import ConfigStore, GitHubClient, StateStore, ToolLibrary, app_data_dir, compare_versions, ensure_safe_child
 from .styles import APP_QSS
@@ -137,8 +137,8 @@ class DetailsPanel(QFrame):
     def __init__(self) -> None:
         super().__init__()
         self.setObjectName("DetailsPanel")
-        self.setMinimumWidth(380)
-        self.setMaximumWidth(460)
+        self.setMinimumWidth(360)
+        self.setMaximumWidth(430)
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
@@ -148,8 +148,8 @@ class DetailsPanel(QFrame):
         self.content = QWidget()
         self.content.setObjectName("DetailsContent")
         self.layout = QVBoxLayout(self.content)
-        self.layout.setContentsMargins(24, 24, 24, 24)
-        self.layout.setSpacing(12)
+        self.layout.setContentsMargins(20, 22, 20, 22)
+        self.layout.setSpacing(11)
         self.scroll.setWidget(self.content)
         outer.addWidget(self.scroll, 1)
         self.render_empty()
@@ -192,7 +192,7 @@ class DetailsPanel(QFrame):
         title_box = QVBoxLayout()
         title_box.setSpacing(3)
         title = QLabel(tool.name)
-        title.setObjectName("Title")
+        title.setObjectName("DetailsTitle")
         title.setWordWrap(True)
         category = QLabel(tool.category)
         category.setObjectName("Category")
@@ -256,6 +256,9 @@ class AdminDialog(QDialog):
         self.config_store = config_store
         self.index: ToolIndex | None = None
         self.current_tool: ToolInfo | None = None
+        self.loading_tool = False
+        self.has_pending_save = False
+        self.loaded_editor_values: tuple[str, ...] = ()
         self.setWindowTitle("管理者模式")
         self.resize(1040, 720)
 
@@ -283,7 +286,7 @@ class AdminDialog(QDialog):
         save_current = QPushButton("儲存目前工具")
         save_current.clicked.connect(self.save_current)
         save_all = QPushButton("儲存全部並更新總索引")
-        save_all.clicked.connect(self.save_all)
+        save_all.clicked.connect(lambda: self.save_all())
         push_git = QPushButton("推送工具更新到 Git")
         push_git.setObjectName("SecondaryButton")
         push_git.clicked.connect(self.push_tool_updates_to_git)
@@ -329,6 +332,18 @@ class AdminDialog(QDialog):
         self.description_input.setFixedHeight(92)
         self.changelog_input = QPlainTextEdit()
         self.changelog_input.setFixedHeight(118)
+        for field in [
+            self.id_input,
+            self.name_input,
+            self.category_input,
+            self.version_input,
+            self.entry_input,
+            self.updated_input,
+            self.tags_input,
+        ]:
+            field.textChanged.connect(self.mark_editor_dirty)
+        self.description_input.textChanged.connect(self.mark_editor_dirty)
+        self.changelog_input.textChanged.connect(self.mark_editor_dirty)
 
         form.addRow("資料夾路徑", self.path_value)
         form.addRow("工具 ID", self.id_input)
@@ -351,9 +366,22 @@ class AdminDialog(QDialog):
         body.setSizes([320, 700])
         layout.addWidget(body, 1)
 
+        bottom_actions = QHBoxLayout()
+        bottom_save_current = QPushButton("儲存目前工具")
+        bottom_save_current.clicked.connect(self.save_current)
+        bottom_save_all = QPushButton("儲存全部並更新總索引")
+        bottom_save_all.clicked.connect(lambda: self.save_all())
+        bottom_push_git = QPushButton("儲存並推送到 Git")
+        bottom_push_git.setObjectName("PrimaryButton")
+        bottom_push_git.clicked.connect(self.push_tool_updates_to_git)
         close = QPushButton("關閉")
         close.clicked.connect(self.accept)
-        layout.addWidget(close, 0, Qt.AlignRight)
+        bottom_actions.addStretch(1)
+        bottom_actions.addWidget(bottom_save_current)
+        bottom_actions.addWidget(bottom_save_all)
+        bottom_actions.addWidget(bottom_push_git)
+        bottom_actions.addWidget(close)
+        layout.addLayout(bottom_actions)
 
     def choose_folder(self) -> None:
         selected = QFileDialog.getExistingDirectory(self, "選擇工具包根目錄", self.root_input.text())
@@ -372,6 +400,7 @@ class AdminDialog(QDialog):
         save_all_tool_metadata(root, index)
         save_index(index, root / INDEX_FILE_NAME)
         self.index = index
+        self.has_pending_save = False
         self.populate_tool_list()
         self.persist_admin_root(root)
         self.summary.setText(f"已掃描 {len(index.tools)} 個工具，並更新 tool.json / {INDEX_FILE_NAME}。")
@@ -394,12 +423,12 @@ class AdminDialog(QDialog):
             self.load_tool(self.tool_list.currentItem().data(Qt.UserRole))
 
     def tool_changed(self, current: QListWidgetItem | None, _previous: QListWidgetItem | None) -> None:
-        if self.current_tool:
-            self.apply_fields_to_tool(self.current_tool)
+        self.store_current_editor_changes()
         if current:
             self.load_tool(current.data(Qt.UserRole))
 
     def load_tool(self, tool: ToolInfo) -> None:
+        self.loading_tool = True
         self.current_tool = tool
         self.path_value.setText(tool.path or "-")
         self.id_input.setText(tool.id)
@@ -411,6 +440,43 @@ class AdminDialog(QDialog):
         self.tags_input.setText(", ".join(tool.tags))
         self.description_input.setPlainText(tool.description)
         self.changelog_input.setPlainText("\n".join(tool.changelog))
+        self.loaded_editor_values = self.editor_values()
+        self.loading_tool = False
+
+    def editor_values(self) -> tuple[str, ...]:
+        return (
+            self.id_input.text(),
+            self.name_input.text(),
+            self.category_input.text(),
+            self.version_input.text(),
+            self.entry_input.text(),
+            self.updated_input.text(),
+            self.tags_input.text(),
+            self.description_input.toPlainText(),
+            self.changelog_input.toPlainText(),
+        )
+
+    def mark_editor_dirty(self, *_args) -> None:
+        if self.loading_tool or not self.current_tool:
+            return
+        if self.editor_values() != self.loaded_editor_values:
+            self.has_pending_save = True
+            self.summary.setText("有尚未儲存的修改。請按「儲存目前工具」、「儲存全部並更新總索引」或「儲存並推送到 Git」。")
+
+    def store_current_editor_changes(self) -> bool:
+        if not self.current_tool:
+            return False
+        if self.editor_values() == self.loaded_editor_values:
+            return False
+        self.apply_fields_to_tool(self.current_tool)
+        self.update_current_item_text()
+        self.has_pending_save = True
+        return True
+
+    def mark_saved(self) -> None:
+        self.has_pending_save = False
+        if self.current_tool:
+            self.loaded_editor_values = self.editor_values()
 
     def apply_fields_to_tool(self, tool: ToolInfo) -> None:
         tool.id = self.id_input.text().strip() or tool.id
@@ -439,14 +505,15 @@ class AdminDialog(QDialog):
             return
         root = self.root_path()
         self.apply_fields_to_tool(self.current_tool)
-        save_tool_metadata(root, self.current_tool)
+        save_all_tool_metadata(root, self.index)
         save_index(self.index, root / INDEX_FILE_NAME)
         self.update_current_item_text()
         self.persist_admin_root(root)
+        self.mark_saved()
         self.summary.setText(f"已儲存：{self.current_tool.name}")
         self.index_updated.emit()
 
-    def save_all(self) -> None:
+    def save_all(self, show_message: bool = True) -> None:
         if not self.index:
             self.scan()
             return
@@ -457,9 +524,11 @@ class AdminDialog(QDialog):
         save_index(self.index, root / INDEX_FILE_NAME)
         self.update_current_item_text()
         self.persist_admin_root(root)
+        self.mark_saved()
         self.summary.setText(f"已儲存全部工具，並更新 {INDEX_FILE_NAME}。")
         self.index_updated.emit()
-        QMessageBox.information(self, APP_NAME, "工具文件已更新完成。")
+        if show_message:
+            QMessageBox.information(self, APP_NAME, "工具文件已更新完成。")
 
     def push_tool_updates_to_git(self) -> None:
         root = self.root_path()
@@ -475,6 +544,7 @@ class AdminDialog(QDialog):
                     self.apply_fields_to_tool(self.current_tool)
                 save_all_tool_metadata(root, self.index)
                 save_index(self.index, root / INDEX_FILE_NAME)
+                self.mark_saved()
                 self.index_updated.emit()
 
             status = git_output(root, ["status", "--short"])
@@ -525,6 +595,33 @@ class AdminDialog(QDialog):
             QMessageBox.information(self, APP_NAME, f"工具更新已推送到 Git：origin/{branch}")
         except Exception as exc:
             QMessageBox.warning(self, APP_NAME, f"Git 推送失敗：\n{exc}")
+
+    def confirm_close_with_unsaved_changes(self) -> bool:
+        self.store_current_editor_changes()
+        if not self.has_pending_save:
+            return True
+        choice = QMessageBox.question(
+            self,
+            APP_NAME,
+            "有尚未儲存的工具資料。\n\n是否先儲存全部並更新總索引？",
+            QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+            QMessageBox.Yes,
+        )
+        if choice == QMessageBox.Cancel:
+            return False
+        if choice == QMessageBox.Yes:
+            self.save_all(show_message=False)
+        return True
+
+    def accept(self) -> None:  # type: ignore[override]
+        if self.confirm_close_with_unsaved_changes():
+            super().accept()
+
+    def closeEvent(self, event) -> None:  # type: ignore[override]
+        if self.confirm_close_with_unsaved_changes():
+            event.accept()
+        else:
+            event.ignore()
 
     def update_current_item_text(self) -> None:
         item = self.tool_list.currentItem()
@@ -1208,13 +1305,11 @@ def section(text: str) -> QLabel:
 def meta_row(key: str, value: str) -> QWidget:
     row = QFrame()
     row.setObjectName("MetaRow")
-    layout = QHBoxLayout(row)
-    layout.setContentsMargins(10, 7, 10, 7)
-    layout.setSpacing(10)
+    layout = QVBoxLayout(row)
+    layout.setContentsMargins(11, 8, 11, 9)
+    layout.setSpacing(4)
     key_label = QLabel(key)
     key_label.setObjectName("MetaKey")
-    key_label.setFixedWidth(76)
-    key_label.setAlignment(Qt.AlignTop | Qt.AlignLeft)
     value_label = QLabel(soft_wrap_text(value))
     value_label.setObjectName("MetaValue")
     value_label.setWordWrap(True)
@@ -1222,7 +1317,7 @@ def meta_row(key: str, value: str) -> QWidget:
     value_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
     value_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
     layout.addWidget(key_label)
-    layout.addWidget(value_label, 1)
+    layout.addWidget(value_label)
     return row
 
 

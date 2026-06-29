@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-29 16:54:59",
+  "updatedAt": "2026-06-29 17:00:57",
   "tools": [
     {
       "id": "sharder-cocos-4e00822c5716724763835149",
@@ -175,7 +175,7 @@
       "id": "spine76f895dc5de55177-spine4e3263a5793a610f5de55177",
       "name": "SPINE串接示意工具",
       "category": "SPINE相關工具",
-      "description": "",
+      "description": "支援SPINE3.8與4.0版本，可直接串接SPINE動畫製作示意動畫",
       "version": "1.0.0",
       "path": "SPINE相關工具/SPINE串接示意工具",
       "entry": "SpinePlayTest.html",

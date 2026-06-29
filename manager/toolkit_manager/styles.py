@@ -38,6 +38,10 @@ QWidget#DetailsContent {
     background: #111417;
 }
 
+QWidget#DetailsContent QPushButton {
+    min-height: 34px;
+}
+
 QSplitter::handle {
     background: #20262b;
 }
@@ -219,6 +223,13 @@ QLabel#Title {
     color: #f4fff0;
 }
 
+QLabel#DetailsTitle {
+    font-size: 20px;
+    font-weight: 900;
+    color: #f4fff0;
+    line-height: 130%;
+}
+
 QLabel#AppSubtitle {
     color: #95a096;
     font-size: 12px;
@@ -228,6 +239,7 @@ QLabel#SectionTitle {
     font-size: 15px;
     font-weight: 900;
     color: #dfff85;
+    padding-top: 4px;
 }
 
 QLabel#ToolName {
@@ -246,23 +258,26 @@ QLabel#Muted, QLabel#Meta {
 }
 
 QFrame#MetaRow {
-    background: #151a1a;
+    background: #141a18;
     border: 1px solid #24302b;
     border-radius: 6px;
 }
 
 QLabel#MetaKey {
-    color: #9aa69d;
+    color: #91a092;
     font-size: 12px;
+    font-weight: 700;
 }
 
 QLabel#MetaValue {
     color: #eef5ee;
+    font-size: 13px;
     line-height: 140%;
 }
 
 QLabel#CardDescription {
     color: #c7d3ca;
+    font-size: 13px;
     line-height: 150%;
 }
 
