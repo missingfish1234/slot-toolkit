@@ -1,6 +1,23 @@
 {
-  "updatedAt": "2026-06-29 17:00:57",
+  "updatedAt": "2026-06-30 10:31:08",
   "tools": [
+    {
+      "id": "6e2c8a665de55177-photoshop5167639b4ef6",
+      "name": "Photoshop內掛件",
+      "category": "測試工具",
+      "description": "",
+      "version": "1.0.0",
+      "path": "PS內插件/Photoshop內掛件",
+      "entry": "PSDExportManager.exe",
+      "icon": "",
+      "tags": [
+        "測試工具",
+        "Photoshop內掛件"
+      ],
+      "updatedAt": "2026-06-11",
+      "size": "97.7 KB",
+      "changelog": []
+    },
     {
       "id": "sharder-cocos-4e00822c5716724763835149",
       "name": "一般圖片掃光",
@@ -288,23 +305,6 @@
       ],
       "updatedAt": "2026-06-11",
       "size": "767.1 KB",
-      "changelog": []
-    },
-    {
-      "id": "6e2c8a665de55177-photoshop5167639b4ef6",
-      "name": "Photoshop內掛件",
-      "category": "測試工具",
-      "description": "",
-      "version": "1.0.0",
-      "path": "測試工具/Photoshop內掛件",
-      "entry": "PSDExportManager.exe",
-      "icon": "",
-      "tags": [
-        "測試工具",
-        "Photoshop內掛件"
-      ],
-      "updatedAt": "2026-06-11",
-      "size": "97.7 KB",
       "changelog": []
     },
     {

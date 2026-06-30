@@ -4,7 +4,7 @@
   "category": "測試工具",
   "description": "",
   "version": "1.0.0",
-  "path": "測試工具/Photoshop內掛件",
+  "path": "PS內插件/Photoshop內掛件",
   "entry": "PSDExportManager.exe",
   "icon": "",
   "tags": [
