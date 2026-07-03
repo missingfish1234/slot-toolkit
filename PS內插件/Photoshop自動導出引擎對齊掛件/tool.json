@@ -2,9 +2,9 @@
   "id": "6e2c8a665de55177-photoshop5167639b4ef6",
   "name": "Photoshop內掛件",
   "category": "測試工具",
-  "description": "",
+  "description": "可自動導出美術圖層，並可以針對UNITY、COCOS或SPINE版面位置的PREFAB檔案，免去重新在引擎中擺放位置的步驟。",
   "version": "1.0.0",
-  "path": "PS內插件/Photoshop內掛件",
+  "path": "PS內插件/Photoshop自動導出引擎對齊掛件",
   "entry": "PSDExportManager.exe",
   "icon": "",
   "tags": [
