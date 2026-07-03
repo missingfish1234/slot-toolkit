@@ -7,7 +7,7 @@ from typing import Any
 
 
 APP_NAME = "小魚骨頭工作包管理器"
-APP_VERSION = "1.1.5"
+APP_VERSION = "1.1.6"
 INDEX_FILE_NAME = "tools-index.json"
 
 

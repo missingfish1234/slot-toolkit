@@ -155,12 +155,7 @@ class DetailsPanel(QFrame):
         self.render_empty()
 
     def clear(self) -> None:
-        while self.layout.count():
-            item = self.layout.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.setParent(None)
-                widget.deleteLater()
+        clear_layout(self.layout)
 
     def render_empty(self) -> None:
         self.clear()
@@ -1305,6 +1300,7 @@ def section(text: str) -> QLabel:
 def meta_row(key: str, value: str) -> QWidget:
     row = QFrame()
     row.setObjectName("MetaRow")
+    row.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
     layout = QVBoxLayout(row)
     layout.setContentsMargins(11, 8, 11, 9)
     layout.setSpacing(4)
@@ -1319,6 +1315,20 @@ def meta_row(key: str, value: str) -> QWidget:
     layout.addWidget(key_label)
     layout.addWidget(value_label)
     return row
+
+
+def clear_layout(layout: QVBoxLayout | QHBoxLayout | QGridLayout) -> None:
+    while layout.count():
+        item = layout.takeAt(0)
+        child_layout = item.layout()
+        if child_layout:
+            clear_layout(child_layout)
+            child_layout.deleteLater()
+            continue
+        widget = item.widget()
+        if widget:
+            widget.setParent(None)
+            widget.deleteLater()
 
 
 def soft_wrap_text(value: str) -> str:
