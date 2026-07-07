@@ -1,57 +1,35 @@
-# Spine Alpha Upscale Tool
+# SPINE圖片解析度提高工具
 
-Portable Real-ESRGAN upscaling tool for transparent Spine/game PNG parts.
+針對 SPINE / 遊戲透明 PNG 拆件進行 Real-ESRGAN 放大，並保留原始 alpha 輪廓。
 
-The tool preserves the original alpha silhouette by:
+這個工具會：
 
-1. Preparing clean RGB input from each transparent PNG.
-2. Running Real-ESRGAN.
-3. Reapplying the source alpha channel scaled to the same ratio.
-4. Writing a validation CSV and preview contact sheet.
+1. 讀取來源資料夾內的 PNG。
+2. 裁切可見範圍並補乾淨 RGB 底色，降低透明區域造成的雜訊。
+3. 逐張呼叫 Real-ESRGAN，避免整包批次推論造成 Vulkan 黑圖或彩色條紋。
+4. 將原圖 alpha 依倍率放大後套回輸出圖。
+5. 檢查輸出品質，若偵測到黑化、嚴重偏色或條紋，會自動回退成乾淨的傳統放大。
+6. 輸出 `_validation_report.csv` 與 `_preview_contact_sheet.png` 方便檢查。
 
-## Folder Contents
+## 快速使用
 
-- `spine_alpha_upscale_tool.py` - main CLI tool
-- `run_upscale_folder_4x.cmd` - Windows shortcut for 4x `realesr-animevideov3`
-- `tools/realesrgan-ncnn-vulkan.exe` - Real-ESRGAN executable
-- `tools/models/` - bundled Real-ESRGAN models
-
-## Quick Run
-
-Recommended for artists / general users:
+一般使用請直接雙擊：
 
 ```bat
 啟動SPINE圖片解析度提高工具.cmd
 ```
 
-The graphical interface lets you choose:
+圖形介面可設定：
 
-- source PNG folder
-- output folder
-- upscale ratio
-- Real-ESRGAN model
-- preview count
-- whether to keep intermediate files
+- 來源 PNG 資料夾
+- 輸出資料夾
+- 放大倍率
+- Real-ESRGAN 模型
+- Tile Size
+- 預覽圖數量
+- 是否保留中介檔
 
-To upscale the parent folder of this tool folder:
-
-```bat
-run_upscale_folder_4x.cmd
-```
-
-To upscale a specific folder:
-
-```bat
-run_upscale_folder_4x.cmd "D:\path\to\images"
-```
-
-To choose both input and output folders:
-
-```bat
-run_upscale_folder_4x.cmd "D:\path\to\images" "D:\path\to\images_4x"
-```
-
-## CLI
+## 命令列
 
 ```bat
 python spine_alpha_upscale_tool.py ^
@@ -61,30 +39,29 @@ python spine_alpha_upscale_tool.py ^
   --model realesr-animevideov3
 ```
 
-Supported models:
+支援模型：
 
 - `realesr-animevideov3`
 - `realesrgan-x4plus-anime`
 - `realesrgan-x4plus`
 
-Supported scales:
+支援倍率：
 
 - `2`
 - `3`
 - `4`
 
-## Requirements
+## 資料夾內容
 
-- Windows
-- Python with Pillow installed
-- The bundled `tools` folder must stay next to `spine_alpha_upscale_tool.py`
+- `spine_alpha_upscale_tool.py`：主要工具
+- `啟動SPINE圖片解析度提高工具.cmd`：圖形介面啟動檔
+- `run_upscale_folder_4x.cmd`：命令列快速放大啟動檔
+- `tools/realesrgan-ncnn-vulkan.exe`：Real-ESRGAN 執行檔
+- `tools/models/`：Real-ESRGAN 模型
 
-## Outputs
+## 注意事項
 
-The output folder contains:
-
-- Upscaled PNG files
-- `_validation_report.csv`
-- `_preview_contact_sheet.png`
-
-Source PNG files are not overwritten.
+- 需要 Windows 與 Python。
+- Python 需要安裝 Pillow。
+- `tools` 資料夾必須和 `spine_alpha_upscale_tool.py` 放在同一層。
+- 若報告中的 `fallback_used` 為 `True`，代表該圖的 AI 輸出被判定異常，已自動改用乾淨放大保護結果。

@@ -3,7 +3,7 @@
   "name": "SPINE圖片解析度提高工具",
   "category": "圖片處理工具",
   "description": "針對 SPINE / 遊戲透明 PNG 拆件進行 Real-ESRGAN 放大，保留原始 alpha 輪廓並輸出檢查報告與預覽圖。",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "path": "圖片處理工具/SPINE圖片解析度提高工具",
   "entry": "啟動SPINE圖片解析度提高工具.cmd",
   "icon": "",
@@ -17,6 +17,7 @@
   "updatedAt": "2026-07-07",
   "size": "50.4 MB",
   "changelog": [
-    "新增圖形操作介面，可選擇來源、輸出、倍率與模型。"
+    "改為逐張執行 Real-ESRGAN，避免 Vulkan 批次處理造成黑圖或彩色條紋。",
+    "新增輸出品質檢查，偵測黑化、偏色與條紋時自動回退成乾淨放大。"
   ]
 }

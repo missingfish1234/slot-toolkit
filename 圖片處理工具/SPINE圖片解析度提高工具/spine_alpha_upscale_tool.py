@@ -46,6 +46,25 @@ def make_rgb_input(src: Image.Image) -> Image.Image:
     return filled
 
 
+def visible_bbox(src: Image.Image, padding: int = 8) -> tuple[int, int, int, int] | None:
+    alpha = src.getchannel("A")
+    mask = alpha.point(lambda p: 255 if p > 2 else 0)
+    box = mask.getbbox()
+    if box is None:
+        return None
+    left, top, right, bottom = box
+    return (
+        max(0, left - padding),
+        max(0, top - padding),
+        min(src.width, right + padding),
+        min(src.height, bottom + padding),
+    )
+
+
+def crop_box_text(box: tuple[int, int, int, int] | None) -> str:
+    return "" if box is None else ",".join(str(v) for v in box)
+
+
 def scaled_alpha(src: Image.Image, scale: int) -> Image.Image:
     return src.getchannel("A").resize((src.width * scale, src.height * scale), Image.Resampling.LANCZOS)
 
@@ -54,11 +73,16 @@ def source_files(input_dir: Path) -> list[Path]:
     return sorted(p for p in input_dir.glob("*.png") if p.is_file() and not p.name.startswith("_"))
 
 
-def prepare_inputs(files: list[Path], work_input: Path) -> None:
+def prepare_inputs(files: list[Path], work_input: Path) -> dict[str, tuple[int, int, int, int] | None]:
     work_input.mkdir(parents=True, exist_ok=True)
+    crop_boxes: dict[str, tuple[int, int, int, int] | None] = {}
     for src_path in files:
         src = Image.open(src_path).convert("RGBA")
-        make_rgb_input(src).save(work_input / src_path.name, "PNG", optimize=True)
+        box = visible_bbox(src)
+        crop_boxes[src_path.name] = box
+        model_src = src.crop(box) if box else src
+        make_rgb_input(model_src).save(work_input / src_path.name, "PNG", optimize=True)
+    return crop_boxes
 
 
 def run_realesrgan(
@@ -71,27 +95,99 @@ def run_realesrgan(
     tile_size: int | None,
 ) -> None:
     raw_output.mkdir(parents=True, exist_ok=True)
-    cmd = [
-        str(exe),
-        "-i",
-        str(work_input),
-        "-o",
-        str(raw_output),
-        "-m",
-        str(model_dir),
-        "-n",
-        model,
-        "-s",
-        str(scale),
-        "-f",
-        "png",
-    ]
-    if tile_size is not None:
-        cmd.extend(["-t", str(tile_size)])
-    subprocess.run(cmd, cwd=str(exe.parent), check=True)
+    prepared_files = source_files(work_input)
+    for index, input_path in enumerate(prepared_files, start=1):
+        output_path = raw_output / input_path.name
+        print(f"Upscaling {index}/{len(prepared_files)}: {input_path.name}", flush=True)
+        cmd = [
+            str(exe),
+            "-i",
+            str(input_path),
+            "-o",
+            str(output_path),
+            "-m",
+            str(model_dir),
+            "-n",
+            model,
+            "-s",
+            str(scale),
+            "-f",
+            "png",
+        ]
+        if tile_size is not None:
+            cmd.extend(["-t", str(tile_size)])
+        subprocess.run(cmd, cwd=str(exe.parent), check=True)
 
 
-def apply_alpha_and_validate(files: list[Path], raw_output: Path, output_dir: Path, scale: int) -> list[dict[str, object]]:
+def resized_source(src: Image.Image, expected_size: tuple[int, int]) -> Image.Image:
+    return src.resize(expected_size, Image.Resampling.LANCZOS)
+
+
+def visual_issue(src: Image.Image, candidate: Image.Image, expected_size: tuple[int, int]) -> str:
+    baseline = resized_source(src, expected_size)
+    alpha = baseline.getchannel("A")
+    mask = alpha.point(lambda p: 255 if p > 16 else 0)
+    visible_pixels = ImageStat.Stat(mask).sum[0] / 255
+    if visible_pixels <= 0:
+        return ""
+
+    base_rgb = baseline.convert("RGB")
+    cand_rgb = candidate.convert("RGB")
+    base_stat = ImageStat.Stat(base_rgb, mask)
+    cand_stat = ImageStat.Stat(cand_rgb, mask)
+    base_mean = base_stat.mean[:3]
+    cand_mean = cand_stat.mean[:3]
+    diff = ImageChops.difference(base_rgb, cand_rgb)
+    diff_mean = ImageStat.Stat(diff, mask).mean[:3]
+
+    base_luma = base_mean[0] * 0.2126 + base_mean[1] * 0.7152 + base_mean[2] * 0.0722
+    cand_luma = cand_mean[0] * 0.2126 + cand_mean[1] * 0.7152 + cand_mean[2] * 0.0722
+    avg_diff = sum(diff_mean) / 3
+    base_min = sum(channel[0] for channel in base_stat.extrema[:3]) / 3
+    cand_min = sum(channel[0] for channel in cand_stat.extrema[:3]) / 3
+    base_std = sum(base_stat.stddev[:3]) / 3
+    cand_std = sum(cand_stat.stddev[:3]) / 3
+
+    if base_luma > 45 and cand_luma < base_luma * 0.35 and avg_diff > 45:
+        return "darkened"
+    if avg_diff > 60:
+        return "large_color_shift"
+    if base_luma > 100 and avg_diff > 35 and cand_min < max(8, base_min * 0.35):
+        return "stripe_noise"
+    if avg_diff > 35 and cand_std > max(base_std * 1.6, base_std + 35):
+        return "noise_spike"
+    if max(diff_mean) > 145 and avg_diff > 70:
+        return "channel_shift"
+    return ""
+
+
+def compose_raw_rgb(
+    src: Image.Image,
+    raw: Image.Image,
+    crop_box: tuple[int, int, int, int] | None,
+    expected_size: tuple[int, int],
+    scale: int,
+) -> Image.Image:
+    if raw.size == expected_size or crop_box is None:
+        return raw.resize(expected_size, Image.Resampling.LANCZOS) if raw.size != expected_size else raw
+
+    left, top, right, bottom = crop_box
+    crop_size = ((right - left) * scale, (bottom - top) * scale)
+    if raw.size != crop_size:
+        raw = raw.resize(crop_size, Image.Resampling.LANCZOS)
+
+    base = resized_source(src, expected_size).convert("RGB")
+    base.paste(raw, (left * scale, top * scale))
+    return base
+
+
+def apply_alpha_and_validate(
+    files: list[Path],
+    raw_output: Path,
+    output_dir: Path,
+    scale: int,
+    crop_boxes: dict[str, tuple[int, int, int, int] | None],
+) -> list[dict[str, object]]:
     output_dir.mkdir(parents=True, exist_ok=True)
     rows: list[dict[str, object]] = []
     for src_path in files:
@@ -100,14 +196,20 @@ def apply_alpha_and_validate(files: list[Path], raw_output: Path, output_dir: Pa
         src = Image.open(src_path).convert("RGBA")
         expected_size = (src.width * scale, src.height * scale)
         alpha = scaled_alpha(src, scale)
+        crop_box = crop_boxes.get(src_path.name)
+        fallback_used = False
+        quality_issue = ""
 
         raw_exists = raw_path.exists()
         if raw_exists:
             raw = Image.open(raw_path).convert("RGB")
-            if raw.size != expected_size:
-                raw = raw.resize(expected_size, Image.Resampling.LANCZOS)
-            out = raw.convert("RGBA")
+            composed = compose_raw_rgb(src, raw, crop_box, expected_size, scale)
+            out = composed.convert("RGBA")
             out.putalpha(alpha)
+            quality_issue = visual_issue(src, out, expected_size)
+            if quality_issue:
+                out = resized_source(src, expected_size)
+                fallback_used = True
             out.save(final_path, "PNG", optimize=True)
 
         output_exists = final_path.exists()
@@ -133,6 +235,9 @@ def apply_alpha_and_validate(files: list[Path], raw_output: Path, output_dir: Pa
                 "expected_width": expected_size[0],
                 "expected_height": expected_size[1],
                 "alpha_matches_scaled_original": alpha_ok,
+                "crop_box": crop_box_text(crop_box),
+                "fallback_used": fallback_used,
+                "quality_issue": quality_issue,
             }
         )
     return rows
@@ -154,6 +259,9 @@ def write_report(rows: list[dict[str, object]], report_path: Path) -> None:
                 "expected_width",
                 "expected_height",
                 "alpha_matches_scaled_original",
+                "crop_box",
+                "fallback_used",
+                "quality_issue",
             ],
         )
         writer.writeheader()
@@ -230,7 +338,7 @@ def parse_args() -> argparse.Namespace:
         default=str(here / "tools" / "models"),
         help="Path to Real-ESRGAN ncnn model folder.",
     )
-    parser.add_argument("--tile-size", type=int, default=None, help="Optional Real-ESRGAN tile size.")
+    parser.add_argument("--tile-size", type=int, default=128, help="Optional Real-ESRGAN tile size. Default: 128.")
     parser.add_argument("--preview-count", type=int, default=24, help="Number of files to include in preview sheet.")
     parser.add_argument("--skip-upscale", action="store_true", help="Skip Real-ESRGAN and only reapply alpha to raw outputs.")
     parser.add_argument("--keep-work", action="store_true", help="Keep intermediate RGB and raw Real-ESRGAN folders.")
@@ -541,13 +649,14 @@ def main() -> int:
     print(f"Scale: {args.scale}x")
     print(f"Output: {output_dir}")
 
-    prepare_inputs(files, work_input)
+    crop_boxes = prepare_inputs(files, work_input)
     if not args.skip_upscale:
         run_realesrgan(exe, model_dir, work_input, raw_output, args.model, args.scale, args.tile_size)
 
-    rows = apply_alpha_and_validate(files, raw_output, output_dir, args.scale)
+    rows = apply_alpha_and_validate(files, raw_output, output_dir, args.scale, crop_boxes)
     write_report(rows, report_path)
     make_preview(files, output_dir, preview_path, args.preview_count)
+    fallback_count = sum(1 for row in rows if row.get("fallback_used"))
 
     bad = [
         row
@@ -560,6 +669,7 @@ def main() -> int:
     ]
     print(f"Finished: {len(rows)} files")
     print(f"Validation failures: {len(bad)}")
+    print(f"Safety fallbacks: {fallback_count}")
     print(f"Report: {report_path}")
     print(f"Preview: {preview_path}")
 
