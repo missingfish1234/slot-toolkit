@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-07-03 09:44:59",
+  "updatedAt": "2026-07-07 17:20:00",
   "tools": [
     {
       "id": "6e2c8a665de55177-photoshop5167639b4ef6",
@@ -425,6 +425,28 @@
       "updatedAt": "2026-06-11",
       "size": "120.3 MB",
       "changelog": []
+    },
+    {
+      "id": "spine-image-upscale-tool",
+      "name": "SPINE圖片解析度提高工具",
+      "category": "圖片處理工具",
+      "description": "針對 SPINE / 遊戲透明 PNG 拆件進行 Real-ESRGAN 放大，保留原始 alpha 輪廓並輸出檢查報告與預覽圖。",
+      "version": "1.0.0",
+      "path": "圖片處理工具/SPINE圖片解析度提高工具",
+      "entry": "啟動SPINE圖片解析度提高工具.cmd",
+      "icon": "",
+      "tags": [
+        "圖片處理工具",
+        "SPINE",
+        "Real-ESRGAN",
+        "透明圖",
+        "解析度提高"
+      ],
+      "updatedAt": "2026-07-07",
+      "size": "50.4 MB",
+      "changelog": [
+        "新增圖形操作介面，可選擇來源、輸出、倍率與模型。"
+      ]
     }
   ]
 }
