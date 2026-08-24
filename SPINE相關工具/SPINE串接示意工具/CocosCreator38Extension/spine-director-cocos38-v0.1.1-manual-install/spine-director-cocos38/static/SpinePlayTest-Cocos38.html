@@ -1,0 +1,2863 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>Spine Director V123 (MP4 Export)</title>
+    
+    <script src="./vendor/vis-timeline-graph2d.min.js"></script>
+    <link href="./vendor/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
+
+    <style>
+        :root {
+            --bg-app: #181818;
+            --bg-panel: #202020;
+            --bg-header: #2D2D2D;
+            --bg-input: #121212;
+            --bg-hover: #383838;
+            --bg-active: #404040;
+            
+            --border: #3A3A3A;
+            --border-focus: #555;
+            
+            --accent: #0A84FF;
+            --text-main: #E0E0E0;
+            --text-sub: #909090;
+            --text-dim: #606060;
+            
+            --anim-color: #32D74B; 
+            --move-color: #BF5AF2;    
+            --rotate-color: #FF9F0A;  
+            --scale-color: #0A84FF;   
+            --phys-color: #FFD60A;
+            --rec-color: #FF453A;
+            --alpha-color: #32ADE6; 
+            
+            --radius: 4px;
+            --font-size: 12px;
+        }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            background: var(--bg-app); color: var(--text-main); 
+            margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none; font-size: var(--font-size);
+        }
+        
+        /* V122 版面調整：右側操作面板固定延伸到底，左側時間軸縮短 */
+        #workspace { 
+            flex: none; height: 72%; display: flex; overflow: hidden; min-height: 200px; position: relative;
+            width: calc(100vw - 320px); align-self: flex-start;
+        }
+        
+        #canvas-container { 
+            flex: 1; background: #000; position: relative; overflow: hidden; 
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.5); 
+            border: 2px solid transparent; transition: border-color 0.2s; 
+        }
+        #canvas-container.drag-over {
+            border-color: var(--anim-color); 
+            border-width: 4px;
+            box-shadow: inset 0 0 100px rgba(50, 215, 75, 0.3);
+        }
+        #canvas-container.drag-over::before {
+            content: "📥 放開滑鼠匯入素材";
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px; font-weight: bold; color: var(--anim-color);
+            background: rgba(0,0,0,0.7); padding: 15px 30px;
+            border-radius: 8px; pointer-events: none; z-index: 100000;
+        }
+        #canvas-container.recording { border-color: var(--rec-color); border-width: 2px; }
+        #canvas-container.recording::after {
+            content: "🔴 REC (Auto-Key Mode)"; position: absolute; top: 15px; right: 15px; 
+            color: white; background: var(--rec-color); font-weight: 700; font-size: 10px; 
+            padding: 4px 8px; border-radius: 4px; pointer-events: none;
+            box-shadow: 0 0 10px rgba(255, 69, 58, 0.5);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+
+        .rec-highlight {
+            border-color: var(--rec-color) !important;
+            box-shadow: inset 0 0 8px rgba(255, 69, 58, 0.3);
+            color: #FF8A84 !important;
+        }
+
+        #inspector { 
+            width: 320px; background: var(--bg-panel); border-left: 1px solid var(--border); 
+            display: flex; flex-direction: column; flex-shrink: 0; z-index: 200; position: fixed;
+            top: 0; right: 0; height: 100vh; 
+        }
+        
+        .panel-header { 
+            height: 40px; padding: 0 12px; display: flex; justify-content: space-between; align-items: center; 
+            background: var(--bg-header); border-bottom: 1px solid var(--border); font-weight: 600; letter-spacing: 0.5px;
+        }
+        
+        .panel-body { 
+            flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0; display: flex; flex-direction: column; 
+        }
+
+        .panel-footer {
+            background: var(--bg-header); border-top: 1px solid var(--border);
+            padding: 12px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; z-index: 10;
+        }
+
+        .menu-item:hover { background-color: var(--accent) !important; color: white !important; }
+
+        .section { border-bottom: 1px solid var(--border); }
+        .section-header { 
+            padding: 10px 12px; background: var(--bg-panel); cursor: pointer; user-select: none;
+            display: flex; justify-content: space-between; align-items: center; transition: 0.2s;
+        }
+        .section-header:hover { background: var(--bg-hover); }
+        .section-title { font-weight: 700; color: var(--text-sub); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
+        .section-content { padding: 12px; display: flex; flex-direction: column; gap: 10px; background: #252525; }
+        .section.collapsed .section-content { display: none; }
+        .arrow { font-size: 10px; transition: transform 0.2s; color: var(--text-dim); }
+        .section.collapsed .arrow { transform: rotate(-90deg); }
+
+        .control-row { display: flex; align-items: center; gap: 8px; margin-bottom: 0; }
+        .label { width: 70px; color: var(--text-sub); font-size: 11px; flex-shrink: 0; }
+        .full-width { width: 100%; }
+        
+        input[type="text"], input[type="number"], select { 
+            background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); 
+            padding: 4px 8px; border-radius: var(--radius); width: 100%; box-sizing: border-box; font-size: 11px; height: 24px; transition: 0.2s;
+        }
+        input:focus, select:focus { border-color: var(--accent); background: #000; outline: none; }
+        
+        .xy-group { display: flex; gap: 4px; flex: 1; }
+        .separator { height: 1px; background: rgba(255,255,255,0.05); margin: 2px 0; }
+        
+        .input-icon-wrap { position: relative; flex: 1; display: flex; align-items: center; }
+        .input-icon { position: absolute; left: 8px; color: var(--accent); font-size: 9px; font-weight: bold; pointer-events: none; z-index: 5; opacity: 0.8; }
+        .input-icon-wrap input { padding-left: 38px !important; font-family: 'Consolas', monospace; }
+
+        .slider-wrap { flex: 1; display: flex; align-items: center; gap: 8px; }
+        input[type="range"] { flex: 1; height: 4px; border-radius: 2px; -webkit-appearance: none; background: var(--border); cursor: pointer; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; height: 12px; width: 12px; border-radius: 50%; background: var(--text-sub); margin-top: -4px; transition: 0.2s; }
+        input[type="range"]::-webkit-slider-thumb:hover { background: var(--accent); transform: scale(1.2); }
+        /* ✅ 修復數字欄位太窄導致負數被切斷的問題 */
+        .slider-val { width: 55px !important; text-align: right; font-family: monospace; color: var(--accent); }
+
+        button { 
+            background: var(--bg-hover); color: var(--text-main); border: 1px solid transparent; 
+            padding: 5px 12px; cursor: pointer; border-radius: var(--radius); font-size: 11px; font-weight: 500;
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;
+        }
+        button:hover { background: var(--bg-active); border-color: var(--border-focus); }
+        button:active { transform: translateY(1px); }
+        button.primary { background: var(--accent); color: white; }
+        button.primary:hover { background: #0070D0; }
+        button.danger { background: rgba(255, 69, 58, 0.1); color: var(--rec-color); border-color: rgba(255, 69, 58, 0.3); }
+        button.danger:hover { background: rgba(255, 69, 58, 0.2); }
+        button.icon-only { padding: 4px; width: 28px; height: 28px; font-size: 14px; background: transparent; }
+        button.icon-only:hover { background: var(--bg-hover); color: white; }
+        button.sm { font-size: 10px; padding: 2px 6px; height: 20px; }
+
+        .tab-bar { display: flex; background: var(--bg-app); border-bottom: 1px solid var(--border); }
+        .tab-btn { flex: 1; background: transparent; border: none; padding: 10px 0; color: var(--text-sub); font-size: 11px; cursor: pointer; border-bottom: 2px solid transparent; transition: 0.2s; }
+        .tab-btn:hover { color: var(--text-main); background: var(--bg-panel); }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg-panel); font-weight: 600; }
+        .tab-content { display: none; height: 100%; flex-direction: column; } 
+        .tab-content.active { display: flex; }
+
+        #splitter { 
+            height: 4px; background: #000; border-top: 1px solid #333; border-bottom: 1px solid #333; cursor: row-resize; z-index: 100; flex-shrink: 0;
+            width: calc(100vw - 320px); align-self: flex-start;
+        }
+        #splitter:hover { background: var(--accent); }
+
+        #timeline-area { 
+            flex: 1; background: #151515; display: flex; flex-direction: column;
+            width: calc(100vw - 320px); align-self: flex-start; min-height: 150px;
+        }
+        #timeline-toolbar { height: 36px; background: var(--bg-header); display: flex; align-items: center; padding: 0 10px; gap: 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        #visualization { flex: 1; width: 100%; overflow: hidden; }
+        
+        .vis-timeline { border: none; }
+        .vis-time-axis .vis-text { color: var(--text-dim); font-size: 10px; }
+        .vis-item { border-radius: 2px; font-size: 10px; border: 1px solid rgba(0,0,0,0.2); box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+        .vis-item.vis-selected { border-color: white !important; border-width: 1px; box-shadow: 0 0 0 1px white; z-index: 10; }
+        .vis-group-level-0 { background-color: #252525; font-weight: 600; color: #eee; border-bottom: 1px solid #333; }
+        
+        .vis-label.selected-track { background-color: rgba(10, 132, 255, 0.2) !important; border-left: 3px solid var(--accent) !important; color: white !important; }
+
+        .track-anim { background-color: var(--anim-color); border-color: var(--anim-color); }
+        .track-move { border-left: 3px solid var(--move-color); border-right: 3px solid var(--move-color); background-color: rgba(191, 90, 242, 0.15); color: #D0D0D0; }
+        .track-rotate { border-left: 3px solid var(--rotate-color); border-right: 3px solid var(--rotate-color); background-color: rgba(255, 159, 10, 0.15); color: #D0D0D0; }
+        .track-scale { border-left: 3px solid var(--scale-color); border-right: 3px solid var(--scale-color); background-color: rgba(10, 132, 255, 0.15); color: #D0D0D0; }
+        .track-alpha { border-left: 3px solid var(--alpha-color); border-right: 3px solid var(--alpha-color); background-color: rgba(50, 173, 230, 0.15); color: #D0D0D0; }
+
+        .layer-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: grab; margin-bottom: 2px; border: 1px solid transparent; }
+        .layer-item:active { cursor: grabbing; }
+        .layer-item:hover { background: rgba(255,255,255,0.08); }
+        .layer-item.selected { border-color: var(--accent); background: rgba(10, 132, 255, 0.1); }
+        .timeline-scrub-zone { cursor: ew-resize; }
+        .layer-item.dragging { opacity: 0.4; background: rgba(255, 255, 255, 0.1); }
+        .layer-item.drag-over-top { border-top: 2px solid var(--accent) !important; }
+        .layer-item.drag-over-bottom { border-bottom: 2px solid var(--accent) !important; }
+        .layer-info { display: flex; align-items: center; gap: 8px; overflow: hidden; }
+        .layer-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+        .layer-actions { display: flex; gap: 2px; opacity: 0.5; transition: 0.2s; }
+        .layer-item:hover .layer-actions { opacity: 1; }
+        
+        .layer-z-disp { font-family: monospace; font-size: 9px; color: #666; margin-right: 5px; }
+        .type-badge { font-size: 9px; padding: 1px 4px; border-radius: 3px; margin-right: 5px; min-width: 25px; text-align: center; }
+        .badge-spine { background: #32D74B; color: black; }
+        .badge-img { background: #0A84FF; color: white; }
+        .empty-state { padding: 40px 20px; text-align: center; color: var(--text-dim); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .empty-icon { font-size: 32px; opacity: 0.3; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 100000;
+            display: none; justify-content: center; align-items: center; backdrop-filter: blur(2px);
+        }
+        .modal-content {
+            background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px;
+            width: 420px; padding: 20px; color: var(--text-main); box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .modal-content h3 { margin-top: 0; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .shortcut-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-bottom: 20px; font-size: 12px; }
+        .key { background: #333; padding: 4px 8px; border-radius: 4px; font-family: monospace; text-align: center; border-bottom: 2px solid #111; font-weight: bold; }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg-app); }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+    </style>
+</head>
+<body>
+    
+    <div id="loading-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #121212; z-index: 99999; display: flex; justify-content: center; align-items: center; flex-direction: column; color: #888;">
+        <div style="margin-bottom: 10px; color: #0A84FF; font-weight: bold;">Spine Director V123</div>
+        <div id="loading-status">Loading Engine...</div>
+    </div>
+
+    <div class="modal-overlay" id="shortcut-modal" onclick="closeShortcuts(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3>⌨️ 快捷鍵與操作指南</h3>
+            <div class="shortcut-grid">
+                <div class="key">Space</div><div>播放 / 暫停 (Play/Pause)</div>
+                <div class="key">Delete / Backspace</div><div>刪除選取的片段 (Clip/Keyframe)</div>
+                <div class="key">← / →</div><div>逐幀移動 (Step Frame, 60FPS)</div>
+                <div class="key">滑鼠滾輪</div><div>在畫布上縮放 (Zoom)</div>
+                <div class="key">按住滑鼠拖曳</div><div>在畫布上平移攝影機 (Pan)</div>
+                <div class="key">Ctrl + 滾輪</div><div>在時間軸上縮放 (Zoom Timeline)</div>
+                <div class="key">Shift / Ctrl + 點擊</div><div>(時間軸) 多選片段進行批次拖曳</div>
+            </div>
+            <button class="primary full-width" onclick="document.getElementById('shortcut-modal').style.display='none'">我知道了</button>
+        </div>
+    </div>
+
+    <div id="workspace">
+        <div id="canvas-container">
+            <div style="position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.6); backdrop-filter:blur(4px); padding: 4px 10px; border-radius: 4px; font-size: 11px; color: #888; pointer-events: none; z-index:100;">
+                <span id="ver-tag">V123</span>
+            </div>
+        </div>
+        
+        <div class="section-content">
+            <input type="file" id="fileInput" multiple accept=".json,.skel,.bytes,.skel.bytes,.atlas,.atlas.txt,.txt,.png,.jpg" style="display:none" onchange="handleFiles(this)">
+            <input type="file" id="folderInput" webkitdirectory directory multiple style="display:none" onchange="handleFiles(this)">
+            <input type="file" id="imgImportInput" multiple accept=".png,.jpg,.jpeg,.webp" style="display:none" onchange="handleImageFiles(this)">
+        </div>
+
+        <div id="inspector">
+            <div class="panel-header">
+                <span>Spine Director</span>
+                <div style="display:flex; gap:2px;">
+                    <button class="icon-only" onclick="document.getElementById('shortcut-modal').style.display='flex'" title="快捷鍵說明">❓</button>
+                    <button class="icon-only" onclick="document.getElementById('projectInput').click()" title="Open">📂</button>
+                    <button class="icon-only" onclick="enhancedSaveProject()" title="Save">💾</button>
+                    <input type="file" id="projectInput" accept=".json" style="display:none" onchange="enhancedLoadProject(this.files[0])">
+                </div>
+            </div>
+            
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchTab('project')" id="tab-btn-project">流程</button>
+                <button class="tab-btn" onclick="switchTab('character')" id="tab-btn-character">圖層/選取</button>
+                <button class="tab-btn" onclick="switchTab('inspector')" id="tab-btn-inspector">屬性/編排</button>
+            </div>
+
+            <div class="panel-body">
+                
+                <div id="tab-project" class="tab-content active">
+                    <div class="section">
+                        <div class="section-header" onclick="toggleSection(this)">
+                            <div class="section-title"><span>⚙️ 全域設定</span></div><span class="arrow">▼</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="control-row">
+                                <span class="label">版本</span>
+                                <select id="versionSelect" onchange="switchVersion(this.value)" disabled title="Cocos Creator 3.8 專用版固定使用 Spine 3.8">
+                                    <option value="3.8">Spine 3.8（Creator 3.8）</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-header" onclick="toggleSection(this)">
+                            <div class="section-title"><span>🧭 快速流程</span></div><span class="arrow">▼</span>
+                        </div>
+                        <div class="section-content" style="font-size:11px; color:var(--text-sub); line-height:1.7;">
+                            <div>① 匯入 Spine / 圖片</div>
+                            <div>② 到「圖層/選取」選物件並調位置</div>
+                            <div>③ 到「屬性/編排」把動作放進時間軸</div>
+                            <div>④ 播放確認後匯出 Cocos .anim / JSON</div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-header" onclick="toggleSection(this)">
+                            <div class="section-title"><span>📥 ① 匯入資源</span></div><span class="arrow">▼</span>
+                        </div>
+                        <div class="section-content" style="gap: 5px;">
+                            <div style="position: relative;">
+                                <button class="full-width primary" onclick="toggleSpineMenu()" style="justify-content: space-between; padding-left: 12px; padding-right: 12px;">
+                                    <span>🦴 匯入 Spine 角色</span><span style="font-size: 8px;">▼</span>
+                                </button>
+                                <div id="spine-import-menu" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; background: var(--bg-active); border: 1px solid var(--border-focus); z-index: 100; border-radius: 4px; margin-top: 2px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); overflow: hidden;">
+                                    <button class="menu-item" onclick="document.getElementById('fileInput').click(); toggleSpineMenu();" style="width: 100%; text-align: left; border-radius: 0; border-bottom: 1px solid var(--border); background: transparent;">📄 選擇檔案 (.skel + .atlas)</button>
+                                    <button class="menu-item" onclick="document.getElementById('folderInput').click(); toggleSpineMenu();" style="width: 100%; text-align: left; border-radius: 0; background: transparent;">📂 選擇資料夾 (自動抓取)</button>
+                                </div>
+                            </div>
+                            <button class="full-width" onclick="document.getElementById('imgImportInput').click()">🖼️ 匯入圖片物件</button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-header" onclick="toggleSection(this)">
+                            <div class="section-title"><span>🖼️ 場景背景</span></div><span class="arrow">▼</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="xy-group">
+                                <button class="full-width" onclick="document.getElementById('bg1Input').click()">BG1 (底)</button>
+                                <button class="full-width" onclick="document.getElementById('bg2Input').click()">BG2 (上)</button>
+                            </div>
+                            <input type="file" id="bg1Input" accept="image/*" style="display:none" onchange="loadBackground(this.files[0], 1)">
+                            <input type="file" id="bg2Input" accept="image/*" style="display:none" onchange="loadBackground(this.files[0], 2)">
+                            <button style="color: var(--move-color);" onclick="addSceneClip()">+ 增加背景轉場特效</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-character" class="tab-content">
+                    <div class="section">
+                        <div class="section-header" onclick="toggleSection(this)">
+                            <div class="section-title"><span>🎯 選取與拖曳</span></div><span class="arrow">▼</span>
+                        </div>
+                        <div class="section-content" style="font-size:11px; color:var(--text-sub); line-height:1.7;">
+                            <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; color:var(--text-main);">
+                                <input type="checkbox" id="drag-selected-lock" checked onchange="setCanvasDragMode(this.checked)" style="margin-top:2px;">
+                                <span><b>畫布拖曳鎖定已選物件</b><br>先在圖層列表或時間軸選好角色，再到畫布拖曳時，會優先移動這個角色，不會被上層 Spine 搶走。</span>
+                            </label>
+                            <div style="padding:8px 10px; background:rgba(10,132,255,0.08); border:1px solid rgba(10,132,255,0.2); border-radius:6px;">
+                                小技巧：若想暫時改成「點到誰就拖誰」，可取消上面的勾選；或按住 <b>Alt</b> 再點擊畫布上的物件，強制改抓滑鼠下方的那個 Spine。
+                            </div>
+                            <div style="padding:8px 10px; background:rgba(255,159,10,0.08); border:1px solid rgba(255,159,10,0.2); border-radius:6px;">
+                                時間線最上層刻度區：點一下可跳到時間點；按住左右拖曳可快速移動播放頭。Ctrl+Z 可回上一步。
+                            </div>
+                        </div>
+                    </div>
+                    <div class="section-header" style="background:var(--bg-header); cursor:default;">
+                        <div class="section-title"><span>📚 ② 圖層列表 / 直接選取角色</span></div>
+                    </div>
+                    <div id="scene-list" style="display:flex; flex-direction:column; padding:10px;">
+                        <div class="empty-state"><div class="empty-icon">📦</div><div>尚未加入任何物件</div></div>
+                    </div>
+                </div>
+
+                <div id="tab-inspector" class="tab-content">
+                    
+                    <div id="inspector-empty" class="empty-state">
+                        <div class="empty-icon">👈</div><div>請選擇物件或時間軸片段</div>
+                    </div>
+
+                    <div id="inspector-char" style="display:none;">
+                        <div class="section" style="background: #2D2D2D; border-bottom: 1px solid var(--border);">
+                            <div class="section-content" style="gap: 8px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div style="font-size:11px; color:var(--text-sub); text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">🎭 動態管理</div>
+                                    <button class="sm" style="border:1px solid #777; color:white; background:#555;" onclick="forceKeyframe()" title="擷取當前所有TRS狀態打入時間軸">🔑 記錄目前狀態</button>
+                                </div>
+                                <div class="separator"></div>
+                                <div class="control-row">
+                                    <span class="label">動作列表</span>
+                                    <select id="charAnimList"></select>
+                                </div>
+                                <div class="xy-group" style="margin-top:2px;">
+                                    <button class="primary" style="flex:1;" onclick="addSpecificAnim()" title="增加選擇的動作至當前時間點軌道">把這個動作放到時間軸</button>
+                                    <button style="flex:0.6; font-size: 10px; padding: 0 4px;" onclick="addExtraAnimTrack()" title="為此物件增加獨立的動畫混合軌道">+ 增加軌道</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="section">
+                            <div class="section-header" onclick="toggleSection(this)">
+                                <div class="section-title"><span>📐 變形 (Transform)</span></div><span class="arrow">▼</span>
+                            </div>
+                            <div class="section-content">
+                                <div class="control-row" style="justify-content: space-between;">
+                                    <span id="sel-char-name" style="font-weight:bold; color:var(--text-main);">Name</span>
+                                    <button class="icon-only" onclick="resetTransform()" title="Reset">↺</button>
+                                </div>
+                                
+                                <div class="control-row">
+                                    <span class="label">位置 (X,Y)</span>
+                                    <div class="xy-group">
+                                        <div class="input-icon-wrap"><span class="input-icon">X</span><input type="number" id="charX" class="target-rec" oninput="updateCharPos()"></div>
+                                        <div class="input-icon-wrap"><span class="input-icon">Y</span><input type="number" id="charY" class="target-rec" oninput="updateCharPos()"></div>
+                                    </div>
+                                </div>
+
+                                <div class="control-row">
+                                    <span class="label">縮放</span>
+                                    <div class="slider-wrap">
+                                        <input type="range" id="charScale" min="0.1" max="5" step="0.05" oninput="document.getElementById('charScaleNum').value=this.value; updateCharTransform('scale')">
+                                        <input type="number" id="charScaleNum" class="slider-val target-rec" oninput="document.getElementById('charScale').value=this.value; updateCharTransform('scale')">
+                                    </div>
+                                </div>
+                                <div class="control-row">
+                                    <span class="label">旋轉</span>
+                                    <div class="slider-wrap">
+                                        <input type="range" id="charRotation" min="-720" max="720" step="1" oninput="document.getElementById('charRotationNum').value=this.value; updateCharTransform('rotate')">
+                                        <input type="number" id="charRotationNum" class="slider-val target-rec" oninput="document.getElementById('charRotation').value=this.value; updateCharTransform('rotate')">
+                                    </div>
+                                </div>
+                                <div class="control-row">
+                                    <span class="label">透明度</span>
+                                    <div class="slider-wrap">
+                                        <input type="range" id="charAlpha" min="0" max="1" step="0.05" oninput="document.getElementById('charAlphaNum').value=this.value; updateCharTransform('alpha')">
+                                        <input type="number" id="charAlphaNum" class="slider-val target-rec" step="0.1" oninput="document.getElementById('charAlpha').value=this.value; updateCharTransform('alpha')">
+                                    </div>
+                                </div>
+
+                                <button class="full-width" onclick="toggleFlip()">↔ 水平翻轉 (Flip X)</button>
+                            </div>
+                        </div>
+
+                        <div class="section">
+                            <div class="section-header" onclick="toggleSection(this)">
+                                <div class="section-title"><span>🛠️ 管理 (Manage)</span></div><span class="arrow">▼</span>
+                            </div>
+                            <div class="section-content">
+                                <div id="skin-control-row" class="control-row">
+                                    <span class="label">外觀</span>
+                                    <select id="skinSelect" onchange="changeSkin()"></select>
+                                </div>
+                                <div class="separator"></div>
+                                <button class="primary full-width" onclick="duplicateWithDialog()">📑 複製物件 (Duplicate)</button>
+                                <button class="full-width" style="color:var(--phys-color);" onclick="document.getElementById('reloadInput').click()">♻️ 更新素材 (Reload)</button>
+                                <input type="file" id="reloadInput" accept=".json,.skel" style="display:none" onchange="handleReloadFiles(this)">
+                                <button class="danger full-width" onclick="removeSelectedCharacter()">🗑️ 刪除物件</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="inspector-clip" style="display:none;">
+                        <div class="section">
+                            <div class="section-header">
+                                <div class="section-title"><span id="clip-type-label">CLIP</span></div>
+                            </div>
+                            <div class="section-content">
+                                <div id="anim-controls" style="display:none;">
+                                    <div class="control-row">
+                                        <span class="label">動作</span>
+                                        <select id="clipAnimSelect" onchange="updateSelectedClip()"></select>
+                                    </div>
+                                    <div class="control-row">
+                                        <span class="label"></span>
+                                        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+                                            <input type="checkbox" id="clipLoop" onchange="updateSelectedClip()"> 循環播放 (Loop)
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="xy-group" style="margin-top:5px;">
+                                    <div class="input-icon-wrap" id="wrap-clipStart" title="開始時間(秒)"><span class="input-icon">Start</span><input type="number" id="clipStart" step="0.01" oninput="updateSelectedClip()"></div>
+                                    <div class="input-icon-wrap" id="wrap-clipDur" title="持續長度(秒)"><span class="input-icon">Dur</span><input type="number" id="clipDuration" step="0.01" oninput="updateSelectedClip()"></div>
+                                </div>
+                                <div class="xy-group" id="anim-mix-control" style="margin-top:5px; display:none;">
+                                    <div class="input-icon-wrap" title="與前一個動畫的混合過渡時間 (秒)"><span class="input-icon">Mix ⧖</span><input type="number" id="clipMix" step="0.05" min="0" oninput="updateSelectedClip()"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="prop-controls" class="section" style="display:none;">
+                            <div class="section-header" onclick="toggleSection(this)">
+                                <div class="section-title"><span id="prop-label" style="color:var(--move-color);">🚀 補間屬性</span></div><span class="arrow">▼</span>
+                            </div>
+                            <div class="section-content">
+                                <div class="control-row" style="margin-bottom: 10px; border-bottom: 1px dashed #444; padding-bottom: 10px;">
+                                    <span class="label">動態曲線</span>
+                                    <select id="clipEasing" onchange="updateSelectedClip()">
+                                        <option value="linear">➖ 線性 (Linear)</option>
+                                        <option value="easeOutQuad">📉 平滑減速 (EaseOutQuad)</option>
+                                        <option value="easeInOutQuad">〰️ 平滑加減速 (EaseInOutQuad)</option>
+                                        <option value="easeOutBack">⤴️ 越界回彈 (EaseOutBack)</option>
+                                        <option value="easeOutElastic">🪀 彈性抖動 (EaseOutElastic)</option>
+                                    </select>
+                                </div>
+                                <div id="move-inputs" style="display:none;">
+                                    <div class="control-row" style="justify-content:space-between; margin-bottom:4px;">
+                                        <span class="label" style="font-weight:bold;">起始 (Start)</span>
+                                        <div style="display:flex; gap:4px;">
+                                            <button class="sm" onclick="captureToClip('start')">📍 擷取</button>
+                                            <button class="sm danger" onclick="deleteClipKey('start')" title="刪除此端點" style="padding: 2px 6px;">🗑️</button>
+                                        </div>
+                                    </div>
+                                    <div class="xy-group">
+                                        <div class="input-icon-wrap"><span class="input-icon">X</span><input type="number" class="target-rec" id="motStartX" oninput="updateSelectedClip()"></div>
+                                        <div class="input-icon-wrap"><span class="input-icon">Y</span><input type="number" class="target-rec" id="motStartY" oninput="updateSelectedClip()"></div>
+                                    </div>
+                                    <div class="control-row" style="justify-content:space-between; margin-top:10px; margin-bottom:4px;">
+                                        <span class="label" style="font-weight:bold; color:var(--accent);">結束 (End)</span>
+                                        <div style="display:flex; gap:4px;">
+                                            <button class="sm" onclick="captureToClip('end')">📍 擷取</button>
+                                            <button class="sm danger" onclick="deleteClipKey('end')" title="刪除此端點" style="padding: 2px 6px;">🗑️</button>
+                                        </div>
+                                    </div>
+                                    <div class="xy-group">
+                                        <div class="input-icon-wrap"><span class="input-icon">X</span><input type="number" class="target-rec" id="motEndX" oninput="updateSelectedClip()"></div>
+                                        <div class="input-icon-wrap"><span class="input-icon">Y</span><input type="number" class="target-rec" id="motEndY" oninput="updateSelectedClip()"></div>
+                                    </div>
+                                </div>
+
+                                <div id="rotate-inputs" style="display:none;">
+                                    <div class="control-row" style="justify-content:space-between; margin-bottom:4px;">
+                                        <span class="label" style="font-weight:bold;">起始 (Start)</span>
+                                        <div style="display:flex; gap:4px;">
+                                            <button class="sm" onclick="captureToClip('start')">📍 擷取</button>
+                                            <button class="sm danger" onclick="deleteClipKey('start')" title="刪除此端點" style="padding: 2px 6px;">🗑️</button>
+                                        </div>
+                                    </div>
+                                    <div class="input-icon-wrap"><span class="input-icon">R</span><input type="number" class="target-rec" id="motStartR" oninput="updateSelectedClip()"></div>
+                                    <div class="control-row" style="justify-content:space-between; margin-top:10px; margin-bottom:4px;">
+                                        <span class="label" style="font-weight:bold; color:var(--accent);">結束 (End)</span>
+                                        <div style="display:flex; gap:4px;">
+                                            <button class="sm" onclick="captureToClip('end')">📍 擷取</button>
+                                            <button class="sm danger" onclick="deleteClipKey('end')" title="刪除此端點" style="padding: 2px 6px;">🗑️</button>
+                                        </div>
+                                    </div>
+                                    <div class="input-icon-wrap"><span class="input-icon">R</span><input type="number" class="target-rec" id="motEndR" oninput="updateSelectedClip()"></div>
+                                </div>
+
+                                <div id="scale-inputs" style="display:none;">
+                                    <div class="control-row" style="justify-content:space-between; margin-bottom:4px;">
+                                        <span class="label" style="font-weight:bold;">起始 (Start)</span>
+                                        <div style="display:flex; gap:4px;">
+                                            <button class="sm" onclick="captureToClip('start')">📍 擷取</button>
+                                            <button class="sm danger" onclick="deleteClipKey('start')" title="刪除此端點" style="padding: 2px 6px;">🗑️</button>
+                                        </div>
+                                    </div>
+                                    <div class="input-icon-wrap"><span class="input-icon">S</span><input type="number" class="target-rec" id="motStartS" step="0.1" oninput="updateSelectedClip()"></div>
+                                    <div class="control-row" style="justify-content:space-between; margin-top:10px; margin-bottom:4px;">
+                                        <span class="label" style="font-weight:bold; color:var(--accent);">結束 (End)</span>
+                                        <div style="display:flex; gap:4px;">
+                                            <button class="sm" onclick="captureToClip('end')">📍 擷取</button>
+                                            <button class="sm danger" onclick="deleteClipKey('end')" title="刪除此端點" style="padding: 2px 6px;">🗑️</button>
+                                        </div>
+                                    </div>
+                                    <div class="input-icon-wrap"><span class="input-icon">S</span><input type="number" class="target-rec" id="motEndS" step="0.1" oninput="updateSelectedClip()"></div>
+                                </div>
+
+                                <div id="alpha-inputs" style="display:none;">
+                                    <div class="control-row" style="justify-content:space-between; margin-bottom:4px;">
+                                        <span class="label" style="font-weight:bold;">起始 (Start)</span>
+                                        <div style="display:flex; gap:4px;">
+                                            <button class="sm" onclick="captureToClip('start')">📍 擷取</button>
+                                            <button class="sm danger" onclick="deleteClipKey('start')" title="刪除此端點" style="padding: 2px 6px;">🗑️</button>
+                                        </div>
+                                    </div>
+                                    <div class="input-icon-wrap"><span class="input-icon">A</span><input type="number" class="target-rec" id="motStartA" step="0.1" min="0" max="1" oninput="updateSelectedClip()"></div>
+                                    <div class="control-row" style="justify-content:space-between; margin-top:10px; margin-bottom:4px;">
+                                        <span class="label" style="font-weight:bold; color:var(--accent);">結束 (End)</span>
+                                        <div style="display:flex; gap:4px;">
+                                            <button class="sm" onclick="captureToClip('end')">📍 擷取</button>
+                                            <button class="sm danger" onclick="deleteClipKey('end')" title="刪除此端點" style="padding: 2px 6px;">🗑️</button>
+                                        </div>
+                                    </div>
+                                    <div class="input-icon-wrap"><span class="input-icon">A</span><input type="number" class="target-rec" id="motEndA" step="0.1" min="0" max="1" oninput="updateSelectedClip()"></div>
+                                </div>
+                                
+                            </div>
+                        </div>
+
+                        <div class="section">
+                            <div class="section-header" onclick="toggleSection(this)">
+                                <div class="section-title"><span style="color:var(--phys-color);">🏀 物理掉落 (Physics)</span></div><span class="arrow">▼</span>
+                            </div>
+                            <div class="section-content">
+                                <label style="display:flex; align-items:center; gap:5px;">
+                                    <input type="checkbox" id="dropEnable" onchange="updateSelectedClip()"> 啟用 (Enable)
+                                </label>
+                                <div id="physics-controls" style="display:none; padding-left:10px; border-left:2px solid var(--phys-color); display:flex; flex-direction:column; gap:5px;">
+                                    <div class="xy-group">
+                                        <div class="input-icon-wrap" title="掉落高度"><span class="input-icon">H</span><input type="number" id="dropHeight" placeholder="Height" oninput="updateSelectedClip()"></div>
+                                        <div class="input-icon-wrap" title="彈力係數"><span class="input-icon">B</span><input type="number" id="dropBounce" step="0.1" placeholder="Bounce" oninput="updateSelectedClip()"></div>
+                                    </div>
+                                    <div class="xy-group">
+                                        <div class="input-icon-wrap" title="掉落過程時間"><span class="input-icon">Dur</span><input type="number" id="dropDur" step="0.1" placeholder="Duration" oninput="updateSelectedClip()"></div>
+                                        <div class="input-icon-wrap" title="延遲開始時間 (秒)"><span class="input-icon">Delay</span><input type="number" id="dropDelay" step="0.1" placeholder="Delay" oninput="updateSelectedClip()"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="section-content">
+                            <button class="danger full-width" onclick="deleteSelectedClip(true)">刪除整個片段</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel-footer">
+                <div style="font-size:10px; color:var(--anim-color); margin-bottom: 2px; font-weight:bold; text-align: center;">📤 匯出產物 (EXPORT)</div>
+                <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                    <span style="font-size:10px; color:var(--text-sub); flex-shrink:0;">影片格式</span>
+                    <select id="videoFormatSelect" onchange="updateVideoExportFormatUI()" style="height:24px; font-size:11px; flex:1;">
+                        <option value="mp4">MP4 / H.264</option>
+                        <option value="webm">WebM</option>
+                    </select>
+                </div>
+                <div id="video-format-note" style="font-size:10px; color:var(--text-dim); line-height:1.4; margin:-2px 0 4px 0; display:none;"></div>
+                <button class="primary full-width" onclick="startVideoExport()" id="btn-export-video" style="padding: 8px; background: #FF9F0A; color:black;">🎥 錄製動態影片 (MP4)</button>
+                
+                <button class="primary full-width" style="background:#00C16E;" onclick="exportNativeCocosAnim()">💎 匯出 Cocos 實體動畫 (.anim)</button>
+                <input id="cocosProjectName" value="SpineDirectorScene" placeholder="Cocos 輸出名稱" style="width:100%; box-sizing:border-box; margin-top:2px;">
+                <button class="primary full-width" id="btn-export-cocos-project" style="background:#0A84FF;" onclick="exportCocosCreator38Project()">🚀 輸出到目前 Cocos 專案</button>
+                <button class="primary full-width" onclick="exportSequenceJSON()" style="padding: 8px;">📦 匯出給程式用 JSON</button>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 4px; border-top: 1px solid #333; padding-top:6px; gap: 10px;">
+                    <div style="display:flex; gap: 4px; font-size: 10px; color:var(--text-sub); flex-shrink: 0;">
+                        <label><input type="radio" name="exportEngine" value="cocos" checked> Cocos</label>
+                        <label><input type="radio" name="exportEngine" value="unity"> Unity</label>
+                    </div>
+                    <button class="sm" onclick="exportCodeSnippet()" style="white-space: nowrap; padding: 6px 10px; flex: 1; background:#444;">📄 匯出腳本</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="splitter"></div>
+
+    <div id="timeline-area">
+        <div id="timeline-toolbar">
+            <div style="display:flex; gap: 2px;">
+                <button onclick="stepFrame(-1)" title="上一幀 (左方向鍵)" class="icon-only sm" style="font-size:12px;">⏮</button>
+                <button class="primary" id="play-btn" onclick="togglePlay()" style="width:32px; border-radius:50%; margin: 0 4px; background:var(--anim-color); color:black;">▶</button>
+                <button onclick="stop()" style="width:32px; border-radius:50%; margin-right: 4px; background:#444;">■</button>
+                <button onclick="stepFrame(1)" title="下一幀 (右方向鍵)" class="icon-only sm" style="font-size:12px;">⏭</button>
+            </div>
+            <span id="time-display" style="font-family:monospace; color:var(--accent); font-weight:bold; margin-left:10px; width: 50px;">0.00s</span>
+            
+            <select id="timeUnitSelect" onchange="changeTimeUnit()" style="width:75px; height:22px; padding:0 4px; font-size:10px; background:#222; border:1px solid #444; color:#ccc; border-radius:3px; margin-left:5px; cursor:pointer;">
+                <option value="sec">秒數 (Sec)</option>
+                <option value="frame">影格 (Frame)</option>
+            </select>
+
+            <div style="width: 20px;"></div>
+            <button id="rec-btn" onclick="toggleRec()" style="font-weight:bold;">🔴 REC</button>
+            <div style="flex:1"></div>
+            <label style="font-size:11px; color:var(--text-sub); display:flex; align-items:center; cursor:pointer;"><input type="checkbox" id="loop-playback-check" style="margin-right:5px;"> 循環</label>
+            <button onclick="fitTimeline()" style="background:#333;">Fit View</button>
+        </div>
+        <div id="visualization"></div>
+    </div>
+
+<script>
+    let app, worldContainer, bgContainer, debugGraphics;
+    let bg1Sprite = null, bg2Sprite = null;
+    let characters = []; 
+    let timeline, timelineData, timelineGroups;
+    let isPlaying = false, isRecording = false;
+    let currentTime = 0;
+    
+    let selectedGroupId = null, selectedCharId = null, selectedClipId = null;
+    let selectedTrackId = null; 
+
+    const SCENE_TRACK_ID = 'scene_track';
+    const clipRegistry = {}; 
+    
+    let timeUnit = 'sec'; 
+    const FPS = 60;
+
+    // ✅ V119 效能優化：Timeline 快取與 UI 降頻，避免播放時每幀大量 filter / DOM 更新
+    let timelineCacheDirty = true;
+    let timelineCacheByGroup = new Map();
+    let timelineMaxEnd = 1000;
+    let lastTimelineUiUpdateMs = -9999;
+    const TIMELINE_UI_UPDATE_INTERVAL_MS = 33; // 約 30fps 更新時間軸 UI，Spine 畫面仍跟著 ticker 跑
+    let debugHelperLastDrawTime = 0;
+    const DEBUG_HELPER_INTERVAL_MS = 120;
+    let inspectorRenderQueued = false;
+    let lockCanvasDragToSelection = true;
+    let activeObjectDragId = null;
+    let isRestoringHistory = false;
+    let undoStack = [];
+    let lastHistoryJSON = '';
+    let historyDebounceTimer = null;
+    const MAX_UNDO_STEPS = 60;
+    const TIMELINE_RULER_SCRUB_HEIGHT = 58;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const isCocosEditorMode = urlParams.get('cocos') === '1';
+    const currentSpineVer = isCocosEditorMode ? '3.8' : (urlParams.get('v') || '3.8');
+
+    function toggleSection(header) { header.parentElement.classList.toggle('collapsed'); }
+    function closeShortcuts(e) { document.getElementById('shortcut-modal').style.display='none'; }
+
+    function markTimelineCacheDirty() { timelineCacheDirty = true; }
+
+    function rebuildTimelineCache() {
+        timelineCacheByGroup.clear();
+        timelineMaxEnd = 1000;
+        if (!timelineData) { timelineCacheDirty = false; return; }
+
+        timelineData.get().forEach(item => {
+            if (!timelineCacheByGroup.has(item.group)) timelineCacheByGroup.set(item.group, []);
+            timelineCacheByGroup.get(item.group).push(item);
+            const end = item.end && item.end.valueOf ? item.end.valueOf() : Number(item.end || 0);
+            if (end > timelineMaxEnd) timelineMaxEnd = end;
+        });
+
+        timelineCacheByGroup.forEach(list => {
+            list.sort((a, b) => a.start.valueOf() - b.start.valueOf());
+        });
+        timelineCacheDirty = false;
+    }
+
+    function getGroupClips(groupId) {
+        if (timelineCacheDirty) rebuildTimelineCache();
+        return timelineCacheByGroup.get(groupId) || [];
+    }
+
+    function requestRenderInspector() {
+        if (inspectorRenderQueued) return;
+        inspectorRenderQueued = true;
+        requestAnimationFrame(() => {
+            inspectorRenderQueued = false;
+            renderInspector();
+        });
+    }
+
+    function getCharacterById(id) { return characters.find(c => c.id === id); }
+
+    function setCanvasDragMode(enabled) {
+        lockCanvasDragToSelection = !!enabled;
+        const checkbox = document.getElementById('drag-selected-lock');
+        if (checkbox) checkbox.checked = lockCanvasDragToSelection;
+    }
+
+    function startCharacterDrag(targetId, eventData) {
+        const char = getCharacterById(targetId);
+        if (!char || !char.spine || !eventData) return;
+        if (eventData.originalEvent) eventData.originalEvent.preventDefault();
+        if (!activeObjectDragId) recordHistoryCheckpoint('before-drag-character');
+        const dragObj = char.spine;
+        activeObjectDragId = targetId;
+        dragObj.alpha = 0.7;
+        dragObj.dragging = true;
+        dragObj.dragData = eventData;
+        const loc = dragObj.parent.toLocal(eventData.global);
+        dragObj.dragOff = { x: loc.x - dragObj.x, y: loc.y - dragObj.y };
+        if (selectedCharId !== targetId) selectCharacter(targetId);
+    }
+
+    function moveActiveDraggedCharacter(globalPos) {
+        if (!activeObjectDragId) return false;
+        const char = getCharacterById(activeObjectDragId);
+        if (!char || !char.spine || !char.spine.dragOff) return false;
+        const dragObj = char.spine;
+        const loc = dragObj.parent.toLocal(globalPos);
+        const newX = loc.x - dragObj.dragOff.x;
+        const newY = loc.y - dragObj.dragOff.y;
+        dragObj.x = newX;
+        dragObj.y = newY;
+        try {
+            if (isRecording) handleAutoRec(activeObjectDragId, 'move', { x: newX, y: newY });
+            else { char.baseX = newX; char.baseY = newY; }
+        } catch (err) { console.error('Drag Error', err); }
+        if (selectedCharId === activeObjectDragId) {
+            const cxEl = document.getElementById('charX');
+            const cyEl = document.getElementById('charY');
+            if (cxEl) cxEl.value = Math.round(newX);
+            if (cyEl) cyEl.value = Math.round(newY);
+        }
+        syncSpineToTime(currentTime);
+        return true;
+    }
+
+    function finishCharacterDrag() {
+        if (!activeObjectDragId) return;
+        const char = getCharacterById(activeObjectDragId);
+        if (char && char.spine) {
+            char.spine.alpha = 1;
+            char.spine.dragging = false;
+            char.spine.dragData = null;
+        }
+        activeObjectDragId = null;
+        requestRenderInspector();
+        scheduleHistoryCheckpoint('drag-character');
+    }
+
+    function serializeTimelineItem(item) { const copy = { ...item }; if (copy.start !== undefined) copy.start = new Date(copy.start).valueOf(); if (copy.end !== undefined) copy.end = new Date(copy.end).valueOf(); return copy; }
+    function deserializeTimelineItem(item) { const copy = { ...item }; if (copy.start !== undefined) copy.start = new Date(copy.start); if (copy.end !== undefined) copy.end = new Date(copy.end); return copy; }
+    function createHistorySnapshot(label = '') {
+        return { label, time: Date.now(), currentTime, selectedCharId, selectedClipId, selectedTrackId,
+            timeline: timelineData ? timelineData.get().map(serializeTimelineItem) : [],
+            groups: timelineGroups ? timelineGroups.get().map(g => ({ ...g })) : [],
+            characters: characters.map(c => ({ id: c.id, order: c.order, baseX: c.baseX, baseY: c.baseY, baseRot: c.baseRot, scaleX: c.scaleX, scaleY: c.scaleY, flipX: c.flipX, baseAlpha: c.baseAlpha, animTracks: c.animTracks ? [...c.animTracks] : [] })) };
+    }
+    function recordHistoryCheckpoint(label = '') {
+        if (isRestoringHistory || !timelineData || !timelineGroups) return;
+        const snap = createHistorySnapshot(label);
+        const json = JSON.stringify(snap);
+        if (json === lastHistoryJSON) return;
+        undoStack.push(snap);
+        if (undoStack.length > MAX_UNDO_STEPS) undoStack.shift();
+        lastHistoryJSON = json;
+    }
+    function scheduleHistoryCheckpoint(label = '', delay = 250) {
+        if (isRestoringHistory) return;
+        clearTimeout(historyDebounceTimer);
+        historyDebounceTimer = setTimeout(() => recordHistoryCheckpoint(label), delay);
+    }
+    function restoreHistorySnapshot(snap) {
+        if (!snap || !timelineData || !timelineGroups) return;
+        isRestoringHistory = true;
+        try {
+            timelineData.clear(); timelineGroups.clear(); timelineGroups.add(snap.groups || []); timelineData.add((snap.timeline || []).map(deserializeTimelineItem));
+            const charMap = new Map((snap.characters || []).map(c => [c.id, c]));
+            characters.forEach(c => { const state = charMap.get(c.id); if (!state) return; c.order = state.order; c.baseX = state.baseX; c.baseY = state.baseY; c.baseRot = state.baseRot; c.scaleX = state.scaleX; c.scaleY = state.scaleY; c.flipX = state.flipX; c.baseAlpha = state.baseAlpha; if (Array.isArray(state.animTracks)) c.animTracks = [...state.animTracks]; if (c.spine) c.spine.zIndex = c.order; });
+            worldContainer.sortChildren();
+            selectedCharId = snap.selectedCharId && getCharacterById(snap.selectedCharId) ? snap.selectedCharId : null;
+            selectedClipId = snap.selectedClipId && timelineData.get(snap.selectedClipId) ? snap.selectedClipId : null;
+            selectedTrackId = snap.selectedTrackId && timelineGroups.get(snap.selectedTrackId) ? snap.selectedTrackId : null;
+            currentTime = Math.max(0, snap.currentTime || 0);
+            timeline.setCustomTime(currentTime, 'playhead'); if (selectedClipId) timeline.setSelection([selectedClipId]); else timeline.setSelection([]);
+            updateTimeDisplay(); syncSpineToTime(currentTime); renderSceneList(); renderInspector(); drawDebugHelpers(); markTimelineCacheDirty();
+        } finally { isRestoringHistory = false; }
+    }
+    function undoLastAction() { clearTimeout(historyDebounceTimer); if (undoStack.length <= 1) { console.info('沒有更多可復原的步驟'); return; } undoStack.pop(); const prev = undoStack[undoStack.length - 1]; lastHistoryJSON = JSON.stringify(prev); restoreHistorySnapshot(prev); }
+
+    function loadScript(url) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = url;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error(`Load Error: ${url}`));
+            document.head.appendChild(script);
+        });
+    }
+
+    async function bootstrap() {
+        const statusEl = document.getElementById('loading-status');
+        document.getElementById('versionSelect').value = currentSpineVer;
+
+        try {
+            await loadScript("./vendor/pixi.min.js");
+            statusEl.innerText = "Loading Core (3.8)...";
+            await loadScript("./vendor/pixi-spine-3.8.js");
+            
+            document.getElementById('loading-overlay').style.display = 'none';
+            initApp(); 
+            if (urlParams.get('noRestore') !== '1') checkAutoSaveRestore();
+        } catch (error) {
+            statusEl.innerText = "Error: " + error.message;
+            statusEl.style.color = "#ff453a";
+        }
+    }
+
+    function initApp() {
+        document.getElementById('ver-tag').innerText = "Spine " + currentSpineVer;
+        app = new PIXI.Application({ backgroundColor: 0x000000, resizeTo: document.getElementById('canvas-container'), antialias: true });
+        document.getElementById('canvas-container').appendChild(app.view);
+        worldContainer = new PIXI.Container(); worldContainer.sortableChildren = true; app.stage.addChild(worldContainer);
+        bgContainer = new PIXI.Container(); bgContainer.sortableChildren = true; bgContainer.zIndex = -99999; worldContainer.addChild(bgContainer);
+        debugGraphics = new PIXI.Graphics(); debugGraphics.zIndex = 99999; worldContainer.addChild(debugGraphics);
+        resetView();
+        setupInteractions();
+        setupSplitter(); 
+        setupDragAndDrop(); 
+        app.ticker.add(onTick);
+        initTimeline();
+        setupKeyboardShortcuts();
+        switchTab('project');
+        renderSceneList();
+        updateVideoExportFormatUI();
+        recordHistoryCheckpoint('init');
+        
+        setInterval(autoSaveToLocal, 30000); 
+
+        window.addEventListener('mouseup', () => {
+            finishCharacterDrag();
+            characters.forEach(c => { 
+                if(c.spine && c.spine.dragging) {
+                    c.spine.alpha = 1; 
+                    c.spine.dragging = false; 
+                }
+            });
+        });
+    }
+
+    bootstrap();
+
+    function changeTimeUnit() {
+        timeUnit = document.getElementById('timeUnitSelect').value;
+        updateTimeDisplay();
+        
+        if(timeline) {
+            timeline.setOptions({
+                format: { 
+                    minorLabels: (d) => timeUnit === 'frame' ? Math.round(d / (1000/FPS)) + 'f' : (d/1000).toFixed(1)+'s', 
+                    majorLabels: (d) => timeUnit === 'frame' ? Math.round(d / (1000/FPS)) + 'f' : (d/1000).toFixed(0)+'s' 
+                }
+            });
+            timeline.redraw();
+        }
+        renderInspector();
+    }
+
+    function autoSaveToLocal() {
+        if (characters.length === 0 && timelineData.length === 0) return;
+        const d = { 
+            version: "V123", timestamp: Date.now(),
+            timeline: timelineData.get(), groups: timelineGroups.get(), clipRegistry, 
+            characters: characters.map(c => ({ 
+                id: c.id, name: c.name, type: c.type, order: c.order, 
+                x: c.baseX, y: c.baseY, rotation: c.baseRot, scaleX: c.scaleX, scaleY: c.scaleY, flipX: c.flipX, alpha: c.baseAlpha,
+                skin: c.type === 'spine' ? c.spine.skeleton.skin?.name : null, assets: c.assets, animTracks: c.animTracks 
+            })) 
+        };
+        try { localStorage.setItem('spineDirectorAutoSave', JSON.stringify(d)); } catch(e) { console.warn("AutoSave failed", e); }
+    }
+
+    function checkAutoSaveRestore() {
+        const savedStr = localStorage.getItem('spineDirectorAutoSave');
+        if (savedStr) {
+            try {
+                const data = JSON.parse(savedStr);
+                const timeStr = new Date(data.timestamp).toLocaleTimeString();
+                if (confirm(`偵測到上次的未儲存進度 (${timeStr})，是否要還原？\n\n按「確定」恢復工作，按「取消」放棄並開新專案。`)) {
+                    const blob = new Blob([savedStr], {type: "application/json"});
+                    enhancedLoadProject(blob);
+                } else {
+                    localStorage.removeItem('spineDirectorAutoSave');
+                }
+            } catch(e) { localStorage.removeItem('spineDirectorAutoSave'); }
+        }
+    }
+
+    function switchVersion(v) {
+        try { const url = new URL(window.location.href); url.searchParams.set('v', v); window.location.href = url.href; } 
+        catch(e) { window.location.href = window.location.href.split('?')[0] + '?v=' + v; }
+    }
+
+    function toggleSpineMenu() {
+        const menu = document.getElementById('spine-import-menu');
+        menu.style.display = (menu.style.display === 'none') ? 'block' : 'none';
+    }
+
+    window.addEventListener('click', function(e) {
+        const menu = document.getElementById('spine-import-menu');
+        const btn = e.target.closest('button');
+        if (menu && menu.style.display === 'block' && (!btn || !btn.innerText.includes('匯入 Spine'))) {
+            menu.style.display = 'none';
+        }
+    });
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        const btn = document.getElementById('tab-btn-' + tabId); if(btn) btn.classList.add('active');
+        const content = document.getElementById('tab-' + tabId); if(content) content.classList.add('active');
+    }
+
+    function getAnimColor(name, avoidHue = null) {
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) hash = Math.imul(31, hash) + name.charCodeAt(i) | 0;
+        hash = Math.imul(hash ^ (hash >>> 15), 0x735a2d97); hash = hash ^ (hash >>> 15);
+        let hue = Math.abs(hash % 360);
+        if (avoidHue !== null && avoidHue !== undefined) {
+            let diff = Math.abs(hue - avoidHue);
+            if (diff > 180) diff = 360 - diff; 
+            if (diff < 40) hue = (avoidHue + 137) % 360; 
+        }
+        return `hsl(${hue}, 75%, 35%)`; 
+    }
+
+    function selectTrack(trackId) {
+        timelineGroups.get().forEach(g => {
+            if(g.className && g.className.includes('selected-track')) {
+                timelineGroups.update({id: g.id, className: g.className.replace(' selected-track', '')});
+            }
+        });
+        const group = timelineGroups.get(trackId);
+        if (group) {
+            const currentClass = group.className || '';
+            if (!currentClass.includes('selected-track')) timelineGroups.update({id: trackId, className: currentClass + ' selected-track'});
+            selectedTrackId = trackId;
+        } else { selectedTrackId = null; }
+    }
+    
+    function clearTrackSelection() {
+        timelineGroups.get().forEach(g => {
+            if(g.className && g.className.includes('selected-track')) timelineGroups.update({id: g.id, className: g.className.replace(' selected-track', '')});
+        });
+        selectedTrackId = null;
+    }
+
+    function initTimeline() {
+        timelineData = new vis.DataSet(); 
+        timelineGroups = new vis.DataSet();
+        
+        const options = {
+            start: 0, end: 5000, min: 0, max: 600000,
+            showCurrentTime: false, orientation: 'top', stack: false,
+            editable: { add: false, updateTime: true, remove: true },
+            groupOrder: 'order', multiselect: true,
+            width: '100%', height: '100%', verticalScroll: true, zoomKey: 'ctrlKey',
+            margin: { item: { horizontal: 0, vertical: 5 } },
+            snap: function (date) { return Math.round(date.getTime() / 10) * 10; },
+            
+            onMoving: function (item, callback) {
+                const SNAP_DIST = 50; 
+                let start = item.start.valueOf(); 
+                let end = item.end.valueOf(); 
+                let duration = end - start;
+
+                const orig = timelineData.get(item.id);
+                const isResizeLeft = Math.abs(orig.end.valueOf() - end) < 5; 
+                const isResizeRight = Math.abs(orig.start.valueOf() - start) < 5;
+                const isResizing = isResizeLeft || isResizeRight;
+                const isMoving = !isResizing;
+
+                if (start < 0) {
+                    start = 0;
+                    if (isMoving) end = start + (orig.end.valueOf() - orig.start.valueOf());
+                }
+
+                const neighbors = timelineData.get({ filter: i => i.group === item.group && i.id !== item.id });
+                if (isMoving) {
+                    let duration = orig.end.valueOf() - orig.start.valueOf();
+                    let snapStart = start;
+                    let minDiff = SNAP_DIST;
+                    
+                    if (Math.abs(start - currentTime) < minDiff) { snapStart = currentTime; minDiff = Math.abs(start - currentTime); }
+                    if (Math.abs(end - currentTime) < minDiff) { snapStart = currentTime - duration; minDiff = Math.abs(end - currentTime); }
+
+                    neighbors.forEach(n => {
+                        const nStart = n.start.valueOf(); const nEnd = n.end.valueOf();
+                        if (Math.abs(start - nEnd) < minDiff) { snapStart = nEnd; minDiff = Math.abs(start - nEnd); }
+                        if (Math.abs(end - nStart) < minDiff) { snapStart = nStart - duration; minDiff = Math.abs(end - nStart); }
+                        if (Math.abs(start - nStart) < minDiff) { snapStart = nStart; minDiff = Math.abs(start - nStart); }
+                        if (Math.abs(end - nEnd) < minDiff) { snapStart = nEnd - duration; minDiff = Math.abs(end - nEnd); }
+                    });
+
+                    if (snapStart < 50 || start < 50) { snapStart = 0; }
+                    start = snapStart;
+                    end = start + duration;
+                    
+                } else if (isResizeLeft) {
+                    if (Math.abs(start - currentTime) < SNAP_DIST) start = currentTime;
+                    neighbors.forEach(n => { if (Math.abs(start - n.end.valueOf()) < SNAP_DIST) start = n.end.valueOf(); });
+                    
+                    const leftNeighbors = neighbors.filter(n => n.end.valueOf() <= orig.start.valueOf() + 5);
+                    if (leftNeighbors.length > 0) {
+                        const maxL = Math.max(...leftNeighbors.map(n => n.end.valueOf()));
+                        if (start < maxL) start = maxL;
+                    }
+                    if (start < 0) start = 0;
+                    if (start >= end - 10) start = end - 10; 
+                } else if (isResizeRight) {
+                    if (Math.abs(end - currentTime) < SNAP_DIST) end = currentTime;
+                    neighbors.forEach(n => { if (Math.abs(end - n.start.valueOf()) < SNAP_DIST) end = n.start.valueOf(); });
+                    
+                    const rightNeighbors = neighbors.filter(n => n.start.valueOf() >= orig.end.valueOf() - 5);
+                    if (rightNeighbors.length > 0) {
+                        const minR = Math.min(...rightNeighbors.map(n => n.start.valueOf()));
+                        if (end > minR) end = minR;
+                    }
+                    if (end <= start + 10) end = start + 10;
+                }
+
+                item.start = new Date(start); 
+                item.end = new Date(end);
+                
+                currentTime = isResizeRight ? end : start; 
+                timeline.setCustomTime(currentTime, 'playhead');
+                updateTimeDisplay(); 
+                syncSpineToTime(currentTime);
+                
+                callback(item);
+            },
+            
+            onMove: function (item, callback) {
+                try {
+                    let startMs = Math.max(0, item.start.valueOf()); 
+                    let endMs = Math.max(startMs + 10, item.end.valueOf());
+                    let dur = endMs - startMs;
+
+                    const orig = timelineData.get(item.id);
+                    const origDur = orig.end.valueOf() - orig.start.valueOf();
+                    const isResizing = Math.abs(dur - origDur) > 5;
+
+                    if (!isResizing) {
+                        const neighbors = timelineData.get({ filter: i => i.group === item.group && String(i.id) !== String(item.id) });
+                        
+                        let leftClips = [];
+                        let rightClips = [];
+                        neighbors.forEach(n => {
+                            let nCenter = n.start.valueOf() + (n.end.valueOf() - n.start.valueOf()) / 2;
+                            if (nCenter <= startMs) leftClips.push(n);
+                            else rightClips.push(n);
+                        });
+
+                        let minStart = 0;
+                        if (leftClips.length > 0) {
+                            minStart = Math.max(...leftClips.map(n => n.end.valueOf()));
+                        }
+                        
+                        if (startMs < minStart) {
+                            startMs = minStart;
+                            endMs = startMs + dur;
+                        }
+
+                        rightClips.sort((a, b) => a.start.valueOf() - b.start.valueOf());
+                        let currentBarrier = endMs;
+                        rightClips.forEach(n => {
+                            let nStart = n.start.valueOf(); let nDur = n.end.valueOf() - n.start.valueOf();
+                            if (nStart < currentBarrier) {
+                                timelineData.update({ id: n.id, start: new Date(currentBarrier), end: new Date(currentBarrier + nDur) });
+                                currentBarrier = currentBarrier + nDur;
+                            } else {
+                                currentBarrier = nStart + nDur; 
+                            }
+                        });
+                    }
+
+                    item.start = new Date(startMs); 
+                    item.end = new Date(endMs); 
+
+                    if(selectedClipId && String(selectedClipId) === String(item.id)) renderInspector();
+                    callback(item);
+                } catch(e) { console.error("Drop Error:", e); callback(item); }
+            },
+            format: { 
+                minorLabels: (d) => timeUnit === 'frame' ? Math.round(d / (1000/FPS)) + 'f' : (d/1000).toFixed(1)+'s', 
+                majorLabels: (d) => timeUnit === 'frame' ? Math.round(d / (1000/FPS)) + 'f' : (d/1000).toFixed(0)+'s' 
+            }
+        };
+        
+        timeline = new vis.Timeline(document.getElementById('visualization'), timelineData, timelineGroups, options);
+        timeline.addCustomTime(0, 'playhead');
+        timelineGroups.add({ id: SCENE_TRACK_ID, content: '🎬 場景事件', order: -9999, className: 'vis-group-level-0' });
+        timelineData.on('*', () => { markTimelineCacheDirty(); scheduleHistoryCheckpoint('timeline-change'); });
+        timelineGroups.on('*', () => { scheduleHistoryCheckpoint('timeline-group-change'); });
+        markTimelineCacheDirty();
+
+        timeline.on('select', (p) => {
+            selectedClipId = (p.items.length > 0) ? p.items[0] : null;
+            if (selectedClipId) {
+                const item = timelineData.get(selectedClipId);
+                if(item) {
+                    const char = characters.find(c => 
+                        c.tracks.anim === item.group || c.tracks.move === item.group || 
+                        c.tracks.rotate === item.group || c.tracks.scale === item.group || c.tracks.alpha === item.group || (c.animTracks && c.animTracks.includes(item.group))
+                    );
+                    if (char) { selectCharacter(char.id, false); selectTrack(item.group); }
+                }
+            } else { renderInspector(); }
+        });
+
+        timeline.on('click', (p) => {
+            if (p.time && !p.item && !p.group) { 
+                currentTime = p.time.getTime(); timeline.setCustomTime(currentTime, 'playhead'); updateTimeDisplay(); syncSpineToTime(currentTime);
+                timeline.setSelection([]); selectedClipId = null; renderInspector(); clearTrackSelection();
+            }
+            if (p.group) {
+                if (p.group === SCENE_TRACK_ID) return;
+                const char = characters.find(c => 
+                    c.id === p.group || c.tracks.anim === p.group || c.tracks.move === p.group || c.tracks.rotate === p.group || c.tracks.scale === p.group || c.tracks.alpha === p.group || (c.animTracks && c.animTracks.includes(p.group))
+                );
+                if (char) {
+                    if (selectedCharId !== char.id) selectCharacter(char.id);
+                    selectTrack(p.group);
+                }
+            }
+        });
+
+        setupTimelineRulerScrub();
+
+        timeline.on('timechange', (p) => { if (p.id === 'playhead') { currentTime = p.time.getTime(); updateTimeDisplay(); syncSpineToTime(currentTime); scheduleHistoryCheckpoint('playhead-drag', 400); } });
+    }
+
+    function timelineTimeFromPointerEvent(event) {
+        if (!timeline) return currentTime || 0;
+        try {
+            // V123 修正：不要用 visualization 整體寬度自行換算，因為 vis-timeline 左側 label / group 欄位會造成時間偏移。
+            // 使用 vis-timeline 內建座標轉換，才能精準取得滑鼠所在的時間點。
+            const props = timeline.getEventProperties(event);
+            if (props && props.time) return Math.max(0, props.time.valueOf());
+        } catch (err) {
+            console.warn('timeline.getEventProperties failed, fallback to DOM conversion', err);
+        }
+
+        // 保底：只在 getEventProperties 失敗時使用。這裡扣掉左側 label 區，避免再次右偏。
+        const el = document.getElementById('visualization');
+        if (!el) return currentTime || 0;
+        const body = el.querySelector('.vis-content') || el.querySelector('.vis-panel.vis-center') || el;
+        const rect = body.getBoundingClientRect();
+        const windowRange = timeline.getWindow();
+        const start = new Date(windowRange.start).valueOf();
+        const end = new Date(windowRange.end).valueOf();
+        const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width)));
+        return Math.max(0, start + ratio * (end - start));
+    }
+
+    function setCurrentTimeFromPointerEvent(event) {
+        currentTime = timelineTimeFromPointerEvent(event);
+        timeline.setCustomTime(currentTime, 'playhead');
+        updateTimeDisplay();
+        syncSpineToTime(currentTime);
+    }
+
+    function setupTimelineRulerScrub() {
+        const el = document.getElementById('visualization'); if (!el) return; let scrubbing = false;
+        el.addEventListener('pointerdown', (e) => {
+            const rect = el.getBoundingClientRect();
+            const y = e.clientY - rect.top;
+            const clickedItem = e.target.closest && e.target.closest('.vis-item');
+            if (clickedItem || y > TIMELINE_RULER_SCRUB_HEIGHT) return;
+            e.preventDefault();
+            e.stopPropagation();
+            recordHistoryCheckpoint('before-ruler-scrub');
+            scrubbing = true;
+            el.classList.add('timeline-scrub-zone');
+            setCurrentTimeFromPointerEvent(e);
+            try { el.setPointerCapture(e.pointerId); } catch (_) {}
+        }, true);
+        el.addEventListener('pointermove', (e) => { if (!scrubbing) return; e.preventDefault(); setCurrentTimeFromPointerEvent(e); }, true);
+        const stopScrub = (e) => { if (!scrubbing) return; scrubbing = false; el.classList.remove('timeline-scrub-zone'); scheduleHistoryCheckpoint('ruler-scrub', 50); try { el.releasePointerCapture(e.pointerId); } catch (_) {} };
+        el.addEventListener('pointerup', stopScrub, true); el.addEventListener('pointercancel', stopScrub, true);
+    }
+
+    function onTick() {
+        if (isPlaying) {
+            currentTime += app.ticker.deltaMS;
+            const loop = document.getElementById('loop-playback-check').checked;
+            const loopPoint = timelineCacheDirty ? (rebuildTimelineCache(), timelineMaxEnd) : timelineMaxEnd;
+
+            if (loop && currentTime >= loopPoint) {
+                currentTime = 0;
+                characters.forEach(c => { c.lastAnimClipId = {}; });
+                lastTimelineUiUpdateMs = -9999;
+            }
+            else if (!loop && currentTime >= loopPoint) {
+                stop();
+                currentTime = loopPoint;
+                syncSpineToTime(currentTime);
+                timeline.setCustomTime(currentTime, 'playhead');
+                updateTimeDisplay();
+                drawDebugHelpers();
+                return;
+            }
+
+            syncSpineToTime(currentTime);
+
+            // vis-timeline / DOM 更新成本高，播放中降到約 30fps 即可。
+            if (currentTime - lastTimelineUiUpdateMs >= TIMELINE_UI_UPDATE_INTERVAL_MS) {
+                timeline.setCustomTime(currentTime, 'playhead');
+                updateTimeDisplay();
+                lastTimelineUiUpdateMs = currentTime;
+            }
+        }
+
+        // 輔助線只在停止時每幀更新；播放時降頻，避免 Graphics 重畫拖慢預覽。
+        if (!isPlaying || Math.abs(currentTime - debugHelperLastDrawTime) >= DEBUG_HELPER_INTERVAL_MS) {
+            drawDebugHelpers();
+            debugHelperLastDrawTime = currentTime;
+        }
+    }
+
+    function customBounce(t, b) { const n1=7.5625,d1=2.75; if(t<1/d1)return n1*t*t; else if(t<2/d1)return n1*(t-=1.5/d1)*t+0.75; else if(t<2.5/d1)return n1*(t-=2.25/d1)*t+0.9375; else return n1*(t-=2.625/d1)*t+0.984375; }
+
+    const EasingFuncs = {
+        linear: t => t,
+        easeOutQuad: t => t * (2 - t),
+        easeInOutQuad: t => t < .5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
+        easeOutBack: t => { const c1 = 1.70158; const c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
+        easeOutElastic: t => { const c4 = (2 * Math.PI) / 3; return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1; }
+    };
+
+    function getInterpolatedValue(trackId, time, defaultValue, propStart, propEnd) {
+        const clips = getGroupClips(trackId);
+        const activeClip = clips.find(i => time >= i.start.valueOf() && time <= i.end.valueOf());
+        if (activeClip) {
+            const startVal = activeClip[propStart]; const endVal = activeClip[propEnd]; const duration = (activeClip.end - activeClip.start);
+            if(duration <= 0) return startVal;
+            let t = (time - activeClip.start) / duration;
+            const easeType = activeClip.easing || 'linear';
+            if (EasingFuncs[easeType]) t = EasingFuncs[easeType](t);
+            return startVal + (endVal - startVal) * t;
+        }
+        const prevClips = clips.filter(i => i.end.valueOf() <= time);
+        if (prevClips.length > 0) {
+            prevClips.sort((a,b) => b.end - a.end); 
+            return prevClips[0][propEnd];
+        }
+        return defaultValue;
+    }
+
+    function syncSpineToTime(time) {
+        if (bg2Sprite) {
+            const sceneClips = getGroupClips(SCENE_TRACK_ID).filter(i => time >= i.start.valueOf() && time <= i.end.valueOf());
+            bg2Sprite.alpha = (sceneClips.length > 0) ? 1 : 0; 
+        }
+
+        characters.forEach(char => {
+            if (char.type !== 'image') {
+                char.spine.visible = char.visible; 
+                
+                let ta = getInterpolatedValue(char.tracks.alpha, time, char.baseAlpha, 'motStartA', 'motEndA');
+                if(char.visible) char.spine.alpha = ta;
+
+                char.animTracks.forEach((trackId, trackIndex) => {
+                    const animClips = getGroupClips(trackId).filter(i => time >= i.start.valueOf() && time < i.end.valueOf());
+                    const activeAnimClip = animClips.length > 0 ? animClips[0] : null;
+
+                    if (activeAnimClip) {
+                        const animName = activeAnimClip.content.split(' (')[0];
+                        const delayMs = (activeAnimClip.dropDelay || 0) * 1000;
+                        const localTime = (time - activeAnimClip.start - delayMs) / 1000;
+
+                        if (localTime >= 0) {
+                            if (char.lastAnimClipId[trackIndex] !== activeAnimClip.id) {
+                                try { 
+                                    const trackEntry = char.spine.state.setAnimation(trackIndex, animName, true); 
+                                    trackEntry.mixDuration = activeAnimClip.mixDuration !== undefined ? activeAnimClip.mixDuration : 0.2;
+                                } catch(e){}
+                                char.lastAnimClipId[trackIndex] = activeAnimClip.id;
+                            }
+                            
+                            const trackEntry = char.spine.state.getCurrent(trackIndex);
+                            if (trackEntry) {
+                                const dur = trackEntry.animation.duration;
+                                const isLoop = (activeAnimClip.loop !== undefined) ? activeAnimClip.loop : true;
+                                trackEntry.trackTime = isLoop ? (localTime % dur) : Math.min(localTime, dur);
+                                trackEntry.mixTime = localTime; 
+                                trackEntry.alpha = 1; 
+                            }
+                        }
+                    } else {
+                        if (char.lastAnimClipId[trackIndex]) {
+                            char.spine.state.setEmptyAnimation(trackIndex, 0.1); 
+                            char.lastAnimClipId[trackIndex] = null;
+                        }
+                    }
+                });
+
+                char.spine.skeleton.setToSetupPose();
+                char.spine.update(0);
+
+            } else {
+                char.spine.visible = char.visible; 
+                let ta = getInterpolatedValue(char.tracks.alpha, time, char.baseAlpha, 'motStartA', 'motEndA');
+                if(char.visible) char.spine.alpha = ta;
+            }
+
+            let tx = getInterpolatedValue(char.tracks.move, time, char.baseX, 'motStartX', 'motEndX');
+            let ty = getInterpolatedValue(char.tracks.move, time, char.baseY, 'motStartY', 'motEndY');
+            if (char.spine.dragging) { tx = char.spine.x; ty = char.spine.y; }
+
+            let tr = getInterpolatedValue(char.tracks.rotate, time, char.baseRot, 'motStartR', 'motEndR');
+            let ts = getInterpolatedValue(char.tracks.scale, time, char.scaleX, 'motStartS', 'motEndS');
+
+            if (char.type === 'spine') {
+                const mainTrackId = char.animTracks[0];
+                const mainClips = getGroupClips(mainTrackId).filter(i => time >= i.start.valueOf() && time < i.end.valueOf());
+                if (mainClips.length > 0 && mainClips[0].dropEnable) {
+                    const ac = mainClips[0];
+                    const delayMs = (ac.dropDelay || 0) * 1000;
+                    const dropStart = ac.start.valueOf() + delayMs;
+                    const dropDur = (ac.dropDur || 0.5); 
+                    const localDropT = (time - dropStart) / 1000;
+                    
+                    if (localDropT >= 0 && localDropT < dropDur) {
+                        const dt = localDropT / dropDur;
+                        const height = ac.dropHeight || 500;
+                        const bounce = ac.dropBounce || 0.5;
+                        let progress = (bounce <= 0.05) ? (dt*dt*dt) : customBounce(dt, bounce);
+                        ty = ty - height + (height * progress);
+                    } else if (localDropT < 0) {
+                         const height = ac.dropHeight || 500;
+                         ty = ty - height;
+                    }
+                }
+            }
+
+            char.spine.x = tx; char.spine.y = ty;
+            char.spine.angle = tr; char.spine.scale.set(ts * (char.flipX ? -1 : 1), ts); 
+        });
+    }
+
+    function addExtraAnimTrack() {
+        if (!selectedCharId) { alert("請先選擇一個 Spine 物件"); return; }
+        const char = characters.find(c => c.id === selectedCharId);
+        if (char.type !== 'spine') { alert("只有 Spine 物件支援多軌動畫"); return; }
+
+        const newTrackIndex = char.animTracks.length; 
+        const newTrackId = char.id + '_anim_' + newTrackIndex;
+        
+        char.animTracks.push(newTrackId);
+        const baseOrder = char.order * 10 + 1; 
+        const newOrder = baseOrder + (newTrackIndex * 0.1); 
+
+        const charGroup = timelineGroups.get(char.id);
+        if(charGroup && charGroup.nestedGroups) {
+            charGroup.nestedGroups.push(newTrackId);
+            timelineGroups.update(charGroup);
+        }
+
+        timelineGroups.add({ 
+            id: newTrackId, content: `動作 T${newTrackIndex} (Sub)`, order: newOrder, className: 'vis-group-level-1', style: 'border-left: 3px solid #FF5555;'
+        });
+        
+        selectTrack(newTrackId);
+    }
+
+    function setupInteractions() { 
+        let drag=false, start={x:0,y:0}, cam={x:0,y:0};
+        document.getElementById('canvas-container').addEventListener('wheel', e=>{ e.preventDefault(); worldContainer.scale.set(Math.max(0.1, worldContainer.scale.x + (e.deltaY*-0.001))); });
+        app.stage.eventMode = 'static'; app.stage.hitArea=new PIXI.Rectangle(-1e4,-1e4,2e4,2e4);
+        app.stage.on('pointerdown', e=>{ if (activeObjectDragId) return; if(e.target===app.stage||e.target.parent===bgContainer){ drag=true; start={x:e.data.global.x,y:e.data.global.y}; cam={x:worldContainer.x,y:worldContainer.y}; }})
+                 .on('pointermove', e=>{ if (activeObjectDragId) { moveActiveDraggedCharacter(e.data.global); return; } if(drag){ worldContainer.x=cam.x+(e.data.global.x-start.x); worldContainer.y=cam.y+(e.data.global.y-start.y); }})
+                 .on('pointerup', ()=>{ drag=false; finishCharacterDrag(); }).on('pointerupoutside', ()=>{ drag=false; finishCharacterDrag(); });
+    }
+
+    function setupDragAndDrop() {
+        const canvasContainer = document.getElementById('canvas-container');
+        canvasContainer.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); canvasContainer.classList.add('drag-over'); });
+        canvasContainer.addEventListener('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); canvasContainer.classList.remove('drag-over'); });
+        canvasContainer.addEventListener('drop', (e) => {
+            e.preventDefault(); e.stopPropagation(); canvasContainer.classList.remove('drag-over');
+            const files = Array.from(e.dataTransfer.files); if (files.length === 0) return;
+            
+            // 💡 關鍵修正：讓拖曳守門員認識 .bytes 結尾的檔案
+            const hasSpineData = files.some(f => f.name.match(/\.(json|skel|bytes)$/i));
+            const hasAtlas = files.some(f => f.name.match(/\.(atlas|txt)$/i));
+            const hasImages = files.some(f => f.name.match(/\.(png|jpg|jpeg|webp)$/i));
+            const mockInput = { files: files, value: '' };
+
+            if (hasSpineData && hasAtlas) handleFiles(mockInput);
+            else if (hasImages && !hasSpineData && !hasAtlas) handleImageFiles(mockInput);
+            else if (hasSpineData && !hasAtlas) alert("⚠️ 匯入 Spine 失敗：缺少 .atlas 檔案！\n請將 .skel/.bytes 與 .atlas/.txt 及 .png 一起框選後拖曳進來。");
+        });
+    }
+
+    function setupSplitter() {
+        const split = document.getElementById('splitter'); const ws = document.getElementById('workspace'); let dragging = false;
+        split.addEventListener('mousedown', (e) => { dragging = true; document.body.style.cursor = 'row-resize'; e.preventDefault(); });
+        window.addEventListener('mouseup', () => { if (dragging) { dragging = false; document.body.style.cursor = ''; if(timeline) timeline.redraw(); } });
+        window.addEventListener('mousemove', (e) => { if (dragging) { const percentage = (e.clientY / window.innerHeight) * 100; if(percentage > 10 && percentage < 90) { ws.style.height = percentage + '%'; if(app) app.resize(); } } });
+    }
+
+    function enableDrag(obj) {
+        obj.eventMode = 'static'; obj.cursor = 'move';
+        obj.on('pointerdown', function(e) { 
+            const originalEvent = e.data && e.data.originalEvent;
+            const forcePickClicked = !!(originalEvent && originalEvent.altKey);
+            const targetId = (lockCanvasDragToSelection && selectedCharId && !forcePickClicked) ? selectedCharId : this.charId;
+            startCharacterDrag(targetId, e.data);
+            e.stopPropagation();
+        });
+        obj.on('pointerup', () => finishCharacterDrag()).on('pointerupoutside', () => finishCharacterDrag());
+    }
+
+    function handleAutoRec(charId, type, vals) {
+        const char = characters.find(c => c.id === charId); if(!char) return;
+        let group;
+        if(type === 'move') group = char.tracks.move; 
+        if(type === 'rotate') group = char.tracks.rotate; 
+        if(type === 'scale') group = char.tracks.scale;
+        if(type === 'alpha') group = char.tracks.alpha;
+
+        const SNAP_TOLERANCE = 100; const POINT_TOLERANCE = 20; 
+        const overlappingItems = timelineData.get({ filter: i => i.group === group && currentTime >= i.start.valueOf() && currentTime <= i.end.valueOf() });
+
+        if (overlappingItems.length > 0) {
+            overlappingItems.forEach(clip => {
+                const updates = { id: clip.id };
+                const isPoint = (clip.end.valueOf() - clip.start.valueOf()) <= POINT_TOLERANCE;
+                
+                if (isPoint || Math.abs(currentTime - clip.start.valueOf()) < SNAP_TOLERANCE) {
+                    if(type==='move') { updates.motStartX = vals.x; updates.motStartY = vals.y; if(isPoint){ updates.motEndX = vals.x; updates.motEndY = vals.y; } }
+                    if(type==='rotate') { updates.motStartR = vals.r; if(isPoint) updates.motEndR = vals.r; }
+                    if(type==='scale') { updates.motStartS = vals.s; if(isPoint) updates.motEndS = vals.s; }
+                    if(type==='alpha') { updates.motStartA = vals.a; if(isPoint) updates.motEndA = vals.a; }
+                } 
+                else if (Math.abs(currentTime - clip.end.valueOf()) < SNAP_TOLERANCE) {
+                    if(type==='move') { updates.motEndX = vals.x; updates.motEndY = vals.y; }
+                    if(type==='rotate') { updates.motEndR = vals.r; }
+                    if(type==='scale') { updates.motEndS = vals.s; }
+                    if(type==='alpha') { updates.motEndA = vals.a; }
+                } 
+                else {
+                    updates.end = new Date(currentTime);
+                    if(type==='move') { updates.motEndX = vals.x; updates.motEndY = vals.y; }
+                    if(type==='rotate') { updates.motEndR = vals.r; }
+                    if(type==='scale') { updates.motEndS = vals.s; }
+                    if(type==='alpha') { updates.motEndA = vals.a; }
+                    
+                    const newId = type + '_' + Date.now();
+                    const newClip = { id: newId, group: group, start: new Date(currentTime), end: new Date(clip.end.valueOf()), className: 'vis-item track-' + type, type: 'range' };
+                    
+                    if(type==='move') { newClip.motStartX = vals.x; newClip.motStartY = vals.y; newClip.motEndX = clip.motEndX; newClip.motEndY = clip.motEndY; }
+                    if(type==='rotate') { newClip.motStartR = vals.r; newClip.motEndR = clip.motEndR; }
+                    if(type==='scale') { newClip.motStartS = vals.s; newClip.motEndS = clip.motEndS; }
+                    if(type==='alpha') { newClip.motStartA = vals.a; newClip.motEndA = clip.motEndA; }
+                    timelineData.add(newClip); selectedClipId = newId;
+                }
+                timelineData.update(updates);
+            });
+        } else {
+            const allClips = timelineData.get({ filter: i => i.group === group });
+            allClips.sort((a,b) => a.end.valueOf() - b.end.valueOf()); 
+            const prevClip = allClips.reverse().find(i => i.end.valueOf() <= currentTime);
+            
+            if (prevClip) {
+                const isPoint = (prevClip.end.valueOf() - prevClip.start.valueOf()) <= POINT_TOLERANCE;
+                if (isPoint) {
+                    const updates = { id: prevClip.id, end: new Date(currentTime) };
+                    if(type==='move') { updates.motEndX = vals.x; updates.motEndY = vals.y; }
+                    if(type==='rotate') { updates.motEndR = vals.r; }
+                    if(type==='scale') { updates.motEndS = vals.s; }
+                    if(type==='alpha') { updates.motEndA = vals.a; }
+                    timelineData.update(updates); selectedClipId = prevClip.id;
+                } else {
+                    const newId = type + '_' + Date.now();
+                    const newClip = { id: newId, group: group, start: new Date(prevClip.end.valueOf()), end: new Date(currentTime), className: 'vis-item track-' + type, type: 'range' };
+                    if(type==='move') { newClip.motStartX = prevClip.motEndX; newClip.motStartY = prevClip.motEndY; newClip.motEndX = vals.x; newClip.motEndY = vals.y; }
+                    if(type==='rotate') { newClip.motStartR = prevClip.motEndR; newClip.motEndR = vals.r; }
+                    if(type==='scale') { newClip.motStartS = prevClip.motEndS; newClip.motEndS = vals.s; }
+                    if(type==='alpha') { newClip.motStartA = prevClip.motEndA; newClip.motEndA = vals.a; }
+                    timelineData.add(newClip); selectedClipId = newId;
+                }
+            } else {
+                const newId = type + '_' + Date.now();
+                const newClip = { id: newId, group: group, start: new Date(currentTime), end: new Date(currentTime + 10), className: 'vis-item track-' + type, type: 'range' };
+                if(type==='move') { newClip.motStartX = vals.x; newClip.motStartY = vals.y; newClip.motEndX = vals.x; newClip.motEndY = vals.y; }
+                if(type==='rotate') { newClip.motStartR = vals.r; newClip.motEndR = vals.r; }
+                if(type==='scale') { newClip.motStartS = vals.s; newClip.motEndS = vals.s; }
+                if(type==='alpha') { newClip.motStartA = vals.a; newClip.motEndA = vals.a; }
+                timelineData.add(newClip); selectedClipId = newId;
+            }
+        }
+    }
+
+    function updateCharPos() { 
+        if (!selectedCharId) return; 
+        const char = characters.find(c => c.id === selectedCharId); if(!char) return;
+        const nx = parseFloat(document.getElementById('charX').value) || 0;
+        const ny = parseFloat(document.getElementById('charY').value) || 0;
+        if (isRecording) { handleAutoRec(char.id, 'move', {x: nx, y: ny}); } else { char.baseX = nx; char.baseY = ny; } 
+        syncSpineToTime(currentTime); drawDebugHelpers(); scheduleHistoryCheckpoint('char-position');
+    }
+
+    function forceKeyframe() {
+        if (!selectedCharId) return;
+        const char = characters.find(c => c.id === selectedCharId); if(!char) return;
+        handleAutoRec(char.id, 'move', {x:char.spine.x, y:char.spine.y});
+        handleAutoRec(char.id, 'rotate', {r:char.spine.angle});
+        handleAutoRec(char.id, 'scale', {s:char.scaleX});
+        handleAutoRec(char.id, 'alpha', {a:char.baseAlpha});
+        drawDebugHelpers();
+    }
+
+    function duplicateWithDialog() {
+        if (!selectedCharId) return;
+        const original = characters.find(c => c.id === selectedCharId); if (!original) return;
+
+        let baseName = original.name; const nameRoot = baseName.replace(/_\d+$/, '');
+        let counter = 2; let nextName = `${nameRoot}_0${counter}`;
+        while(characters.some(c => c.name === nextName)) { counter++; nextName = `${nameRoot}_${counter < 10 ? '0'+counter : counter}`; }
+
+        const copyTracks = confirm(`複製物件 "${baseName}"？\n\n【確定】: 複製物件 + 所有動畫時間軸軌道。\n【取消】: 僅複製物件 (時間軸留空)。`);
+
+        if (original.type === 'spine') {
+            createSpine(null, null, null, null, nextName, null, {
+                x: original.spine.x + 20, y: original.spine.y + 20, name: nextName, scaleX: original.scaleX, scaleY: original.scaleY, flipX: original.flipX, rotation: original.baseRot, alpha: original.baseAlpha, skin: original.spine.skeleton.skin?.name, order: characters.length
+            }, original.assets);
+        } else {
+             createImageObject(null, nextName, null, {
+                x: original.spine.x + 20, y: original.spine.y + 20, name: nextName, scaleX: original.scaleX, scaleY: original.scaleY, flipX: original.flipX, rotation: original.baseRot, alpha: original.baseAlpha, order: characters.length
+            }, original.assets);
+        }
+
+        setTimeout(() => {
+            const newChar = characters[characters.length - 1];
+            if (copyTracks && newChar) {
+                const originalClips = timelineData.get({ filter: i => i.group === original.tracks.anim || i.group === original.tracks.move || i.group === original.tracks.rotate || i.group === original.tracks.scale || i.group === original.tracks.alpha });
+                const newClips = originalClips.map(item => {
+                    const clone = JSON.parse(JSON.stringify(item));
+                    clone.id = 'clip_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                    if (item.group === original.tracks.anim) clone.group = newChar.tracks.anim;
+                    if (item.group === original.tracks.move) clone.group = newChar.tracks.move;
+                    if (item.group === original.tracks.rotate) clone.group = newChar.tracks.rotate;
+                    if (item.group === original.tracks.scale) clone.group = newChar.tracks.scale;
+                    if (item.group === original.tracks.alpha) clone.group = newChar.tracks.alpha;
+                    if(clone.start) clone.start = new Date(clone.start);
+                    if(clone.end) clone.end = new Date(clone.end);
+                    return clone;
+                });
+                timelineData.add(newClips);
+            }
+            if(newChar) selectCharacter(newChar.id);
+        }, 100);
+    }
+
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); });
+    }
+
+    function detectSpineDataVersion(rawData, isBinary) {
+        try {
+            if (!isBinary) {
+                return rawData?.skeleton?.spine || rawData?.spine || '';
+            }
+            const header = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(rawData).slice(0, 256));
+            const match = header.match(/\b(3\.8(?:\.\d+)?|4\.[01](?:\.\d+)?)\b/);
+            return match ? match[1] : '';
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function validateCocos38SpineVersion(rawData, isBinary, fileName) {
+        if (!isCocosEditorMode) return;
+        const version = detectSpineDataVersion(rawData, isBinary);
+        if (version === '3.8.75') {
+            throw new Error(`${fileName} 使用 Spine 3.8.75；Creator 3.8 原生平台不支援此特定版本，請改由其他 Spine 3.8.x 重新輸出。`);
+        }
+        if (version && !version.startsWith('3.8')) {
+            throw new Error(`${fileName} 是 Spine ${version}，Cocos 專用版只接受 Spine 3.8。`);
+        }
+    }
+
+    async function handleFiles(input) {
+        // 💡 1. 取得原始檔案
+        const rawFiles = Array.from(input.files); 
+        if(rawFiles.length === 0) return;
+
+        // 💡 2. 攔截並修正檔名：在記憶體中把 Unity 的附加檔名剝除
+        const files = rawFiles.map(f => {
+            let newName = f.name;
+            if (newName.toLowerCase().endsWith('.skel.bytes')) {
+                newName = newName.replace(/\.skel\.bytes$/i, '.skel');
+            } else if (newName.toLowerCase().endsWith('.bytes')) {
+                newName = newName.replace(/\.bytes$/i, '.skel');
+            } else if (newName.toLowerCase().endsWith('.atlas.txt')) {
+                newName = newName.replace(/\.atlas\.txt$/i, '.atlas');
+            }
+            
+            // 如果檔名有被修改過，就在記憶體中動態建立一個全新的 File 物件
+            return newName !== f.name ? new File([f], newName, { type: f.type }) : f;
+        });
+
+        // 💡 3. 以下邏輯退回最乾淨的版本，因為進來的檔案已經全都是標準的 .skel 和 .atlas 了！
+        const imageAssets = {};
+        const images = files.filter(f => f.name.match(/\.(jpg|png|jpeg|webp)$/i));
+        for(let img of images) { 
+            imageAssets[img.name] = await fileToBase64(img); 
+        }
+
+        const skels = files.filter(f => f.name.match(/\.(json|skel)$/i));
+        const atlases = files.filter(f => f.name.match(/\.(atlas|txt)$/i));
+
+        for (let skel of skels) {
+            try {
+                const baseName = skel.name.replace(/\.(json|skel)$/i, '');
+                
+                const atlasFile = atlases.find(a => a.name.includes(baseName)) || atlases[0];
+                if (!atlasFile) throw new Error(`找不到對應的 Atlas 檔案`);
+
+                const atlasText = await readFile(atlasFile, 'text');
+                let rawData, isBinary = false;
+                
+                if(skel.name.match(/\.skel$/i)) { 
+                    rawData = await readFile(skel, 'buffer'); 
+                    isBinary = true; 
+                } else { 
+                    rawData = JSON.parse(await readFile(skel, 'text')); 
+                }
+
+                validateCocos38SpineVersion(rawData, isBinary, skel.name);
+
+                const assets = { 
+                    atlas: atlasText, 
+                    images: imageAssets, 
+                    skeleton: isBinary ? null : rawData, 
+                    binarySkeleton: isBinary ? await fileToBase64(skel) : null 
+                };
+                
+                createSpine(rawData, atlasText, null, isBinary, baseName, null, null, assets);
+            } catch(e) { 
+                console.error(e); 
+                alert("匯入錯誤: " + e.message); 
+            }
+        }
+        input.value = '';
+    }
+
+    async function handleImageFiles(input) {
+        const files = Array.from(input.files); if(files.length===0) return;
+        for (let file of files) { const base64 = await fileToBase64(file); const baseName = file.name.split('.')[0]; const assets = { texture: base64 }; createImageObject(null, baseName, null, null, assets); }
+        input.value = '';
+    }
+    
+    function base64ToArrayBuffer(base64) {
+        const binaryString = window.atob(base64.split(',')[1]); const len = binaryString.length; const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+        return bytes.buffer;
+    }
+
+    async function createSpine(rawData, atlasText, textureMap, isBinary, name, reuseId=null, reuseConfig=null, assets=null) {
+        const spineNamespace = PIXI.spine || (window.PIXI && window.PIXI.spine);
+        if (!spineNamespace) { alert("找不到 Spine 插件！請確認 CDN 載入是否完整。"); return; }
+
+        try {
+            // 專屬包已經把所有類別攤平在最上層，直接取用即可
+            const TextureAtlas = spineNamespace.TextureAtlas || spineNamespace.core?.TextureAtlas;
+            const AtlasAttachmentLoader = spineNamespace.AtlasAttachmentLoader || spineNamespace.core?.AtlasAttachmentLoader;
+            const SkeletonBinary = spineNamespace.SkeletonBinary || spineNamespace.core?.SkeletonBinary;
+            const SkeletonJson = spineNamespace.SkeletonJson || spineNamespace.core?.SkeletonJson;
+
+            if (!TextureAtlas || !SkeletonJson) {
+                throw new Error("無法解析 Spine 核心類別，請確認 CDN 載入是否完整。");
+            }
+
+            // ...下方從 if (typeof atlasText === 'string') 開始，保留你原本的程式碼不要動...
+
+            const internalTextureMap = {}; const sourceImages = assets ? assets.images : (textureMap || {});
+            for (let imgName in sourceImages) {
+                const cleanName = imgName.split('/').pop(); const bt = PIXI.BaseTexture.from(sourceImages[imgName]);
+                internalTextureMap[cleanName] = bt; internalTextureMap[imgName] = bt;
+            }
+
+            if (assets) { if (assets.binarySkeleton) { rawData = base64ToArrayBuffer(assets.binarySkeleton); isBinary = true; } else { rawData = assets.skeleton; isBinary = false; } }
+
+            const spineAtlas = new TextureAtlas(atlasText, (line, cb) => {
+                const cleanLine = line.split('/').pop(); const bt = internalTextureMap[cleanLine] || internalTextureMap[line] || (PIXI.utils.TextureCache[line] ? PIXI.utils.TextureCache[line].baseTexture : null);
+                if (bt) { cb(bt); } else { cb(PIXI.Texture.WHITE.baseTexture); }
+            });
+
+            const loader = new AtlasAttachmentLoader(spineAtlas); let spineData;
+            if (isBinary) { const parser = new SkeletonBinary(loader); parser.scale = 1; spineData = parser.readSkeletonData(new Uint8Array(rawData)); } 
+            else { const parser = new SkeletonJson(loader); spineData = parser.readSkeletonData(rawData); }
+            
+            const spine = new PIXI.spine.Spine(spineData); spine.autoUpdate = false; spine.assets = assets; 
+            finalizeCharacterCreation(spine, name, reuseId, reuseConfig, 'spine', spineData);
+        } catch(e) { console.error("Spine Error:", e); alert(`匯入失敗！\n錯誤細節: ${e.message}`); }
+        renderSceneList();
+    }
+
+    function createImageObject(texture, name, reuseId=null, reuseConfig=null, assets=null) {
+        if (assets && !texture) texture = PIXI.Texture.from(assets.texture);
+        const sprite = new PIXI.Sprite(texture); sprite.anchor.set(0.5); sprite.assets = assets;
+        finalizeCharacterCreation(sprite, name, reuseId, reuseConfig, 'image', null);
+    }
+
+    function finalizeCharacterCreation(displayObj, name, reuseId, reuseConfig, type, spineData) {
+        const id = reuseId || ((type==='spine'?'char_':'img_') + Date.now());
+        const trackAnimId = id + '_anim'; const trackMoveId = id + '_move'; const trackRotateId = id + '_rotate'; const trackScaleId = id + '_scale'; const trackAlphaId = id + '_alpha';
+        
+        const startX = reuseConfig ? reuseConfig.x : 0; const startY = reuseConfig ? reuseConfig.y : 0;
+        displayObj.x = startX; displayObj.y = startY; enableDrag(displayObj); displayObj.charId = id; worldContainer.addChild(displayObj);
+
+        const charObj = {
+            id, spine: displayObj, name: reuseConfig ? reuseConfig.name : name, type: type, assets: displayObj.assets, 
+            animations: spineData ? spineData.animations : [], animDurations: {}, skins: spineData ? spineData.skins.map(s => s.name) : [],
+            animTracks: reuseConfig && reuseConfig.animTracks ? reuseConfig.animTracks : [trackAnimId],
+            tracks: { anim: trackAnimId, move: trackMoveId, rotate: trackRotateId, scale: trackScaleId, alpha: trackAlphaId },
+            lastAnimClipId: {}, order: reuseConfig ? reuseConfig.order : characters.length,
+            baseX: startX, baseY: startY, baseRot: reuseConfig ? reuseConfig.rotation : 0, baseAlpha: reuseConfig ? (reuseConfig.alpha !== undefined ? reuseConfig.alpha : 1) : 1,
+            scaleX: reuseConfig?(reuseConfig.scaleX||1):1, scaleY: reuseConfig?(reuseConfig.scaleY||1):1, flipX: reuseConfig?reuseConfig.flipX:false, visible: true
+        };
+
+        if (spineData && spineData.animations) spineData.animations.forEach(a => charObj.animDurations[a.name] = a.duration);
+
+        if(reuseConfig) {
+            displayObj.angle = charObj.baseRot; displayObj.scale.set(charObj.scaleX * (charObj.flipX ? -1 : 1), charObj.scaleY); displayObj.alpha = charObj.baseAlpha;
+            if (type === 'spine' && reuseConfig.skin && displayObj.skeleton.data.findSkin(reuseConfig.skin)) { displayObj.skeleton.setSkinByName(reuseConfig.skin); displayObj.skeleton.setSlotsToSetupPose(); }
+        }
+        characters.push(charObj);
+        
+        if(!reuseId) {
+            const nested = [trackMoveId, trackRotateId, trackScaleId, trackAlphaId];
+            if (type === 'spine') nested.unshift(trackAnimId);
+            timelineGroups.add({ id: id, content: `${type==='spine'?'👤':'🖼️'} ${charObj.name}`, order: charObj.order * 10, className: 'vis-group-level-0', nestedGroups: nested });
+            
+            if (type === 'spine') {
+                timelineGroups.add({ id: trackAnimId, content: '動作 T0 (Base)', order: charObj.order * 10 + 1, className: 'vis-group-level-1' });
+                addAnimClip(id, null, trackAnimId); 
+            }
+            timelineGroups.add({ id: trackMoveId, content: '位移 (Move)', order: charObj.order * 10 + 2, className: 'vis-group-level-1' });
+            timelineGroups.add({ id: trackRotateId, content: '旋轉 (Rot)', order: charObj.order * 10 + 3, className: 'vis-group-level-1' });
+            timelineGroups.add({ id: trackScaleId, content: '縮放 (Scale)', order: charObj.order * 10 + 4, className: 'vis-group-level-1' });
+            timelineGroups.add({ id: trackAlphaId, content: '透明度 (Alpha)', order: charObj.order * 10 + 5, className: 'vis-group-level-1' });
+            selectCharacter(id); refreshZIndex();
+        }
+        if (type === 'spine') { displayObj.update(0); }
+        renderSceneList();
+    }
+
+    async function enhancedSaveProject() {
+        autoSaveToLocal(); 
+        const d = { 
+            version: "V122", 
+            timeline: timelineData.get(), groups: timelineGroups.get(), clipRegistry, 
+            characters: characters.map(c => ({ 
+                id: c.id, name: c.name, type: c.type, order: c.order, 
+                x: c.baseX, y: c.baseY, rotation: c.baseRot, scaleX: c.scaleX, scaleY: c.scaleY, flipX: c.flipX, alpha: c.baseAlpha,
+                skin: c.type === 'spine' ? c.spine.skeleton.skin?.name : null, assets: c.assets, animTracks: c.animTracks 
+            })) 
+        }; 
+        const blob = new Blob([JSON.stringify(d)], {type:"application/json"});
+        const filename = prompt("請輸入檔案名稱", "spine_project");
+        if(filename) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename.endsWith('.json') ? filename : filename + ".json"; a.click(); }
+    }
+
+    function enhancedLoadProject(file) { 
+        if(!file) return; 
+        const reader = new FileReader(); 
+        reader.onload = (e) => { 
+            try { 
+                const data = JSON.parse(e.target.result); 
+                characters.forEach(c => c.spine.destroy());
+                characters = []; timelineData.clear(); timelineGroups.clear();
+                
+                if(data.timeline) {
+                     const tls = data.timeline.map(i => { if(i.start) i.start = new Date(i.start); if(i.end) i.end = new Date(i.end); return i; });
+                     timelineData.add(tls);
+                }
+                if(data.groups) timelineGroups.add(data.groups);
+                Object.assign(clipRegistry, data.clipRegistry || {});
+                
+                if(data.characters) {
+                    data.characters.forEach(c => {
+                        if (c.type === 'spine') createSpine(null, null, null, false, c.name, c.id, c, c.assets);
+                        else createImageObject(null, c.name, c.id, c, c.assets);
+                    });
+                }
+            } catch(e) { console.error(e); alert("載入失敗: " + e.message); } 
+        }; 
+        reader.readAsText(file); 
+    }
+
+    function updateCharTransform(type) { 
+        if (!selectedCharId) return; 
+        const char = characters.find(c => c.id === selectedCharId); if(!char) return;
+        
+        // 🔴 改為從「數字輸入框」讀取數值，這樣就可以突破滑桿(Range)的上下限
+        char.scaleX = char.scaleY = parseFloat(document.getElementById('charScaleNum').value) || 0; 
+        char.baseRot = parseFloat(document.getElementById('charRotationNum').value) || 0; 
+        
+        let alphaVal = parseFloat(document.getElementById('charAlphaNum').value);
+        char.baseAlpha = isNaN(alphaVal) ? 1 : alphaVal;
+
+        if (isRecording) { 
+            if(type === 'scale') handleAutoRec(char.id, 'scale', {s: char.scaleX});
+            if(type === 'rotate') handleAutoRec(char.id, 'rotate', {r: char.baseRot});
+            if(type === 'alpha') handleAutoRec(char.id, 'alpha', {a: char.baseAlpha});
+        } 
+        requestRenderInspector(); syncSpineToTime(currentTime); scheduleHistoryCheckpoint('char-transform'); 
+    }
+    
+    function toggleFlip() { if (!selectedCharId) return; recordHistoryCheckpoint('before-flip'); const c = characters.find(c=>c.id===selectedCharId); if(c){ c.flipX = !c.flipX; renderInspector(); syncSpineToTime(currentTime); scheduleHistoryCheckpoint('flip'); } }
+    function resetTransform() { if (!selectedCharId) return; recordHistoryCheckpoint('before-reset-transform'); const c = characters.find(c=>c.id===selectedCharId); if(c){ c.scaleX=1; c.scaleY=1; c.baseRot=0; c.baseAlpha=1; c.flipX=false; renderInspector(); syncSpineToTime(currentTime); scheduleHistoryCheckpoint('reset-transform'); } }
+    function refreshZIndex() { characters.sort((a,b)=>a.order-b.order); characters.forEach((c,i)=>c.spine.zIndex=i); worldContainer.sortChildren(); }
+    function moveLayer(dir) { 
+        if(!selectedCharId) return;
+        recordHistoryCheckpoint('before-move-layer'); 
+        characters.sort((a, b) => a.order - b.order); 
+        const currentIndex = characters.findIndex(c => c.id === selectedCharId); if (currentIndex === -1) return; 
+        const targetIndex = currentIndex + dir; if (targetIndex < 0 || targetIndex >= characters.length) return; 
+        const currentItem = characters[currentIndex]; const targetItem = characters[targetIndex]; 
+        const tempOrder = currentItem.order; currentItem.order = targetItem.order; targetItem.order = tempOrder; 
+        characters.sort((a, b) => a.order - b.order); 
+        characters.forEach((c, i) => { 
+            c.order = i; c.spine.zIndex = i; 
+            const updates = [{ id: c.id, order: c.order * 10 }]; 
+            if (c.type === 'spine') c.animTracks.forEach((tId, tIdx) => updates.push({id: tId, order: c.order * 10 + 1 + (tIdx*0.1)}));
+            updates.push({ id: c.tracks.move, order: c.order * 10 + 2 }); updates.push({ id: c.tracks.rotate, order: c.order * 10 + 3 }); updates.push({ id: c.tracks.scale, order: c.order * 10 + 4 }); updates.push({ id: c.tracks.alpha, order: c.order * 10 + 5 });
+            updates.forEach(u => { if(timelineGroups.get(u.id)) timelineGroups.update(u); }); 
+        }); 
+        worldContainer.sortChildren(); renderSceneList(); 
+    }
+    
+    function removeSelectedCharacter() { 
+        if(!selectedCharId)return;
+        recordHistoryCheckpoint('before-remove-character'); 
+        const c=characters.find(x=>x.id===selectedCharId); if(!c) return; c.spine.destroy(); 
+        const groupsToRemove = [c.id, c.tracks.move, c.tracks.rotate, c.tracks.scale, c.tracks.alpha]; 
+        if (c.animTracks) c.animTracks.forEach(tId => groupsToRemove.push(tId));
+        timelineGroups.remove(groupsToRemove); 
+        timelineData.remove(timelineData.get({filter:i=>groupsToRemove.includes(i.group)})); 
+        characters = characters.filter(x=>x.id!==selectedCharId); 
+        selectedCharId=null; renderInspector(); renderSceneList(); scheduleHistoryCheckpoint('remove-character');
+    }
+    
+    function deleteSelectedClip(forceAll = false) { 
+        recordHistoryCheckpoint('before-delete-clip');
+        const selection = timeline.getSelection();
+        if(selection.length > 0) { timelineData.remove(selection); selectedClipId = null; timeline.setSelection([]); renderInspector(); syncSpineToTime(currentTime); return; }
+        if(!selectedClipId) return; 
+        const item = timelineData.get(selectedClipId); if (!item) return;
+        timelineData.remove(selectedClipId); selectedClipId = null; renderInspector(); syncSpineToTime(currentTime);
+    }
+
+    function deleteClipKey(type) {
+        if (!selectedClipId) return;
+        const item = timelineData.get(selectedClipId); if (!item) return;
+        const duration = item.end.valueOf() - item.start.valueOf();
+        
+        if (duration <= 10) { timelineData.remove(selectedClipId); selectedClipId = null; renderInspector(); return; }
+        const updates = { id: selectedClipId };
+        
+        if (type === 'start') {
+            updates.start = new Date(item.end.valueOf());
+            if (item.className.includes('track-move')) { updates.motStartX = item.motEndX; updates.motStartY = item.motEndY; }
+            if (item.className.includes('track-rotate')) { updates.motStartR = item.motEndR; }
+            if (item.className.includes('track-scale')) { updates.motStartS = item.motEndS; }
+            if (item.className.includes('track-alpha')) { updates.motStartA = item.motEndA; }
+        } else {
+            updates.end = new Date(item.start.valueOf());
+            if (item.className.includes('track-move')) { updates.motEndX = item.motStartX; updates.motEndY = item.motStartY; }
+            if (item.className.includes('track-rotate')) { updates.motEndR = item.motStartR; }
+            if (item.className.includes('track-scale')) { updates.motEndS = item.motStartS; }
+            if (item.className.includes('track-alpha')) { updates.motEndA = item.motStartA; }
+        }
+        timelineData.update(updates); requestRenderInspector(); syncSpineToTime(currentTime); if (!isPlaying) drawDebugHelpers(); scheduleHistoryCheckpoint('update-clip');
+    }
+    
+    function toggleRec() { 
+        isRecording=!isRecording; 
+        document.getElementById('rec-btn').style.background = isRecording ? 'var(--rec-color)' : ''; 
+        document.getElementById('rec-btn').style.color = isRecording ? 'white' : ''; 
+        document.getElementById('canvas-container').classList.toggle('recording', isRecording); 
+        const targetInputs = document.querySelectorAll('.target-rec');
+        targetInputs.forEach(el => { if (isRecording) el.classList.add('rec-highlight'); else el.classList.remove('rec-highlight'); });
+    }
+
+    function togglePlay() { isPlaying=!isPlaying; document.getElementById('play-btn').innerText = isPlaying?"⏸":"▶"; }
+    function stop() { isPlaying=false; currentTime=0; timeline.setCustomTime(0,'playhead'); updateTimeDisplay(); syncSpineToTime(0); document.getElementById('play-btn').innerText="▶"; characters.forEach(c => c.lastAnimClipId={}); }
+    function stepFrame(dir) {
+        isPlaying = false; document.getElementById('play-btn').innerText = "▶";
+        currentTime += dir * (1000 / 60); if (currentTime < 0) currentTime = 0;
+        timeline.setCustomTime(currentTime, 'playhead'); updateTimeDisplay(); syncSpineToTime(currentTime);
+    }
+
+    function setupKeyboardShortcuts() { 
+        window.addEventListener('keydown', (e) => { 
+            const tag = e.target && e.target.tagName;
+            const isTyping = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
+            if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ') { e.preventDefault(); undoLastAction(); return; }
+            if (isTyping) return; 
+            if (e.code === 'Space') { e.preventDefault(); togglePlay(); } 
+            if (e.code === 'Delete' || e.code === 'Backspace') { recordHistoryCheckpoint('before-delete'); deleteSelectedClip(); scheduleHistoryCheckpoint('delete'); }
+            if (e.code === 'ArrowLeft') { e.preventDefault(); stepFrame(-1); scheduleHistoryCheckpoint('step-frame', 400); }
+            if (e.code === 'ArrowRight') { e.preventDefault(); stepFrame(1); scheduleHistoryCheckpoint('step-frame', 400); }
+        }); 
+    }
+
+    
+    function updateTimeDisplay() { 
+        if (timeUnit === 'frame') {
+            document.getElementById('time-display').innerText = Math.round(currentTime / (1000/FPS)) + "f";
+        } else {
+            document.getElementById('time-display').innerText = (currentTime/1000).toFixed(2)+"s"; 
+        }
+    }
+    
+    function fitTimeline() { timeline.fit(); }
+    function resetView() { if(worldContainer){ worldContainer.position.set(app.screen.width/2, app.screen.height/2); worldContainer.scale.set(0.6); } }
+    function readFile(f, t) { return new Promise((r)=>{ const d=new FileReader(); d.onload=e=>r(e.target.result); if(t==='buffer')d.readAsArrayBuffer(f);else d.readAsText(f);}); }
+    function loadBackground(f, slot) { if(!f)return; const r=new FileReader(); r.onload=e=>{ const img=new Image(); img.src=e.target.result; img.onload=()=>{ const s=PIXI.Sprite.from(img); s.anchor.set(0.5); s.x=0; s.y=0; if(slot===1){ if(bg1Sprite)bg1Sprite.destroy(); bg1Sprite=s; bg1Sprite.zIndex=-2;} else { if(bg2Sprite)bg2Sprite.destroy(); bg2Sprite=s; bg2Sprite.zIndex=-1; bg2Sprite.alpha=0; } bgContainer.addChild(s); bgContainer.sortChildren(); };}; r.readAsDataURL(f); }
+    function handleReloadFiles(input) { alert("此功能尚未實作。"); }
+    function changeSkin() { if(!selectedCharId) return; const c = characters.find(x=>x.id===selectedCharId); const s = document.getElementById('skinSelect').value; if(c && c.type==='spine' && c.spine.skeleton) { c.spine.skeleton.setSkinByName(s); c.spine.skeleton.setSlotsToSetupPose(); } }
+    
+    function addAnimClip(charId, specificAnimName = null, targetTrackId = null) {
+        const char = characters.find(c => c.id === charId); 
+        if(!char || char.type !== 'spine') return;
+        
+        let destTrackId = targetTrackId;
+        if (!destTrackId && selectedTrackId && char.animTracks.includes(selectedTrackId)) destTrackId = selectedTrackId;
+        if (!destTrackId) destTrackId = char.animTracks[0];
+
+        const items = timelineData.get({ filter: i => i.group === destTrackId });
+        let avoidHue = null;
+        if (items.length > 0) {
+            items.sort((a, b) => a.start - b.start);
+            const lastItem = items[items.length - 1];
+            if (lastItem && lastItem.style) { const m = lastItem.style.match(/hsl\((\d+)/); if (m) avoidHue = parseInt(m[1]); }
+        }
+
+        const lastEnd = items.length > 0 ? Math.max(...items.map(i => i.end.valueOf())) : 0;
+        const start = Math.max(currentTime, lastEnd);
+        
+        const anim = specificAnimName || (char.animations.length>0 ? char.animations[0].name : null);
+        if(!anim) return;
+        const dur = (char.animDurations[anim] || 1.0) * 1000;
+        const color = getAnimColor(anim, avoidHue); 
+        
+        const newItemId = timelineData.add({ 
+            group: destTrackId, content: `${anim} (${(dur/1000).toFixed(2)}s)`, start: new Date(start), end: new Date(start + dur), 
+            className: 'vis-item track-anim', style: `background-color: ${color}; border-color: ${color}; color: white;`,
+            mixDuration: 0.2
+        });
+        
+        if(newItemId) { timeline.setSelection(newItemId); selectedClipId = newItemId[0]; renderInspector(); }
+        syncSpineToTime(currentTime);
+    }
+    
+    function addSceneClip() { const items = timelineData.get({ filter: i => i.group === SCENE_TRACK_ID }); const lastEnd = items.length > 0 ? Math.max(...items.map(i => i.end.valueOf())) : 0; const start = Math.max(currentTime, lastEnd); timelineData.add({ group: SCENE_TRACK_ID, content: '顯示 BG2', start: new Date(start), end: new Date(start + 2000) }); }
+
+    function drawDebugHelpers() {
+        debugGraphics.clear();
+        if (!selectedCharId) return;
+        const char = characters.find(c => c.id === selectedCharId); if(!char) return;
+        
+        if (char.type === 'spine') {
+            const animClips = timelineData.get({ filter: i => char.animTracks.includes(i.group) });
+            animClips.forEach(clip => {
+                if(clip.dropEnable && Math.abs(currentTime - clip.start.valueOf()) < 2000) {
+                    debugGraphics.lineStyle(2, 0xFF9F0A, 0.8); debugGraphics.moveTo(char.spine.x, char.spine.y); debugGraphics.lineTo(char.spine.x, char.spine.y - (clip.dropHeight||500));
+                    debugGraphics.beginFill(0xFF9F0A); debugGraphics.drawCircle(char.spine.x, char.spine.y, 5); debugGraphics.endFill();
+                }
+            });
+        }
+
+        const moveClips = timelineData.get({ filter: i => i.group === char.tracks.move });
+        moveClips.forEach(clip => {
+            const isSelected = clip.id === selectedClipId; const alpha = isSelected ? 1.0 : 0.3; const color = 0xBF5AF2;
+            if (clip.motStartX !== undefined && clip.motEndX !== undefined) {
+                debugGraphics.lineStyle(2, color, alpha); debugGraphics.moveTo(clip.motStartX, clip.motStartY); debugGraphics.lineTo(clip.motEndX, clip.motEndY);
+                debugGraphics.beginFill(color, alpha); debugGraphics.drawCircle(clip.motStartX, clip.motStartY, 3); debugGraphics.drawCircle(clip.motEndX, clip.motEndY, 3); debugGraphics.endFill();
+            }
+        });
+    }
+
+    function selectCharacter(id, focusTimeline = true) {
+        selectedCharId = id;
+        if (id && document.getElementById('tab-project').classList.contains('active')) switchTab('inspector');
+        renderSceneList(); renderInspector(); drawDebugHelpers();
+    }
+
+    let draggedLayerId = null;
+
+    function renderSceneList() {
+        const list = document.getElementById('scene-list'); list.innerHTML = '';
+        const sortedChars = [...characters].sort((a,b) => b.order - a.order);
+
+        if (sortedChars.length === 0) list.innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><div>尚未加入任何物件</div></div>';
+        else {
+            sortedChars.forEach(c => {
+                const div = document.createElement('div');
+                div.className = `layer-item ${selectedCharId === c.id ? 'selected' : ''}`;
+                div.draggable = true; div.dataset.charId = c.id;
+                div.onclick = (e) => { if(!e.target.closest('.layer-actions')) selectCharacter(c.id); };
+
+                div.addEventListener('dragstart', function(e) {
+                    draggedLayerId = this.dataset.charId; this.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', this.dataset.charId); 
+                });
+                div.addEventListener('dragover', function(e) {
+                    e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+                    if (this.dataset.charId === draggedLayerId) return;
+                    const rect = this.getBoundingClientRect(); const relY = e.clientY - rect.top;
+                    this.classList.remove('drag-over-top', 'drag-over-bottom');
+                    if (relY < rect.height / 2) this.classList.add('drag-over-top'); else this.classList.add('drag-over-bottom');
+                });
+                div.addEventListener('dragleave', function(e) { this.classList.remove('drag-over-top', 'drag-over-bottom'); });
+                div.addEventListener('drop', function(e) {
+                    e.stopPropagation(); this.classList.remove('drag-over-top', 'drag-over-bottom');
+                    if (!draggedLayerId || draggedLayerId === this.dataset.charId) return;
+                    const targetId = this.dataset.charId; const rect = this.getBoundingClientRect(); const relY = e.clientY - rect.top;
+                    executeLayerReorder(draggedLayerId, targetId, relY >= rect.height / 2);
+                });
+                div.addEventListener('dragend', function(e) {
+                    this.classList.remove('dragging'); document.querySelectorAll('.layer-item').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom')); draggedLayerId = null;
+                });
+
+                const isSelected = selectedCharId === c.id;
+                const typeBadge = c.type === 'spine' ? '<span class="type-badge badge-spine">SPINE</span>' : '<span class="type-badge badge-img">IMG</span>';
+                const selectedBadge = isSelected ? '<span style="font-size:9px; padding:1px 4px; border-radius:3px; background:rgba(10,132,255,0.18); color:#7fc0ff; border:1px solid rgba(10,132,255,0.35);">已選取</span>' : '';
+                div.innerHTML = `<div class="layer-info">${typeBadge}<span class="layer-name" title="${c.name}">${c.name}</span>${selectedBadge}</div><div class="layer-actions"><span class="layer-z-disp">Z:${c.order}</span><button class="icon-only sm" onclick="recordHistoryCheckpoint('before-layer-up'); moveLayer(1); scheduleHistoryCheckpoint('layer-up'); event.stopPropagation();">▲</button><button class="icon-only sm" onclick="recordHistoryCheckpoint('before-layer-down'); moveLayer(-1); scheduleHistoryCheckpoint('layer-down'); event.stopPropagation();">▼</button></div>`;
+                list.appendChild(div);
+            });
+        }
+        
+        const charSelect = document.getElementById('charAnimList');
+        if(charSelect) {
+            charSelect.innerHTML = '';
+            if (selectedCharId) {
+                const char = characters.find(c => c.id === selectedCharId);
+                if (char && char.type === 'spine' && char.animations.length > 0) { char.animations.forEach(a => { const opt = document.createElement('option'); opt.value = a.name; opt.text = a.name; charSelect.appendChild(opt); }); } 
+                else { charSelect.innerHTML = '<option>(無動畫)</option>'; }
+            } else { charSelect.innerHTML = '<option>---</option>'; }
+        }
+    }
+
+    function executeLayerReorder(draggedId, targetId, insertAfterUI) {
+        recordHistoryCheckpoint('before-reorder-layer');
+        characters.sort((a, b) => a.order - b.order);
+        const draggedIdx = characters.findIndex(c => c.id === draggedId); if (draggedIdx === -1) return;
+        const draggedChar = characters.splice(draggedIdx, 1)[0];
+        const newTargetIdx = characters.findIndex(c => c.id === targetId);
+        let insertIdx = insertAfterUI ? newTargetIdx + 1 : newTargetIdx;
+        if(newTargetIdx > draggedIdx && !insertAfterUI) insertIdx = newTargetIdx;
+        else if(newTargetIdx < draggedIdx && insertAfterUI) insertIdx = newTargetIdx + 1;
+        else if(newTargetIdx > draggedIdx && insertAfterUI) insertIdx = newTargetIdx;
+
+        characters.splice(insertIdx, 0, draggedChar);
+        
+        characters.forEach((c, i) => { 
+            c.order = i; c.spine.zIndex = i; 
+            const updates = [{ id: c.id, order: c.order * 10 }]; 
+            if (c.type === 'spine') c.animTracks.forEach((trackId, tIdx) => { updates.push({ id: trackId, order: c.order * 10 + 1 + (tIdx * 0.1) }); });
+            updates.push({ id: c.tracks.move, order: c.order * 10 + 2 }); updates.push({ id: c.tracks.rotate, order: c.order * 10 + 3 }); updates.push({ id: c.tracks.scale, order: c.order * 10 + 4 }); updates.push({ id: c.tracks.alpha, order: c.order * 10 + 5 });
+            updates.forEach(u => { if(timelineGroups.get(u.id)) timelineGroups.update(u); }); 
+        }); 
+        worldContainer.sortChildren(); renderSceneList(); scheduleHistoryCheckpoint('reorder-layer'); 
+    }
+
+    function renderInspector() {
+        const emptyEl = document.getElementById('inspector-empty');
+        const charEl = document.getElementById('inspector-char');
+        const clipEl = document.getElementById('inspector-clip');
+        
+        if (selectedCharId) {
+            const char = characters.find(c => c.id === selectedCharId);
+            if (char) {
+                emptyEl.style.display = 'none'; charEl.style.display = 'block';
+                document.getElementById('sel-char-name').innerText = char.name;
+                
+                // ✅ 更新顯示當前數字框的數值
+                document.getElementById('charScale').value = char.scaleX; 
+                document.getElementById('charScaleNum').value = char.scaleX;
+                document.getElementById('charRotation').value = char.baseRot; 
+                document.getElementById('charRotationNum').value = char.baseRot;
+                document.getElementById('charAlpha').value = char.baseAlpha !== undefined ? char.baseAlpha : 1;
+                document.getElementById('charAlphaNum').value = char.baseAlpha !== undefined ? char.baseAlpha : 1;
+                document.getElementById('charX').value = Math.round(char.spine.x);
+                document.getElementById('charY').value = Math.round(char.spine.y);
+                
+                const skinRow = document.getElementById('skin-control-row'); const skinSelect = document.getElementById('skinSelect');
+                if (char.type === 'spine' && char.skins.length > 0) {
+                    skinRow.style.display = 'flex'; skinSelect.innerHTML = '';
+                    char.skins.forEach(s => { const opt = document.createElement('option'); opt.value = s; opt.text = s; skinSelect.appendChild(opt); });
+                    if (char.spine.skeleton.skin) skinSelect.value = char.spine.skeleton.skin.name;
+                } else skinRow.style.display = 'none';
+            }
+        } else charEl.style.display = 'none';
+
+        if (selectedClipId) {
+            const item = timelineData.get(selectedClipId);
+            if (item) {
+                emptyEl.style.display = 'none'; clipEl.style.display = 'block';
+                document.getElementById('clip-type-label').innerText = item.group === SCENE_TRACK_ID ? "SCENE EVENT" : item.className.includes('track-anim') ? "ANIMATION CLIP" : item.className.includes('track-move') ? "MOVE KEYFRAME" : item.className.includes('track-rotate') ? "ROTATE KEYFRAME" : item.className.includes('track-alpha') ? "ALPHA KEYFRAME" : "SCALE KEYFRAME";
+                
+                const startMs = item.start.valueOf();
+                const durMs = item.end.valueOf() - startMs;
+
+                if (timeUnit === 'frame') {
+                    document.getElementById('clipStart').value = Math.round(startMs / (1000/FPS));
+                    document.getElementById('clipDuration').value = Math.round(durMs / (1000/FPS));
+                    document.getElementById('clipStart').step = "1";
+                    document.getElementById('clipDuration').step = "1";
+                    document.getElementById('wrap-clipStart').title = "開始時間(影格)";
+                    document.getElementById('wrap-clipDur').title = "持續長度(影格)";
+                } else {
+                    document.getElementById('clipStart').value = (startMs / 1000).toFixed(2);
+                    document.getElementById('clipDuration').value = (durMs / 1000).toFixed(2);
+                    document.getElementById('clipStart').step = "0.01";
+                    document.getElementById('clipDuration').step = "0.01";
+                    document.getElementById('wrap-clipStart').title = "開始時間(秒)";
+                    document.getElementById('wrap-clipDur').title = "持續長度(秒)";
+                }
+
+                const animControls = document.getElementById('anim-controls'); const propControls = document.getElementById('prop-controls'); const physControls = document.getElementById('physics-controls');
+                document.getElementById('move-inputs').style.display = 'none'; document.getElementById('rotate-inputs').style.display = 'none'; document.getElementById('scale-inputs').style.display = 'none'; document.getElementById('alpha-inputs').style.display = 'none';
+
+                if (item.className.includes('track-anim')) {
+                    animControls.style.display = 'block'; propControls.style.display = 'block'; physControls.style.display = 'none';
+                    document.getElementById('dropEnable').parentElement.style.display = 'flex';
+                    document.getElementById('clipEasing').value = item.easing || 'linear';
+                    const mixCtrl = document.getElementById('anim-mix-control'); mixCtrl.style.display = 'flex';
+                    document.getElementById('clipMix').value = item.mixDuration !== undefined ? item.mixDuration : 0.2;
+                    const char = characters.find(c => c.animTracks && c.animTracks.includes(item.group));
+                    const clipAnimSelect = document.getElementById('clipAnimSelect'); clipAnimSelect.innerHTML = '';
+                    if (char) {
+                        char.animations.forEach(a => { const opt = document.createElement('option'); opt.value = a.name; opt.text = a.name; clipAnimSelect.appendChild(opt); });
+                        clipAnimSelect.value = item.content.split(' (')[0];
+                    }
+                    document.getElementById('clipLoop').checked = (item.loop !== false); 
+                    document.getElementById('dropEnable').checked = !!item.dropEnable;
+                    physControls.style.display = item.dropEnable ? 'flex' : 'none';
+                    if(item.dropEnable) { document.getElementById('dropHeight').value = item.dropHeight || 500; document.getElementById('dropBounce').value = item.dropBounce || 0.5; document.getElementById('dropDur').value = item.dropDur || 0.5; document.getElementById('dropDelay').value = item.dropDelay || 0; }
+                } else {
+                    animControls.style.display = 'none'; propControls.style.display = 'block'; physControls.style.display = 'none';
+                    document.getElementById('dropEnable').parentElement.style.display = 'none';
+                    document.getElementById('anim-mix-control').style.display = 'none';
+                    document.getElementById('clipEasing').value = item.easing || 'linear';
+                    if (item.className.includes('track-move')) {
+                        document.getElementById('prop-label').innerText = "🚀 位移關鍵影格"; document.getElementById('move-inputs').style.display = 'block';
+                        document.getElementById('motStartX').value = Math.round(item.motStartX || 0); document.getElementById('motStartY').value = Math.round(item.motStartY || 0); document.getElementById('motEndX').value = Math.round(item.motEndX || 0); document.getElementById('motEndY').value = Math.round(item.motEndY || 0);
+                    } else if (item.className.includes('track-rotate')) {
+                        document.getElementById('prop-label').innerText = "🔄 旋轉關鍵影格"; document.getElementById('rotate-inputs').style.display = 'block';
+                        document.getElementById('motStartR').value = Math.round(item.motStartR || 0); document.getElementById('motEndR').value = Math.round(item.motEndR || 0);
+                    } else if (item.className.includes('track-scale')) {
+                        document.getElementById('prop-label').innerText = "📐 縮拉關鍵影格"; document.getElementById('scale-inputs').style.display = 'block';
+                        document.getElementById('motStartS').value = (item.motStartS || 1).toFixed(2); document.getElementById('motEndS').value = (item.motEndS || 1).toFixed(2);
+                    } else if (item.className.includes('track-alpha')) {
+                        document.getElementById('prop-label').innerText = "👻 透明度關鍵影格"; document.getElementById('alpha-inputs').style.display = 'block';
+                        document.getElementById('motStartA').value = (item.motStartA !== undefined ? item.motStartA : 1).toFixed(2); document.getElementById('motEndA').value = (item.motEndA !== undefined ? item.motEndA : 1).toFixed(2);
+                    }
+                }
+            }
+        } else clipEl.style.display = 'none';
+
+        if (!selectedCharId && !selectedClipId) emptyEl.style.display = 'flex';
+    }
+
+    function updateSelectedClip() {
+        if (!selectedClipId) return;
+        
+        let startValMs, durValMs;
+        if (timeUnit === 'frame') {
+            startValMs = parseFloat(document.getElementById('clipStart').value) * (1000/FPS);
+            durValMs = parseFloat(document.getElementById('clipDuration').value) * (1000/FPS);
+        } else {
+            startValMs = parseFloat(document.getElementById('clipStart').value) * 1000;
+            durValMs = parseFloat(document.getElementById('clipDuration').value) * 1000;
+        }
+        
+        const updates = { id: selectedClipId, start: new Date(startValMs), end: new Date(startValMs + durValMs) };
+        const item = timelineData.get(selectedClipId); if(!item) return;
+        
+        if (item.className.includes('track-anim')) {
+            const animName = document.getElementById('clipAnimSelect').value;
+            updates.content = `${animName} (${(durValMs/1000).toFixed(2)}s)`;
+            updates.loop = document.getElementById('clipLoop').checked;
+            updates.mixDuration = parseFloat(document.getElementById('clipMix').value);
+            updates.dropEnable = document.getElementById('dropEnable').checked;
+            if(updates.dropEnable) {
+                updates.dropHeight = parseFloat(document.getElementById('dropHeight').value); updates.dropBounce = parseFloat(document.getElementById('dropBounce').value); updates.dropDur = parseFloat(document.getElementById('dropDur').value); updates.dropDelay = parseFloat(document.getElementById('dropDelay').value);
+            }
+        } else if (item.className.includes('track-move') || item.className.includes('track-rotate') || item.className.includes('track-scale')) {
+            updates.easing = document.getElementById('clipEasing').value;
+        }
+        
+        if (item.className.includes('track-move')) { updates.motStartX = parseFloat(document.getElementById('motStartX').value); updates.motStartY = parseFloat(document.getElementById('motStartY').value); updates.motEndX = parseFloat(document.getElementById('motEndX').value); updates.motEndY = parseFloat(document.getElementById('motEndY').value); }
+        else if (item.className.includes('track-rotate')) { updates.motStartR = parseFloat(document.getElementById('motStartR').value); updates.motEndR = parseFloat(document.getElementById('motEndR').value); }
+        else if (item.className.includes('track-scale')) { updates.motStartS = parseFloat(document.getElementById('motStartS').value); updates.motEndS = parseFloat(document.getElementById('motEndS').value); }
+        else if (item.className.includes('track-alpha')) { updates.motStartA = parseFloat(document.getElementById('motStartA').value); updates.motEndA = parseFloat(document.getElementById('motEndA').value); }
+
+        timelineData.update(updates); requestRenderInspector(); syncSpineToTime(currentTime); if (!isPlaying) drawDebugHelpers(); scheduleHistoryCheckpoint('update-clip');
+    }
+
+    function captureToClip(type) {
+        if (!selectedCharId || !selectedClipId) return;
+        const char = characters.find(c => c.id === selectedCharId); const item = timelineData.get(selectedClipId);
+        if(!char || !item) return;
+
+        if (item.className.includes('track-move')) {
+            const vals = { x: char.spine.x, y: char.spine.y };
+            if(type === 'start') { document.getElementById('motStartX').value = vals.x; document.getElementById('motStartY').value = vals.y; } 
+            else { document.getElementById('motEndX').value = vals.x; document.getElementById('motEndY').value = vals.y; }
+        } else if (item.className.includes('track-rotate')) {
+            const val = char.spine.angle;
+            if(type === 'start') document.getElementById('motStartR').value = val; else document.getElementById('motEndR').value = val;
+        } else if (item.className.includes('track-scale')) {
+            const val = char.scaleX;
+            if(type === 'start') document.getElementById('motStartS').value = val; else document.getElementById('motEndS').value = val;
+        } else if (item.className.includes('track-alpha')) {
+            const val = char.baseAlpha !== undefined ? char.baseAlpha : 1;
+            if(type === 'start') document.getElementById('motStartA').value = val; else document.getElementById('motEndA').value = val;
+        }
+        updateSelectedClip();
+    }
+
+    function addSpecificAnim() {
+        if (!selectedCharId) { alert("請先選取一個 Spine 物件"); return; }
+        const animName = document.getElementById('charAnimList').value;
+        if (animName && animName !== "---" && animName !== "(無動畫)") {
+            let target = selectedTrackId; const char = characters.find(c => c.id === selectedCharId);
+            if (target && char) { const isValid = char.animTracks.includes(target); if (!isValid) target = null; }
+            addAnimClip(selectedCharId, animName, target);
+        }
+    }
+
+    let mediaRecorder; let recordedChunks = []; let isExportingVideo = false;
+    let activeVideoExportProfile = null;
+
+    const VIDEO_EXPORT_PROFILES = {
+        mp4: {
+            label: 'MP4',
+            extension: 'mp4',
+            candidates: [
+                'video/mp4; codecs="avc1.42E01E"',
+                'video/mp4; codecs=avc1.42E01E',
+                'video/mp4; codecs="h264"',
+                'video/mp4; codecs=h264',
+                'video/mp4'
+            ]
+        },
+        webm: {
+            label: 'WebM',
+            extension: 'webm',
+            candidates: [
+                'video/webm; codecs=vp9',
+                'video/webm; codecs=vp8',
+                'video/webm'
+            ]
+        }
+    };
+
+    function getSelectedVideoFormat() {
+        const select = document.getElementById('videoFormatSelect');
+        return select ? select.value : 'mp4';
+    }
+
+    function getSupportedVideoMime(format) {
+        const profile = VIDEO_EXPORT_PROFILES[format] || VIDEO_EXPORT_PROFILES.mp4;
+        if (!window.MediaRecorder) return null;
+        if (typeof MediaRecorder.isTypeSupported !== 'function') {
+            return format === 'webm' ? '' : null;
+        }
+        for (const mime of profile.candidates) {
+            if (MediaRecorder.isTypeSupported(mime)) return mime;
+        }
+        return format === 'webm' ? '' : null;
+    }
+
+    function updateVideoExportFormatUI() {
+        const format = getSelectedVideoFormat();
+        const profile = VIDEO_EXPORT_PROFILES[format] || VIDEO_EXPORT_PROFILES.mp4;
+        const btn = document.getElementById('btn-export-video');
+        const note = document.getElementById('video-format-note');
+        if (btn && !isExportingVideo) btn.innerText = `🎥 錄製動態影片 (${profile.label})`;
+        if (!note) return;
+
+        const supportedMime = getSupportedVideoMime(format);
+        if (format === 'mp4' && !supportedMime) {
+            note.style.display = 'block';
+            note.style.color = 'var(--rec-color)';
+            note.innerText = '目前瀏覽器不支援直接錄製 MP4，請改用 Chrome/Edge 新版，或先匯出 WebM 後轉檔。';
+        } else {
+            note.style.display = 'block';
+            note.style.color = 'var(--text-dim)';
+            note.innerText = format === 'mp4'
+                ? `將使用瀏覽器支援的 MP4 編碼：${supportedMime || '預設'}`
+                : `將使用瀏覽器支援的 WebM 編碼：${supportedMime || '預設'}`;
+        }
+    }
+
+    function startVideoExport() {
+        const btn = document.getElementById('btn-export-video');
+        if (isExportingVideo) {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+            stop();
+            return;
+        }
+
+        const canvas = document.querySelector('#canvas-container canvas');
+        if (!canvas) { alert("找不到畫布！"); return; }
+        if (!window.MediaRecorder) { alert("目前瀏覽器不支援 MediaRecorder 錄影功能，請改用 Chrome / Edge / Firefox / Safari 新版。 "); return; }
+
+        const format = getSelectedVideoFormat();
+        const profile = VIDEO_EXPORT_PROFILES[format] || VIDEO_EXPORT_PROFILES.mp4;
+        const mimeType = getSupportedVideoMime(format);
+
+        if (format === 'mp4' && !mimeType) {
+            alert("目前這個瀏覽器不支援直接錄製 MP4 / H.264。\n建議：改用 Chrome/Edge 新版，或先選 WebM 匯出後再用 FFmpeg / 格式工廠轉成 MP4。");
+            updateVideoExportFormatUI();
+            return;
+        }
+
+        const stream = canvas.captureStream(60);
+        const options = mimeType ? { mimeType } : undefined;
+        try {
+            mediaRecorder = options ? new MediaRecorder(stream, options) : new MediaRecorder(stream);
+        } catch (e) {
+            stream.getTracks().forEach(track => track.stop());
+            if (format === 'mp4') {
+                alert("MP4 錄製初始化失敗。此瀏覽器可能只支援 WebM，請切換為 WebM 後再試。\n\n錯誤：" + e.message);
+                return;
+            }
+            mediaRecorder = new MediaRecorder(stream);
+        }
+
+        activeVideoExportProfile = {
+            format,
+            label: profile.label,
+            extension: profile.extension,
+            mimeType: mediaRecorder.mimeType || mimeType || profile.candidates[profile.candidates.length - 1]
+        };
+
+        mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+        mediaRecorder.onstop = () => {
+            const exportProfile = activeVideoExportProfile || VIDEO_EXPORT_PROFILES.webm;
+            const blob = new Blob(recordedChunks, { type: exportProfile.mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url;
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 15);
+            a.download = `SpinePreview_${timestamp}.${exportProfile.extension}`;
+            a.click();
+            URL.revokeObjectURL(url);
+            stream.getTracks().forEach(track => track.stop());
+            recordedChunks = []; isExportingVideo = false; activeVideoExportProfile = null;
+            btn.style.background = '#FF9F0A';
+            updateVideoExportFormatUI();
+        };
+
+        isExportingVideo = true;
+        recordedChunks = [];
+        btn.innerText = `🛑 錄影中... (${profile.label}，點擊停止)`;
+        btn.style.background = '#FF453A';
+        stop();
+        setTimeout(() => { mediaRecorder.start(); togglePlay(); }, 100);
+    }
+
+    function cocosSafeToken(value, fallback = 'asset') {
+        const token = String(value || '')
+            .normalize('NFKC')
+            .replace(/[^\p{L}\p{N}_-]+/gu, '-')
+            .replace(/^-+|-+$/g, '')
+            .toLowerCase();
+        return token || fallback;
+    }
+
+    function cocosSafeFileBase(value, fallback = 'asset') {
+        const token = String(value || '')
+            .normalize('NFKC')
+            .replace(/[<>:"/\\|?*\u0000-\u001f.]+/g, '_')
+            .replace(/[ ]+/g, '_')
+            .replace(/^_+|_+$/g, '');
+        return token || fallback;
+    }
+
+    function cocosClipTime(value) {
+        if (value instanceof Date) return value.valueOf() / 1000;
+        if (typeof value === 'number') return value / 1000;
+        const parsed = new Date(value).valueOf();
+        return Number.isFinite(parsed) ? parsed / 1000 : 0;
+    }
+
+    function cocosSortClips(clips) {
+        return [...clips].sort((a, b) => cocosClipTime(a.start) - cocosClipTime(b.start));
+    }
+
+    function cocosTransformClips(trackId, type) {
+        return cocosSortClips(getGroupClips(trackId)).map((clip) => {
+            const base = {
+                id: String(clip.id),
+                start: cocosClipTime(clip.start),
+                end: cocosClipTime(clip.end),
+                easing: clip.easing || 'linear'
+            };
+            if (type === 'move') {
+                return {
+                    ...base,
+                    startX: Number(clip.motStartX) || 0,
+                    startY: Number(clip.motStartY) || 0,
+                    endX: Number(clip.motEndX) || 0,
+                    endY: Number(clip.motEndY) || 0
+                };
+            }
+            const keys = type === 'rotate'
+                ? ['motStartR', 'motEndR']
+                : type === 'scale'
+                    ? ['motStartS', 'motEndS']
+                    : ['motStartA', 'motEndA'];
+            return {
+                ...base,
+                startValue: Number.isFinite(Number(clip[keys[0]])) ? Number(clip[keys[0]]) : (type === 'alpha' ? 1 : 0),
+                endValue: Number.isFinite(Number(clip[keys[1]])) ? Number(clip[keys[1]]) : (type === 'alpha' ? 1 : 0)
+            };
+        });
+    }
+
+    function cocosAnimationClips(char) {
+        return (char.animTracks || [char.id + '_anim']).flatMap((trackId, track) =>
+            cocosSortClips(getGroupClips(trackId)).map((clip) => ({
+                id: String(clip.id),
+                track,
+                animation: String(clip.content || '').split(' (')[0],
+                start: cocosClipTime(clip.start),
+                end: cocosClipTime(clip.end),
+                loop: clip.loop !== false,
+                mixDuration: Number.isFinite(Number(clip.mixDuration)) ? Number(clip.mixDuration) : 0.2,
+                dropEnable: !!clip.dropEnable,
+                dropHeight: Number(clip.dropHeight) || 500,
+                dropBounce: Number.isFinite(Number(clip.dropBounce)) ? Number(clip.dropBounce) : 0.5,
+                dropDuration: Number(clip.dropDur) || 0.5,
+                dropDelay: Number(clip.dropDelay) || 0
+            }))
+        );
+    }
+
+    function buildCocosCreator38Payload(projectName) {
+        if (currentSpineVer !== '3.8') {
+            throw new Error('Cocos Creator 3.8 專用輸出只接受 Spine 3.8。');
+        }
+        if (!characters.length) {
+            throw new Error('場景內沒有可輸出的物件。');
+        }
+
+        if (timelineCacheDirty) rebuildTimelineCache();
+        const projectSlug = cocosSafeToken(projectName, 'spine-scene');
+        const bundles = [];
+        const bundleByIdentity = new Map();
+        const runtimeCharacters = [];
+
+        characters.forEach((char, index) => {
+            const assets = char.assets || char.spine?.assets;
+            if (!assets) throw new Error(`${char.name} 缺少原始素材，請重新匯入後再輸出。`);
+
+            let identity;
+            let bundleInfo = null;
+            if (char.type === 'spine') {
+                identity = 'spine:' + (assets.binarySkeleton || JSON.stringify(assets.skeleton || {}));
+                bundleInfo = bundleByIdentity.get(identity);
+                if (!bundleInfo) {
+                    const key = `spine-${bundles.length + 1}-${cocosSafeToken(char.name, 'asset')}`;
+                    const baseName = cocosSafeFileBase(char.name, `spine_${index + 1}`);
+                    const bundle = {
+                        key,
+                        type: 'spine',
+                        baseName,
+                        atlas: assets.atlas,
+                        images: assets.images || {},
+                        skeleton: assets.skeleton || null,
+                        binarySkeleton: assets.binarySkeleton || null
+                    };
+                    bundles.push(bundle);
+                    bundleInfo = {
+                        key,
+                        resourcePath: `spine-director/${projectSlug}/${key}/${baseName}`
+                    };
+                    bundleByIdentity.set(identity, bundleInfo);
+                }
+            } else {
+                identity = 'image:' + assets.texture;
+                bundleInfo = bundleByIdentity.get(identity);
+                if (!bundleInfo) {
+                    const key = `image-${bundles.length + 1}-${cocosSafeToken(char.name, 'image')}`;
+                    const mime = String(assets.texture || '').match(/^data:image\/(png|jpeg|jpg|webp)/i);
+                    const extension = mime && mime[1].toLowerCase() === 'jpeg' ? 'jpg' : (mime ? mime[1].toLowerCase() : 'png');
+                    const baseName = cocosSafeFileBase(char.name, `image_${index + 1}`);
+                    const fileName = `${baseName}.${extension}`;
+                    bundles.push({ key, type: 'image', fileName, texture: assets.texture });
+                    bundleInfo = {
+                        key,
+                        resourcePath: `spine-director/${projectSlug}/${key}/${baseName}/spriteFrame`
+                    };
+                    bundleByIdentity.set(identity, bundleInfo);
+                }
+            }
+
+            runtimeCharacters.push({
+                id: String(char.id),
+                name: String(char.name),
+                type: char.type,
+                order: Number(char.order) || 0,
+                resourcePath: bundleInfo.resourcePath,
+                base: {
+                    x: Number(char.baseX) || 0,
+                    y: Number(char.baseY) || 0,
+                    rotation: Number(char.baseRot) || 0,
+                    scaleX: Number.isFinite(Number(char.scaleX)) ? Number(char.scaleX) : 1,
+                    scaleY: Number.isFinite(Number(char.scaleY)) ? Number(char.scaleY) : 1,
+                    alpha: Number.isFinite(Number(char.baseAlpha)) ? Number(char.baseAlpha) : 1,
+                    flipX: !!char.flipX,
+                    visible: char.visible !== false,
+                    skin: char.type === 'spine' ? (char.spine?.skeleton?.skin?.name || null) : null
+                },
+                animations: char.type === 'spine' ? cocosAnimationClips(char) : [],
+                move: cocosTransformClips(char.tracks.move, 'move'),
+                rotate: cocosTransformClips(char.tracks.rotate, 'rotate'),
+                scale: cocosTransformClips(char.tracks.scale, 'scale'),
+                alpha: cocosTransformClips(char.tracks.alpha, 'alpha')
+            });
+        });
+
+        return {
+            schema: 'spine-director-cocos38@1',
+            projectName,
+            spineVersion: '3.8',
+            bundles,
+            config: {
+                duration: Math.max(0.001, timelineMaxEnd / 1000),
+                loop: !!document.getElementById('loop-playback-check')?.checked,
+                fps: 60,
+                characters: runtimeCharacters
+            }
+        };
+    }
+
+    function exportCocosCreator38Project() {
+        if (!isCocosEditorMode || window.parent === window) {
+            alert('此功能只能在 Cocos Creator 3.8 擴充面板內使用。');
+            return;
+        }
+        const projectName = document.getElementById('cocosProjectName')?.value || '';
+        if (!projectName || !projectName.trim()) return;
+
+        try {
+            const payload = buildCocosCreator38Payload(projectName.trim());
+            const button = document.getElementById('btn-export-cocos-project');
+            if (button) {
+                button.disabled = true;
+                button.innerText = '⏳ 正在輸出到 Cocos 專案…';
+            }
+            window.parent.postMessage({
+                source: 'spine-director-cocos38',
+                type: 'export-project',
+                payload
+            }, '*');
+        } catch (error) {
+            alert('Cocos 輸出失敗：' + (error?.message || error));
+        }
+    }
+
+    window.addEventListener('message', (event) => {
+        const message = event.data;
+        if (!message || message.source !== 'spine-director-cocos38-host' || message.type !== 'export-result') return;
+        const button = document.getElementById('btn-export-cocos-project');
+        if (button) {
+            button.disabled = false;
+            button.innerText = '🚀 輸出到目前 Cocos 專案';
+        }
+        if (message.ok) {
+            alert(`✅ 已輸出到目前 Cocos 專案\n\n${message.result.assetUrl}\n\n請等待 Creator 完成素材與腳本編譯，再按面板上方「建立播放節點」。`);
+        } else {
+            alert('❌ Cocos 輸出失敗：' + message.error);
+        }
+    });
+
+    function exportNativeCocosAnim() {
+        if (!selectedCharId) { alert("請先選擇一個 Spine 物件來匯出 .anim！"); return; }
+        const char = characters.find(c => c.id === selectedCharId); if(!char) return;
+
+        const defaultAnimName = char.name + "_Anim";
+        const customAnimName = prompt("請輸入要匯出的動畫名稱 (這將會是檔名與 Cocos 內的 Clip Name)：", defaultAnimName);
+        if (!customAnimName || customAnimName.trim() === "") return;
+
+        const anims = char.animTracks.flatMap(trackId => getGroupClips(trackId)).sort((a,b) => a.start - b.start);
+        const moves = [...getGroupClips(char.tracks.move)].sort((a,b) => a.start - b.start);
+        const scales = [...getGroupClips(char.tracks.scale)].sort((a,b) => a.start - b.start);
+        const rotates = [...getGroupClips(char.tracks.rotate)].sort((a,b) => a.start - b.start);
+        const alphas = [...getGroupClips(char.tracks.alpha)].sort((a,b) => a.start - b.start);
+
+        let maxTime = 0;
+        const checkMax = (items) => items.forEach(m => { const e = m.end.valueOf()/1000; if(e > maxTime) maxTime = e; });
+        checkMax(anims); checkMax(moves); checkMax(scales); checkMax(rotates); checkMax(alphas);
+        if(maxTime === 0) maxTime = 1; 
+
+        let animJson = [];
+        let trackRefs = [];
+        let events = [];
+
+        animJson.push({
+            "__type__": "cc.AnimationClip", "_name": customAnimName.trim(), "_objFlags": 0,
+            "__editorExtras__": { "embeddedPlayerGroups": [] }, "_native": "",
+            "sample": 60, "speed": 1, "wrapMode": 1, "enableTrsBlending": false,
+            "_duration": maxTime, "_hash": Date.now() % 1000000000,
+            "_tracks": trackRefs, "_exoticAnimation": null, "_events": events, "_embeddedPlayers": []
+        });
+
+        const mainTrackId = char.animTracks[0];
+        const mainAnims = anims.filter(m => m.group === mainTrackId);
+
+        if (mainAnims.length > 0) {
+            // 🎯 捨棄無效的 Track 綁定，改用官方標準的 Animation Events
+            mainAnims.forEach(m => {
+                events.push({
+                    "frame": m.start.valueOf() / 1000,
+                    "func": "playSpineAnim", // 對應稍後腳本中的函數名稱
+                    "params": [ m.content.split(' (')[0], (m.loop !== undefined ? m.loop : true) ]
+                });
+            });
+        }
+
+        const createKF = (val) => ({ "__type__": "cc.RealKeyframeValue", "interpolationMode": 0, "value": val });
+
+        if (moves.length > 0) {
+            let trackId = animJson.length; trackRefs.push({ "__id__": trackId });
+            let chX_Id = trackId+1, curveX_Id = trackId+2, chY_Id = trackId+3, curveY_Id = trackId+4, chZ_Id = trackId+5, curveZ_Id = trackId+6;
+            animJson.push({
+                "__type__": "cc.animation.VectorTrack", "_nComponents": 3,
+                "_binding": { "__type__": "cc.animation.TrackBinding", "path": { "__type__": "cc.animation.TrackPath", "_paths": ["position"] }, "proxy": null },
+                "_channels": [ { "__id__": chX_Id }, { "__id__": chY_Id }, { "__id__": chZ_Id } ]
+            });
+            let times = []; let valX = []; let valY = []; let valZ = [];
+            if (moves[0].start.valueOf() > 0) { times.push(0); valX.push(createKF(char.baseX)); valY.push(createKF(char.baseY*-1)); valZ.push(createKF(0)); }
+            moves.forEach(m => {
+                let s = m.start.valueOf()/1000; let e = m.end.valueOf()/1000;
+                times.push(s); valX.push(createKF(m.motStartX)); valY.push(createKF(m.motStartY*-1)); valZ.push(createKF(0));
+                if(e > s) { times.push(e); valX.push(createKF(m.motEndX)); valY.push(createKF(m.motEndY*-1)); valZ.push(createKF(0)); }
+            });
+            animJson.push({ "__type__": "cc.animation.Channel", "_curve": { "__id__": curveX_Id } }, { "__type__": "cc.RealCurve", "_times": times, "_values": valX });
+            animJson.push({ "__type__": "cc.animation.Channel", "_curve": { "__id__": curveY_Id } }, { "__type__": "cc.RealCurve", "_times": times, "_values": valY });
+            animJson.push({ "__type__": "cc.animation.Channel", "_curve": { "__id__": curveZ_Id } }, { "__type__": "cc.RealCurve", "_times": times, "_values": valZ });
+        }
+
+        if (scales.length > 0) {
+            let trackId = animJson.length; trackRefs.push({ "__id__": trackId });
+            let chX_Id = trackId+1, curveX_Id = trackId+2, chY_Id = trackId+3, curveY_Id = trackId+4, chZ_Id = trackId+5, curveZ_Id = trackId+6;
+            animJson.push({
+                "__type__": "cc.animation.VectorTrack", "_nComponents": 3,
+                "_binding": { "__type__": "cc.animation.TrackBinding", "path": { "__type__": "cc.animation.TrackPath", "_paths": ["scale"] }, "proxy": null },
+                "_channels": [ { "__id__": chX_Id }, { "__id__": chY_Id }, { "__id__": chZ_Id } ]
+            });
+            let times = []; let valX = []; let valY = []; let valZ = [];
+            if (scales[0].start.valueOf() > 0) { times.push(0); valX.push(createKF(char.scaleX)); valY.push(createKF(char.scaleY)); valZ.push(createKF(1)); }
+            scales.forEach(m => {
+                let s = m.start.valueOf()/1000; let e = m.end.valueOf()/1000;
+                times.push(s); valX.push(createKF(m.motStartS)); valY.push(createKF(m.motStartS)); valZ.push(createKF(1));
+                if(e > s) { times.push(e); valX.push(createKF(m.motEndS)); valY.push(createKF(m.motEndS)); valZ.push(createKF(1)); }
+            });
+            animJson.push({ "__type__": "cc.animation.Channel", "_curve": { "__id__": curveX_Id } }, { "__type__": "cc.RealCurve", "_times": times, "_values": valX });
+            animJson.push({ "__type__": "cc.animation.Channel", "_curve": { "__id__": curveY_Id } }, { "__type__": "cc.RealCurve", "_times": times, "_values": valY });
+            animJson.push({ "__type__": "cc.animation.Channel", "_curve": { "__id__": curveZ_Id } }, { "__type__": "cc.RealCurve", "_times": times, "_values": valZ });
+        }
+
+        if (rotates.length > 0) {
+            let trackId = animJson.length; trackRefs.push({ "__id__": trackId });
+            let chX_Id = trackId+1, curveX_Id = trackId+2, chY_Id = trackId+3, curveY_Id = trackId+4, chZ_Id = trackId+5, curveZ_Id = trackId+6;
+            animJson.push({
+                "__type__": "cc.animation.VectorTrack", "_nComponents": 3,
+                "_binding": { "__type__": "cc.animation.TrackBinding", "path": { "__type__": "cc.animation.TrackPath", "_paths": ["eulerAngles"] }, "proxy": null },
+                "_channels": [ { "__id__": chX_Id }, { "__id__": chY_Id }, { "__id__": chZ_Id } ]
+            });
+            let times = []; let valX = []; let valY = []; let valZ = [];
+            if (rotates[0].start.valueOf() > 0) { times.push(0); valX.push(createKF(0)); valY.push(createKF(0)); valZ.push(createKF(char.baseRot*-1)); }
+            rotates.forEach(m => {
+                let s = m.start.valueOf()/1000; let e = m.end.valueOf()/1000;
+                times.push(s); valX.push(createKF(0)); valY.push(createKF(0)); valZ.push(createKF(m.motStartR*-1));
+                if(e > s) { times.push(e); valX.push(createKF(0)); valY.push(createKF(0)); valZ.push(createKF(m.motEndR*-1)); }
+            });
+            animJson.push({ "__type__": "cc.animation.Channel", "_curve": { "__id__": curveX_Id } }, { "__type__": "cc.RealCurve", "_times": times, "_values": valX });
+            animJson.push({ "__type__": "cc.animation.Channel", "_curve": { "__id__": curveY_Id } }, { "__type__": "cc.RealCurve", "_times": times, "_values": valY });
+            animJson.push({ "__type__": "cc.animation.Channel", "_curve": { "__id__": curveZ_Id } }, { "__type__": "cc.RealCurve", "_times": times, "_values": valZ });
+        }
+        
+        if (alphas.length > 0) {
+            let trackId = animJson.length; trackRefs.push({ "__id__": trackId });
+            let channelId = trackId+1, curveId = trackId+2;
+            
+            animJson.push({
+                "__type__": "cc.animation.RealTrack", 
+                "_binding": { 
+                    "__type__": "cc.animation.TrackBinding", 
+                    "path": { 
+                        "__type__": "cc.animation.TrackPath", 
+                        "_paths": [
+                            { "__type__": "cc.animation.ComponentPath", "component": "cc.UIOpacity" },
+                            "opacity"
+                        ] 
+                    }, 
+                    "proxy": null 
+                },
+                "_channel": { "__id__": channelId }
+            });
+
+            let times = []; let valA = [];
+            if (alphas[0].start.valueOf() > 0) { times.push(0); valA.push(createKF(Math.round((char.baseAlpha !== undefined ? char.baseAlpha : 1) * 255))); }
+            alphas.forEach(m => {
+                let s = m.start.valueOf()/1000; let e = m.end.valueOf()/1000;
+                times.push(s); valA.push(createKF(Math.round(m.motStartA * 255)));
+                if(e > s) { times.push(e); valA.push(createKF(Math.round(m.motEndA * 255))); }
+            });
+            
+            animJson.push({ "__type__": "cc.animation.Channel", "_curve": { "__id__": curveId } });
+            animJson.push({ "__type__": "cc.RealCurve", "_times": times, "_values": valA });
+        }
+
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(animJson, null, 2));
+        const a = document.createElement('a'); a.href = dataStr; 
+        a.download = `${customAnimName.trim()}.anim`; 
+        a.click();
+    }
+
+    function exportCodeSnippet() {
+        if (!selectedCharId) { alert("請先選擇一個 Spine 物件！"); return; }
+        const char = characters.find(c => c.id === selectedCharId); if(!char) return;
+        const engine = document.querySelector('input[name="exportEngine"]:checked').value;
+        let codeStr = `// 🔹 角色/物件: ${char.name} [${engine==='cocos'?'Cocos Tween':'DOTween'} 參考]\\n\\n`;
+
+        const moves = timelineData.get({ filter: i => i.group === char.tracks.move }).sort((a,b) => a.start - b.start);
+        if (moves.length > 0) { codeStr += `// --- Move ---\\n`; moves.forEach(m => { const dur = ((m.end.valueOf() - m.start.valueOf())/1000).toFixed(2); const ease = m.easing || 'linear'; if (engine === 'cocos') codeStr += `tween(node).to(${dur}, { position: v3(${m.motEndX}, ${m.motEndY}, 0) }, { easing: '${ease}' }).start();\\n`; else codeStr += `transform.DOMove(new Vector3(${m.motEndX}f, ${m.motEndY}f, 0f), ${dur}f).SetEase(Ease.${ease});\\n`; }); codeStr += `\\n`; }
+
+        const scales = timelineData.get({ filter: i => i.group === char.tracks.scale }).sort((a,b) => a.start - b.start);
+        if (scales.length > 0) { codeStr += `// --- Scale ---\\n`; scales.forEach(m => { const dur = ((m.end.valueOf() - m.start.valueOf())/1000).toFixed(2); const ease = m.easing || 'linear'; if (engine === 'cocos') codeStr += `tween(node).to(${dur}, { scale: v3(${m.motEndS}, ${m.motEndS}, 1) }, { easing: '${ease}' }).start();\\n`; else codeStr += `transform.DOScale(new Vector3(${m.motEndS}f, ${m.motEndS}f, 1f), ${dur}f).SetEase(Ease.${ease});\\n`; }); codeStr += `\\n`; }
+        
+        const alphas = timelineData.get({ filter: i => i.group === char.tracks.alpha }).sort((a,b) => a.start - b.start);
+        if (alphas.length > 0) { codeStr += `// --- Alpha ---\\n`; alphas.forEach(m => { const dur = ((m.end.valueOf() - m.start.valueOf())/1000).toFixed(2); const ease = m.easing || 'linear'; const endVal = Math.round(m.motEndA * 255); if (engine === 'cocos') codeStr += `tween(node.getComponent(UIOpacity) || node.addComponent(UIOpacity)).to(${dur}, { opacity: ${endVal} }, { easing: '${ease}' }).start();\\n`; else codeStr += `// Unity fade logic varies by material\\n`; }); codeStr += `\\n`; }
+
+        if (char.type === 'spine') { const anims = timelineData.get({ filter: i => char.animTracks.includes(i.group) }).sort((a,b) => a.start - b.start); if (anims.length > 0) { codeStr += `// --- Spine Anims ---\\n`; anims.forEach(m => { const animName = m.content.split(' (')[0]; const loop = m.loop !== false; const trackIndex = char.animTracks.indexOf(m.group); if (engine === 'cocos') codeStr += `spine.setAnimation(${trackIndex}, \"${animName}\", ${loop});\\n`; else codeStr += `skeletonAnimation.AnimationState.SetAnimation(${trackIndex}, \"${animName}\", ${loop});\\n`; }); } }
+
+        alert("✅ 腳本已複製！\\n\\n" + codeStr);
+        navigator.clipboard.writeText(codeStr);
+    }
+
+    function exportSequenceJSON() {
+        if (!selectedCharId) { alert("請先選擇一個 Spine 物件來匯出序列！"); return; }
+        const char = characters.find(c => c.id === selectedCharId);
+
+        const sequenceData = { characterName: char.name, totalDuration: 0, animations: [], transforms: [] };
+        let maxTime = 0;
+
+        const anims = timelineData.get({ filter: i => char.animTracks.includes(i.group) }).sort((a,b) => a.start - b.start);
+        anims.forEach(m => {
+            const startSec = m.start.valueOf() / 1000;
+            sequenceData.animations.push({
+                track: char.animTracks.indexOf(m.group), animName: m.content.split(' (')[0], startTime: startSec,
+                loop: m.loop !== false, mixTime: m.mixDuration !== undefined ? m.mixDuration : 0.2
+            });
+            if (startSec > maxTime) maxTime = startSec;
+        });
+
+        const moves = timelineData.get({ filter: i => i.group === char.tracks.move }).sort((a,b) => a.start - b.start);
+        moves.forEach(m => {
+            const startSec = m.start.valueOf() / 1000; const durSec = (m.end.valueOf() - m.start.valueOf()) / 1000;
+            sequenceData.transforms.push({ type: "move", startTime: startSec, duration: durSec, endX: m.motEndX, endY: m.motEndY, ease: m.easing || 'linear' });
+            if (startSec + durSec > maxTime) maxTime = startSec + durSec;
+        });
+
+        const scales = timelineData.get({ filter: i => i.group === char.tracks.scale }).sort((a,b) => a.start - b.start);
+        scales.forEach(m => {
+            const startSec = m.start.valueOf() / 1000; const durSec = (m.end.valueOf() - m.start.valueOf()) / 1000;
+            sequenceData.transforms.push({ type: "scale", startTime: startSec, duration: durSec, endS: m.motEndS, ease: m.easing || 'linear' });
+            if (startSec + durSec > maxTime) maxTime = startSec + durSec;
+        });
+        
+        const alphas = timelineData.get({ filter: i => i.group === char.tracks.alpha }).sort((a,b) => a.start - b.start);
+        alphas.forEach(m => {
+            const startSec = m.start.valueOf() / 1000; const durSec = (m.end.valueOf() - m.start.valueOf()) / 1000;
+            sequenceData.transforms.push({ type: "alpha", startTime: startSec, duration: durSec, endA: m.motEndA, ease: m.easing || 'linear' });
+            if (startSec + durSec > maxTime) maxTime = startSec + durSec;
+        });
+
+        sequenceData.totalDuration = maxTime;
+
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(sequenceData, null, 2));
+        const a = document.createElement('a'); a.href = dataStr; a.download = `${char.name}_Sequence.json`; a.click();
+    }
+</script>
+</body>
+</html>

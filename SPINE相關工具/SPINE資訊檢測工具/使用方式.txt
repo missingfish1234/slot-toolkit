@@ -1,5 +1,23 @@
-在終端模式中開啟
+SPINE資訊檢測工具
 
-執行python checkspine_gui.py
+啟動方式：
+python checkspine_gui.py
 
-即可
+使用流程：
+1. 選擇 Spine.exe 位置。
+2. 選擇要掃描的專案資料夾。
+3. 如需檢查規格，可填入骨架、動畫、面數、點變形、遮罩、DrawCall 上限。
+4. 按「開始掃描」。
+5. 掃描完成後可按「匯出 CSV」產生報告。
+
+檢測內容：
+- Spine 版本
+- 骨架、Slot、Skin、動畫數量
+- Mesh、權重 Mesh、頂點數
+- 點變形、遮罩、預估 DrawCall
+- 圖集數量、尺寸與去重容量
+
+備註：
+- 留空的標準值不會比對。
+- 超過標準值的列會以淡紅色標示。
+- 若掃描 skel / skel.bytes，工具會呼叫 Spine.exe 暫時轉成 JSON 後分析。

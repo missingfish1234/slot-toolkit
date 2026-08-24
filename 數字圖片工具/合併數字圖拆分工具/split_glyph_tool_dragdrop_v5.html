@@ -518,12 +518,47 @@ async function downloadZip(){
     err.textContent = "JSZip 載入失敗，請確認網路連線，或改用單張下載。";
     return;
   }
+
+  // 優先使用檔案系統另存 API。必須在按鈕點擊後、任何 await 之前
+  // 先開啟選擇器，才能保留瀏覽器要求的使用者操作權限。
+  let fileHandle = null;
+  if(typeof window.showSaveFilePicker === "function"){
+    try{
+      fileHandle = await window.showSaveFilePicker({
+        suggestedName: "split_glyphs.zip",
+        startIn: "downloads",
+        types: [{
+          description: "ZIP 壓縮檔",
+          accept: {"application/zip": [".zip"]}
+        }]
+      });
+    }catch(e){
+      if(e && e.name === "AbortError") return;
+      // 不支援或受瀏覽器政策限制時，保留原本的下載方式。
+      console.warn("無法使用另存新檔選擇器，改用瀏覽器下載。", e);
+    }
+  }
+
   const zip = new JSZip();
   for(const r of results){
     const blob = await new Promise(resolve => r.canvas.toBlob(resolve, "image/png"));
     zip.file(`${r.name}.png`, blob);
   }
   const content = await zip.generateAsync({type:"blob"});
+
+  if(fileHandle){
+    try{
+      const writable = await fileHandle.createWritable();
+      await writable.write(content);
+      await writable.close();
+      return;
+    }catch(e){
+      err.textContent = `ZIP 儲存失敗：${e.message || e}`;
+      return;
+    }
+  }
+
+  // Firefox、Safari 或受管理政策限制的環境仍可沿用原本功能。
   const a = document.createElement("a");
   a.href = URL.createObjectURL(content);
   a.download = "split_glyphs.zip";

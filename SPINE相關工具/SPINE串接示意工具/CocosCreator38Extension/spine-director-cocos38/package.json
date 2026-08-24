@@ -1,0 +1,147 @@
+{
+  "package_version": 2,
+  "version": "0.13.0",
+  "name": "spine-director-cocos38",
+  "title": "Cocos Timeline（Creator 3.8）",
+  "description": "直接編排 Cocos Scene 節點的 Transform、Spine 3.8、粒子與 Animation 軌道。",
+  "author": "FishWang Tools",
+  "editor": ">=3.8.0 <3.9.0",
+  "main": "./dist/main.js",
+  "panels": {
+    "default": {
+      "title": "Cocos Timeline / Spine 3.8",
+      "type": "dockable",
+      "main": "./dist/panels/default",
+      "icon": "./static/icon.svg",
+      "size": {
+        "min-width": 680,
+        "min-height": 240,
+        "width": 1280,
+        "height": 430
+      }
+    }
+  },
+  "contributions": {
+    "shortcuts": [
+      {
+        "message": "delete",
+        "win": "delete",
+        "mac": "delete",
+        "when": "PanelName === 'spine-director-cocos38'"
+      },
+      {
+        "message": "delete",
+        "win": "backspace",
+        "mac": "backspace",
+        "when": "PanelName === 'spine-director-cocos38'"
+      }
+    ],
+    "menu": [
+      {
+        "path": "i18n:menu.panel/Spine Director 3.8",
+        "label": "Spine Director 3.8",
+        "icon": "./static/icon.svg",
+        "message": "open-panel"
+      }
+    ],
+    "scene": {
+      "script": "./dist/scene.js"
+    },
+    "messages": {
+      "open-panel": {
+        "methods": [
+          "openPanel"
+        ]
+      },
+      "delete": {
+        "methods": [
+          "default.deleteSelection"
+        ]
+      },
+      "selection:select": {
+        "methods": [
+          "onSelectionSelect",
+          "default.onExternalSelection"
+        ]
+      },
+      "selection:hover": {
+        "methods": [
+          "onSelectionHover"
+        ]
+      },
+      "export-project": {
+        "methods": [
+          "exportProject"
+        ]
+      },
+      "create-player-node": {
+        "methods": [
+          "createPlayerNode"
+        ]
+      },
+      "import-selected-spine": {
+        "methods": [
+          "importSelectedSpine"
+        ]
+      },
+      "bind-selected-spine-node": {
+        "methods": [
+          "bindSelectedSpineNode"
+        ]
+      },
+      "preview-scene": {
+        "methods": [
+          "previewScene"
+        ]
+      },
+      "restore-scene-preview": {
+        "methods": [
+          "restoreScenePreview"
+        ]
+      },
+      "timeline-add-selected": {
+        "methods": [
+          "timelineAddSelected"
+        ]
+      },
+      "timeline-peek-selection": {
+        "methods": [
+          "timelinePeekSelection"
+        ]
+      },
+      "timeline-add-dropped": {
+        "methods": [
+          "timelineAddDropped"
+        ]
+      },
+      "timeline-inspect-nodes": {
+        "methods": [
+          "timelineInspectNodes"
+        ]
+      },
+      "timeline-preview": {
+        "methods": [
+          "timelinePreview"
+        ]
+      },
+      "timeline-restore": {
+        "methods": [
+          "timelineRestore"
+        ]
+      },
+      "timeline-save": {
+        "methods": [
+          "timelineSave"
+        ]
+      },
+      "timeline-load-selected": {
+        "methods": [
+          "timelineLoadSelected"
+        ]
+      }
+    }
+  },
+  "scripts": {
+    "build": "node -e \"console.log('This extension is prebuilt.')\""
+  }
+}

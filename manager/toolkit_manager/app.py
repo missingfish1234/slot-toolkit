@@ -42,6 +42,10 @@ from .services import ConfigStore, GitHubClient, StateStore, ToolLibrary, app_da
 from .styles import APP_QSS
 
 
+TOOL_CARD_HEIGHT = 202
+TOOL_CARD_ROW_SPACING = 14
+
+
 class Worker(QObject):
     finished = Signal(object)
     failed = Signal(str)
@@ -68,12 +72,12 @@ class ToolCard(QFrame):
         self.status = status
         self.setObjectName("ToolCard")
         self.setProperty("selected", "true" if is_selected else "false")
-        self.setFixedHeight(178)
+        self.setFixedHeight(TOOL_CARD_HEIGHT)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 15, 16, 14)
-        layout.setSpacing(11)
+        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setSpacing(9)
 
         header = QHBoxLayout()
         header.setSpacing(12)
@@ -99,11 +103,14 @@ class ToolCard(QFrame):
         desc = QLabel(tool.description or "尚未填寫工具用途描述。")
         desc.setObjectName("CardDescription")
         desc.setWordWrap(True)
-        desc.setMaximumHeight(42)
+        desc.setMinimumHeight(40)
+        desc.setMaximumHeight(40)
+        desc.setToolTip(tool.description or "尚未填寫工具用途描述。")
         layout.addWidget(desc)
 
         meta = QLabel(f"本機 {local_version or '-'}    雲端 {tool.version}    更新 {tool.updated_at or '-'}")
         meta.setObjectName("Meta")
+        meta.setFixedHeight(18)
         layout.addWidget(meta)
 
         actions = QHBoxLayout()
@@ -981,11 +988,11 @@ class MainWindow(QMainWindow):
             col = index % columns
             self.cards_grid.addWidget(card, row, col)
         for row in range(row_count):
-            self.cards_grid.setRowMinimumHeight(row, 178)
+            self.cards_grid.setRowMinimumHeight(row, TOOL_CARD_HEIGHT)
         for col in range(columns):
             self.cards_grid.setColumnStretch(col, 1)
         self.cards_grid.setRowStretch(row_count, 1)
-        self.cards_host.setMinimumHeight(max(0, row_count * 192))
+        self.cards_host.setMinimumHeight(max(0, row_count * (TOOL_CARD_HEIGHT + TOOL_CARD_ROW_SPACING)))
 
         if self.selected_tool:
             self.update_details()

@@ -1,6 +1,6 @@
 @echo off
 setlocal
-set "CCX=%~dp0PSDExportPipeline_1.2.9.ccx"
+set "CCX=%~dp0PSDExportPipeline_1.2.18.ccx"
 if not "%~1"=="" set "CCX=%~1"
 set "UPIA=C:\Program Files\Common Files\Adobe\Adobe Desktop Common\RemoteComponents\UPI\UnifiedPluginInstallerAgent\UnifiedPluginInstallerAgent.exe"
 if not exist "%CCX%" (
@@ -26,6 +26,11 @@ if errorlevel 1 (
   echo.
   echo First install command failed. Trying --install syntax...
   "%UPIA%" --install "%CCX%"
+)
+if exist "%~dp0sync_uxp_storage.ps1" (
+  echo.
+  echo Syncing Photoshop UXP cache...
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0sync_uxp_storage.ps1" -CcxPath "%CCX%"
 )
 echo.
 echo Done. Restart Photoshop and check Plugins / UXP panel list.

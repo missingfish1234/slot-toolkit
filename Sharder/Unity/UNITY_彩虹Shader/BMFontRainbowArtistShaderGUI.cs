@@ -20,6 +20,7 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
     private static bool _showDebug = false;
 
     private static readonly string[] FillFlowModes = { "線性", "放射", "螺旋", "放射色帶" };
+    private static readonly string[] FillBlendModes = { "覆蓋", "疊加 / 保留原圖", "濾色亮光", "加亮掃光" };
     private static readonly string[] SweepFlowModes = { "線性", "放射" };
     private static readonly string[] GroupModes = { "整體同步", "每物件/每字" };
     private static readonly string[] PerObjectCoordModes = { "每字重複 LocalUV", "整串連續 GlobalUV" };
@@ -68,6 +69,7 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
         {
             if (GUILayout.Button("手機效能")) ApplyPresetMobile();
             if (GUILayout.Button("標準彩虹")) ApplyPresetStandard();
+            if (GUILayout.Button("圖片疊光")) ApplyPresetImageOverlay();
             if (GUILayout.Button("Big Win華麗")) ApplyPresetBigWin();
             if (GUILayout.Button("粒子安全")) ApplyPresetParticle();
         }
@@ -105,6 +107,22 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
             Slider("_FillHue", "色相偏移");
             Slider("_FillSaturation", "飽和度");
             Slider("_FillIntensity", "彩虹強度");
+            Slider("_FillBlueBrightness", "藍色亮度倍率");
+            Slider("_FillBlueLift", "藍色補光");
+            Slider("_FillBlueRange", "藍色影響範圍");
+            Slider("_ParticleFillCoverage", "粒子軟邊填色");
+            Popup("_FillBlendMode", "彩虹混合模式", FillBlendModes);
+            Slider("_FillBlendStrength", "彩虹疊加強度");
+            ToggleFloat("_FillFlashEnable", "啟用彩虹閃爍");
+            if (Float("_FillFlashEnable") > 0.5f)
+            {
+                using (new EditorGUI.IndentLevelScope())
+                {
+                    Color("_FillFlashColor", "閃爍顏色");
+                    Slider("_FillFlashFrequency", "閃爍頻率");
+                    Slider("_FillFlashStrength", "閃爍強度");
+                }
+            }
             Slider("_FillSoftWhite", "柔和白光");
             Slider("_FillDetailBoost", "細節強化");
 
@@ -288,8 +306,12 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
     {
         Set("_FillEnable", 1); Set("_FillL2Enable", 0); Set("_FillNoiseEnable", 0);
         Set("_DiamondEnable", 0); Set("_DiamondL2Enable", 0); Set("_InnerSweepEnable", 0);
-        Set("_ParticleMode", 0); Set("_FillGroupMode", 0); Set("_SweepGroupMode", 0);
+        Set("_ParticleMode", 0); Set("_UseSrcRGB", 1); Set("_FillGroupMode", 0); Set("_SweepGroupMode", 0);
         Set("_SweepEnable", 1); Set("_FillIntensity", 1.05f); Set("_FillPixelsPerCycle", 220);
+        Set("_FillBlueBrightness", 1.0f); Set("_FillBlueLift", 0.0f); Set("_FillBlueRange", 0.16f);
+        Set("_ParticleFillCoverage", 0.0f);
+        Set("_FillBlendMode", 0); Set("_FillBlendStrength", 1.0f);
+        Set("_FillFlashEnable", 0); Set("_FillFlashFrequency", 2.0f); Set("_FillFlashStrength", 0.5f);
         Set("_FillDetailBoost", 0.15f); Set("_SweepColorIntensity", 0.9f); Set("_SweepWidthPx", 32); Set("_SweepFeatherPx", 5);
         Set("_SweepUseGradient", 0); Set("_SweepUseObject", 0);
         SyncKeywordsForTargets();
@@ -299,10 +321,29 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
     {
         Set("_FillEnable", 1); Set("_FillL2Enable", 0); Set("_FillNoiseEnable", 0);
         Set("_DiamondEnable", 0); Set("_InnerSweepEnable", 1); Set("_SweepEnable", 1);
-        Set("_ParticleMode", 0); Set("_FillGroupMode", 1); Set("_FillPerObjCoord", 1);
+        Set("_ParticleMode", 0); Set("_UseSrcRGB", 1); Set("_FillGroupMode", 1); Set("_FillPerObjCoord", 1);
+        Set("_FillBlueBrightness", 1.0f); Set("_FillBlueLift", 0.0f); Set("_FillBlueRange", 0.16f);
+        Set("_ParticleFillCoverage", 0.0f);
+        Set("_FillBlendMode", 0); Set("_FillBlendStrength", 1.0f);
+        Set("_FillFlashEnable", 0); Set("_FillFlashFrequency", 2.0f); Set("_FillFlashStrength", 0.5f);
         Set("_FillIntensity", 1.25f); Set("_FillSaturation", 1); Set("_FillPixelsPerCycle", 180);
         Set("_FillDetailBoost", 0.25f); Set("_InnerSweepIntensity", 0.65f); Set("_SweepColorIntensity", 1.15f);
         Set("_SweepUseGradient", 0); Set("_SweepColorMode", 1);
+        SyncKeywordsForTargets();
+    }
+
+    private void ApplyPresetImageOverlay()
+    {
+        Set("_FillEnable", 1); Set("_FillL2Enable", 0); Set("_FillNoiseEnable", 0);
+        Set("_DiamondEnable", 0); Set("_InnerSweepEnable", 1); Set("_SweepEnable", 1);
+        Set("_ParticleMode", 0); Set("_UseSrcRGB", 1); Set("_FillGroupMode", 0);
+        Set("_FillBlueBrightness", 1.25f); Set("_FillBlueLift", 0.15f); Set("_FillBlueRange", 0.16f);
+        Set("_ParticleFillCoverage", 0.0f);
+        Set("_FillBlendMode", 1); Set("_FillBlendStrength", 0.7f);
+        Set("_FillFlashEnable", 0); Set("_FillFlashFrequency", 2.0f); Set("_FillFlashStrength", 0.5f);
+        Set("_FillIntensity", 1.15f); Set("_FillSaturation", 0.9f); Set("_FillPixelsPerCycle", 220);
+        Set("_FillDetailBoost", 0.15f); Set("_InnerSweepIntensity", 0.85f);
+        Set("_SweepColorMode", 1); Set("_SweepColorIntensity", 1.1f);
         SyncKeywordsForTargets();
     }
 
@@ -310,7 +351,11 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
     {
         Set("_FillEnable", 1); Set("_FillL2Enable", 1); Set("_FillNoiseEnable", 1);
         Set("_DiamondEnable", 1); Set("_DiamondL2Enable", 1); Set("_InnerSweepEnable", 1); Set("_SweepEnable", 1);
-        Set("_ParticleMode", 0); Set("_FillGroupMode", 1); Set("_FillPerObjCoord", 1);
+        Set("_ParticleMode", 0); Set("_UseSrcRGB", 1); Set("_FillGroupMode", 1); Set("_FillPerObjCoord", 1);
+        Set("_FillBlueBrightness", 1.2f); Set("_FillBlueLift", 0.1f); Set("_FillBlueRange", 0.16f);
+        Set("_ParticleFillCoverage", 0.0f);
+        Set("_FillBlendMode", 0); Set("_FillBlendStrength", 1.0f);
+        Set("_FillFlashEnable", 1); Set("_FillFlashFrequency", 2.5f); Set("_FillFlashStrength", 0.45f);
         Set("_FillIntensity", 1.55f); Set("_FillPixelsPerCycle", 135); Set("_FillL2Mix", 0.42f);
         Set("_FillL2Angle", 88); Set("_FillL2Speed", -0.75f); Set("_FillDetailBoost", 0.45f);
         Set("_FillNoiseStrength", 0.08f); Set("_FillNoiseWarp", 0.16f); Set("_FillNoiseStyle", 1);
@@ -323,7 +368,9 @@ public class BMFontRainbowArtistShaderGUI : ShaderGUI
     private void ApplyPresetParticle()
     {
         ApplyPresetMobile();
-        Set("_ParticleMode", 1); Set("_FillGroupMode", 0); Set("_SweepGroupMode", 0); Set("_SweepUseObject", 0);
+        Set("_ParticleMode", 1); Set("_UseSrcRGB", 0); Set("_FillGroupMode", 0); Set("_SweepGroupMode", 0); Set("_SweepUseObject", 0);
+        Set("_FillBlueBrightness", 1.8f); Set("_FillBlueLift", 0.45f); Set("_FillBlueRange", 0.18f);
+        Set("_ParticleFillCoverage", 1.0f);
         Set("_FillNoiseEnable", 0); Set("_FillPixelsPerCycle", 160); Set("_SweepPixelsPerCycle", 210);
         SyncKeywordsForTargets();
     }

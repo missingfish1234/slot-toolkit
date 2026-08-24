@@ -47,6 +47,16 @@ Shader "Custom/BMFont_Rainbow_OptimizedArtistPanel"
         _FillHue        ("色相偏移 (0..1)", Range(0,1)) = 0
         _FillSaturation ("飽和度", Range(0,1)) = 1
         _FillIntensity  ("明度/強度", Range(0,3)) = 1
+        _FillBlueBrightness ("藍色亮度倍率", Range(1,3)) = 1
+        _FillBlueLift ("藍色補光", Range(0,1)) = 0
+        _FillBlueRange ("藍色影響範圍", Range(0.02,0.35)) = 0.16
+        _ParticleFillCoverage ("粒子軟邊填色", Range(0,1)) = 0
+        _FillBlendMode  ("彩虹混合模式 (0=覆蓋,1=疊加,2=濾色,3=加亮)", Range(0,3)) = 0
+        _FillBlendStrength ("彩虹疊加強度", Range(0,1)) = 1
+        _FillFlashEnable ("啟用彩虹閃爍", Float) = 0
+        _FillFlashColor ("彩虹閃爍顏色", Color) = (1,1,1,1)
+        _FillFlashFrequency ("彩虹閃爍頻率 (次/秒)", Range(0.1,20)) = 2
+        _FillFlashStrength ("彩虹閃爍強度", Range(0,1)) = 0.5
         _FillSoftWhite  ("柔和白光 (相加)", Range(0,1)) = 0
         
         // 其他細節
@@ -224,6 +234,10 @@ Shader "Custom/BMFont_Rainbow_OptimizedArtistPanel"
             float _FillFlowMode, _FillAngle, _FillSpeed, _FillPixelsPerCycle, _FillRefHeight;
             float _FillFollowObjectScale, _FillDensityAnim;
             float _FillHue, _FillSaturation, _FillIntensity, _FillSoftWhite, _FillAlphaCut;
+            float _FillBlueBrightness, _FillBlueLift, _FillBlueRange, _ParticleFillCoverage;
+            float _FillBlendMode, _FillBlendStrength;
+            float _FillFlashEnable, _FillFlashFrequency, _FillFlashStrength;
+            float4 _FillFlashColor;
             float4 _FillRadialCenter;
             float _FillRadialTurns, _FillSpiralScale, _FillRadialBands, _FillFlowRefHeight;
             float _FillGroupMode, _FillObjTiling;
@@ -304,6 +318,25 @@ Shader "Custom/BMFont_Rainbow_OptimizedArtistPanel"
                 half4 K=half4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
                 half3 p=abs(frac(c.xxx+K.xyz)*6.0-K.www);
                 return c.z*lerp(K.xxx, saturate(p-K.xxx), c.y); 
+            }
+
+            inline half calcBlueHueMask(half3 rgb, float range)
+            {
+                half3 c = saturate(rgb);
+                half maxc = max(c.r, max(c.g, c.b));
+                half minc = min(c.r, min(c.g, c.b));
+                half chroma = max(maxc - minc, 1e-5);
+                half hue = 0.0;
+
+                if (maxc == c.r) hue = frac(((c.g - c.b) / chroma) / 6.0);
+                else if (maxc == c.g) hue = ((c.b - c.r) / chroma + 2.0) / 6.0;
+                else hue = ((c.r - c.g) / chroma + 4.0) / 6.0;
+
+                half d = abs(hue - 0.60);
+                d = min(d, 1.0 - d);
+                half hueMask = 1.0 - smoothstep(range * 0.45, range, d);
+                half colorMask = saturate(chroma * 4.0);
+                return hueMask * colorMask;
             }
 
             inline half sampleMaskSmooth(sampler2D tex, float2 uv, float featherPx, float invert, float4 texelSize)
@@ -643,6 +676,7 @@ half3 calcDiamondSpec(sampler2D normTex, float2 baseUV, float tiling, float scro
                 float aw      = max(fwidth(a), 1e-4);
                 float edgeAA  = (a - _FillAlphaCut) / (aw * max(_FillEdgeAA, 1e-4));
                 half fillMask = saturate(edgeAA);
+                half fillMaskGate = 1.0;
 
                 // === Fill (Rainbow) ===
                 #ifdef _FILL_ON
@@ -689,10 +723,19 @@ half3 calcDiamondSpec(sampler2D normTex, float2 baseUV, float tiling, float scro
                     half3 boostedFillCol = saturate((fillCol - 0.5) * 1.35 + 0.5) * _FillIntensity;
                     fillCol = lerp(fillCol, boostedFillCol, saturate(_FillDetailBoost));
                     fillCol = lerp(fillCol, half3(1,1,1), _FillSoftWhite);
+
+                    if (_FillBlueBrightness > 1.0001 || _FillBlueLift > 0.0001)
+                    {
+                        half blueMask = calcBlueHueMask(fillCol, _FillBlueRange);
+                        fillCol = lerp(fillCol, min(fillCol * _FillBlueBrightness, 2.0), blueMask);
+                        half3 blueLiftCol = max(fillCol, half3(0.12, 0.62, 1.0) * max(max(fillCol.r, max(fillCol.g, fillCol.b)), 1.0));
+                        fillCol = lerp(fillCol, min(blueLiftCol, 2.0), blueMask * saturate(_FillBlueLift));
+                    }
                     
                     #ifdef _FILL_MASK_ON
                     {
                         half maskVal = sampleMaskSmooth(_FillMaskTex, i.uv, _FillMaskFeatherPx, _FillMaskInvert, _MainTex_TexelSize);
+                        fillMaskGate = maskVal;
                         fillMask *= maskVal; 
                     }
                     #endif
@@ -726,8 +769,37 @@ half3 calcDiamondSpec(sampler2D normTex, float2 baseUV, float tiling, float scro
                         fillCol = min(fillCol, 2.0); 
                     }
                     #endif
+
+                    if (_FillFlashEnable > 0.5)
+                    {
+                        float flashPhase = sin(_Time.y * max(_FillFlashFrequency, 0.001) * 6.2831853) * 0.5 + 0.5;
+                        half flash = smoothstep(0.35, 1.0, flashPhase) * saturate(_FillFlashStrength) * _FillFlashColor.a;
+                        fillCol = lerp(fillCol, _FillFlashColor.rgb * max(_FillIntensity, 1.0), flash);
+                    }
                     
-                    rgb = lerp(rgb, fillCol, fillMask);
+                    half3 blendCol = fillCol;
+                    if (_FillBlendMode >= 0.5)
+                    {
+                        half3 baseRgb = rgb;
+                        half3 safeFillCol = saturate(fillCol);
+                        if (_FillBlendMode < 1.5)
+                        {
+                            blendCol = lerp(2.0 * baseRgb * safeFillCol,
+                                            1.0 - 2.0 * (1.0 - baseRgb) * (1.0 - safeFillCol),
+                                            step(0.5, baseRgb));
+                        }
+                        else if (_FillBlendMode < 2.5)
+                        {
+                            blendCol = 1.0 - (1.0 - baseRgb) * (1.0 - safeFillCol);
+                        }
+                        else
+                        {
+                            blendCol = saturate(baseRgb + fillCol * 0.5);
+                        }
+                    }
+                    half particleCoverage = a * fillMaskGate * saturate(_ParticleFillCoverage);
+                    half fillBlendMask = max(fillMask, particleCoverage);
+                    rgb = lerp(rgb, blendCol, fillBlendMask * saturate(_FillBlendStrength));
                 }
                 #endif
                 
@@ -815,15 +887,17 @@ half3 calcDiamondSpec(sampler2D normTex, float2 baseUV, float tiling, float scro
                     }
                     #endif
                     
-                    half fillMaskTexVal = fillMask;
-                    #ifdef _FILL_MASK_ON
-                    {
-                        fillMaskTexVal = sampleMaskSmooth(_FillMaskTex, i.uv, _FillMaskFeatherPx, _FillMaskInvert, _MainTex_TexelSize);
-                    }
-                    #endif
-                    
                     // 修正：未開 Fill Mask 時，不再因預設 1.0 導致外掃光被整個排除。
-                    if (_SweepExcludeFill > 0.5) band *= (1.0 - saturate(fillMaskTexVal));
+                    if (_SweepExcludeFill > 0.5)
+                    {
+                        half fillMaskTexVal = fillMask;
+                        #ifdef _FILL_MASK_ON
+                        {
+                            fillMaskTexVal = sampleMaskSmooth(_FillMaskTex, i.uv, _FillMaskFeatherPx, _FillMaskInvert, _MainTex_TexelSize);
+                        }
+                        #endif
+                        band *= (1.0 - saturate(fillMaskTexVal));
+                    }
                     
                     half3 sweepCol = (_SweepUseGradient>0.5) ? tex2D(_SweepGradient, float2(frac(tSweep), 0.5)).rgb : _SweepColor.rgb;
                     sweepCol *= _SweepColorIntensity;

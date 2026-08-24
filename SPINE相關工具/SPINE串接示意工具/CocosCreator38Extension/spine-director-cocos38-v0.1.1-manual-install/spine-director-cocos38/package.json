@@ -1,0 +1,57 @@
+{
+  "package_version": 2,
+  "version": "0.1.1",
+  "name": "spine-director-cocos38",
+  "title": "Spine Director（Creator 3.8）",
+  "description": "在 Cocos Creator 3.8 內編排 Spine 3.8，並輸出可直接執行的場景資料。",
+  "author": "FishWang Tools",
+  "editor": ">=3.8.0 <3.9.0",
+  "main": "./dist/main.js",
+  "panels": {
+    "default": {
+      "title": "Spine Director 3.8",
+      "type": "dockable",
+      "main": "./dist/panels/default",
+      "icon": "./static/icon.svg",
+      "size": {
+        "min-width": 760,
+        "min-height": 520,
+        "width": 1280,
+        "height": 820
+      }
+    }
+  },
+  "contributions": {
+    "menu": [
+      {
+        "path": "i18n:menu.panel",
+        "label": "Spine Director 3.8",
+        "icon": "./static/icon.svg",
+        "message": "open-panel"
+      }
+    ],
+    "scene": {
+      "script": "./dist/scene.js"
+    },
+    "messages": {
+      "open-panel": {
+        "methods": [
+          "openPanel"
+        ]
+      },
+      "export-project": {
+        "methods": [
+          "exportProject"
+        ]
+      },
+      "create-player-node": {
+        "methods": [
+          "createPlayerNode"
+        ]
+      }
+    }
+  },
+  "scripts": {
+    "build": "node -e \"console.log('This extension is prebuilt.')\""
+  }
+}

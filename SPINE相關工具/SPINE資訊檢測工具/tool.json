@@ -2,16 +2,24 @@
   "id": "spine76f895dc5de55177-spine8cc78a0a6aa26e2c5de55177",
   "name": "SPINE資訊檢測工具",
   "category": "SPINE相關工具",
-  "description": "",
-  "version": "1.0.0",
+  "description": "掃描 SPINE 專案內的 skel、skel.bytes 與 json 檔，統計版本、骨架、動畫、Mesh、頂點、遮罩、DrawCall 與圖集容量，並可依標準值標示超標項目。",
+  "version": "1.0.2",
   "path": "SPINE相關工具/SPINE資訊檢測工具",
-  "entry": "checkspine_gui.py",
+  "entry": "dist/SpineQC工具.exe",
   "icon": "",
   "tags": [
     "SPINE相關工具",
-    "SPINE資訊檢測工具"
+    "SPINE資訊檢測工具",
+    "QC",
+    "效能檢測"
   ],
-  "updatedAt": "2026-06-11",
+  "updatedAt": "2026-07-16",
   "size": "31.3 MB",
-  "changelog": []
+  "changelog": [
+    "修正 Spine 4.0.56 轉檔失敗問題：.skel.bytes 會自動以暫存 .skel 呼叫 Spine 匯出。",
+    "匯出設定改為無 BOM JSON，避免舊版 Spine 解析 export settings 失敗。",
+    "重整操作介面文字，修正工具內中文亂碼。",
+    "強化 atlas 與圖集依賴解析，改善包圖容量統計準確度。",
+    "新增掃描進度、停止掃描、狀態欄與更完整的 CSV 匯出欄位。"
+  ]
 }
