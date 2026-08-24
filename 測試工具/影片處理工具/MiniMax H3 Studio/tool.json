@@ -1,0 +1,24 @@
+{
+  "id": "minimax-h3-studio-video-tool",
+  "name": "MiniMax H3 Studio 影片生成工具",
+  "category": "測試工具",
+  "description": "以簡化操作面板使用 MiniMax H3 進行文生影片、首尾幀、多模態參考、角色替換、影片續接、圖騰循環、彈窗與 MG 動畫；支援本機或共享遠端 ComfyUI。首次啟動會把程式安裝到使用者自己的 LocalAppData，模型、設定與生成紀錄不會因工具包更新而被刪除。",
+  "version": "1.0.0",
+  "path": "測試工具/影片處理工具/MiniMax H3 Studio",
+  "entry": "啟動 MiniMax H3 Studio.cmd",
+  "icon": "",
+  "tags": [
+    "測試工具",
+    "影片處理工具",
+    "MiniMax H3",
+    "AI 影片生成",
+    "ComfyUI",
+    "MG 動畫"
+  ],
+  "updatedAt": "2026-08-24",
+  "size": "5.0 KB",
+  "changelog": [
+    "首次加入工具包；採獨立執行環境，保留每位使用者自己的模型、設定、素材與生成紀錄。",
+    "啟動時安全檢查 movieeasymake 最新版本，離線或更新失敗時仍可開啟既有版本。"
+  ]
+}

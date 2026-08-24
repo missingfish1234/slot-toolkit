@@ -1,0 +1,28 @@
+MiniMax H3 Studio 工具包版
+==========================
+
+一、第一次啟動
+1. 請先安裝 Git for Windows：https://git-scm.com/download/win
+2. 在工具包管理器安裝本工具後，按「開啟」。
+3. 啟動器會把 H3 Studio 安裝在：
+   %LOCALAPPDATA%\MiniMaxH3Studio\movieeasymake
+4. H3 Studio 會接著檢查 Python；若電腦完全沒有 Python，畫面會顯示安裝指引。
+
+二、為什麼不直接把模型放在工具包裡
+- MiniMax H3 模型容量很大，不適合提交 Git。
+- 模型、個人設定、素材、任務及生成影片會留在每位使用者自己的電腦。
+- 更新或重新安裝「我的工具包」不會刪除這些本機資料。
+
+三、引擎選擇
+- 使用這台電腦：可在 H3 Studio 的「引擎設定」安裝或指定本機 ComfyUI。
+- 連線遠端電腦：填入管理者提供的 Gateway 網址與個人金鑰，不需要在本機安裝 H3 模型。
+
+四、更新
+- 每次啟動會以 Git fast-forward 方式檢查 H3 Studio 程式更新。
+- 網路中斷或 GitHub 暫時無法使用時，會直接啟動既有版本。
+- 模型更新由 H3 Studio 內的「模型版本」功能另外詢問，不會強制下載。
+
+五、移除
+- 從工具包移除啟動器不會刪除 H3 Studio 本機資料。
+- 若確定不再使用，可自行刪除：
+  %LOCALAPPDATA%\MiniMaxH3Studio
