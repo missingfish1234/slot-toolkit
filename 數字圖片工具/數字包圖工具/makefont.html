@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BMFont Gen (v3.27 Realtime Offset Preview Fix) - by 小魚骨頭</title>
+    <title>BMFont Gen (v3.28 Optical Spacing Fix) - by 小魚骨頭</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         /* --- 🎨 設計系統 --- */
@@ -148,7 +148,7 @@
 <body>
 
 <header>
-    <div class="app-title">BMFont Gen <span>v3.27 Realtime Offset Preview Fix</span></div>
+    <div class="app-title">BMFont Gen <span>v3.28 Optical Spacing Fix</span></div>
     <div class="author-tag">Author: 小魚骨頭</div>
 </header>
 
@@ -184,6 +184,14 @@
                 <div><label>數字等寬 (Monospace)</label><span class="desc">維持原圖比例，精準置中框內</span></div>
                 <input type="checkbox" id="monospaceNum">
             </div>
+            <div class="control-row highlight-row" style="border-color: #ffca28; background: rgba(255, 202, 40, 0.1);">
+                <div><label>窄字光學補寬</label><span class="desc">補寬 1 等窄字，但保持等寬字格</span></div>
+                <input type="checkbox" id="opticalFitNum" checked>
+            </div>
+            <div class="control-row">
+                <div><label>最小字面佔寬 (%)</label><span class="desc">建議 78–82；只在數字等寬時生效</span></div>
+                <input type="number" id="opticalFillPercent" value="80" min="60" max="100" step="1">
+            </div>
             <div class="control-row highlight-row" style="border-color: #ff5722; background: rgba(255, 87, 34, 0.1);">
                 <div><label>標點統一 (Fix Punctuation)</label><span class="desc">自動同步 "." 與 "," 的寬度</span></div>
                 <input type="checkbox" id="fixPunctuation">
@@ -216,6 +224,11 @@
                 <label>行高 (LineHeight)</label>
                 <input type="number" id="lineHeight" value="80">
             </div>
+            <div class="control-row highlight-row" style="border-color: #26a69a; background: rgba(38, 166, 154, 0.1);">
+                <div><label>自動安全行高</label><span class="desc">輸出行高不低於最高字圖，避免負 yoffset</span></div>
+                <input type="checkbox" id="autoSafeLineHeight" checked>
+            </div>
+            <div id="metricStatus" class="desc" style="padding: 2px 4px 5px; color:#80cbc4;">尚未匯入字圖</div>
             <div class="control-row highlight-row" style="border-color: #4caf50; background: rgba(76, 175, 80, 0.1);">
                 <div><label>整體置中 (Auto Center)</label><span class="desc">將最大字元置中於行高內</span></div>
                 <input type="checkbox" id="groupCenter" checked>
@@ -339,6 +352,7 @@
         config: {
             padding: 2, maxWidth: 512, maxHeight: 512,
             trim: true, keepYBounds: false, unifiedTop: true, groupCenter: true, fixPunctuation: false, monospaceNum: false,
+            opticalFitNum: true, opticalFillPercent: 80, autoSafeLineHeight: true,
             forceSquare: false, powerOfTwo: false,
             fontSize: 72, lineHeight: 80, yOffsetAdjust: 0,
             fontName: 'myFont', exportScale: 1.0, lockInfoSize: true, cocosBaselineFix: true, cocosKeepLineHeight: true, 
@@ -353,7 +367,7 @@
         simZoom: 1.0, simBgImage: null,
         isCounting: false, countInterval: null,
         
-        globalMinY: 0, maxImgH: 0, groupOffsetY: 0
+        globalMinY: 0, maxImgH: 0, groupOffsetY: 0, effectiveLineHeight: 80
     };
 
     const els = {
@@ -371,6 +385,7 @@
         resizer: document.getElementById('resizer'),
         resizerSim: document.getElementById('resizerSim'), 
         simulatorView: document.getElementById('simulatorView'), 
+        metricStatus: document.getElementById('metricStatus'),
         zoomDisplay: document.getElementById('zoomDisplay'),
         simZoomDisplay: document.getElementById('simZoomDisplay'), 
         atlasSizeDisplay: document.getElementById('atlasSizeDisplay'),
@@ -383,6 +398,7 @@
             lineHeight: document.getElementById('lineHeight'), fontName: document.getElementById('fontName'),
             groupCenter: document.getElementById('groupCenter'), yOffsetAdjust: document.getElementById('yOffsetAdjust'),
             fixPunctuation: document.getElementById('fixPunctuation'), monospaceNum: document.getElementById('monospaceNum'),
+            opticalFitNum: document.getElementById('opticalFitNum'), opticalFillPercent: document.getElementById('opticalFillPercent'), autoSafeLineHeight: document.getElementById('autoSafeLineHeight'),
             forceSquare: document.getElementById('forceSquare'), powerOfTwo: document.getElementById('powerOfTwo'),
             exportScale: document.getElementById('exportScale'), lockInfoSize: document.getElementById('lockInfoSize'), cocosBaselineFix: document.getElementById('cocosBaselineFix'), cocosKeepLineHeight: document.getElementById('cocosKeepLineHeight'),
             simBgScale: document.getElementById('simBgScale'), simBgOpacity: document.getElementById('simBgOpacity'),
@@ -822,8 +838,21 @@
 
         let maxDrawH = 0;
         state.glyphs.forEach(g => { if (!g.computedTrim.empty && g.computedTrim.h > maxDrawH) maxDrawH = g.computedTrim.h; });
-        state.groupOffsetY = state.config.groupCenter ? Math.floor((state.config.lineHeight - maxDrawH) / 2) : 0;
         state.maxDrawH = maxDrawH;
+        const requestedLineHeight = Math.max(1, Math.round(state.config.lineHeight || 1));
+        state.effectiveLineHeight = state.config.autoSafeLineHeight
+            ? Math.max(requestedLineHeight, maxDrawH)
+            : requestedLineHeight;
+        state.groupOffsetY = state.config.groupCenter ? Math.floor((state.effectiveLineHeight - maxDrawH) / 2) : 0;
+        if (els.metricStatus) {
+            if (state.effectiveLineHeight > requestedLineHeight) {
+                els.metricStatus.textContent = `安全行高：${state.effectiveLineHeight}px（設定 ${requestedLineHeight}px，已自動修正）`;
+                els.metricStatus.style.color = '#ffca28';
+            } else {
+                els.metricStatus.textContent = `實際輸出行高：${state.effectiveLineHeight}px`;
+                els.metricStatus.style.color = '#80cbc4';
+            }
+        }
 
         // 3. 精算最終偏移與佔位
         state.glyphs.forEach(g => {
@@ -832,20 +861,29 @@
             let drawW = g.computedTrim.w;
             let drawH = g.computedTrim.h;
             let xOffsetAdj = 0;
+            g.opticalScaleX = 1;
 
             if (state.config.trim && state.config.unifiedTop && !g.computedTrim.empty) {
                 oy = g.computedTrim.y - state.globalMinY;
             }
 
             if (state.config.monospaceNum && isDigit(g.charCode)) {
-                let extra = maxNumberWidth - drawW;
-                if (extra > 0) xOffsetAdj += Math.floor(extra / 2);
                 advance = maxNumberWidth;
+                if (state.config.opticalFitNum && maxNumberWidth > 0 && drawW > 0) {
+                    const fillPercent = Math.min(100, Math.max(60, parseFloat(state.config.opticalFillPercent) || 80));
+                    const opticalMinWidth = Math.round(maxNumberWidth * fillPercent / 100);
+                    if (drawW < opticalMinWidth) {
+                        g.opticalScaleX = opticalMinWidth / drawW;
+                        drawW = opticalMinWidth;
+                    }
+                }
+                let extra = maxNumberWidth - drawW;
+                if (extra > 0) xOffsetAdj += extra / 2;
             }
 
             if (state.config.fixPunctuation && commaTargetWidth > 0 && g.charCode === 46) {
                 let extra = commaTargetWidth - drawW;
-                if (extra > 0) xOffsetAdj += Math.floor(extra / 2);
+                if (extra > 0) xOffsetAdj += extra / 2;
                 advance = commaTargetWidth;
             }
 
@@ -930,12 +968,13 @@
 
     function getMetricLineHeight(scale) {
         const c = state.config;
-        const scaledLineHeight = Math.max(1, Math.round(c.lineHeight * scale));
+        const sourceLineHeight = Math.max(1, Math.round(state.effectiveLineHeight || c.lineHeight));
+        const scaledLineHeight = Math.max(1, Math.round(sourceLineHeight * scale));
         // Cocos 的 BMFont Label 會用 common.lineHeight 當整個文字框高度。
         // 導出縮放 0.67 時，如果 lineHeight 也跟著縮小，Cocos 內的 Label/Animation 編輯框
         // 常會看起來把小字圖貼在上方。此模式保留原始行高，只縮小貼圖座標與字寬。
         if (c.cocosBaselineFix && c.cocosKeepLineHeight && Math.abs(scale - 1.0) > 0.0001) {
-            return Math.max(1, Math.round(c.lineHeight));
+            return sourceLineHeight;
         }
         return scaledLineHeight;
     }

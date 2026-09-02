@@ -3,7 +3,7 @@
   "name": "數字包圖工具",
   "category": "數字圖片工具",
   "description": "",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "path": "數字圖片工具/數字包圖工具",
   "entry": "makefont.html",
   "icon": "",
@@ -11,7 +11,9 @@
     "數字圖片工具",
     "數字包圖工具"
   ],
-  "updatedAt": "2026-06-11",
+  "updatedAt": "2026-09-02",
   "size": "767.1 KB",
-  "changelog": []
+  "changelog": [
+    "BMFont Gen v3.28：新增窄字光學補寬與自動安全行高，改善 Cocos 滾分字距與負 yoffset。"
+  ]
 }
