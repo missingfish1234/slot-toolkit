@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BMFont Gen (v3.28 Optical Spacing Fix) - by 小魚骨頭</title>
+    <title>BMFont Gen (v3.30 Cocos Stable Digit Cell) - by 小魚骨頭</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         /* --- 🎨 設計系統 --- */
@@ -148,7 +148,7 @@
 <body>
 
 <header>
-    <div class="app-title">BMFont Gen <span>v3.28 Optical Spacing Fix</span></div>
+    <div class="app-title">BMFont Gen <span>v3.30 Cocos Stable Digit Cell</span></div>
     <div class="author-tag">Author: 小魚骨頭</div>
 </header>
 
@@ -183,6 +183,10 @@
             <div class="control-row highlight-row" style="border-color: #e91e63; background: rgba(233, 30, 99, 0.1);">
                 <div><label>數字等寬 (Monospace)</label><span class="desc">維持原圖比例，精準置中框內</span></div>
                 <input type="checkbox" id="monospaceNum">
+            </div>
+            <div class="control-row highlight-row" style="border-color: #00bcd4; background: rgba(0, 188, 212, 0.1);">
+                <div><label>Cocos 穩定數字格</label><span class="desc">固定前進寬度與右邊界，保留字形差異以相容 Cocos 3.8 滾分更新</span></div>
+                <input type="checkbox" id="cocosFixedDigitCell" checked>
             </div>
             <div class="control-row highlight-row" style="border-color: #ffca28; background: rgba(255, 202, 40, 0.1);">
                 <div><label>窄字光學補寬</label><span class="desc">補寬 1 等窄字，但保持等寬字格</span></div>
@@ -352,6 +356,7 @@
         config: {
             padding: 2, maxWidth: 512, maxHeight: 512,
             trim: true, keepYBounds: false, unifiedTop: true, groupCenter: true, fixPunctuation: false, monospaceNum: false,
+            cocosFixedDigitCell: true,
             opticalFitNum: true, opticalFillPercent: 80, autoSafeLineHeight: true,
             forceSquare: false, powerOfTwo: false,
             fontSize: 72, lineHeight: 80, yOffsetAdjust: 0,
@@ -397,7 +402,7 @@
             unifiedTop: document.getElementById('unifiedTop'), fontSize: document.getElementById('fontSize'),
             lineHeight: document.getElementById('lineHeight'), fontName: document.getElementById('fontName'),
             groupCenter: document.getElementById('groupCenter'), yOffsetAdjust: document.getElementById('yOffsetAdjust'),
-            fixPunctuation: document.getElementById('fixPunctuation'), monospaceNum: document.getElementById('monospaceNum'),
+            fixPunctuation: document.getElementById('fixPunctuation'), monospaceNum: document.getElementById('monospaceNum'), cocosFixedDigitCell: document.getElementById('cocosFixedDigitCell'),
             opticalFitNum: document.getElementById('opticalFitNum'), opticalFillPercent: document.getElementById('opticalFillPercent'), autoSafeLineHeight: document.getElementById('autoSafeLineHeight'),
             forceSquare: document.getElementById('forceSquare'), powerOfTwo: document.getElementById('powerOfTwo'),
             exportScale: document.getElementById('exportScale'), lockInfoSize: document.getElementById('lockInfoSize'), cocosBaselineFix: document.getElementById('cocosBaselineFix'), cocosKeepLineHeight: document.getElementById('cocosKeepLineHeight'),
@@ -559,9 +564,22 @@
 
     function guessCharFromFileName(file) {
         // 支援：0.png、num_0.png、digit-0.png；資料夾匯入時改讀 basename，不受路徑影響。
+        // Windows 複製檔常會產生 NUM_X-1.png / NUM_X-2.png；此處把尾碼視為副本編號，字元仍是 X。
         const baseName = (file.name || '').replace(/\.[^/.]+$/, '');
+        const copySuffixMatch = baseName.match(/(?:^|_)([^_\s-])-([1-9]\d*)$/u);
+        if (copySuffixMatch) return copySuffixMatch[1];
         const match = baseName.match(/([^\s_\-])$/u);
         return match ? match[1] : '?';
+    }
+
+    function getDuplicateCharCodes(glyphs = state.glyphs) {
+        const seen = new Map();
+        const duplicates = new Set();
+        glyphs.forEach(g => {
+            if (seen.has(g.charCode)) duplicates.add(g.char);
+            else seen.set(g.charCode, g);
+        });
+        return [...duplicates];
     }
 
     async function processFiles(files) {
@@ -581,6 +599,7 @@
         if (els.importStatus) els.importStatus.textContent = `正在匯入 ${fileList.length} 張圖片...`;
 
         let imported = 0;
+        let replaced = 0;
         let failed = 0;
 
         for (const file of fileList) {
@@ -589,9 +608,24 @@
                 const charStr = guessCharFromFileName(file);
                 const charCode = charStr.charCodeAt(0);
 
+                const existingGlyph = state.glyphs.find(g => g.charCode === charCode);
+                if (existingGlyph) {
+                    existingGlyph.img = img;
+                    existingGlyph.width = img.width;
+                    existingGlyph.height = img.height;
+                    existingGlyph.rawTrim = { x:0, y:0, w:img.width, h:img.height };
+                    existingGlyph.sourceName = file.name || '';
+                    const glyphCard = document.getElementById('g-' + existingGlyph.id);
+                    const preview = glyphCard ? glyphCard.querySelector('.glyph-preview img') : null;
+                    if (preview) preview.src = img.src;
+                    replaced++;
+                    continue;
+                }
+
                 const glyph = {
                     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
                     img: img, char: charStr, charCode: charCode,
+                    sourceName: file.name || '',
                     width: img.width, height: img.height, rawTrim: { x:0, y:0, w:img.width, h:img.height },
                     customX: state.glyphOffsets[charStr] ? state.glyphOffsets[charStr].x : 0,
                     customY: state.glyphOffsets[charStr] ? state.glyphOffsets[charStr].y : 0,
@@ -602,7 +636,7 @@
                 imported++;
 
                 // 大量圖片時每 20 張刷新一次，避免瀏覽器看起來像卡住。
-                if (imported % 20 === 0) {
+                if ((imported + replaced) % 20 === 0) {
                     packAndDraw(); renderPreview();
                     await new Promise(r => requestAnimationFrame(r));
                 }
@@ -614,9 +648,10 @@
 
         packAndDraw(); renderPreview();
         if (els.importStatus) {
-            els.importStatus.textContent = failed > 0
-                ? `已匯入 ${imported} 張，失敗 ${failed} 張。`
-                : `已匯入 ${imported} 張圖片。`;
+            const result = [`新增 ${imported} 張`];
+            if (replaced > 0) result.push(`同字元更新 ${replaced} 張（未重複加入）`);
+            if (failed > 0) result.push(`失敗 ${failed} 張`);
+            els.importStatus.textContent = result.join('，') + '。';
         }
     }
 
@@ -752,7 +787,16 @@
             </div>`;
         div.querySelector('.glyph-input').addEventListener('input', e => {
             if(e.target.value) {
-                glyph.char = e.target.value; glyph.charCode = e.target.value.charCodeAt(0);
+                const oldChar = glyph.char;
+                const newChar = e.target.value;
+                const newCharCode = newChar.charCodeAt(0);
+                const duplicate = state.glyphs.find(g => g.id !== glyph.id && g.charCode === newCharCode);
+                if (duplicate) {
+                    e.target.value = oldChar;
+                    if (els.importStatus) els.importStatus.textContent = `字元「${newChar}」已存在，已保留原字元「${oldChar}」。`;
+                    return;
+                }
+                glyph.char = newChar; glyph.charCode = newCharCode;
                 glyph.customAdvance = state.glyphWidths[glyph.char] || glyph.customAdvance || 0;
                 const wInput = document.getElementById('adv-' + glyph.id); if(wInput) wInput.value = glyph.customAdvance || '';
                 packAndDraw(); renderPreview();
@@ -835,6 +879,14 @@
                 }
             });
         }
+        let fixedDigitCellWidth = maxNumberWidth;
+        if (state.config.monospaceNum && state.config.cocosFixedDigitCell) {
+            state.glyphs.forEach(g => {
+                if (isDigit(g.charCode) && (g.customAdvance || 0) > fixedDigitCellWidth) {
+                    fixedDigitCellWidth = g.customAdvance;
+                }
+            });
+        }
 
         let maxDrawH = 0;
         state.glyphs.forEach(g => { if (!g.computedTrim.empty && g.computedTrim.h > maxDrawH) maxDrawH = g.computedTrim.h; });
@@ -844,16 +896,6 @@
             ? Math.max(requestedLineHeight, maxDrawH)
             : requestedLineHeight;
         state.groupOffsetY = state.config.groupCenter ? Math.floor((state.effectiveLineHeight - maxDrawH) / 2) : 0;
-        if (els.metricStatus) {
-            if (state.effectiveLineHeight > requestedLineHeight) {
-                els.metricStatus.textContent = `安全行高：${state.effectiveLineHeight}px（設定 ${requestedLineHeight}px，已自動修正）`;
-                els.metricStatus.style.color = '#ffca28';
-            } else {
-                els.metricStatus.textContent = `實際輸出行高：${state.effectiveLineHeight}px`;
-                els.metricStatus.style.color = '#80cbc4';
-            }
-        }
-
         // 3. 精算最終偏移與佔位
         state.glyphs.forEach(g => {
             let oy = g.computedTrim.y;
@@ -868,7 +910,7 @@
             }
 
             if (state.config.monospaceNum && isDigit(g.charCode)) {
-                advance = maxNumberWidth;
+                advance = state.config.cocosFixedDigitCell ? fixedDigitCellWidth : maxNumberWidth;
                 if (state.config.opticalFitNum && maxNumberWidth > 0 && drawW > 0) {
                     const fillPercent = Math.min(100, Math.max(60, parseFloat(state.config.opticalFillPercent) || 80));
                     const opticalMinWidth = Math.round(maxNumberWidth * fillPercent / 100);
@@ -890,9 +932,11 @@
             let customXOffset = g.customX || 0;
             let customYOffset = g.customY || 0;
             let globalYAdjust = state.config.yOffsetAdjust || 0;
+            const useFixedDigitCell = state.config.monospaceNum && state.config.cocosFixedDigitCell && isDigit(g.charCode);
 
             g.autoAdvance = Math.max(1, Math.round(advance));
-            const hasCustomAdvance = (g.customAdvance && g.customAdvance > 0);
+            // 固定數字格模式下，個別 W 不可破壞整組數字寬度；較大的 W 會擴大所有數字格。
+            const hasCustomAdvance = !useFixedDigitCell && (g.customAdvance && g.customAdvance > 0);
             const finalAdvance = hasCustomAdvance ? g.customAdvance : g.autoAdvance;
 
             // W 字寬調整時，讓字圖保持在新寬度中央。
@@ -901,12 +945,29 @@
                 xOffsetAdj += (finalAdvance - g.autoAdvance) / 2;
             }
 
-            g.exW = Math.round(finalAdvance * scale); 
-            g.exDrawW = Math.round(drawW * scale); 
+            g.exW = Math.max(1, Math.round(finalAdvance * scale));
+            g.exVisualW = Math.max(0, Math.round(drawW * scale));
             g.exDrawH = Math.round(drawH * scale); 
-            
-            // 🔥 完美還原 X 軸裁切間距 + 自訂字寬置中補償
-            g.exOffX = Math.round((xOffsetAdj + customXOffset) * scale); 
+
+            if (useFixedDigitCell) {
+                // Cocos 會用最後一個 glyph 的 xoffset + width 計算 Label 內容寬度。
+                // v3.29 把每個數字都輸出成完全相同的 width/xoffset；在 Cocos 3.8 滾分時，
+                // 可能只更新 Label.string 而沿用上一個 BMFont glyph 的 UV，造成屬性有變但畫面不動。
+                // 此處改為只在字圖右側補透明區：
+                //   xoffset + width 永遠等於固定 cell width（Label 寬度不微跳），
+                //   同時保留窄字的 xoffset/width 差異（讓 Cocos 確實重建字形 UV）。
+                g.exW = Math.max(g.exW, g.exVisualW);
+                const availableInset = Math.max(0, g.exW - g.exVisualW);
+                const desiredInset = Math.round(availableInset / 2 + customXOffset * scale);
+                g.exOffX = Math.min(availableInset, Math.max(0, desiredInset));
+                g.exDrawW = Math.max(g.exVisualW, g.exW - g.exOffX);
+                g.exDrawInsetX = 0;
+            } else {
+                g.exDrawW = g.exVisualW;
+                g.exDrawInsetX = 0;
+                // 還原 X 軸裁切間距 + 自訂字寬置中補償
+                g.exOffX = Math.round((xOffsetAdj + customXOffset) * scale);
+            }
             g.exOffY = Math.round((oy + state.groupOffsetY + globalYAdjust + customYOffset) * scale); 
             
             g.packW = g.exDrawW + state.config.padding; 
@@ -961,9 +1022,20 @@
 
         state.glyphs.forEach(g => {
             if(!g.computedTrim.empty) {
-                els.mainCtx.drawImage(g.img, g.computedTrim.x, g.computedTrim.y, g.computedTrim.w, g.computedTrim.h, g.rect.x, g.rect.y, g.exDrawW, g.exDrawH);
+                els.mainCtx.drawImage(g.img, g.computedTrim.x, g.computedTrim.y, g.computedTrim.w, g.computedTrim.h, g.rect.x + g.exDrawInsetX, g.rect.y, g.exVisualW, g.exDrawH);
             }
         });
+
+        if (els.metricStatus) {
+            const status = state.effectiveLineHeight > requestedLineHeight
+                ? `安全行高：${state.effectiveLineHeight}px（設定 ${requestedLineHeight}px，已自動修正）`
+                : `實際輸出行高：${state.effectiveLineHeight}px`;
+            const fixedCell = state.config.monospaceNum && state.config.cocosFixedDigitCell && fixedDigitCellWidth > 0
+                ? `；Cocos 穩定數字格：${Math.round(fixedDigitCellWidth * scale)}px`
+                : '';
+            els.metricStatus.textContent = status + fixedCell;
+            els.metricStatus.style.color = state.effectiveLineHeight > requestedLineHeight ? '#ffca28' : '#80cbc4';
+        }
     }
 
     function getMetricLineHeight(scale) {
@@ -1051,7 +1123,7 @@
             }
 
             const drawY = baselineY + getExportYOffset(g, lh, scale);
-            ctx.drawImage(g.img, g.computedTrim.x, g.computedTrim.y, g.computedTrim.w, g.computedTrim.h, cursorX + g.exOffX, drawY, g.exDrawW, g.exDrawH);
+            ctx.drawImage(g.img, g.computedTrim.x, g.computedTrim.y, g.computedTrim.w, g.computedTrim.h, cursorX + g.exOffX + g.exDrawInsetX, drawY, g.exVisualW, g.exDrawH);
             
             ctx.strokeStyle = "rgba(0, 255, 0, 0.3)"; ctx.strokeRect(cursorX + g.exOffX, drawY, g.exDrawW, g.exDrawH); 
             cursorX += g.exW + extraSpace; 
@@ -1060,6 +1132,11 @@
 
     async function exportZip() {
         if(!state.glyphs.length) { alert("無資料"); return; }
+        const duplicateChars = getDuplicateCharCodes();
+        if (duplicateChars.length > 0) {
+            alert(`無法匯出：重複字元 ${duplicateChars.map(ch => `「${ch}」`).join('、')}。請移除重複項目。`);
+            return;
+        }
         const c = state.config; const scale = parseFloat(c.exportScale) || 1.0; 
         const scaledFontSize = c.lockInfoSize ? c.fontSize : Math.round(c.fontSize * scale);
         const scaledLineHeight = Math.max(1, Math.round(c.lineHeight * scale)); 
