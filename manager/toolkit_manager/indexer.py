@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from .models import INDEX_FILE_NAME, ToolIndex, ToolInfo, slugify
+from .models import CATEGORY_SEPARATOR, INDEX_FILE_NAME, ToolIndex, ToolInfo, slugify
 
 
 IGNORED_DIRS = {
@@ -83,6 +83,9 @@ def build_tool_info(root: Path, tool_dir: Path, category: str) -> ToolInfo:
         tool = infer_tool_info(root, tool_dir, category)
 
     tool.path = tool_dir.relative_to(root).as_posix()
+    tool.category = category_from_folder(root, tool_dir, category)
+    category_tags = [tool.category, *tool.category.split(CATEGORY_SEPARATOR)]
+    tool.tags = list(dict.fromkeys([*category_tags, *tool.tags, tool.name]))
     if not tool.entry:
         entry = find_entry_file(tool_dir)
         tool.entry = entry.relative_to(tool_dir).as_posix() if entry else ""
@@ -91,6 +94,15 @@ def build_tool_info(root: Path, tool_dir: Path, category: str) -> ToolInfo:
     if not tool.size:
         tool.size = format_size(folder_size(tool_dir))
     return tool
+
+
+def category_from_folder(root: Path, tool_dir: Path, fallback: str = "未分類") -> str:
+    """Use the first two folder levels above a tool as its visible category path."""
+    relative = tool_dir.resolve().relative_to(root.resolve())
+    parents = list(relative.parts[:-1])
+    if not parents:
+        return fallback
+    return CATEGORY_SEPARATOR.join(parents[:2])
 
 
 def infer_tool_info(root: Path, tool_dir: Path, category: str) -> ToolInfo:

@@ -1,17 +1,41 @@
 {
-  "updatedAt": "2026-08-24 00:00:00",
+  "updatedAt": "2026-09-04 14:29:19",
   "tools": [
+    {
+      "id": "cocos-creator-38-rolling-score-tester",
+      "name": "Cocos Creator 3.8 滾分 QA 插件",
+      "category": "COCOS內插件",
+      "description": "安裝到 Cocos Creator 3.8 專案 extensions 後，可直接在 Scene 測試 BMFont 滾分、SHRINK、字距與渲染寬度漂移。",
+      "version": "1.2.0",
+      "path": "COCOS內插件/CocosCreator38Extension",
+      "entry": "rolling-score-tester-v1.2.0.zip",
+      "icon": "",
+      "tags": [
+        "COCOS內插件",
+        "Cocos Creator 3.8",
+        "滾分測試",
+        "BMFont",
+        "QA",
+        "Cocos Creator 3.8 滾分 QA 插件"
+      ],
+      "updatedAt": "2026-09-04",
+      "size": "64.0 KB",
+      "changelog": [
+        "v1.2.0：強制重建 Label 並呼叫 repaintInEditMode，修正 Inspector 字串更新但 Scene 畫面停住。"
+      ]
+    },
     {
       "id": "6e2c8a665de55177-photoshop5167639b4ef6",
       "name": "Photoshop內掛件",
-      "category": "測試工具",
+      "category": "PS內插件",
       "description": "可自動導出美術圖層，並可以針對UNITY、COCOS或SPINE版面位置的PREFAB檔案，免去重新在引擎中擺放位置的步驟。",
       "version": "1.0.0",
       "path": "PS內插件/Photoshop自動導出引擎對齊掛件",
       "entry": "PSDExportManager.exe",
       "icon": "",
       "tags": [
-        "測試工具",
+        "PS內插件",
+        "Photoshop",
         "Photoshop內掛件"
       ],
       "updatedAt": "2026-06-11",
@@ -21,14 +45,16 @@
     {
       "id": "sharder-cocos-4e00822c5716724763835149",
       "name": "一般圖片掃光",
-      "category": "Sharder",
+      "category": "Sharder / COCOS",
       "description": "",
       "version": "1.0.0",
       "path": "Sharder/COCOS/一般圖片掃光",
       "entry": "",
       "icon": "",
       "tags": [
+        "Sharder / COCOS",
         "Sharder",
+        "COCOS",
         "一般圖片掃光"
       ],
       "updatedAt": "2026-06-11",
@@ -38,14 +64,16 @@
     {
       "id": "sharder-cocos-5f69867963835149",
       "name": "彩虹掃光",
-      "category": "Sharder",
+      "category": "Sharder / COCOS",
       "description": "",
       "version": "1.0.0",
       "path": "Sharder/COCOS/彩虹掃光",
       "entry": "",
       "icon": "",
       "tags": [
+        "Sharder / COCOS",
         "Sharder",
+        "COCOS",
         "彩虹掃光"
       ],
       "updatedAt": "2026-06-11",
@@ -55,14 +83,16 @@
     {
       "id": "sharder-cocos-6f385c64906e7f69",
       "name": "漸層遮罩",
-      "category": "Sharder",
+      "category": "Sharder / COCOS",
       "description": "",
       "version": "1.0.0",
       "path": "Sharder/COCOS/漸層遮罩",
       "entry": "",
       "icon": "",
       "tags": [
+        "Sharder / COCOS",
         "Sharder",
+        "COCOS",
         "漸層遮罩"
       ],
       "updatedAt": "2026-06-11",
@@ -72,14 +102,16 @@
     {
       "id": "sharder-cocos-7c925b506de151656de151fa-767c5149",
       "name": "粒子淡入淡出_發光",
-      "category": "Sharder",
+      "category": "Sharder / COCOS",
       "description": "",
       "version": "1.0.0",
       "path": "Sharder/COCOS/粒子淡入淡出_發光",
       "entry": "",
       "icon": "",
       "tags": [
+        "Sharder / COCOS",
         "Sharder",
+        "COCOS",
         "粒子淡入淡出_發光"
       ],
       "updatedAt": "2026-06-11",
@@ -89,14 +121,16 @@
     {
       "id": "sharder-unity-unity-4e2d959358d36697908a6846767c4eae6548679c-unity63-darkcenteredgeglow",
       "name": "Unity63_DarkCenterEdgeGlow",
-      "category": "Sharder",
+      "category": "Sharder / Unity",
       "description": "",
       "version": "1.0.0",
       "path": "Sharder/Unity/Unity_中間壓暗邊框發亮效果/Unity63_DarkCenterEdgeGlow",
       "entry": "",
       "icon": "",
       "tags": [
+        "Sharder / Unity",
         "Sharder",
+        "Unity",
         "Unity63_DarkCenterEdgeGlow"
       ],
       "updatedAt": "2026-07-02",
@@ -106,14 +140,16 @@
     {
       "id": "sharder-unity-unity-5f698679shader",
       "name": "UNITY_彩虹Shader",
-      "category": "Sharder",
+      "category": "Sharder / Unity",
       "description": "",
       "version": "1.0.0",
       "path": "Sharder/Unity/UNITY_彩虹Shader",
       "entry": "",
       "icon": "",
       "tags": [
+        "Sharder / Unity",
         "Sharder",
+        "Unity",
         "UNITY_彩虹Shader"
       ],
       "updatedAt": "2026-06-11",
@@ -123,14 +159,16 @@
     {
       "id": "sharder-unity-unity-6eb689e3sharder",
       "name": "Unity_溶解SHARDER",
-      "category": "Sharder",
+      "category": "Sharder / Unity",
       "description": "",
       "version": "1.0.0",
       "path": "Sharder/Unity/Unity_溶解SHARDER",
       "entry": "",
       "icon": "",
       "tags": [
+        "Sharder / Unity",
         "Sharder",
+        "Unity",
         "Unity_溶解SHARDER"
       ],
       "updatedAt": "2026-06-11",
@@ -140,14 +178,16 @@
     {
       "id": "sharder-unity-unity-756b9762958352d56b985f716548679c",
       "name": "Unity_畫面閃動殘影效果",
-      "category": "Sharder",
+      "category": "Sharder / Unity",
       "description": "",
       "version": "1.0.0",
       "path": "Sharder/Unity/Unity_畫面閃動殘影效果",
       "entry": "",
       "icon": "",
       "tags": [
+        "Sharder / Unity",
         "Sharder",
+        "Unity",
         "Unity_畫面閃動殘影效果"
       ],
       "updatedAt": "2026-06-11",
@@ -157,14 +197,16 @@
     {
       "id": "sharder-unity-unity-906e7f69sharder-91dd5c0dspinegraphic",
       "name": "Unity_遮罩SHARDER_針對SPINEGRAPHIC",
-      "category": "Sharder",
+      "category": "Sharder / Unity",
       "description": "",
       "version": "1.0.0",
       "path": "Sharder/Unity/Unity_遮罩SHARDER_針對SPINEGRAPHIC",
       "entry": "",
       "icon": "",
       "tags": [
+        "Sharder / Unity",
         "Sharder",
+        "Unity",
         "Unity_遮罩SHARDER_針對SPINEGRAPHIC"
       ],
       "updatedAt": "2026-06-11",
@@ -174,14 +216,16 @@
     {
       "id": "sharder-unity-unity51676efe52066e2c8a665de55177-unity63-numberrollertool",
       "name": "Unity63_NumberRollerTool",
-      "category": "Sharder",
+      "category": "Sharder / Unity",
       "description": "",
       "version": "1.0.0",
       "path": "Sharder/Unity/Unity內滾分測試工具/Unity63_NumberRollerTool",
       "entry": "",
       "icon": "",
       "tags": [
+        "Sharder / Unity",
         "Sharder",
+        "Unity",
         "Unity63_NumberRollerTool"
       ],
       "updatedAt": "2026-06-11",
@@ -191,14 +235,16 @@
     {
       "id": "sharder-unity-unity87a25e55626d66f26548679c",
       "name": "UNITY螢幕扭曲效果",
-      "category": "Sharder",
+      "category": "Sharder / Unity",
       "description": "",
       "version": "1.0.0",
       "path": "Sharder/Unity/UNITY螢幕扭曲效果",
       "entry": "",
       "icon": "",
       "tags": [
+        "Sharder / Unity",
         "Sharder",
+        "Unity",
         "UNITY螢幕扭曲效果"
       ],
       "updatedAt": "2026-06-11",
@@ -282,6 +328,30 @@
       "changelog": []
     },
     {
+      "id": "spine-image-upscale-tool",
+      "name": "SPINE圖片解析度提高工具",
+      "category": "圖片處理工具",
+      "description": "針對 SPINE / 遊戲透明 PNG 拆件進行 Real-ESRGAN 放大，保留原始 alpha 輪廓並輸出檢查報告與預覽圖。",
+      "version": "1.0.1",
+      "path": "圖片處理工具/SPINE圖片解析度提高工具",
+      "entry": "啟動SPINE圖片解析度提高工具.cmd",
+      "icon": "",
+      "tags": [
+        "圖片處理工具",
+        "SPINE",
+        "Real-ESRGAN",
+        "透明圖",
+        "解析度提高",
+        "SPINE圖片解析度提高工具"
+      ],
+      "updatedAt": "2026-07-07",
+      "size": "50.4 MB",
+      "changelog": [
+        "改為逐張執行 Real-ESRGAN，避免 Vulkan 批次處理造成黑圖或彩色條紋。",
+        "新增輸出品質檢查，偵測黑化、偏色與條紋時自動回退成乾淨放大。"
+      ]
+    },
+    {
       "id": "65785b57571672475de55177-54084f7565785b57571662c652065de55177",
       "name": "合併數字圖拆分工具",
       "category": "數字圖片工具",
@@ -320,7 +390,7 @@
       "name": "數字包圖工具",
       "category": "數字圖片工具",
       "description": "",
-      "version": "1.0.0",
+      "version": "1.3.0",
       "path": "數字圖片工具/數字包圖工具",
       "entry": "makefont.html",
       "icon": "",
@@ -328,9 +398,12 @@
         "數字圖片工具",
         "數字包圖工具"
       ],
-      "updatedAt": "2026-06-11",
+      "updatedAt": "2026-09-04",
       "size": "767.1 KB",
-      "changelog": []
+      "changelog": [
+        "BMFont Gen v3.30：修正 v3.29 全數字相同 glyph 幾何導致 Cocos 3.8 滾分畫面不更新；固定前進寬度與右邊界，同時保留字形差異。",
+        "BMFont Gen v3.29：新增 Cocos 透明等寬數字格，修正末位 1 造成的 Label 寬度微跳；防止重複字元與 NUM_X-1 誤判。"
+      ]
     },
     {
       "id": "6e2c8a665de55177-59278f4976e46e2c8a665de55177",
@@ -350,16 +423,44 @@
       "changelog": []
     },
     {
+      "id": "minimax-h3-studio-video-tool",
+      "name": "MiniMax H3 Studio 影片生成工具",
+      "category": "測試工具 / 影片處理工具",
+      "description": "以簡化操作面板使用 MiniMax H3 進行文生影片、首尾幀、多模態參考、角色替換、影片續接、圖騰循環、彈窗與 MG 動畫；支援本機或共享遠端 ComfyUI。首次啟動會把程式安裝到使用者自己的 LocalAppData，模型、設定與生成紀錄不會因工具包更新而被刪除。",
+      "version": "1.0.0",
+      "path": "測試工具/影片處理工具/MiniMax H3 Studio",
+      "entry": "啟動 MiniMax H3 Studio.cmd",
+      "icon": "",
+      "tags": [
+        "測試工具 / 影片處理工具",
+        "測試工具",
+        "影片處理工具",
+        "MiniMax H3",
+        "AI 影片生成",
+        "ComfyUI",
+        "MG 動畫",
+        "MiniMax H3 Studio 影片生成工具"
+      ],
+      "updatedAt": "2026-08-24",
+      "size": "5.0 KB",
+      "changelog": [
+        "首次加入工具包；採獨立執行環境，保留每位使用者自己的模型、設定、素材與生成紀錄。",
+        "啟動時安全檢查 movieeasymake 最新版本，離線或更新失敗時仍可開啟既有版本。"
+      ]
+    },
+    {
       "id": "6e2c8a665de55177-5f717247865574065de55177-webm8f4993045de55177",
       "name": "Webm轉錄工具",
-      "category": "測試工具",
+      "category": "測試工具 / 影片處理工具",
       "description": "",
       "version": "1.0.0",
       "path": "測試工具/影片處理工具/Webm轉錄工具",
       "entry": "TG_WebM_Converter.html",
       "icon": "",
       "tags": [
+        "測試工具 / 影片處理工具",
         "測試工具",
+        "影片處理工具",
         "Webm轉錄工具"
       ],
       "updatedAt": "2026-06-11",
@@ -369,14 +470,16 @@
     {
       "id": "6e2c8a665de55177-5f717247865574065de55177-5f7172475c0e51fa90237e8c57168ddf53bb80cc5de55177",
       "name": "影片導出連續圖跟去背工具",
-      "category": "測試工具",
+      "category": "測試工具 / 影片處理工具",
       "description": "",
       "version": "1.0.0",
       "path": "測試工具/影片處理工具/影片導出連續圖跟去背工具",
       "entry": "video_sequence_bgremover_tool.html",
       "icon": "",
       "tags": [
+        "測試工具 / 影片處理工具",
         "測試工具",
+        "影片處理工具",
         "影片導出連續圖跟去背工具"
       ],
       "updatedAt": "2026-06-11",
@@ -386,14 +489,16 @@
     {
       "id": "6e2c8a665de55177-5f717247865574065de55177-5f7172475feb901f5c0e51fa67005f8c4e005f355de55177-5f7172475feb901f5c0e51fa67005f8c4e005f355de55177",
       "name": "影片快速導出最後一張工具",
-      "category": "測試工具",
+      "category": "測試工具 / 影片處理工具",
       "description": "",
       "version": "1.0.0",
       "path": "測試工具/影片處理工具/影片快速導出最後一張工具/影片快速導出最後一張工具",
       "entry": "fix_package.bat",
       "icon": "",
       "tags": [
+        "測試工具 / 影片處理工具",
         "測試工具",
+        "影片處理工具",
         "影片快速導出最後一張工具"
       ],
       "updatedAt": "2026-07-03",
@@ -433,53 +538,6 @@
       "updatedAt": "2026-06-11",
       "size": "120.3 MB",
       "changelog": []
-    },
-    {
-      "id": "minimax-h3-studio-video-tool",
-      "name": "MiniMax H3 Studio 影片生成工具",
-      "category": "測試工具",
-      "description": "以簡化操作面板使用 MiniMax H3 進行文生影片、首尾幀、多模態參考、角色替換、影片續接、圖騰循環、彈窗與 MG 動畫；支援本機或共享遠端 ComfyUI。首次啟動會把程式安裝到使用者自己的 LocalAppData，模型、設定與生成紀錄不會因工具包更新而被刪除。",
-      "version": "1.0.0",
-      "path": "測試工具/影片處理工具/MiniMax H3 Studio",
-      "entry": "啟動 MiniMax H3 Studio.cmd",
-      "icon": "",
-      "tags": [
-        "測試工具",
-        "影片處理工具",
-        "MiniMax H3",
-        "AI 影片生成",
-        "ComfyUI",
-        "MG 動畫"
-      ],
-      "updatedAt": "2026-08-24",
-      "size": "5.0 KB",
-      "changelog": [
-        "首次加入工具包；採獨立執行環境，保留每位使用者自己的模型、設定、素材與生成紀錄。",
-        "啟動時安全檢查 movieeasymake 最新版本，離線或更新失敗時仍可開啟既有版本。"
-      ]
-    },
-    {
-      "id": "spine-image-upscale-tool",
-      "name": "SPINE圖片解析度提高工具",
-      "category": "圖片處理工具",
-      "description": "針對 SPINE / 遊戲透明 PNG 拆件進行 Real-ESRGAN 放大，保留原始 alpha 輪廓並輸出檢查報告與預覽圖。",
-      "version": "1.0.1",
-      "path": "圖片處理工具/SPINE圖片解析度提高工具",
-      "entry": "啟動SPINE圖片解析度提高工具.cmd",
-      "icon": "",
-      "tags": [
-        "圖片處理工具",
-        "SPINE",
-        "Real-ESRGAN",
-        "透明圖",
-        "解析度提高"
-      ],
-      "updatedAt": "2026-07-07",
-      "size": "50.4 MB",
-      "changelog": [
-        "改為逐張執行 Real-ESRGAN，避免 Vulkan 批次處理造成黑圖或彩色條紋。",
-        "新增輸出品質檢查，偵測黑化、偏色與條紋時自動回退成乾淨放大。"
-      ]
     }
   ]
 }

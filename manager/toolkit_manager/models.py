@@ -7,8 +7,55 @@ from typing import Any
 
 
 APP_NAME = "小魚骨頭工作包管理器"
-APP_VERSION = "1.1.6"
+APP_VERSION = "1.1.7"
 INDEX_FILE_NAME = "tools-index.json"
+CATEGORY_SEPARATOR = " / "
+CATEGORY_ROOT_ORDER = [
+    "測試工具",
+    "圖片處理工具",
+    "數字圖片工具",
+    "SPINE相關工具",
+    "Sharder",
+    "PS內插件",
+    "COCOS內插件",
+]
+
+
+def category_parts(category: str) -> list[str]:
+    return [part.strip() for part in category.split("/") if part.strip()]
+
+
+def category_ancestors(category: str) -> list[str]:
+    parts = category_parts(category)
+    return [CATEGORY_SEPARATOR.join(parts[:index]) for index in range(1, len(parts) + 1)]
+
+
+def category_filters(categories: list[str] | set[str]) -> list[str]:
+    filters: set[str] = set()
+    for category in categories:
+        filters.update(category_ancestors(category))
+    return sorted(filters, key=category_sort_key)
+
+
+def category_matches(tool_category: str, selected_category: str) -> bool:
+    tool_parts = category_parts(tool_category)
+    selected_parts = category_parts(selected_category)
+    return bool(selected_parts) and tool_parts[:len(selected_parts)] == selected_parts
+
+
+def category_sort_key(category: str) -> tuple[int, tuple[str, ...]]:
+    parts = category_parts(category)
+    root = parts[0] if parts else ""
+    try:
+        root_order = CATEGORY_ROOT_ORDER.index(root)
+    except ValueError:
+        root_order = len(CATEGORY_ROOT_ORDER)
+    return root_order, tuple(part.casefold() for part in parts)
+
+
+def category_display_name(category: str) -> str:
+    parts = category_parts(category)
+    return parts[0] if len(parts) <= 1 else f"   ↳ {parts[-1]}"
 
 
 @dataclass(slots=True)

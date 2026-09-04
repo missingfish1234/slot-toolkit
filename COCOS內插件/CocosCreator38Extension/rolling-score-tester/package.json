@@ -1,0 +1,50 @@
+{
+  "package_version": 2,
+  "version": "1.2.0",
+  "name": "rolling-score-tester",
+  "title": "滾分 QA 測試工具",
+  "description": "在 Cocos Creator 3.8 Scene 直接預覽滾分，強制重建 Label 並重繪編輯器 Scene，監測 actualFontSize、縮放與數字寬度漂移。",
+  "author": "FishWang Tools",
+  "editor": ">=3.8.0 <3.9.0",
+  "main": "./dist/main.js",
+  "panels": {
+    "default": {
+      "title": "滾分 QA 測試工具",
+      "type": "dockable",
+      "main": "./dist/panels/default",
+      "icon": "./static/icon.svg",
+      "size": {
+        "min-width": 560,
+        "min-height": 430,
+        "width": 920,
+        "height": 650
+      }
+    }
+  },
+  "contributions": {
+    "menu": [
+      {
+        "path": "i18n:menu.panel/滾分 QA 測試工具",
+        "label": "滾分 QA 測試工具",
+        "icon": "./static/icon.svg",
+        "message": "open-panel"
+      }
+    ],
+    "scene": {
+      "script": "./dist/scene.js"
+    },
+    "messages": {
+      "open-panel": { "methods": ["openPanel"] },
+      "selection:select": { "methods": ["onSelectionSelect"] },
+      "bind-selection": { "methods": ["bindSelection"] },
+      "inspect-target": { "methods": ["inspectTarget"] },
+      "apply-text": { "methods": ["applyText"] },
+      "restore-preview": { "methods": ["restorePreview"] },
+      "copy-report": { "methods": ["copyReport"] }
+    }
+  },
+  "scripts": {
+    "build": "node -e \"console.log('This extension is prebuilt.')\"",
+    "test": "node tests/core.test.js && node tests/panel.test.js && node tests/scene.test.js"
+  }
+}

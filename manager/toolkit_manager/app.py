@@ -37,7 +37,19 @@ from PySide6.QtWidgets import (
 )
 
 from .indexer import save_all_tool_metadata, save_index, scan_tools
-from .models import APP_NAME, APP_VERSION, INDEX_FILE_NAME, AppConfig, ManagerRelease, ToolIndex, ToolInfo
+from .models import (
+    APP_NAME,
+    APP_VERSION,
+    INDEX_FILE_NAME,
+    AppConfig,
+    ManagerRelease,
+    ToolIndex,
+    ToolInfo,
+    category_display_name,
+    category_filters,
+    category_matches,
+    category_parts,
+)
 from .services import ConfigStore, GitHubClient, StateStore, ToolLibrary, app_data_dir, compare_versions, ensure_safe_child
 from .styles import APP_QSS
 
@@ -869,7 +881,7 @@ class MainWindow(QMainWindow):
         return splitter
 
     def load_local_index(self) -> None:
-        local_index = manager_dir().parent / INDEX_FILE_NAME
+        local_index = local_index_path()
         if local_index.exists():
             data = json.loads(local_index.read_text(encoding="utf-8-sig"))
             self.tools = ToolIndex.from_dict(data).tools
@@ -914,11 +926,12 @@ class MainWindow(QMainWindow):
         self.category_list.blockSignals(True)
         self.category_list.clear()
         categories = ["全部工具"]
-        categories.extend(sorted({tool.category for tool in self.tools}))
+        categories.extend(category_filters({tool.category for tool in self.tools}))
         categories.extend(["已安裝", "可更新"])
         for category in categories:
             count = self.count_for_category(category)
-            item = QListWidgetItem(f"{category}    {count}")
+            label = category if category in ("全部工具", "已安裝", "可更新") else category_display_name(category)
+            item = QListWidgetItem(f"{label}    {count}")
             item.setData(Qt.UserRole, category)
             self.category_list.addItem(item)
             if category == self.current_category:
@@ -934,7 +947,7 @@ class MainWindow(QMainWindow):
             return sum(1 for tool in self.tools if self.library.status_for(tool) != "未安裝")
         if category == "可更新":
             return sum(1 for tool in self.tools if self.library.status_for(tool) == "可更新")
-        return sum(1 for tool in self.tools if tool.category == category)
+        return sum(1 for tool in self.tools if category_matches(tool.category, category))
 
     def category_changed(self, current: QListWidgetItem | None, _previous: QListWidgetItem | None) -> None:
         if current:
@@ -950,7 +963,7 @@ class MainWindow(QMainWindow):
                 continue
             if self.current_category == "可更新" and status != "可更新":
                 continue
-            if self.current_category not in ("全部工具", "已安裝", "可更新") and tool.category != self.current_category:
+            if self.current_category not in ("全部工具", "已安裝", "可更新") and not category_matches(tool.category, self.current_category):
                 continue
             haystack = " ".join([tool.name, tool.category, tool.description, " ".join(tool.tags)]).lower()
             if query and query not in haystack:
@@ -1270,11 +1283,15 @@ def tool_color(category: str) -> str:
         "SPINE相關工具": "#3a464d",
         "數字圖片工具": "#0f766e",
         "測試工具": "#8a6f13",
+        "圖片處理工具": "#526d82",
+        "PS內插件": "#31558f",
+        "COCOS內插件": "#5b3f8c",
     }
-    if category in palette:
-        return palette[category]
+    root_category = category_parts(category)[0] if category_parts(category) else category
+    if root_category in palette:
+        return palette[root_category]
     colors = ["#5f6b3a", "#364148", "#0f766e", "#7a6412", "#4f6f00"]
-    return colors[sum(ord(char) for char in category) % len(colors)]
+    return colors[sum(ord(char) for char in root_category) % len(colors)]
 
 
 def status_label(status: str) -> QLabel:
@@ -1454,6 +1471,12 @@ def manager_dir() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
     return Path(__file__).resolve().parents[1]
+
+
+def local_index_path() -> Path:
+    base = manager_dir()
+    candidates = [base / INDEX_FILE_NAME, base.parent / INDEX_FILE_NAME] if getattr(sys, "frozen", False) else [base.parent / INDEX_FILE_NAME, base / INDEX_FILE_NAME]
+    return next((path for path in candidates if path.exists()), candidates[0])
 
 
 def main() -> None:

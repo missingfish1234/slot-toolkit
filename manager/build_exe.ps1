@@ -22,6 +22,10 @@ if ($LASTEXITCODE -ne 0) {
 
 $newDistDir = Join-Path $PSScriptRoot "dist\ToolkitManager"
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot "config.example.json") -Destination (Join-Path $newDistDir "config.json") -Force
+$indexSource = Join-Path (Split-Path $PSScriptRoot -Parent) "tools-index.json"
+if (Test-Path -LiteralPath $indexSource) {
+    Copy-Item -LiteralPath $indexSource -Destination (Join-Path $newDistDir "tools-index.json") -Force
+}
 
 $zipPath = Join-Path $PSScriptRoot "dist\ToolkitManager.zip"
 if (Test-Path $zipPath) {
