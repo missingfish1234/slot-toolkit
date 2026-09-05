@@ -19,13 +19,13 @@
         "Cocos Creator 3.8 滾分 QA 插件"
       ],
       "updatedAt": "2026-09-05",
-      "size": "93.7 KB",
+      "size": "39.5 KB（下載）",
       "changelog": [
         "v1.2.1：終值等待 Scene 確認、run-id 防舊回應、壓力案例逐個確認；同格式診斷、切字型清除旧樣本。",
         "v1.2.0：強制重建 Label 並呼叫 repaintInEditMode，修正 Inspector 字串更新但 Scene 畫面停住。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-cocos-creator-38-rolling-score-tester-1.2.1.zip",
+      "sha256": "1bf43d724ae0faf5560bf95403edf03db46d9ec627aa600baf147524b2cdc054",
       "kind": "Cocos Creator 插件",
       "preservePaths": [
         "user-data",
@@ -50,12 +50,12 @@
         "Photoshop內掛件"
       ],
       "updatedAt": "2026-09-05",
-      "size": "549.6 KB",
+      "size": "165.3 KB（下載）",
       "changelog": [
         "1.2.19：每 PSD 獨立暫存／驗證／替換匯出，來源識別防止同名不同 PSD 覆蓋，保留其他 PSD、自訂檔與前版備份；修正安裝退出碼，提供來源與可重現 CCX 打包。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-6e2c8a665de55177-photoshop5167639b4ef6-1.2.19.zip",
+      "sha256": "c281f841e366574586412250b5bc322b495da285bf3b3ce709983d8a5bcbf74d",
       "kind": "Photoshop 插件",
       "preservePaths": [
         "user-data",
@@ -81,12 +81,12 @@
         "一般圖片掃光"
       ],
       "updatedAt": "2026-09-05",
-      "size": "7.1 KB",
+      "size": "4.1 KB（下載）",
       "changelog": [
         "各 Sprite 預設隔離材質進度，加入 duration 保護及啟停重置。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-sharder-cocos-4e00822c5716724763835149-1.0.1.zip",
+      "sha256": "013db02e1a935fd92e1289e67dee6b9fc2c2cdbd0ca8c76b7d1bf95779bd4139",
       "kind": "引擎資源",
       "preservePaths": [
         "user-data",
@@ -112,12 +112,12 @@
         "彩虹掃光"
       ],
       "updatedAt": "2026-09-05",
-      "size": "3.4 MB",
+      "size": "3.4 MB（下載）",
       "changelog": [
         "Noise／Distort 強度為零時略過對應 FBM 計算，保留原有效果設定。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-sharder-cocos-5f69867963835149-1.0.1.zip",
+      "sha256": "f01524f004d7aae9664e3a2b7ed7e38091701ce2f5dd313aced661c9e1fcde9a",
       "kind": "引擎資源",
       "preservePaths": [
         "user-data",
@@ -143,12 +143,12 @@
         "漸層遮罩"
       ],
       "updatedAt": "2026-09-05",
-      "size": "10.1 KB",
+      "size": "4.3 KB（下載）",
       "changelog": [
         "加入獨立材質模式、參數快取、停用还原及完整編輯器預覽開關。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-sharder-cocos-6f385c64906e7f69-1.0.1.zip",
+      "sha256": "cf8daafbcb229331dcdd2d8750fcee6033c1111da9901895d8915e2fa254f6ba",
       "kind": "引擎資源",
       "preservePaths": [
         "user-data",
@@ -174,12 +174,12 @@
         "粒子淡入淡出_發光"
       ],
       "updatedAt": "2026-09-05",
-      "size": "3.4 MB",
+      "size": "3.4 MB（下載）",
       "changelog": [
         "保護淡入／淡出端點及倒置參數，附可重現的初始設定。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-sharder-cocos-7c925b506de151656de151fa-767c5149-1.0.1.zip",
+      "sha256": "0683c7b15bd7a25e86d29cd8dcd3f9fc8aca8a84a80237f1afea9fb81830ce03",
       "kind": "引擎資源",
       "preservePaths": [
         "user-data",
@@ -205,12 +205,12 @@
         "Unity63_DarkCenterEdgeGlow"
       ],
       "updatedAt": "2026-09-05",
-      "size": "48.0 KB",
+      "size": "35.6 KB（下載）",
       "changelog": [
         "新增可選 4 方向 Lightweight 模式；預設仍為完整 8 方向效果。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-sharder-unity-unity-4e2d959358d36697908a6846767c4eae6548679c-unity63-darkcenteredgeglow-1.0.1.zip",
+      "sha256": "5219dd44077d849736c429e9eaba388db73de6a2e47b33f0bbbb964684fd5673",
       "kind": "引擎資源",
       "preservePaths": [
         "user-data",
@@ -236,12 +236,12 @@
         "UNITY_彩虹Shader"
       ],
       "updatedAt": "2026-09-05",
-      "size": "147.0 KB",
+      "size": "19.8 KB（下載）",
       "changelog": [
         "Editor 面板移入 Editor 目錄；自動補 Canvas UV 通道並檢查 Quad 頂點數。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-sharder-unity-unity-5f698679shader-1.0.1.zip",
+      "sha256": "d1f8f17d142bd559b6c26a58958bb70b21c74073f47f70c384bef6506139a22b",
       "kind": "引擎資源",
       "preservePaths": [
         "user-data",
@@ -267,12 +267,12 @@
         "Unity_溶解SHARDER"
       ],
       "updatedAt": "2026-09-05",
-      "size": "35.9 KB",
+      "size": "10.0 KB（下載）",
       "changelog": [
         "自建執行期材質明確追蹤所有權，停用／銷毀还原原材質並回收。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-sharder-unity-unity-6eb689e3sharder-1.0.1.zip",
+      "sha256": "430f0c2d00aec43792ace9883f9980b6a9bc29b204366543358f51bef59e33c1",
       "kind": "引擎資源",
       "preservePaths": [
         "user-data",
@@ -298,12 +298,12 @@
         "Unity_畫面閃動殘影效果"
       ],
       "updatedAt": "2026-09-05",
-      "size": "50.0 KB",
+      "size": "14.9 KB（下載）",
       "changelog": [
         "History 增加可選解析度倍率與來源色彩格式，預設維持原 ARGB32 全尺寸。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-sharder-unity-unity-756b9762958352d56b985f716548679c-1.0.1.zip",
+      "sha256": "829ede561849af3cfd8b3f044dfc6670fbf8c74fed868261191b5abc8f9832a9",
       "kind": "引擎資源",
       "preservePaths": [
         "user-data",
@@ -329,12 +329,12 @@
         "Unity_遮罩SHARDER_針對SPINEGRAPHIC"
       ],
       "updatedAt": "2026-09-05",
-      "size": "14.3 KB",
+      "size": "5.3 KB（下載）",
       "changelog": [
         "停用還原原材質；遮罩改用座標矩陣支援旋轉，清除遮罩貼圖時使用白圖。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-sharder-unity-unity-906e7f69sharder-91dd5c0dspinegraphic-1.0.1.zip",
+      "sha256": "c1467a2d64d951790cd5efa02f5fa381a457a42e42af468f5b1908bda8c19a58",
       "kind": "引擎資源",
       "preservePaths": [
         "user-data",
@@ -360,12 +360,12 @@
         "Unity63_NumberRollerTool"
       ],
       "updatedAt": "2026-09-05",
-      "size": "49.3 KB",
+      "size": "13.8 KB（下載）",
       "changelog": [
         "快取 Glyph 與自建 Sprite、重用圖片字元、只清理自身標記節點。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-sharder-unity-unity51676efe52066e2c8a665de55177-unity63-numberrollertool-1.0.1.zip",
+      "sha256": "b68176ae45edc0eda9202653078d1f9a140407b3ed2f478f9e74f156b3243701",
       "kind": "引擎資源",
       "preservePaths": [
         "user-data",
@@ -391,12 +391,12 @@
         "UNITY螢幕扭曲效果"
       ],
       "updatedAt": "2026-09-05",
-      "size": "7.6 KB",
+      "size": "3.5 KB（下載）",
       "changelog": [
         "補齊 Built-in／GrabPass 限制、初始設定及驗收方式；保留 MaterialPropertyBlock 控制。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-sharder-unity-unity87a25e55626d66f26548679c-1.0.1.zip",
+      "sha256": "b6ab4f9b5152df00e67a7d0d10e5b3c5d6b33f925a2d9e0c8332bc01cd8b5235",
       "kind": "引擎資源",
       "preservePaths": [
         "user-data",
@@ -420,12 +420,12 @@
         "SPINE串接示意工具"
       ],
       "updatedAt": "2026-09-05",
-      "size": "17.7 MB",
+      "size": "7.3 MB（下載）",
       "changelog": [
         "修正 Atlas 存讀／複製、缺圖驗證與失敗保留原專案；內附固定版本離線相依檔。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-spine76f895dc5de55177-spine4e3263a5793a610f5de55177-1.0.1.zip",
+      "sha256": "e3321d57fac2abd28fb5b971fbd4e101a2e0ee2f4b15bdecab8c1d5cb4d7eb5f",
       "kind": "網頁工具",
       "preservePaths": [
         "user-data",
@@ -455,12 +455,12 @@
         "Cocos Timeline / Spine 3.8 插件"
       ],
       "updatedAt": "2026-09-05",
-      "size": "6.6 MB",
+      "size": "847.8 KB（下載）",
       "changelog": [
         "保留 0.13.1 錄製修正；補 Runtime 載入生命週期，測試接入 build，提供驗證後版本包。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-cocos-creator-38-spine-timeline-0.13.2.zip",
+      "sha256": "ac70a875587b46cf09efc1b357ff027114e2b7772c2340b297160b150068a4f7",
       "kind": "安裝套件",
       "preservePaths": [
         "user-data",
@@ -484,12 +484,12 @@
         "SPINE合圖工具"
       ],
       "updatedAt": "2026-09-05",
-      "size": "39.8 KB",
+      "size": "13.2 KB（下載）",
       "changelog": [
         "支援 compact／舊 Atlas、完整 metadata 去重、同名檔衝突及尺寸／頁面模式檢查。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-spine76f895dc5de55177-spine540857165de55177-1.0.1.zip",
+      "sha256": "34191b409ade66e09eb49a528a883428c63eccfc4e04aa93f294dd89706d84ce",
       "kind": "網頁工具",
       "preservePaths": [
         "user-data",
@@ -515,7 +515,7 @@
         "效能檢測"
       ],
       "updatedAt": "2026-09-05",
-      "size": "33.3 MB",
+      "size": "10.7 MB（下載）",
       "changelog": [
         "修正標準 JSON 加權網格計數；純 JSON 不要求 Spine.exe；明示 DrawCall 粗估。",
         "修正 Spine 4.0.56 轉檔失敗問題：.skel.bytes 會自動以暫存 .skel 呼叫 Spine 匯出。",
@@ -524,8 +524,8 @@
         "強化 atlas 與圖集依賴解析，改善包圖容量統計準確度。",
         "新增掃描進度、停止掃描、狀態欄與更完整的 CSV 匯出欄位。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-spine76f895dc5de55177-spine8cc78a0a6aa26e2c5de55177-1.0.3.zip",
+      "sha256": "7295023da24ae92a02d02c319475fab7b7b536f0388780b241b26ef3c3c9184f",
       "kind": "桌面工具",
       "preservePaths": [
         "user-data",
@@ -549,12 +549,12 @@
         "SPINE轉檔工具"
       ],
       "updatedAt": "2026-09-05",
-      "size": "35.9 KB",
+      "size": "11.8 KB（下載）",
       "changelog": [
         "隔離本次產物、安全發佈並保留舊成果；加入取消／五分鐘逾時與主執行緒 UI 更新。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-spine76f895dc5de55177-spine8f496a945de55177-1.0.1.zip",
+      "sha256": "a12ca8e1f99db12e59aa245b19c0130ae446da12acfe3ebf192e27b3dbe6b1de",
       "kind": "Python 工具",
       "preservePaths": [
         "user-data",
@@ -582,14 +582,14 @@
         "SPINE圖片解析度提高工具"
       ],
       "updatedAt": "2026-09-05",
-      "size": "50.4 MB",
+      "size": "42.9 MB（下載）",
       "changelog": [
         "新增來源/輸出/工作目錄保護，專屬任務目錄與驗證恢復；同名策略、原子PNG發佈及程序樹取消。",
         "改為逐張執行 Real-ESRGAN，避免 Vulkan 批次處理造成黑圖或彩色條紋。",
         "新增輸出品質檢查，偵測黑化、偏色與條紋時自動回退成乾淨放大。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-spine-image-upscale-tool-1.0.2.zip",
+      "sha256": "c3398c054f26c1b4920fc60b9b4f4d7b831bc88f2de37a02f855ca0fcab7a2ad",
       "kind": "啟動器",
       "preservePaths": [
         "user-data",
@@ -613,12 +613,12 @@
         "合併數字圖拆分工具"
       ],
       "updatedAt": "2026-09-05",
-      "size": "355.3 KB",
+      "size": "237.6 KB（下載）",
       "changelog": [
         "1.0.1：修正標點／大小寫檔名往返，阻擋錯配與重複字元，加入字碼清單與離線 ZIP。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-65785b57571672475de55177-54084f7565785b57571662c652065de55177-1.0.1.zip",
+      "sha256": "36744f889245fc3308e0e277a46c38feced891ac8ddbc3db4de2c6bce01f8a7c",
       "kind": "網頁工具",
       "preservePaths": [
         "user-data",
@@ -642,12 +642,12 @@
         "圖片中心點快速對位工具"
       ],
       "updatedAt": "2026-09-05",
-      "size": "29.6 KB",
+      "size": "10.2 KB（下載）",
       "changelog": [
         "1.0.1：修正底對齊 1px 裁切、預覽比例及 ZIP UTF-8；加入重名處理、尺寸預算與透明邊界快取。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-65785b57571672475de55177-571672474e2d5fc39ede5feb901f5c0d4f4d5de55177-1.0.1.zip",
+      "sha256": "cb283f1755e5e2524f9ade336f978723ec6a17b742b9a79fe8f58f020af90dc1",
       "kind": "網頁工具",
       "preservePaths": [
         "user-data",
@@ -671,14 +671,14 @@
         "數字包圖工具"
       ],
       "updatedAt": "2026-09-05",
-      "size": "5.3 MB",
+      "size": "674.9 KB（下載）",
       "changelog": [
         "1.3.1：修正 dot/comma 字碼往返、Unicode 命名、超限圖集防錯；快取透明邊界，ZIP 離線可用。",
         "BMFont Gen v3.30：修正 v3.29 全數字相同 glyph 幾何導致 Cocos 3.8 滾分畫面不更新；固定前進寬度與右邊界，同時保留字形差異。",
         "BMFont Gen v3.29：新增 Cocos 透明等寬數字格，修正末位 1 造成的 Label 寬度微跳；防止重複字元與 NUM_X-1 誤判。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-65785b57571672475de55177-65785b57530557165de55177-1.3.1.zip",
+      "sha256": "7253750949411cb701232eea54054b76f642e8c7f0873647347dabfb71eb3225",
       "kind": "網頁工具",
       "preservePaths": [
         "user-data",
@@ -702,12 +702,12 @@
         "大轉盤測試工具"
       ],
       "updatedAt": "2026-09-05",
-      "size": "8.8 MB",
+      "size": "7.4 MB（下載）",
       "changelog": [
         "修正預設轉盤分格與圖面不同步，保存底圖來源狀態並增加專案防錯。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-6e2c8a665de55177-59278f4976e46e2c8a665de55177-1.0.1.zip",
+      "sha256": "7143ec1895c69157410f8622056b89cbee22a02d6af3032b537dd18a842a7346",
       "kind": "網頁工具",
       "preservePaths": [
         "user-data",
@@ -737,14 +737,14 @@
         "MiniMax H3 Studio 影片生成工具"
       ],
       "updatedAt": "2026-09-05",
-      "size": "11.4 KB",
+      "size": "6.5 KB（下載）",
       "changelog": [
         "已安裝版直接啟動；獨立檢查更新入口具 Git 逾時/互斥與 commit 版本紀錄。",
         "首次加入工具包；採獨立執行環境，保留每位使用者自己的模型、設定、素材與生成紀錄。",
         "啟動時安全檢查 movieeasymake 最新版本，離線或更新失敗時仍可開啟既有版本。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-minimax-h3-studio-video-tool-1.0.1.zip",
+      "sha256": "3cb439b91a15f91f30ab1adcef6029af9ead9a5dab146d70f83d5358c832b904",
       "kind": "啟動器",
       "preservePaths": [
         "user-data",
@@ -770,12 +770,12 @@
         "Webm轉錄工具"
       ],
       "updatedAt": "2026-09-05",
-      "size": "43.8 KB",
+      "size": "11.8 KB（下載）",
       "changelog": [
         "加入時間/尺寸驗證、影片結束/錯誤/逾時/取消收尾，釋放錄製串流與旧影片資源。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-6e2c8a665de55177-5f717247865574065de55177-webm8f4993045de55177-1.0.1.zip",
+      "sha256": "94183f5d8650053e95cadb67d89bb91bc152e6c647667d138e55f2c67a0e23c4",
       "kind": "網頁工具",
       "preservePaths": [
         "user-data",
@@ -801,12 +801,12 @@
         "影片導出連續圖跟去背工具"
       ],
       "updatedAt": "2026-09-05",
-      "size": "152.2 KB",
+      "size": "49.0 KB（下載）",
       "changelog": [
         "修正 Alpha 清理重複乘透明度；新增匯出互斥/取消、像素預算、定位逾時與縮圖資源回收。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-6e2c8a665de55177-5f717247865574065de55177-5f7172475c0e51fa90237e8c57168ddf53bb80cc5de55177-1.0.1.zip",
+      "sha256": "8a0488ccf33910bc7d1f17b33a78513a084912f5dba63917294a9da01756d259",
       "kind": "網頁工具",
       "preservePaths": [
         "user-data",
@@ -832,12 +832,12 @@
         "影片快速導出最後一張工具"
       ],
       "updatedAt": "2026-09-05",
-      "size": "14.3 KB",
+      "size": "6.6 KB（下載）",
       "changelog": [
         "修正管理器啟動入口；採背景處理與取消，同名輸出自動編號，依賴改為工具專用環境。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-6e2c8a665de55177-5f717247865574065de55177-5f7172475feb901f5c0e51fa67005f8c4e005f355de55177-5f7172475feb901f5c0e51fa67005f8c4e005f355de55177-1.0.1.zip",
+      "sha256": "7720a187b1353e28f2722132cfb079742b4eed73f90c8a52f893d8f8014d1854",
       "kind": "啟動器",
       "preservePaths": [
         "user-data",
@@ -861,12 +861,12 @@
         "滾分測試工具"
       ],
       "updatedAt": "2026-09-05",
-      "size": "20.8 KB",
+      "size": "7.6 KB（下載）",
       "changelog": [
         "修正重複開始疊加動畫，新增停止、分數與字型圖集防錯，標明與 Cocos SHRINK 驗證的差異。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-6e2c8a665de55177-6efe52066e2c8a665de55177-1.0.1.zip",
+      "sha256": "2aa57c419f14e5372a5ff3cdfa7844bfedbf3755821015d1a32d0ea1139619d0",
       "kind": "網頁工具",
       "preservePaths": [
         "user-data",
@@ -890,12 +890,12 @@
         "轉輪測試工具"
       ],
       "updatedAt": "2026-09-05",
-      "size": "120.3 MB",
+      "size": "103.6 MB（下載）",
       "changelog": [
         "專案格式升級 schema 3，完整保存 Spine 骨架/atlas/多頁貼圖；本地伺服器改自選埠且不再安装全域套件。"
       ],
-      "downloadUrl": "",
-      "sha256": "",
+      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.0/tool-6e2c8a665de55177-8f498f2a6e2c8a665de55177-1.0.1.zip",
+      "sha256": "8789311d0a793a906db783003ce6ff6f8f499d397de49b25a1997b925fe6bd7d",
       "kind": "啟動器",
       "preservePaths": [
         "user-data",
@@ -906,5 +906,5 @@
       ]
     }
   ],
-  "sourceRevision": ""
+  "sourceRevision": "f644e0e00ab37191844a1d7a77caf62bb2c416c0"
 }
