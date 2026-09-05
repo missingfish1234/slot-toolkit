@@ -7,7 +7,7 @@ from typing import Any
 
 
 APP_NAME = "小魚骨頭工作包管理器"
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.2.1"
 INDEX_FILE_NAME = "tools-index.json"
 CATEGORY_SEPARATOR = " / "
 CATEGORY_ROOT_ORDER = [

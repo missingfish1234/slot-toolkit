@@ -287,6 +287,38 @@ class UpdaterTests(Fixture):
         self.assertEqual((target / "ToolkitManager.exe").read_text(), "old exe")
         self.assertFalse(list(self.root.glob("*.backup-*")))
 
+    def test_removed_runtime_is_not_carried_forward(self):
+        source, target, request = self.prepare()
+        for name in ("_internal/icuuc.dll", "_internal/removed/old.py", "runtime/old.dll", "obsolete.dll", "old.exe", "old.pyd", "old.py"):
+            self.write(target.relative_to(self.root).as_posix() + "/" + name, "old runtime")
+        self.write(target.relative_to(self.root).as_posix() + "/筆記.txt", "my notes")
+        self.write(target.relative_to(self.root).as_posix() + "/Tools/custom/run.exe", "personal tool")
+        result = self.run_updater(request)
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+        self.assertFalse((target / "_internal").exists())
+        self.assertFalse((target / "runtime").exists())
+        self.assertFalse((target / "obsolete.dll").exists())
+        self.assertFalse((target / "old.py").exists())
+        self.assertEqual((target / "Tools/custom/run.exe").read_text(), "personal tool")
+        self.assertEqual((target / "筆記.txt").read_text(), "my notes")
+        backup = next(self.root.glob("*.backup-*"))
+        self.assertTrue((backup / "_internal/icuuc.dll").is_file())
+
+    def test_new_runtime_directory_is_exact_source(self):
+        source, target, request = self.prepare()
+        self.write(target.relative_to(self.root).as_posix() + "/_internal/obsolete.dll", "old runtime")
+        self.write(source.relative_to(self.root).as_posix() + "/_internal/new.dll", "new runtime")
+        atomic_json(source / "release-manifest.json", {"files": {p.relative_to(source).as_posix(): file_digest(p) for p in source.rglob("*") if p.is_file() and p.name != "release-manifest.json"}}, backup=False)
+        self.assertEqual(self.run_updater(request).returncode, 0)
+        self.assertEqual([p.name for p in (target / "_internal").iterdir()], ["new.dll"])
+
+    def test_config_backup_is_not_shadowed_by_new_default(self):
+        source, target, request = self.prepare()
+        (target / "config.json").unlink()
+        atomic_json(target / "config.json.bak", {"install_root": "my-personal-tools"})
+        self.assertEqual(self.run_updater(request).returncode, 0)
+        self.assertEqual(json.loads((target / "config.json").read_text()), {"install_root": "my-personal-tools"})
+
 
 if __name__ == "__main__":
     unittest.main()

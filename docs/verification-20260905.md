@@ -6,7 +6,7 @@
 
 | 範圍 | 改善重點 | 驗證方式 |
 |---|---|---|
-| 管理器 1.2.0 | 安裝前檢查入口／ID／版本；保留設定、使用者新增檔及完整舊版；校驗下載、逐工具 ZIP、離線索引；Git 限定路徑及背景推送 | 28 項 Python／Qt 回歸、Windows PowerShell 更新器實跑、打包 EXE 自測；下載包逐一解壓與入口核對 |
+| 管理器 1.2.1 | 安裝前檢查入口／ID／版本；保留設定、使用者新增檔及完整舊版；乾淨 runtime 防舊 DLL 殘留、校驗下載、逐工具 ZIP、離線索引；Git 限定路徑及背景推送 | 31 項 Python／Qt 回歸、Windows PowerShell 更新器實跑、打包 EXE 自測；下載包逐一解壓與入口核對 |
 | 數字拆分、包圖、對位 | 字碼別名往返、重複字及尺寸防錯、透明邊界快取、底部 1 px 裁切、預覽比例、中文 ZIP、離線 JSZip | 原函式回歸；真 Chromium 產生 PNG/FNT/ZIP；原始 21 張 PNG 在 1／0.67／0.75 比例下，各經 Cocos 3.8.6 原始排版核心 120 次換字 |
 | Cocos 滾分 QA 1.2.1 | 終值等待 Scene 確認、請求與測試批次隔離、同格式寬度分組、字型切換樣本清理；主版本產生相容副本 | core／panel／scene／timing 回歸；核心數字格式／字型測試 |
 | Photoshop 插件 1.2.19 | 每 PSD 獨立輸出目錄、暫存完成才換入、保留前版與額外檔案；來源識別阻擋同名不同路徑 PSD 覆蓋；可維護來源及新版安裝器 | 交易式輸出隔離、同名來源／工作階段／發布前競態測試、27 個來源與 CCX 成員核對；未更動正式 PSD |
@@ -28,5 +28,7 @@
 `manager/scripts/package_tools.py` 只從指定 Git commit 產生獨立 ZIP，不把未追蹤素材、建置暫存及歷史備份混入。每包必須通過 tool.json ID／版本與入口檢查，總索引記錄不可變來源 commit、下載 URL 與 SHA-256。
 
 管理器建置固定 Python 套件版本、隔離 DLL 搜尋 PATH，避免把其他軟體的 ICU 誤包為 Qt 依賴。測試與真正的 `ToolkitManager.exe --smoke-test` 任一失敗時，停止產生發布包。
+
+`manager/scripts/verify_manager_upgrade.py` 額外在隔離舊安裝注入已移除的 ICU／根 DLL，使用新版更新器實際換版，再啟動更新後的 EXE；1.2.1 已通過。個人 Tools 內的執行檔、設定及整份舊版備份均保留，新 runtime 的 174 項發布檔（除個人設定）與來源校驗一致。
 
 舊管理器（1.1.x）的第一次跨版更新仍使用舊更新程式；建議從 Release ZIP 解壓到新資料夾試開，確認後再搬入原 `config.json`，不要刪除舊版目錄。

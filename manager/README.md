@@ -2,12 +2,13 @@
 
 Windows 桌面工具，用來從 GitHub 公開倉庫檢視、下載、更新與開啟工具。
 
-## 1.2.0 更新
+## 1.2.1 更新
 
 - 每個工具可以使用独立 ZIP 與 SHA-256 校驗；旧索引仍可共用一次下載的倉庫快取。
 - 更新先驗證 tool.json 的 ID、版本與啟動入口，再替換安裝；失敗不動原工具。
 - `user-data/`、`outputs/`、`presets/`、`config.json`、`settings.json` 預設保留，可用 `preservePaths` 增補。使用者新增的額外檔也會保留；改過的程式與新版衝突時以新版程式為準，但完整舊版仍在同層 `工具ID.backup-*`，不自動刪除。
 - 管理器本體會等待舊程序離開，驗證完整性、保留設定與整套舊版，再交易式換入。更新失敗記錄在 `%APPDATA%/ToolkitManager/updates/apply-*/request.json.status.json`。
+- 本體更新使用乾淨的新版 runtime，不沿用舊 `_internal`／DLL；根目錄額外的個人文件與 Tools 等自訂目錄保留，舊程式檔完整留在備份。若主設定缺失但 `.bak` 有效，先恢復備份設定，不用新版預設值蓋過。
 - 已同步索引按 GitHub 倉庫及分支個別快取，離線重開仍可使用；損壞 JSON 保留 `.corrupt-*` 原檔並優先從 `.bak` 恢復。
 - 掃描不再把分類 README 或 vendor/tests 當成工具；明確登錄的巢狀插件可独立列出，損壞 metadata、重複 ID 和缺少入口會停止儲存。
 - Git 推送改背景執行、NUL 格式處理中文與空白檔名，僅提交本次工具路徑，不夾帶其他已暫存變更。跨分類範圍的重新命名請用 Git 命令列確認。

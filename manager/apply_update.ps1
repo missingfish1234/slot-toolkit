@@ -63,10 +63,34 @@ try {
     Assert-Child $parentPath $stagePath
     Assert-Child $parentPath $backupPath
     New-Item -ItemType Directory -Path $stagePath | Out-Null
-    Copy-Tree $targetPath $stagePath
+    # Never overlay a new runtime onto an old one: removed DLLs can shadow
+    # Windows dependencies and prevent the new executable from importing Qt.
     Copy-Tree $sourcePath $stagePath
+    $runtimeFolders = @('_internal', '.venv', '__pycache__', 'runtime', 'PySide6', 'PySide2', 'PyQt6', 'PyQt5', 'shiboken6', 'shiboken2')
+    Get-ChildItem -LiteralPath $targetPath -Force | ForEach-Object {
+        $carryTarget = Join-Path $stagePath $_.Name
+        if (-not (Test-Path -LiteralPath $carryTarget) -and $_.Name -notin $runtimeFolders) {
+            if ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Linked personal entry is not supported: $($_.Name)" }
+            if ($_.PSIsContainer) {
+                # A user Tools folder is copied whole, including its executables.
+                New-Item -ItemType Directory -Path $carryTarget | Out-Null
+                Copy-Tree $_.FullName $carryTarget
+            } elseif ($_.Extension.ToLowerInvariant() -notin @('.dll', '.exe', '.pyd', '.py', '.pyc', '.pyo')) {
+                Copy-Item -LiteralPath $_.FullName -Destination $carryTarget
+            }
+        }
+    }
     $oldConfig = Join-Path $targetPath 'config.json'
-    if (Test-Path -LiteralPath $oldConfig) { Copy-Item -LiteralPath $oldConfig -Destination (Join-Path $stagePath 'config.json') -Force }
+    if (Test-Path -LiteralPath $oldConfig) {
+        Copy-Item -LiteralPath $oldConfig -Destination (Join-Path $stagePath 'config.json') -Force
+    } elseif (Test-Path -LiteralPath ($oldConfig + '.bak')) {
+        try {
+            $recoveredConfig = Get-Content -LiteralPath ($oldConfig + '.bak') -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($recoveredConfig -is [pscustomobject]) {
+                Copy-Item -LiteralPath ($oldConfig + '.bak') -Destination (Join-Path $stagePath 'config.json') -Force
+            }
+        } catch { } # Invalid backups stay in the full old install for recovery.
+    }
     Move-Item -LiteralPath $targetPath -Destination $backupPath
     Move-Item -LiteralPath $stagePath -Destination $targetPath
     $promoted = $true
