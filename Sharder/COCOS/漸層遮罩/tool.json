@@ -2,8 +2,8 @@
   "id": "sharder-cocos-6f385c64906e7f69",
   "name": "漸層遮罩",
   "category": "Sharder",
-  "description": "",
-  "version": "1.0.0",
+  "description": "Cocos Creator 3.8 可動畫化的方向漸層遮罩。",
+  "version": "1.0.1",
   "path": "Sharder/COCOS/漸層遮罩",
   "entry": "",
   "icon": "",
@@ -11,7 +11,10 @@
     "Sharder",
     "漸層遮罩"
   ],
-  "updatedAt": "2026-06-11",
+  "updatedAt": "2026-09-05",
   "size": "7.4 KB",
-  "changelog": []
+  "changelog": [
+    "加入獨立材質模式、參數快取、停用还原及完整編輯器預覽開關。"
+  ],
+  "documentation": "README_更新與安裝.md"
 }

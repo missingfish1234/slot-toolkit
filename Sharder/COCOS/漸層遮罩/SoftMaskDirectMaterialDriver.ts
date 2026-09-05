@@ -1,4 +1,5 @@
 import { _decorator, Component, Sprite, Material, Enum, Vec4 } from 'cc';
+import { EDITOR } from 'cc/env';
 
 const { ccclass, property, executeInEditMode } = _decorator;
 
@@ -65,6 +66,8 @@ export class SoftMaskDirectMaterialDriver extends Component {
         tooltip: '動畫控制 Progress 時請開啟',
     })
     applyEveryFrame = true;
+    @property({ tooltip: '各遮罩獨立修改；若關閉則同一材質的所有物件同步，僅掛一支 Driver。' })
+    independentMaterial = true;
 
     @property({
         displayName: 'Debug Log',
@@ -72,6 +75,21 @@ export class SoftMaskDirectMaterialDriver extends Component {
     debugLog = false;
 
     private _fadeParams = new Vec4(0, 0.08, 1, 0);
+    private _lastKey = '';
+    private _appliedMaterial: Material | null = null;
+    private _originalMaterial: Material | null = null;
+    private _boundSprite: Sprite | null = null;
+    private _assignedMaterial: Material | null = null;
+    private _independentMode: boolean | null = null;
+
+    onDisable() { this.restore(); }
+    onDestroy() { this.restore(); }
+
+    private restore() {
+        if (this._boundSprite && this._boundSprite.isValid && this._boundSprite.customMaterial === this._assignedMaterial)
+            this._boundSprite.customMaterial = this._originalMaterial;
+        this._boundSprite = null; this._appliedMaterial = null; this._assignedMaterial = null; this._independentMode = null; this._lastKey = '';
+    }
 
     onLoad() {
         this.apply();
@@ -86,9 +104,7 @@ export class SoftMaskDirectMaterialDriver extends Component {
     }
 
     onValidate() {
-        if (this.previewInEditor) {
-            this.apply();
-        }
+        this.apply();
     }
 
     lateUpdate() {
@@ -98,11 +114,14 @@ export class SoftMaskDirectMaterialDriver extends Component {
     }
 
     private clamp(v: number, min: number, max: number) {
-        return Math.max(min, Math.min(max, v));
+        return Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : min;
     }
 
     public apply() {
+        if (EDITOR && !this.previewInEditor) { this.restore(); return; }
+        if (!this.enabledInHierarchy) return;
         if (!this.targetMaterial) {
+            this.restore();
             if (this.debugLog) {
                 console.warn('[SoftMaskDirectMaterialDriver] Missing Target Material');
             }
@@ -120,23 +139,30 @@ export class SoftMaskDirectMaterialDriver extends Component {
             this.direction
         );
 
-        // 直接改材質球本體。
-        // 這顆就是你手動改 Progress 會生效的 Mat-SoftMask.effect.mtl。
-        this.targetMaterial.setProperty('fadeParams', this._fadeParams, 0);
-        this.targetMaterial.setProperty('progress', this.progress, 0);
-        this.targetMaterial.setProperty('feather', this.feather, 0);
-        this.targetMaterial.setProperty('alphaMul', this.alphaMul, 0);
-        this.targetMaterial.setProperty('direction', this.direction, 0);
-
-        // 確保 Black Sprite 用的就是這顆材質。
-        // 注意：這裡塞的是 targetMaterial，不是 getMaterialInstance()。
+        if (!this.targetSprite && this._boundSprite) this.restore();
         if (this.targetSprite) {
+            if (this._boundSprite !== this.targetSprite) {
+                this.restore();
+                this._boundSprite = this.targetSprite;
+                this._originalMaterial = this.targetSprite.customMaterial;
+            }
             if (this.targetSprite.customMaterial !== this.targetMaterial) {
                 this.targetSprite.customMaterial = this.targetMaterial;
             }
-
-            this.targetSprite.markForUpdateRenderData(true);
+            if (this._independentMode !== null && this._independentMode !== this.independentMaterial) {
+                this.targetSprite.customMaterial = null;
+                this.targetSprite.customMaterial = this.targetMaterial;
+            }
+            this._assignedMaterial = this.targetMaterial;
+            this._independentMode = this.independentMaterial;
         }
+        if (this.independentMaterial && !this.targetSprite) return;
+        const material = this.independentMaterial ? this.targetSprite!.getMaterialInstance(0) : this.targetMaterial;
+        if (!material) return;
+        const key = [this.progress, this.feather, this.alphaMul, this.direction].join('|');
+        if (key === this._lastKey && material === this._appliedMaterial) return;
+        material.setProperty('fadeParams', this._fadeParams, 0);
+        this._lastKey = key; this._appliedMaterial = material;
 
         if (this.debugLog) {
             console.log(

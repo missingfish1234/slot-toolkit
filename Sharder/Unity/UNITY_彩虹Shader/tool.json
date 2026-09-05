@@ -2,8 +2,8 @@
   "id": "sharder-unity-unity-5f698679shader",
   "name": "UNITY_彩虹Shader",
   "category": "Sharder",
-  "description": "",
-  "version": "1.0.0",
+  "description": "Unity UGUI／BMFont 彩虹材質、UV 填充與美術材質面板。",
+  "version": "1.0.1",
   "path": "Sharder/Unity/UNITY_彩虹Shader",
   "entry": "",
   "icon": "",
@@ -11,7 +11,10 @@
     "Sharder",
     "UNITY_彩虹Shader"
   ],
-  "updatedAt": "2026-06-11",
+  "updatedAt": "2026-09-05",
   "size": "140.5 KB",
-  "changelog": []
+  "changelog": [
+    "Editor 面板移入 Editor 目錄；自動補 Canvas UV 通道並檢查 Quad 頂點數。"
+  ],
+  "documentation": "README_更新與安裝.md"
 }

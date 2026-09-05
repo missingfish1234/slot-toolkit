@@ -5,11 +5,37 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public class BMFontUv2Filler : BaseMeshEffect
 {
+    private bool warnedUnsupported;
+
+    protected override void OnEnable()
+    {
+        base.OnEnable();
+        EnsureChannels();
+    }
+
+    protected override void OnCanvasHierarchyChanged()
+    {
+        base.OnCanvasHierarchyChanged();
+        EnsureChannels();
+    }
+
+    private void EnsureChannels()
+    {
+        Canvas canvas = graphic != null ? graphic.canvas : GetComponentInParent<Canvas>();
+        if (canvas != null) canvas.additionalShaderChannels |= AdditionalCanvasShaderChannels.TexCoord1 | AdditionalCanvasShaderChannels.TexCoord2;
+    }
+
     public override void ModifyMesh(VertexHelper vh)
     {
         if (!IsActive() || vh.currentVertCount < 4) return;
 
         int count = vh.currentVertCount;
+        if (count % 4 != 0)
+        {
+            if (!warnedUnsupported) Debug.LogWarning("BMFontUv2Filler 只支援每字 4 頂點的 Quad；請移除其他改變拓樸的 MeshEffect 或改用對應字型元件。", this);
+            warnedUnsupported = true;
+            return;
+        }
         var v = new UIVertex();
 
         float globalMinX = float.MaxValue, globalMinY = float.MaxValue;

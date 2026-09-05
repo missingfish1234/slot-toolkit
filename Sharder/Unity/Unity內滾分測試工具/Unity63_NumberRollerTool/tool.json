@@ -2,8 +2,8 @@
   "id": "sharder-unity-unity51676efe52066e2c8a665de55177-unity63-numberrollertool",
   "name": "Unity63_NumberRollerTool",
   "category": "Sharder",
-  "description": "",
-  "version": "1.0.0",
+  "description": "Unity UGUI／TMP／Sprite／BMFont 的數字滾分與輪帶測試。",
+  "version": "1.0.1",
   "path": "Sharder/Unity/Unity內滾分測試工具/Unity63_NumberRollerTool",
   "entry": "",
   "icon": "",
@@ -11,7 +11,10 @@
     "Sharder",
     "Unity63_NumberRollerTool"
   ],
-  "updatedAt": "2026-06-11",
+  "updatedAt": "2026-09-05",
   "size": "42.8 KB",
-  "changelog": []
+  "changelog": [
+    "快取 Glyph 與自建 Sprite、重用圖片字元、只清理自身標記節點。"
+  ],
+  "documentation": "README_更新與安裝.md"
 }

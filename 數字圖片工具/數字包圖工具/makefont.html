@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BMFont Gen (v3.30 Cocos Stable Digit Cell) - by 小魚骨頭</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <title>BMFont Gen (v3.31 / Tool 1.3.1) - by 小魚骨頭</title>
+    <script src="vendor/jszip-3.10.1.min.js"></script>
     <style>
         /* --- 🎨 設計系統 --- */
         :root {
@@ -148,7 +148,7 @@
 <body>
 
 <header>
-    <div class="app-title">BMFont Gen <span>v3.30 Cocos Stable Digit Cell</span></div>
+    <div class="app-title">BMFont Gen <span>v3.31 / Tool 1.3.1</span></div>
     <div class="author-tag">Author: 小魚骨頭</div>
 </header>
 
@@ -421,14 +421,15 @@
                 else if (type === 'number') state.config[key] = parseFloat(e.target.value);
                 else state.config[key] = e.target.value;
                 
-                packAndDraw(); renderPreview();
+                if (!key.startsWith('sim') && key !== 'previewText') packAndDraw();
+                renderPreview();
             });
         });
         
         els.fileInput.addEventListener('change', handleFileUpload);
         els.folderInput.addEventListener('change', handleFileUpload);
         els.configInput.addEventListener('change', handleConfigLoad);
-        document.getElementById('exportBtn').addEventListener('click', exportZip);
+        document.getElementById('exportBtn').addEventListener('click', () => exportZip().catch(error => alert(error.message || String(error))));
         
         els.countBtn.addEventListener('click', () => {
             state.isCounting = !state.isCounting;
@@ -566,6 +567,10 @@
         // 支援：0.png、num_0.png、digit-0.png；資料夾匯入時改讀 basename，不受路徑影響。
         // Windows 複製檔常會產生 NUM_X-1.png / NUM_X-2.png；此處把尾碼視為副本編號，字元仍是 X。
         const baseName = (file.name || '').replace(/\.[^/.]+$/, '');
+        const aliases = { dot: '.', comma: ',', space: ' ', plus: '+', minus: '-', dollar: '$' };
+        if (Object.prototype.hasOwnProperty.call(aliases, baseName.toLowerCase())) return aliases[baseName.toLowerCase()];
+        const unicodeName = baseName.match(/^u(?:ni)?[_-]?([0-9a-f]{4,6})$/i);
+        if (unicodeName && parseInt(unicodeName[1], 16) <= 0x10ffff) return String.fromCodePoint(parseInt(unicodeName[1], 16));
         const copySuffixMatch = baseName.match(/(?:^|_)([^_\s-])-([1-9]\d*)$/u);
         if (copySuffixMatch) return copySuffixMatch[1];
         const match = baseName.match(/([^\s_\-])$/u);
@@ -606,7 +611,7 @@
             try {
                 const img = await loadImage(file);
                 const charStr = guessCharFromFileName(file);
-                const charCode = charStr.charCodeAt(0);
+                const charCode = charStr.codePointAt(0);
 
                 const existingGlyph = state.glyphs.find(g => g.charCode === charCode);
                 if (existingGlyph) {
@@ -614,6 +619,7 @@
                     existingGlyph.width = img.width;
                     existingGlyph.height = img.height;
                     existingGlyph.rawTrim = { x:0, y:0, w:img.width, h:img.height };
+                    existingGlyph.trimSource = null;
                     existingGlyph.sourceName = file.name || '';
                     const glyphCard = document.getElementById('g-' + existingGlyph.id);
                     const preview = glyphCard ? glyphCard.querySelector('.glyph-preview img') : null;
@@ -763,7 +769,7 @@
             <div style="display:flex; flex-direction:column; gap:4px; margin-top:4px;">
                 <div style="display:flex; align-items:center; background:#111; border:1px solid #333; border-radius:3px; padding:2px;">
                     <span style="font-size:10px; color:#888; margin:0 2px; width: 14px; text-align: center; font-weight:bold;">字</span>
-                    <input class="glyph-input" value="${glyph.char}" maxlength="1" onfocus="this.select()" style="flex:1; width:100%; min-width:0; background:none; border:none; color:#fff; text-align:center;">
+                    <input class="glyph-input" value="" onfocus="this.select()" style="flex:1; width:100%; min-width:0; background:none; border:none; color:#fff; text-align:center;">
                 </div>
                 <div style="display:flex; align-items:center; background:#111; border:1px solid #333; border-radius:3px; padding:2px; gap:2px;">
                     <span style="font-size:10px; color:#3794ff; margin:0 2px; width: 14px; text-align: center; font-weight:bold;">X</span>
@@ -785,11 +791,13 @@
                     <button class="mini-btn" onclick="resetGlyphAdvance('${glyph.id}')" title="恢復自動字寬">A</button>
                 </div>
             </div>`;
+        div.querySelector('.glyph-input').value = glyph.char;
         div.querySelector('.glyph-input').addEventListener('input', e => {
             if(e.target.value) {
                 const oldChar = glyph.char;
-                const newChar = e.target.value;
-                const newCharCode = newChar.charCodeAt(0);
+                const newChar = Array.from(e.target.value)[0];
+                e.target.value = newChar;
+                const newCharCode = newChar.codePointAt(0);
                 const duplicate = state.glyphs.find(g => g.id !== glyph.id && g.charCode === newCharCode);
                 if (duplicate) {
                     e.target.value = oldChar;
@@ -833,15 +841,33 @@
 
     // 🌟 核心計算引擎重構：獨立處理 X 與 Y 的裁切邏輯
     function packAndDraw() {
+        state.packError = '';
+        try { packAndDrawUnsafe(); return true; }
+        catch (error) {
+            state.packError = error.message || String(error);
+            els.mainCanvas.width = 0; els.mainCanvas.height = 0;
+            if (els.metricStatus) els.metricStatus.textContent = `無法包圖：${state.packError}`;
+            if (els.importStatus) els.importStatus.textContent = `無法包圖：${state.packError}`;
+            return false;
+        }
+    }
+
+    function packAndDrawUnsafe() {
         if(!state.glyphs.length) { els.mainCtx.clearRect(0,0,els.mainCanvas.width,els.mainCanvas.height); els.atlasSizeDisplay.textContent = "0 x 0"; return; }
-        const scale = parseFloat(state.config.exportScale) || 1.0;
+        const scale = Number(state.config.exportScale);
+        const atlasLimit = 4096;
+        if (!Number.isFinite(scale) || scale <= 0 || !Number.isInteger(state.config.padding) || state.config.padding < 0) throw new Error('縮放必須大於 0，間距必須是非負整數。');
+        if (!Number.isFinite(Number(state.config.fontSize)) || Number(state.config.fontSize) <= 0) throw new Error('字體大小必須大於 0。');
 
         let globalMinY = Infinity; let maxImgH = 0; 
         
         // 1. 計算原始邊界
         state.glyphs.forEach(g => {
             if (g.height > maxImgH) maxImgH = g.height;
-            g.rawTrim = calculateRawTrim(g.img);
+            if (g.trimSource !== g.img) {
+                g.rawTrim = calculateRawTrim(g.img);
+                g.trimSource = g.img;
+            }
             if (g.rawTrim.empty) g.rawTrim = {x:0, y:0, w:0, h:0, empty:true};
         });
 
@@ -972,6 +998,8 @@
             
             g.packW = g.exDrawW + state.config.padding; 
             g.packH = g.exDrawH + state.config.padding;
+            if (![g.exW, g.exDrawW, g.exDrawH, g.exOffX, g.exOffY].every(Number.isFinite)) throw new Error(`字元「${g.char}」的寬度或偏移無效，請檢查設定檔。`);
+            if (g.exDrawW + state.config.padding * 2 > atlasLimit || g.exDrawH + state.config.padding * 2 > atlasLimit) throw new Error(`字元「${g.char}」超過 ${atlasLimit}px 貼圖上限，請縮小匯出比例或原圖。`);
         });
 
         const list = [...state.glyphs].sort((a,b)=>b.packH-a.packH);
@@ -1003,9 +1031,11 @@
                 let simH = cy + rh + state.config.padding; let containerW = testW; let containerH = simH;
                 if (state.config.powerOfTwo) containerH = Math.pow(2, Math.ceil(Math.log2(Math.max(1, simH))));
                 if (state.config.forceSquare) { let maxDim = Math.max(containerW, containerH); if (state.config.powerOfTwo) maxDim = Math.pow(2, Math.ceil(Math.log2(maxDim))); containerW = maxDim; containerH = maxDim; }
+                if (containerW > atlasLimit || containerH > atlasLimit) continue;
                 let score = state.config.forceSquare ? containerW : (containerW * containerH);
                 if (score < bestArea) { bestArea = score; bestPack = { w: containerW, h: containerH, rects: rects }; }
             }
+            if (!bestPack) throw new Error(`圖集無法排入 ${atlasLimit}×${atlasLimit}，請縮小匯出比例或減少字元。`);
             finalW = bestPack.w; finalH = bestPack.h; bestPack.rects.forEach(r => { r.g.rect = {x: r.x, y: r.y, w: r.w, h: r.h}; });
         } else {
             const maxW = state.config.maxWidth; let cX = state.config.padding, cY = state.config.padding, rH = 0, actualMaxW = state.config.padding; 
@@ -1018,6 +1048,7 @@
             finalW = actualMaxW; finalH = cY + rH + state.config.padding;
         }
 
+        if (!Number.isFinite(finalW) || !Number.isFinite(finalH) || finalW > atlasLimit || finalH > atlasLimit) throw new Error(`圖集超過 ${atlasLimit}×${atlasLimit}，請縮小匯出比例或減少字元。`);
         els.mainCanvas.width = finalW; els.mainCanvas.height = finalH; els.atlasSizeDisplay.textContent = `${finalW} x ${finalH}`; els.mainCtx.clearRect(0,0,finalW,finalH);
 
         state.glyphs.forEach(g => {
@@ -1066,7 +1097,8 @@
     }
 
     function renderPreview() {
-        const ctx = els.previewCtx; const cvs = els.previewCanvas; 
+        const ctx = els.previewCtx; const cvs = els.previewCanvas;
+        if (state.packError) { ctx.clearRect(0, 0, cvs.width, cvs.height); return; }
         const text = state.config.previewText || ""; 
         const scale = parseFloat(state.config.exportScale) || 1.0; 
         const lh = getMetricLineHeight(scale);
@@ -1132,6 +1164,8 @@
 
     async function exportZip() {
         if(!state.glyphs.length) { alert("無資料"); return; }
+        if (!packAndDraw()) { alert(state.packError); return; }
+        if (typeof JSZip === 'undefined') { alert('ZIP 元件未載入，請完整解壓工具資料夾後重新開啟。'); return; }
         const duplicateChars = getDuplicateCharCodes();
         if (duplicateChars.length > 0) {
             alert(`無法匯出：重複字元 ${duplicateChars.map(ch => `「${ch}」`).join('、')}。請移除重複項目。`);
@@ -1168,8 +1202,10 @@
 
         const zip = new JSZip(); zip.file(`${finalName}.fnt`, fnt);
         const pngBlob = await new Promise(r => els.mainCanvas.toBlob(r)); zip.file(`${finalName}.png`, pngBlob);
+        if (!pngBlob) throw new Error('PNG 編碼失敗，請縮小圖集。');
         const content = await zip.generateAsync({type:"blob"});
         const a = document.createElement('a'); a.href = URL.createObjectURL(content); a.download = `${finalName}.zip`; a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     }
 
     init();

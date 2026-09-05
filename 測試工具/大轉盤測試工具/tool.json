@@ -2,8 +2,8 @@
   "id": "6e2c8a665de55177-59278f4976e46e2c8a665de55177",
   "name": "大轉盤測試工具",
   "category": "測試工具",
-  "description": "",
-  "version": "1.0.0",
+  "description": "轉盤素材、指針與抽獎節奏預覽；可儲存與載入轉盤專案。",
+  "version": "1.0.1",
   "path": "測試工具/大轉盤測試工具",
   "entry": "wheel_tester.html",
   "icon": "",
@@ -11,7 +11,9 @@
     "測試工具",
     "大轉盤測試工具"
   ],
-  "updatedAt": "2026-06-11",
+  "updatedAt": "2026-09-05",
   "size": "8.8 MB",
-  "changelog": []
+  "changelog": [
+    "修正預設轉盤分格與圖面不同步，保存底圖來源狀態並增加專案防錯。"
+  ]
 }

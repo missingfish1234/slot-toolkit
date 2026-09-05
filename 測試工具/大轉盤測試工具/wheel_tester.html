@@ -653,6 +653,7 @@
     els.fileWheel.addEventListener('change', (e) => {
         const files = Array.from(e.target.files);
         if(!files.length) return;
+        ctx.usingDefaultWheel = false;
         files.sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
         ctx.wheelImages = new Array(files.length).fill(null);
         let loaded = 0;
@@ -974,7 +975,7 @@
     els.restoreSlicesBtn.addEventListener('click', () => { setSegmentOrderIdentity(); rebuildSegmentedWheel(); });
     
     els.segments.addEventListener('change', ()=>{ 
-        if(ctx.wheelImages.length === 0 && !els.wheelImage.getAttribute('src').startsWith('data')) createDefaultWheel(); 
+        if(ctx.usingDefaultWheel && !els.useSegments.checked) createDefaultWheel();
         drawOverlay(parseInt(els.segments.value)||12); drawSeamLines(parseInt(els.segments.value)||12); resetPool();
         if(els.useSegments.checked) { ensureSegmentOrder(); rebuildSegmentedWheel(); }
     });
@@ -1028,7 +1029,7 @@
                 overlay: els.showOverlay.checked
             },
             images: { 
-                bg: els.bgImage.src, wheel: els.wheelImage.src, wheelImages: ctx.wheelImages, slices: ctx.segmentImages, 
+                bg: els.bgImage.src, wheel: els.wheelImage.src, wheelImages: ctx.wheelImages, usingDefaultWheel: !!ctx.usingDefaultWheel, slices: ctx.segmentImages,
                 ptr: els.ptrImg.src, ui: els.uiImage.src, font: ctx.customFontUrl,
                 winImages: ctx.winImages 
             }
@@ -1043,6 +1044,8 @@
         reader.onload = (ev) => {
             try {
                 const proj = JSON.parse(ev.target.result); const s = proj.settings;
+                if(!s || !s.bg || !s.wheel || !s.ptr || !s.ui || !s.params || !proj.images) throw new Error('專案缺少設定或圖片資料');
+                ctx.usingDefaultWheel = proj.images.usingDefaultWheel === true;
                 els.bgScale.value = s.bg.scale; els.bgX.value = s.bg.x; els.bgY.value = s.bg.y; els.bgOp.value = s.bg.op;
                 els.wheelSize.value = s.wheel.size; els.wheelX.value = s.wheel.x; els.wheelY.value = s.wheel.y; els.imgOffset.value = s.wheel.angle;
                 els.ptrPos.value = s.ptr.pos; els.ptrOffset.value = s.ptr.offset; els.ptrSize.value = s.ptr.size; els.ptrPivotX.value = s.ptr.px; els.ptrPivotY.value = s.ptr.py;
@@ -1129,6 +1132,7 @@
     }
 
     function createDefaultWheel() {
+        ctx.usingDefaultWheel = true;
         const segs=parseInt(els.segments.value)||12, size=600, cvs=document.createElement('canvas'), c=cvs.getContext('2d');
         cvs.width=size; cvs.height=size; const cx=size/2, cy=size/2, r=size*0.48;
         for(let i=0; i<segs; i++) {
@@ -1246,7 +1250,7 @@
         const prizeIdx = Number.isFinite(ctx.winnerPrizeIndex) ? ctx.winnerPrizeIndex : idx;
         const rw=els.rewards.value.split(/[,，\n]/).map(s=>s.trim()).filter(s=>s);
         const txt=rw[prizeIdx]||`#${prizeIdx+1}`; 
-        els.hud.innerHTML=`Result: <b style="color:#fff">${txt}</b>`;
+        els.hud.textContent=`Result: ${txt}`;
         
         if(els.showWinPopup.checked) {
             if (els.popupType.value === 'image' && ctx.winImages.length > 0) {

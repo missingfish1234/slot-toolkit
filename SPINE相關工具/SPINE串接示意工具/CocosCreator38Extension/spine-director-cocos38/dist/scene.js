@@ -159,25 +159,29 @@ function getSceneNodePath(node) {
     return names.join('/');
 }
 
-function describeTimelineNode(node, cc) {
+function describeTimelineTransform(node, cc) {
     const opacity = getComponent(node, cc.UIOpacity);
+    return {
+        x: Number(node.position.x) || 0,
+        y: Number(node.position.y) || 0,
+        z: Number(node.position.z) || 0,
+        rx: Number(node.eulerAngles.x) || 0,
+        ry: Number(node.eulerAngles.y) || 0,
+        rz: Number(node.eulerAngles.z) || 0,
+        sx: Number(node.scale.x) || 0,
+        sy: Number(node.scale.y) || 0,
+        sz: Number(node.scale.z) || 0,
+        active: node.active !== false,
+        opacity: opacity ? Number(opacity.opacity) : 255
+    };
+}
+
+function describeTimelineNode(node, cc) {
     return {
         nodeUuid: node.uuid,
         nodeName: node.name,
         nodePath: getSceneNodePath(node),
-        transform: {
-            x: Number(node.position.x) || 0,
-            y: Number(node.position.y) || 0,
-            z: Number(node.position.z) || 0,
-            rx: Number(node.eulerAngles.x) || 0,
-            ry: Number(node.eulerAngles.y) || 0,
-            rz: Number(node.eulerAngles.z) || 0,
-            sx: Number(node.scale.x) || 0,
-            sy: Number(node.scale.y) || 0,
-            sz: Number(node.scale.z) || 0,
-            active: node.active !== false,
-            opacity: opacity ? Number(opacity.opacity) : 255
-        },
+        transform: describeTimelineTransform(node, cc),
         capabilities: componentCapabilities(node, cc)
     };
 }
@@ -460,6 +464,7 @@ exports.methods = {
             return { ok: false, updated: 0 };
         }
         let updated = 0;
+        const appliedNodes = [];
         for (const item of payload.states) {
             const node = findNodeByUuid(scene, item.nodeUuid);
             if (!node) continue;
@@ -512,8 +517,12 @@ exports.methods = {
                 !!payload.playing
             );
             updated += 1;
+            appliedNodes.push(node);
         }
-        return { ok: true, updated, time: Number(payload.time) || 0 };
+        const transforms = appliedNodes.map((node) => ({
+            nodeUuid: node.uuid, transform: describeTimelineTransform(node, cc)
+        }));
+        return { ok: true, updated, time: Number(payload.time) || 0, transforms };
     },
 
     restoreNativeTimeline() {

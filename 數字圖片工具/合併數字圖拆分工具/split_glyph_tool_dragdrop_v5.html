@@ -215,7 +215,7 @@
   </section>
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="vendor/jszip-3.10.1.min.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 const fileInput = $("file");
@@ -239,6 +239,15 @@ let results = [];
 function valNum(id){ return Number($(id).value || 0); }
 function charsArray(){
   return Array.from($("chars").value.trim());
+}
+function glyphFileStem(char){
+  if(char === '.') return 'dot';
+  if(char === ',') return 'comma';
+  return /^[A-Z0-9_$+-]$/.test(char) ? char : `u${char.codePointAt(0).toString(16).padStart(4, '0')}`;
+}
+function validateGlyphSequence(chars){
+  const names = chars.map(glyphFileStem).map(name => name.toLowerCase());
+  return new Set(names).size === names.length;
 }
 function median(values){
   const a = values.slice().sort((x,y)=>x-y);
@@ -418,6 +427,7 @@ function makeGlyphCanvas(char, run, targetW, targetH, bg, globalTop){
 }
 function split(){
   err.textContent = "";
+  $("zipBtn").disabled = true;
   out.innerHTML = "";
   results = [];
   if(!srcImg){
@@ -429,6 +439,10 @@ function split(){
     err.textContent = "請先輸入字元順序。";
     return;
   }
+  if (!validateGlyphSequence(chars)) {
+    err.textContent = '字元重複或輸出檔名衝突（Windows 不區分大小寫），請修正字元順序。';
+    return;
+  }
 
   const imgData = srcCtx.getImageData(0,0,srcCanvas.width,srcCanvas.height);
   const {mask,bg,mode} = buildMask(imgData, srcCanvas.width, srcCanvas.height);
@@ -437,6 +451,8 @@ function split(){
 
   if(runs.length !== chars.length){
     err.textContent = `偵測到 ${runs.length} 個圖形，但字元順序有 ${chars.length} 個字。\n請調整「字元順序 / 容差 / 合併小間隙 / 忽略窄雜訊」。`;
+    runsDiv.textContent = '數量不一致，已停止配對與匯出，避免錯字。';
+    return;
   }
 
   const pairCount = Math.min(runs.length, chars.length);
@@ -475,7 +491,7 @@ function split(){
     else w = p.run.w + letterPad*2;
 
     const c = makeGlyphCanvas(p.char, p.run, Math.max(1,w), Math.max(1,targetH), bg, globalTop);
-    const safeName = p.char === "." ? "dot" : p.char === "," ? "comma" : p.char;
+    const safeName = glyphFileStem(p.char);
     results.push({char:p.char, name:safeName, canvas:c});
 
     const tile = document.createElement("div");
@@ -510,15 +526,20 @@ function downloadCanvas(canvas, filename){
     a.href = URL.createObjectURL(blob);
     a.download = filename;
     a.click();
-    URL.revokeObjectURL(a.href);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }, "image/png");
 }
 async function downloadZip(){
+  if (!results.length || downloadZip.busy) return;
   if(typeof JSZip === "undefined"){
     err.textContent = "JSZip 載入失敗，請確認網路連線，或改用單張下載。";
     return;
   }
 
+  downloadZip.busy = true;
+  $("zipBtn").disabled = true;
+  const snapshot = results.slice();
+  try {
   // 優先使用檔案系統另存 API。必須在按鈕點擊後、任何 await 之前
   // 先開啟選擇器，才能保留瀏覽器要求的使用者操作權限。
   let fileHandle = null;
@@ -540,10 +561,12 @@ async function downloadZip(){
   }
 
   const zip = new JSZip();
-  for(const r of results){
+  for(const r of snapshot){
     const blob = await new Promise(resolve => r.canvas.toBlob(resolve, "image/png"));
+    if (!blob) throw new Error(`無法編碼字元 ${r.char}`);
     zip.file(`${r.name}.png`, blob);
   }
+  zip.file('glyph-map.json', JSON.stringify({schema: 'glyph-map@1', glyphs: snapshot.map(r => ({file: `${r.name}.png`, char: r.char, codePoint: r.char.codePointAt(0)}))}, null, 2));
   const content = await zip.generateAsync({type:"blob"});
 
   if(fileHandle){
@@ -563,7 +586,9 @@ async function downloadZip(){
   a.href = URL.createObjectURL(content);
   a.download = "split_glyphs.zip";
   a.click();
-  URL.revokeObjectURL(a.href);
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  } catch(e) { err.textContent = `ZIP 匯出失敗：${e.message || e}`; }
+  finally { downloadZip.busy = false; $("zipBtn").disabled = results.length === 0; }
 }
 function setLoadedState(){
   $("splitBtn").disabled = false;
@@ -601,7 +626,8 @@ function loadImageFile(file){
 }
 
 function loadSavedCharsDefault(){
-  const saved = localStorage.getItem(CHARS_DEFAULT_KEY);
+  let saved = null;
+  try { saved = localStorage.getItem(CHARS_DEFAULT_KEY); } catch (_) { return; }
   if(saved !== null && saved !== ""){
     charsInput.value = saved;
   }
@@ -612,7 +638,8 @@ function saveCharsDefault(){
     charsDefaultTip.textContent = "字元順序是空的，無法設定成預設。";
     return;
   }
-  localStorage.setItem(CHARS_DEFAULT_KEY, value);
+  try { localStorage.setItem(CHARS_DEFAULT_KEY, value); }
+  catch (_) { charsDefaultTip.textContent = '瀏覽器不允許保存設定；本次仍可使用。'; return; }
   charsInput.value = value;
   charsDefaultTip.textContent = "已設定成預設字元順序。";
   window.clearTimeout(saveCharsDefault._timer);

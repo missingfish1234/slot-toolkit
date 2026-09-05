@@ -2,8 +2,8 @@
   "id": "sharder-unity-unity-756b9762958352d56b985f716548679c",
   "name": "Unity_畫面閃動殘影效果",
   "category": "Sharder",
-  "description": "",
-  "version": "1.0.0",
+  "description": "Unity Built-in Camera 全畫面殘影與閃光後處理。",
+  "version": "1.0.1",
   "path": "Sharder/Unity/Unity_畫面閃動殘影效果",
   "entry": "",
   "icon": "",
@@ -11,7 +11,10 @@
     "Sharder",
     "Unity_畫面閃動殘影效果"
   ],
-  "updatedAt": "2026-06-11",
+  "updatedAt": "2026-09-05",
   "size": "48.1 KB",
-  "changelog": []
+  "changelog": [
+    "History 增加可選解析度倍率與來源色彩格式，預設維持原 ARGB32 全尺寸。"
+  ],
+  "documentation": "README_更新與安裝.md"
 }

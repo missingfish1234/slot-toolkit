@@ -2,8 +2,8 @@
   "id": "sharder-cocos-7c925b506de151656de151fa-767c5149",
   "name": "粒子淡入淡出_發光",
   "category": "Sharder",
-  "description": "",
-  "version": "1.0.0",
+  "description": "Cocos Creator 3.8 ParticleSystem2D 的生命週期淡入淡出與發光。",
+  "version": "1.0.1",
   "path": "Sharder/COCOS/粒子淡入淡出_發光",
   "entry": "",
   "icon": "",
@@ -11,7 +11,10 @@
     "Sharder",
     "粒子淡入淡出_發光"
   ],
-  "updatedAt": "2026-06-11",
+  "updatedAt": "2026-09-05",
   "size": "3.4 MB",
-  "changelog": []
+  "changelog": [
+    "保護淡入／淡出端點及倒置參數，附可重現的初始設定。"
+  ],
+  "documentation": "README_更新與安裝.md"
 }

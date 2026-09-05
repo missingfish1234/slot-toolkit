@@ -7,7 +7,7 @@ from typing import Any
 
 
 APP_NAME = "小魚骨頭工作包管理器"
-APP_VERSION = "1.1.7"
+APP_VERSION = "1.2.0"
 INDEX_FILE_NAME = "tools-index.json"
 CATEGORY_SEPARATOR = " / "
 CATEGORY_ROOT_ORDER = [
@@ -73,6 +73,10 @@ class AppConfig:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "AppConfig":
         defaults = cls()
+        try:
+            minutes = max(1, min(1440, int(data.get("auto_check_minutes", defaults.auto_check_minutes))))
+        except (ValueError, TypeError):
+            minutes = defaults.auto_check_minutes
         return cls(
             github_owner=str(data.get("github_owner") or defaults.github_owner),
             github_repo=str(data.get("github_repo") or defaults.github_repo),
@@ -82,7 +86,7 @@ class AppConfig:
             admin_tools_root=str(data.get("admin_tools_root", defaults.admin_tools_root)),
             admin_password=str(data.get("admin_password", defaults.admin_password)),
             auto_check_on_start=bool(data.get("auto_check_on_start", defaults.auto_check_on_start)),
-            auto_check_minutes=int(data.get("auto_check_minutes", defaults.auto_check_minutes)),
+            auto_check_minutes=minutes,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -117,9 +121,18 @@ class ToolInfo:
     updated_at: str = ""
     size: str = ""
     changelog: list[str] = field(default_factory=list)
+    download_url: str = ""
+    sha256: str = ""
+    kind: str = ""
+    preserve_paths: list[str] = field(default_factory=lambda: ["user-data", "outputs", "presets", "config.json", "settings.json"])
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ToolInfo":
+        if not isinstance(data, dict):
+            raise ValueError("工具項目必須是物件。")
+        for key in ("tags", "changelog", "preservePaths"):
+            if key in data and not isinstance(data[key], list):
+                raise ValueError(f"{key} 必須是陣列。")
         return cls(
             id=str(data.get("id") or slugify(str(data.get("name", "tool")))),
             name=str(data.get("name", "")),
@@ -133,6 +146,10 @@ class ToolInfo:
             updated_at=str(data.get("updatedAt") or data.get("updated_at") or ""),
             size=str(data.get("size", "")),
             changelog=[str(item) for item in data.get("changelog", [])],
+            download_url=str(data.get("downloadUrl", "")),
+            sha256=str(data.get("sha256", "")),
+            kind=str(data.get("kind", "")),
+            preserve_paths=[normalize_slash(str(item)) for item in data.get("preservePaths", ["user-data", "outputs", "presets", "config.json", "settings.json"])],
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -149,6 +166,10 @@ class ToolInfo:
             "updatedAt": self.updated_at,
             "size": self.size,
             "changelog": self.changelog,
+            "downloadUrl": self.download_url,
+            "sha256": self.sha256,
+            "kind": self.kind,
+            "preservePaths": self.preserve_paths,
         }
 
 
@@ -156,18 +177,26 @@ class ToolInfo:
 class ToolIndex:
     updated_at: str
     tools: list[ToolInfo]
+    source_revision: str = ""
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ToolIndex":
+        if not isinstance(data, dict) or not isinstance(data.get("tools"), list):
+            raise ValueError("工具索引必須包含 tools 陣列。")
+        ids = [item.get("id") for item in data["tools"] if isinstance(item, dict)]
+        if len(ids) != len(data["tools"]) or any(not isinstance(value, str) or not value for value in ids) or len(ids) != len(set(ids)):
+            raise ValueError("工具索引包含無效或重複的識別碼。")
         return cls(
             updated_at=str(data.get("updatedAt") or data.get("updated_at") or ""),
             tools=[ToolInfo.from_dict(item) for item in data.get("tools", [])],
+            source_revision=str(data.get("sourceRevision", "")),
         )
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "updatedAt": self.updated_at or datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "tools": [tool.to_dict() for tool in self.tools],
+            "sourceRevision": self.source_revision,
         }
 
 
@@ -204,6 +233,7 @@ class ManagerRelease:
     body: str
     asset_name: str
     asset_url: str
+    sha256: str = ""
 
 
 def normalize_slash(value: str) -> str:

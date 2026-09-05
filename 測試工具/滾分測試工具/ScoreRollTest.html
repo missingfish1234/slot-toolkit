@@ -178,6 +178,7 @@ let viewState = {
     lastMouseY: 0
 };
 let animState = {
+    frameId: null,
     isRunning: false,
     startTime: 0,
     startVal: 0,
@@ -230,9 +231,14 @@ document.getElementById('btnRun').onclick = () => {
         alert("請先載入 .fnt 和 .png 字型檔案！");
         return;
     }
-    const sv = parseInt(document.getElementById('startVal').value, 10);
-    const tv = parseInt(document.getElementById('targetVal').value, 10);
+    const sv = Number(document.getElementById('startVal').value);
+    const tv = Number(document.getElementById('targetVal').value);
     const dur = parseFloat(document.getElementById('duration').value) * 1000;
+    const invalidGlyph=Object.entries(resources.fontData.chars).find(([id,c])=>c.x<0||c.y<0||c.w<0||c.h<0||c.x+c.w>resources.fontImg.width||c.y+c.h>resources.fontImg.height);
+    if(invalidGlyph){alert('字型字碼 '+invalidGlyph[0]+' 超出 PNG 圖集範圍，請確認 FNT 與 PNG 是同一組。');return;}
+    if(!Number.isSafeInteger(sv) || !Number.isSafeInteger(tv) || !Number.isFinite(dur) || dur <= 0) {
+        alert('分數必須是安全整數，秒數必須大於 0。'); return;
+    }
     
     startAnimation(sv, tv, dur);
 };
@@ -307,6 +313,11 @@ function parseFnt(text) {
             };
         }
     });
+    if(!lineHeight || !Object.keys(chars).length) { alert('無法讀取字型：目前只支援 BMFont text 格式。'); return; }
+    const pages = text.match(/\bpages=(\d+)/);
+    if(pages && Number(pages[1]) !== 1) { alert('此預覽只支援單頁 BMFont。請使用單一 PNG 圖集。'); return; }
+    const missing = '0123456789,'.split('').filter(c => !chars[c.charCodeAt(0)]);
+    if(missing.length) alert('字型缺少滾分字元：' + missing.join(' ') + '；缺字將不會繪出。');
     resources.fontData = { chars, lineHeight };
     updatePreview();
 }
@@ -376,6 +387,7 @@ window.addEventListener('drop', (e) => {
 
 // --- 動畫 ---
 function startAnimation(start, end, duration) {
+    stopAnimation(false);
     animState.startVal = start;
     animState.endVal = end;
     animState.currentVal = start;
@@ -385,10 +397,27 @@ function startAnimation(start, end, duration) {
     animState.startTime = performance.now();
     animState.isRunning = true;
     
-    requestAnimationFrame(loop);
+    animState.frameId = requestAnimationFrame(loop);
 }
 
+function stopAnimation(redraw = true) {
+    if(animState.frameId !== null) cancelAnimationFrame(animState.frameId);
+    animState.frameId = null;
+    animState.isRunning = false;
+    if(redraw) draw(0);
+}
+const stopButton = document.createElement('button');
+stopButton.textContent = '停止滾分';
+stopButton.onclick = () => stopAnimation();
+document.getElementById('btnRun').insertAdjacentElement('afterend', stopButton);
+const scopeNote = document.createElement('p');
+scopeNote.textContent = '此工具使用固定倍率 Canvas 預覽，非 Cocos SHRINK 驗證。字距／縮放請另以 Cocos 內滾分 QA 插件確認。';
+scopeNote.style.cssText = 'font-size:12px;color:#aaa;line-height:1.5';
+stopButton.insertAdjacentElement('afterend', scopeNote);
+window.addEventListener('pagehide', () => stopAnimation(false));
+
 function loop(time) {
+    animState.frameId = null;
     if (!animState.isRunning) return;
     
     const elapsed = time - animState.startTime;
@@ -406,7 +435,7 @@ function loop(time) {
     draw(velocity);
 
     if (progress < 1) {
-        requestAnimationFrame(loop);
+        animState.frameId = requestAnimationFrame(loop);
     } else {
         animState.isRunning = false;
         animState.currentVal = animState.endVal;

@@ -15,6 +15,10 @@ function round(value, digits = 3) {
     return Number(finite(value).toFixed(digits));
 }
 
+function fontSignature(target) {
+    return JSON.stringify([target.fontUuid || target.fontName, target.fontSize, target.lineHeight, target.spacingX, target.overflow]);
+}
+
 function summarize(samples, target) {
     const actual = samples.map((item) => finite(item.actualFontSize, NaN)).filter(Number.isFinite);
     const ratios = samples.map((item) => finite(item.scaleRatio, NaN)).filter(Number.isFinite);
@@ -22,17 +26,17 @@ function summarize(samples, target) {
     const widthsByLength = new Map();
     for (const item of samples) {
         if (!Number.isFinite(item.renderWidth)) continue;
-        const key = String(item.text).length;
+        const key = String(item.text).replace(/[0-9]/g, 'D');
         if (!widthsByLength.has(key)) widthsByLength.set(key, []);
         widthsByLength.get(key).push(item);
     }
     const widthDrift = [];
-    for (const [length, items] of widthsByLength) {
+    for (const [format, items] of widthsByLength) {
         const values = items.map((item) => item.renderWidth);
         const min = Math.min(...values);
         const max = Math.max(...values);
         if (max - min > 1) {
-            widthDrift.push({ length, min: round(min), max: round(max), delta: round(max - min) });
+            widthDrift.push({ format, length: format.length, min: round(min), max: round(max), delta: round(max - min) });
         }
     }
     return {
@@ -233,14 +237,18 @@ module.exports = Editor.Panel.define({
             await this.refreshTarget();
         },
 
-        async refreshTarget() {
+        async refreshTarget(expectedRunId = this.runId) {
             if (!this.target) return;
             try {
-                this.target = await Editor.Message.request(packageJSON.name, 'inspect-target', this.target);
+                const current = await Editor.Message.request(packageJSON.name, 'inspect-target', this.target);
+                if (expectedRunId !== this.runId || this.closed) return;
+                if (fontSignature(current) !== fontSignature(this.target)) this.samples = [];
+                this.target = current;
                 const index = Number(this.$.targets.value);
                 if (this.labels[index]) this.labels[index] = this.target;
                 this.updateTargetInfo();
                 this.updateMetrics(this.target);
+                this.updateSummary();
                 this.setStatus('Label 資訊已更新', 'success');
             } catch (error) {
                 this.setStatus(error.message || String(error), 'error');
@@ -273,14 +281,25 @@ module.exports = Editor.Panel.define({
             };
         },
 
-        async apply(text, mode, progress) {
-            if (!this.target || this.requestBusy) return;
+        async apply(text, mode, progress, final = false) {
+            if (!this.target || (this.requestBusy && !final)) return false;
+            const runId = this.runId;
+            const target = this.target;
+            this.pendingRequests = (this.pendingRequests || 0) + 1;
             this.requestBusy = true;
-            try {
+            const operation = (this.requestChain || Promise.resolve()).then(async () => {
+              if (runId !== this.runId || this.closed) return false;
+              try {
                 const metrics = await Editor.Message.request(packageJSON.name, 'apply-text', {
-                    target: this.target,
+                    target,
                     text
                 });
+                if (runId !== this.runId || this.closed) return false;
+                if (fontSignature(metrics) !== fontSignature(this.target)) {
+                    this.samples = [];
+                    this.target = metrics;
+                    this.updateTargetInfo();
+                }
                 const sample = {
                     timeMs: Date.now(), mode, progress: round(progress, 4), text: metrics.text ?? text,
                     fontSize: metrics.fontSize,
@@ -295,17 +314,29 @@ module.exports = Editor.Panel.define({
                 if (this.samples.length > 6000) this.samples.shift();
                 this.updateMetrics(sample);
                 this.updateSummary();
+                return metrics;
             } catch (error) {
-                this.running = false;
-                this.setStatus(error.message || String(error), 'error');
-            } finally {
-                this.requestBusy = false;
+                if (runId === this.runId && !this.closed) {
+                    this.finishRun(error.message || String(error));
+                    this.setStatus(error.message || String(error), 'error');
+                }
+                return false;
+            }
+            });
+            this.requestChain = operation.catch(() => false);
+            try { return await operation; }
+            finally {
+                this.pendingRequests -= 1;
+                this.requestBusy = this.pendingRequests > 0;
             }
         },
 
         async startRoll() {
             if (!this.target) return;
-            this.cancelFrame();
+            const stopping = this.stopRun(false);
+            const runId = this.runId;
+            await stopping;
+            if (runId !== this.runId || this.closed) return;
             this.samples = [];
             this.running = true;
             this.paused = false;
@@ -326,7 +357,7 @@ module.exports = Editor.Panel.define({
             this.frameHandle = requestAnimationFrame((time) => this.tickRoll(time));
         },
 
-        tickRoll(now) {
+        async tickRoll(now) {
             if (!this.running || this.mode !== 'roll') return;
             if (this.paused) {
                 this.frameHandle = requestAnimationFrame((time) => this.tickRoll(time));
@@ -335,12 +366,17 @@ module.exports = Editor.Panel.define({
             const durationMs = Math.max(50, finite(this.$.duration.value, 2) * 1000);
             const raw = (now - this.startedAt) / durationMs;
             const progress = clamp(raw, 0, 1);
+            const runId = this.runId;
             const fps = clamp(finite(this.$.fps.value, MAX_SCENE_FPS), 1, MAX_SCENE_FPS);
             if (now - this.lastSentAt >= 1000 / fps || progress >= 1) {
                 const start = finite(this.$.startValue.value);
                 const end = finite(this.$.endValue.value);
                 const value = start + (end - start) * ease(this.$.easing.value, progress);
-                void this.apply(formatValue(value, this.options()), 'roll', progress);
+                const result = this.apply(formatValue(value, this.options()), 'roll', progress, progress >= 1);
+                if (progress >= 1) {
+                    const confirmed = await result;
+                    if (!confirmed || runId !== this.runId || !this.running) return;
+                }
                 this.lastSentAt = now;
             }
             if (raw >= 1) {
@@ -354,15 +390,19 @@ module.exports = Editor.Panel.define({
             this.frameHandle = requestAnimationFrame((time) => this.tickRoll(time));
         },
 
-        startStress() {
+        async startStress() {
             if (!this.target) return;
-            this.cancelFrame();
+            const stopping = this.stopRun(false);
+            const runId = this.runId;
+            await stopping;
+            if (runId !== this.runId || this.closed) return;
             this.samples = [];
             this.running = true;
             this.paused = false;
             this.mode = 'stress';
             this.startedAt = performance.now();
             this.stressIndex = -1;
+            this.nextStressAt = this.startedAt;
             this.$.start.disabled = true;
             this.$.stress.disabled = true;
             this.$.pause.disabled = false;
@@ -372,20 +412,23 @@ module.exports = Editor.Panel.define({
             this.frameHandle = requestAnimationFrame((time) => this.tickStress(time));
         },
 
-        tickStress(now) {
+        async tickStress(now) {
             if (!this.running || this.mode !== 'stress') return;
             if (this.paused) {
                 this.frameHandle = requestAnimationFrame((time) => this.tickStress(time));
                 return;
             }
-            const index = Math.floor((now - this.startedAt) / 550);
+            const index = this.stressIndex + 1;
             if (index >= STRESS_CASES.length) {
                 this.finishRun('壓力測試完成；請查看診斷結果。');
                 return;
             }
-            if (index !== this.stressIndex) {
+            if (now >= this.nextStressAt) {
+                const runId = this.runId;
                 this.stressIndex = index;
-                void this.apply(STRESS_CASES[index], 'stress', index / (STRESS_CASES.length - 1));
+                const confirmed = await this.apply(STRESS_CASES[index], 'stress', index / (STRESS_CASES.length - 1), true);
+                if (!confirmed || runId !== this.runId || !this.running) return;
+                this.nextStressAt = performance.now() + 550;
             }
             this.frameHandle = requestAnimationFrame((time) => this.tickStress(time));
         },
@@ -399,6 +442,7 @@ module.exports = Editor.Panel.define({
                 this.setStatus('已暫停');
             } else {
                 this.startedAt += performance.now() - this.pausedAt;
+                this.nextStressAt += performance.now() - this.pausedAt;
                 this.$.pause.textContent = '暫停';
                 this.setStatus(this.mode === 'stress' ? '壓力測試中…' : '滾分測試中…');
             }
@@ -416,13 +460,21 @@ module.exports = Editor.Panel.define({
         },
 
         async stopRun(restore = true) {
+            this.runId = (this.runId || 0) + 1;
+            const stopId = this.runId;
             this.running = false;
             this.cancelFrame();
-            this.$.start.disabled = !this.target;
-            this.$.stress.disabled = !this.target;
+            this.$.start.disabled = true;
+            this.$.stress.disabled = true;
             this.$.pause.disabled = true;
             this.$.stop.disabled = true;
-            if (restore) await this.restore();
+            await (this.requestChain || Promise.resolve());
+            if (stopId !== this.runId || this.closed) return;
+            if (restore) await this.restore(stopId);
+            if (stopId === this.runId && !this.closed) {
+                this.$.start.disabled = !this.target;
+                this.$.stress.disabled = !this.target;
+            }
         },
 
         cancelFrame() {
@@ -430,10 +482,14 @@ module.exports = Editor.Panel.define({
             this.frameHandle = 0;
         },
 
-        async restore() {
+        async restore(expectedRunId = this.runId) {
             try {
-                await Editor.Message.request(packageJSON.name, 'restore-preview');
-                if (this.target) await this.refreshTarget();
+                const operation = (this.requestChain || Promise.resolve()).then(() => Editor.Message.request(packageJSON.name, 'restore-preview'));
+                this.requestChain = operation.catch(() => false);
+                await operation;
+                if (expectedRunId !== this.runId || this.closed) return;
+                if (this.target) await this.refreshTarget(expectedRunId);
+                if (expectedRunId !== this.runId || this.closed) return;
                 this.setStatus('已還原測試前的 Label 字串', 'success');
             } catch (error) {
                 this.setStatus(error.message || String(error), 'error');
@@ -463,7 +519,7 @@ module.exports = Editor.Panel.define({
                 this.$.diagnosis.textContent = `偵測到 SHRINK：最小 actualFontSize ${round(summary.minimumActualFontSize)}（${round(summary.minimumScaleRatio * 100, 1)}%）`;
                 this.$.diagnosis.className = 'diagnosis fail';
             } else if (summary.sameLengthWidthDrift.length) {
-                this.$.diagnosis.textContent = '字級沒有縮小，但相同字數的渲染寬度不同；請檢查 BMFont xadvance／xoffset。';
+                this.$.diagnosis.textContent = '字級沒有縮小，但相同數字格式的字形外框寬度不同；請搭配 Label 框寬與字形左右邊距判讀。';
                 this.$.diagnosis.className = 'diagnosis warn';
             } else {
                 this.$.diagnosis.textContent = summary.renderWidthAvailable
@@ -505,6 +561,10 @@ module.exports = Editor.Panel.define({
         this.running = false;
         this.paused = false;
         this.requestBusy = false;
+        this.runId = 0;
+        this.pendingRequests = 0;
+        this.requestChain = Promise.resolve();
+        this.closed = false;
         this.frameHandle = 0;
         this.$.bind.addEventListener('click', () => void this.bindSelection());
         this.$.targets.addEventListener('change', () => void this.changeTarget(this.$.targets.value));
@@ -519,8 +579,10 @@ module.exports = Editor.Panel.define({
     },
 
     close() {
+        this.closed = true;
+        this.runId += 1;
         this.running = false;
         this.cancelFrame();
-        void Editor.Message.request(packageJSON.name, 'restore-preview').catch(() => {});
+        void (this.requestChain || Promise.resolve()).then(() => Editor.Message.request(packageJSON.name, 'restore-preview')).catch(() => {});
     }
 });

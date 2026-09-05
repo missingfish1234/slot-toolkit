@@ -271,10 +271,12 @@ CCProgram sprite-fs %{
 
     // ========= 彩虹扭曲 / Noise =========
     vec2 distortAnimUv = flowBaseUv * distortScale + cc_time.x * vec2(distortSpeedX, distortSpeedY);
-    float distortNoiseValue = fbm2(distortAnimUv) * 2.0 - 1.0;
+    float distortNoiseValue = 0.0;
+    if (abs(distortStrength) > 0.000001) distortNoiseValue = fbm2(distortAnimUv) * 2.0 - 1.0;
 
     vec2 noiseAnimUv = flowBaseUv * noiseScale + cc_time.x * vec2(noiseSpeedX, noiseSpeedY);
-    float noiseValue = fbm2(noiseAnimUv);
+    float noiseValue = 0.5;
+    if (abs(noiseStrength) > 0.000001) noiseValue = fbm2(noiseAnimUv);
     float noiseSigned = noiseValue * 2.0 - 1.0;
 
     // ========= 彩虹流光 =========

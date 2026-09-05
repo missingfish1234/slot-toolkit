@@ -2,8 +2,8 @@
   "id": "sharder-unity-unity87a25e55626d66f26548679c",
   "name": "UNITY螢幕扭曲效果",
   "category": "Sharder",
-  "description": "",
-  "version": "1.0.0",
+  "description": "Unity Built-in 的可定位螢幕扭曲 Shader 與 Prefab 控制器。",
+  "version": "1.0.1",
   "path": "Sharder/Unity/UNITY螢幕扭曲效果",
   "entry": "",
   "icon": "",
@@ -11,7 +11,10 @@
     "Sharder",
     "UNITY螢幕扭曲效果"
   ],
-  "updatedAt": "2026-06-11",
+  "updatedAt": "2026-09-05",
   "size": "6.2 KB",
-  "changelog": []
+  "changelog": [
+    "補齊 Built-in／GrabPass 限制、初始設定及驗收方式；保留 MaterialPropertyBlock 控制。"
+  ],
+  "documentation": "README_更新與安裝.md"
 }

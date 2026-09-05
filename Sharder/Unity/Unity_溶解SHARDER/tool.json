@@ -2,8 +2,8 @@
   "id": "sharder-unity-unity-6eb689e3sharder",
   "name": "Unity_溶解SHARDER",
   "category": "Sharder",
-  "description": "",
-  "version": "1.0.0",
+  "description": "Unity UGUI／Renderer／Spine 的多模式溶解與播放控制。",
+  "version": "1.0.1",
   "path": "Sharder/Unity/Unity_溶解SHARDER",
   "entry": "",
   "icon": "",
@@ -11,7 +11,10 @@
     "Sharder",
     "Unity_溶解SHARDER"
   ],
-  "updatedAt": "2026-06-11",
+  "updatedAt": "2026-09-05",
   "size": "27.4 KB",
-  "changelog": []
+  "changelog": [
+    "自建執行期材質明確追蹤所有權，停用／銷毀还原原材質並回收。"
+  ],
+  "documentation": "README_更新與安裝.md"
 }

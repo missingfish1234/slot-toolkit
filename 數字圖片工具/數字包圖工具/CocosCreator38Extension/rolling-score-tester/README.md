@@ -1,5 +1,16 @@
 # 滾分 QA 測試工具（Cocos Creator 3.8）
 
+## v1.2.1
+
+- 終值等待 Scene 確認後才顯示完成；中間幀可節流，最後一幀不會漏送。
+- 停止／重啟以 run-id 隔離，待舊寫入收尾才還原；壓力案例逐個確認。
+- 寬度依數字格式分組（D,DDD 與 D.DDL 分開）；換字型或排版參數清空舊樣本。
+- 字形外框寬度差異不等於 SHRINK，應一併判讀 actualFontSize 與 Label 框寬。
+
+本工具的唯一維護來源是工具包 COCOS內插件/CocosCreator38Extension/rolling-score-tester。上層 build.ps1 會先執行 npm test，再打版本 ZIP 並更新數字包圖工具中的相容副本。舊版 ZIP 保留。
+
+測試涵蓋格式化、面板／manifest、mock Scene 重繪、延遲終值、停止還原順序、過期回應、換字型與逐案壓力測試；不代表已驗收每個 Creator 場景、GPU 或第三方材質。
+
 ## v1.2.0
 
 - 每次變更字串時先標記 Label render data dirty，再立即重建 assembler。

@@ -2,8 +2,8 @@
   "id": "sharder-cocos-4e00822c5716724763835149",
   "name": "一般圖片掃光",
   "category": "Sharder",
-  "description": "",
-  "version": "1.0.0",
+  "description": "Cocos Creator 3.8 Sprite 圖片掃光材質與播放控制器。",
+  "version": "1.0.1",
   "path": "Sharder/COCOS/一般圖片掃光",
   "entry": "",
   "icon": "",
@@ -11,7 +11,10 @@
     "Sharder",
     "一般圖片掃光"
   ],
-  "updatedAt": "2026-06-11",
+  "updatedAt": "2026-09-05",
   "size": "5.4 KB",
-  "changelog": []
+  "changelog": [
+    "各 Sprite 預設隔離材質進度，加入 duration 保護及啟停重置。"
+  ],
+  "documentation": "README_更新與安裝.md"
 }

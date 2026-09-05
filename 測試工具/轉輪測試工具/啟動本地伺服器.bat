@@ -1,39 +1,25 @@
 @echo off
-echo ============================================
-echo    老虎機測試工具 - 本地伺服器啟動器
-echo ============================================
-echo.
-echo 這個批次檔案將啟動本地 HTTP 伺服器
-echo 以支援 Spine 動畫功能
-echo.
-echo 啟動後，請在瀏覽器中開啟:
-echo http://localhost:8000/slot_test.html
-echo.
-echo 按任意鍵啟動伺服器...
-pause > nul
-
-echo.
-echo 正在檢查 Python...
-python --version > nul 2>&1
-if %errorlevel% equ 0 (
-    echo 發現 Python，正在啟動 HTTP 伺服器...
-    cd /d "%~dp0"
-    python -m http.server 8000
-) else (
-    echo Python 未安裝，嘗試使用 Node.js...
-    node --version > nul 2>&1
-    if %errorlevel% equ 0 (
-        echo 發現 Node.js，正在檢查 http-server...
-        npm list -g http-server > nul 2>&1
-        if %errorlevel% neq 0 (
-            echo 安裝 http-server...
-            npm install -g http-server
-        )
-        cd /d "%~dp0"
-        http-server -p 8000
-    ) else (
-        echo 請安裝 Python 或 Node.js 來啟動本地伺服器
-        echo 或者手動下載 Spine Player 檔案到本地
-        pause
-    )
+setlocal
+chcp 65001 >nul
+cd /d "%~dp0"
+echo 轉輪工具本地伺服器：僅接受本機連線。
+where py >nul 2>nul
+if not errorlevel 1 (
+  py -3 serve_tool.py
+  goto :done
 )
+where python >nul 2>nul
+if not errorlevel 1 (
+  python serve_tool.py
+  goto :done
+)
+where node >nul 2>nul
+if not errorlevel 1 (
+  node serve_tool.js
+  goto :done
+)
+echo 請先安裝 Python 3 或 Node.js；本工具不會自動安裝全域套件。
+pause
+exit /b 1
+:done
+if errorlevel 1 pause

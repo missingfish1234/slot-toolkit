@@ -3,6 +3,12 @@ import subprocess
 import json
 import threading
 import shutil
+import queue
+import tempfile
+import math
+from pathlib import Path
+from conversion_safety import (ConversionCancelled, normalize_atlas_names, publish_output,
+                               run_spine, validate_output, validate_roots)
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext
 
@@ -34,6 +40,33 @@ class SpineConverterApp:
         self.default_spine_path = r"C:\Program Files\Spine\Spine.exe"
         
         self.create_widgets()
+        self.cancel_event = threading.Event()
+        self.ui_events = queue.Queue()
+        self.worker = None
+        self.closing = False
+        self.root.protocol("WM_DELETE_WINDOW", self.close)
+        self.root.after(80, self.poll_events)
+
+    def poll_events(self):
+        while not self.ui_events.empty():
+            kind, value = self.ui_events.get_nowait()
+            if kind == "log": self.log(value)
+            elif kind == "done":
+                self.btn_run.config(state="normal", text="開始執行管線", bg=self.btn_run_bg)
+                self.btn_stop.config(state="disabled")
+                if not self.closing: messagebox.showinfo("批次結果", value)
+        if self.closing and (not self.worker or not self.worker.is_alive()):
+            self.root.destroy()
+        else:
+            self.root.after(80, self.poll_events)
+
+    def close(self):
+        self.closing = True
+        self.cancel_event.set()
+
+    def stop_processing(self):
+        self.cancel_event.set()
+        self.btn_stop.config(state="disabled", text="正在停止...")
 
     def style_frame(self, parent, text):
         # 縮減 LabelFrame 的內外留白
@@ -133,6 +166,9 @@ class SpineConverterApp:
                                  bg=self.btn_run_bg, fg=self.btn_run_fg, font=("Microsoft JhengHei UI", 12, "bold"),
                                  relief="flat", activebackground="#1177BB", activeforeground="#FFFFFF", cursor="hand2", pady=5)
         self.btn_run.pack(fill="x", padx=15, pady=8)
+        self.btn_stop = self.style_button(self.root, "停止", self.stop_processing)
+        self.btn_stop.config(state="disabled")
+        self.btn_stop.pack(anchor="e", padx=15)
 
         # ==================== 日誌輸出區 ====================
         tk.Label(self.root, text="處理進度日誌:", bg=self.bg_base, fg=self.fg_sub, font=self.font_sub).pack(anchor="w", padx=20, pady=(0, 2))
@@ -153,6 +189,9 @@ class SpineConverterApp:
         if dirpath: self.var_output_dir.set(dirpath)
 
     def log(self, message):
+        if threading.current_thread() is not threading.main_thread():
+            self.ui_events.put(("log", message))
+            return
         self.log_area.config(state='normal')
         if not hasattr(self, "log_tags_configured"):
             self.log_area.tag_config("error", foreground="#F44747")
@@ -171,12 +210,25 @@ class SpineConverterApp:
         self.log_area.insert(tk.END, message + "\n", tag)
         self.log_area.see(tk.END)
         self.log_area.config(state='disabled')
-        self.root.update_idletasks()
 
     def start_processing(self):
+        if self.worker and self.worker.is_alive(): return
         if not os.path.exists(self.var_spine_exe.get()) or not self.var_input_dir.get() or not self.var_output_dir.get():
             messagebox.showerror("錯誤", "請確認路徑皆已填寫正確。")
             return
+
+        try:
+            validate_roots(self.var_input_dir.get(), self.var_output_dir.get())
+            self.job = {name: getattr(self, 'var_' + name).get() for name in (
+                'spine_exe', 'input_dir', 'output_dir', 'mode', 'ver_4', 'ver_3',
+                'skel_scale', 'atlas_scale', 'copy_images', 'save_project')}
+            if any(not math.isfinite(self.job[k]) or self.job[k] <= 0 for k in ('skel_scale', 'atlas_scale')):
+                raise ValueError("縮放倍率必須是大於 0 的有限數字。")
+        except (ValueError, tk.TclError) as exc:
+            messagebox.showerror("設定錯誤", str(exc))
+            return
+        self.cancel_event.clear()
+        self.btn_stop.config(state="normal", text="停止")
 
         self.btn_run.config(state="disabled", text="處理中，請稍候...", bg="#555555")
         self.log_area.config(state='normal')
@@ -186,7 +238,8 @@ class SpineConverterApp:
         mode = self.var_mode.get()
         mode_str = "升級 (3.8 -> 4.0)" if mode == "upgrade" else "降級 (4.0 -> 3.8)" if mode == "downgrade" else "同版本 (3.8 -> 3.8)"
         self.log(f"🚀 開始執行黃金管線... [當前模式: {mode_str}]")
-        threading.Thread(target=self.run_conversion, daemon=True).start()
+        self.worker = threading.Thread(target=self.run_conversion, daemon=True)
+        self.worker.start()
 
     def create_dynamic_binary_settings(self, is_up, target_scale, atlas_scale, temp_dir, project_name):
         settings = {
@@ -214,60 +267,45 @@ class SpineConverterApp:
         return path
 
     def fix_atlas_naming(self, output_dir, project_name, is_up):
-        atlas_ext = ".atlas.txt" if is_up else ".atlas"
-        atlas_files = [f for f in os.listdir(output_dir) if f.endswith(atlas_ext)]
-        
-        for atlas_file in atlas_files:
-            if atlas_file == f"{project_name}{atlas_ext}": continue 
-            
-            old_atlas_path = os.path.join(output_dir, atlas_file)
-            new_atlas_path = os.path.join(output_dir, f"{project_name}{atlas_ext}")
-            
-            try:
-                with open(old_atlas_path, 'r', encoding='utf-8') as f: lines = f.readlines()
-                if not lines: continue
-                
-                png_idx = next((i for i, line in enumerate(lines) if line.strip().endswith('.png')), -1)
-                        
-                if png_idx != -1:
-                    old_img_name = lines[png_idx].strip()
-                    new_img_name = f"{project_name}.png"
-                    lines[png_idx] = new_img_name + "\n"
-                    
-                    old_img_path = os.path.join(output_dir, old_img_name)
-                    new_img_path = os.path.join(output_dir, new_img_name)
-                    if os.path.exists(old_img_path) and old_img_path != new_img_path:
-                        if os.path.exists(new_img_path): os.remove(new_img_path)
-                        os.rename(old_img_path, new_img_path)
-                        
-                with open(old_atlas_path, 'w', encoding='utf-8') as f: f.writelines(lines)
-                    
-                if os.path.exists(new_atlas_path): os.remove(new_atlas_path)
-                os.rename(old_atlas_path, new_atlas_path)
-                self.log(f"  ├─ 🔧 強制修復圖集檔名為: {project_name}{atlas_ext}")
-            except Exception:
-                pass
+        normalize_atlas_names(output_dir, project_name, is_up)
 
     def modify_json_image_path(self, json_path, new_image_path):
         try:
             with open(json_path, 'r', encoding='utf-8') as f: data = json.load(f)
             if 'skeleton' in data: data['skeleton']['images'] = new_image_path.replace("\\", "/")
             with open(json_path, 'w', encoding='utf-8') as f: json.dump(data, f, indent=4)
-        except Exception: pass
+        except Exception as exc:
+            raise ValueError(f"JSON 圖片路徑更新失敗：{exc}") from exc
 
     def run_conversion(self):
-        spine_exe = self.var_spine_exe.get()
-        input_dir = self.var_input_dir.get()
-        output_dir = self.var_output_dir.get()
-        mode = self.var_mode.get()
-        
-        v4 = self.var_ver_4.get()
-        v3 = self.var_ver_3.get()
-        skel_scale = self.var_skel_scale.get()
-        atlas_scale = self.var_atlas_scale.get()
+        self.success_count = self.failure_count = 0
+        self.temp_dir = None
+        try:
+            self.run_conversion_impl()
+        except ConversionCancelled as exc:
+            self.log(str(exc))
+        except Exception as exc:
+            self.failure_count += 1
+            self.log(f"❌ 批次中止：{exc}")
+        finally:
+            self.finish_processing(self.temp_dir)
 
-        temp_dir = os.path.join(output_dir, ".spine_temp_worker")
-        if not os.path.exists(temp_dir): os.makedirs(temp_dir)
+    def run_command(self, cmd):
+        return run_spine(cmd, self.cancel_event, timeout=300)
+
+    def run_conversion_impl(self):
+        spine_exe = self.job['spine_exe']
+        input_dir = self.job['input_dir']
+        output_dir = self.job['output_dir']
+        mode = self.job['mode']
+        
+        v4 = self.job['ver_4']
+        v3 = self.job['ver_3']
+        skel_scale = self.job['skel_scale']
+        atlas_scale = self.job['atlas_scale']
+
+        os.makedirs(output_dir, exist_ok=True)
+        temp_dir = self.temp_dir = tempfile.mkdtemp(prefix=".spine-job-", dir=output_dir)
 
         spine_files_info = []
         for root, dirs, files in os.walk(input_dir):
@@ -280,33 +318,34 @@ class SpineConverterApp:
 
         if not spine_files_info:
             self.log("⚠️ 輸入資料夾中沒有找到 .spine 檔案。")
-            self.finish_processing(temp_dir)
             return
 
         self.log(f"📁 共找到 {len(spine_files_info)} 個專案，開始管線轉換...\n" + "="*50)
 
         for file_info in spine_files_info:
+            if self.cancel_event.is_set(): raise ConversionCancelled("已取消")
             filename = file_info["filename"]
             input_path = file_info["input_path"]
             rel_path = file_info["rel_path"]
             src_root = file_info["root"]
             project_name = os.path.splitext(filename)[0]
 
-            project_output = os.path.abspath(os.path.join(output_dir, rel_path, project_name)) if rel_path != '.' else os.path.abspath(os.path.join(output_dir, project_name))
+            destination = os.path.abspath(os.path.join(output_dir, rel_path, project_name))
+            project_output = tempfile.mkdtemp(prefix="project-", dir=temp_dir)
             display_path = os.path.join(rel_path, filename) if rel_path != '.' else filename
             if not os.path.exists(project_output): os.makedirs(project_output)
 
             self.log(f"📍 目標: {display_path}")
 
             target_images_folder = os.path.join(project_output, "images")
-            if self.var_copy_images.get():
+            if self.job['copy_images']:
                 for dir_name in os.listdir(src_root):
                     src_dir = os.path.join(src_root, dir_name)
                     if os.path.isdir(src_dir) and dir_name.lower() in ['images', 'image', 'textures', 'texture', 'tex']:
                         try:
                             shutil.copytree(src_dir, os.path.join(project_output, dir_name), dirs_exist_ok=True)
                             self.log(f"  ├─ 📁 複製原圖資料夾: {dir_name}/")
-                        except Exception: pass
+                        except Exception as exc: raise RuntimeError(f"原圖複製失敗：{exc}") from exc
 
             try:
                 target_spine_path = os.path.join(project_output, filename)
@@ -315,65 +354,74 @@ class SpineConverterApp:
                 bin_set = self.create_dynamic_binary_settings(is_up, skel_scale, atlas_scale, temp_dir, project_name)
 
                 if mode == "upgrade":
-                    subprocess.run([spine_exe, "-u", v4, "-i", input_path, "-o", project_output, "-e", bin_set], check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='replace')
+                    self.run_command([spine_exe, "-u", v4, "-i", input_path, "-o", project_output, "-e", bin_set])
                     self.log(f"  ├─ ✅ 匯出 {v4} 遊戲包 (由引擎精準縮放 {skel_scale}x，保護約束與網格)")
                     self.fix_atlas_naming(project_output, project_name, True)
                     
-                    if self.var_save_project.get():
+                    if self.job['save_project']:
                         if os.path.exists(target_spine_path): os.remove(target_spine_path)
-                        subprocess.run([spine_exe, "-u", v4, "-i", input_path, "-o", target_spine_path, "-r"], check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='replace')
-                        self.log(f"  ├─ ✨ 儲存 {v4} 製作檔 (維持 1.0 原始比例，100% 完美動畫無損)")
+                        self.run_command([spine_exe, "-u", v4, "-i", input_path, "-o", target_spine_path, "-r"])
+                        self.log(f"  ├─ ✨ 儲存 {v4} 製作檔 (維持 1.0 原始比例；跨版本動畫仍須預覽驗收)")
 
                 elif mode == "same_v3":
-                    subprocess.run([spine_exe, "-u", v3, "-i", input_path, "-o", project_output, "-e", bin_set], check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='replace')
+                    self.run_command([spine_exe, "-u", v3, "-i", input_path, "-o", project_output, "-e", bin_set])
                     self.log(f"  ├─ ✅ 匯出 {v3} 同版本遊戲包 (由引擎精準縮放 {skel_scale}x)")
                     self.fix_atlas_naming(project_output, project_name, False)
 
-                    if self.var_save_project.get():
+                    if self.job['save_project']:
                         shutil.copy2(input_path, target_spine_path)
-                        self.log(f"  ├─ 🔄 物理複製 {v3} 製作檔 (絕無 JSON 破壞，100% 完美)")
+                        self.log(f"  ├─ 🔄 原檔複製 {v3} 製作檔 (不經 JSON 重建)")
 
                 elif mode == "downgrade":
-                    temp_json_out = os.path.join(temp_dir, project_name)
-                    os.makedirs(temp_json_out, exist_ok=True)
+                    temp_json_out = tempfile.mkdtemp(prefix="json-", dir=temp_dir)
                     json_set_downgrade = self.create_json_settings("3.8", temp_dir)
                     
-                    subprocess.run([spine_exe, "-u", v4, "-i", input_path, "-o", temp_json_out, "-e", json_set_downgrade], check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='replace')
+                    self.run_command([spine_exe, "-u", v4, "-i", input_path, "-o", temp_json_out, "-e", json_set_downgrade])
                     json_files = [f for f in os.listdir(temp_json_out) if f.endswith('.json')]
                     if not json_files: raise Exception("Spine 未成功產出 3.8 JSON")
                     temp_json_path = os.path.join(temp_json_out, json_files[0])
 
-                    abs_img_path = os.path.join(project_output, "images")
+                    image_dirs = [os.path.join(project_output, n) for n in sorted(os.listdir(project_output)) if n.lower() in ('images', 'image', 'textures', 'texture', 'tex') and os.path.isdir(os.path.join(project_output, n))]
+                    if not image_dirs:
+                        raise ValueError("降級需要複製原圖，請勾選同步原圖並確認 images／texture 資料夾。")
+                    abs_img_path = image_dirs[0]
                     self.modify_json_image_path(temp_json_path, abs_img_path)
                     
-                    subprocess.run([spine_exe, "-u", v3, "-i", temp_json_path, "-o", project_output, "-e", bin_set], check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='replace')
+                    self.run_command([spine_exe, "-u", v3, "-i", temp_json_path, "-o", project_output, "-e", bin_set])
                     self.log(f"  ├─ ✅ 匯出 {v3} 遊戲包 (縮放 {skel_scale}x)")
                     self.fix_atlas_naming(project_output, project_name, False)
 
-                    if self.var_save_project.get():
-                        self.modify_json_image_path(temp_json_path, "./images/")
+                    if self.job['save_project']:
+                        self.modify_json_image_path(temp_json_path, "./" + os.path.basename(abs_img_path) + "/")
                         if os.path.exists(target_spine_path): os.remove(target_spine_path)
-                        subprocess.run([spine_exe, "-u", v3, "-i", temp_json_path, "-o", target_spine_path, "-r"], check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='replace')
+                        self.run_command([spine_exe, "-u", v3, "-i", temp_json_path, "-o", target_spine_path, "-r"])
                         self.log(f"  ├─ ⚠️ 儲存降級製作檔 (官方引擎限制，會遺失路徑約束與變形動畫)")
 
+                validate_output(project_output)
+                if self.cancel_event.is_set(): raise ConversionCancelled("已取消")
+                backup = publish_output(project_output, destination, os.path.join(output_dir, '.spine_backups'))
+                self.success_count += 1
+                if backup: self.log(f"  ├─ 舊成果備份：{backup}")
+            except ConversionCancelled:
+                raise
             except subprocess.CalledProcessError as e:
+                self.failure_count += 1
                 self.log("  ├─ ❌ 處理失敗")
                 if e.output:
                     for line in e.output.splitlines()[-5:]:
                         if line.strip(): self.log(f"      > {line.strip()}")
             except Exception as e:
+                self.failure_count += 1
                 self.log(f"  ├─ ❌ 系統錯誤: {e}")
 
             self.log("-" * 50)
 
         self.log("\n🎉 所有任務執行完畢！")
-        self.finish_processing(temp_dir)
 
     def finish_processing(self, temp_dir):
-        if os.path.exists(temp_dir):
+        if temp_dir and os.path.exists(temp_dir):
             shutil.rmtree(temp_dir, ignore_errors=True)
-        self.btn_run.config(state="normal", text="開始執行管線", bg=self.btn_run_bg)
-        messagebox.showinfo("完成", "批次處理已全部結束。")
+        self.ui_events.put(("done", f"{'已停止' if self.cancel_event.is_set() else '批次結束'}：成功 {self.success_count}、失敗 {self.failure_count}。舊成果備份保留於輸出資料夾的 .spine_backups。"))
 
 if __name__ == "__main__":
     root = tk.Tk()

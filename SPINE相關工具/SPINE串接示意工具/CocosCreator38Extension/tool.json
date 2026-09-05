@@ -1,0 +1,13 @@
+{
+  "id": "cocos-creator-38-spine-timeline",
+  "name": "Cocos Timeline / Spine 3.8 插件",
+  "category": "SPINE相關工具 / COCOS插件",
+  "description": "在 Cocos Creator 3.8 Scene 編排 Transform、Spine、粒子與 Animation，匯出可執行 Timeline。",
+  "version": "0.13.2",
+  "path": "SPINE相關工具/SPINE串接示意工具/CocosCreator38Extension",
+  "entry": "spine-director-cocos38-v0.13.2-manual-install.zip",
+  "documentation": "README_安裝與驗證.md",
+  "tags": ["COCOS插件", "Spine", "Timeline", "Creator 3.8"],
+  "updatedAt": "2026-09-05",
+  "changelog": ["保留 0.13.1 錄製修正；補 Runtime 載入生命週期，測試接入 build，提供驗證後版本包。"]
+}

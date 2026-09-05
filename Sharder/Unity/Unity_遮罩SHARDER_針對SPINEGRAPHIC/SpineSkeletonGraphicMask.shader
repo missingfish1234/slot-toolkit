@@ -2,6 +2,7 @@ Shader "Custom/Spine/SkeletonGraphic Alpha Mask"
 {
     Properties
     {
+        [HideInInspector] _UseMaskMatrix ("Use Mask Matrix", Float) = 0
         [PerRendererData] _MainTex ("Spine Texture", 2D) = "white" {}
 
         _MaskTex ("Mask Texture", 2D) = "white" {}
@@ -75,6 +76,8 @@ Shader "Custom/Spine/SkeletonGraphic Alpha Mask"
             float4 _ClipRect;
 
             float4 _MaskRect;
+            float4x4 _MaskTransform;
+            float _UseMaskMatrix;
             float _MaskSoftness;
             float _MaskChannel;
             float _InvertMask;
@@ -129,7 +132,8 @@ Shader "Custom/Spine/SkeletonGraphic Alpha Mask"
                 float2 rectMin = _MaskRect.xy;
                 float2 rectSize = max(_MaskRect.zw, float2(0.0001, 0.0001));
 
-                float2 maskUV = (i.localPosition - rectMin) / rectSize;
+                float2 maskPosition = _UseMaskMatrix > 0.5 ? mul(_MaskTransform, float4(i.localPosition, 0, 1)).xy : i.localPosition;
+                float2 maskUV = (maskPosition - rectMin) / rectSize;
 
                 float inside =
                     step(0.0, maskUV.x) *

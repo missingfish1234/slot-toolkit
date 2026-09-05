@@ -2,8 +2,8 @@
   "id": "65785b57571672475de55177-65785b57530557165de55177",
   "name": "數字包圖工具",
   "category": "數字圖片工具",
-  "description": "",
-  "version": "1.3.0",
+  "description": "離線 PNG 字形打包 BMFont（PNG＋FNT），支援標點／Unicode 檔名、Cocos 固定數字格、透明邊界快取與 4096px 圖集防錯。",
+  "version": "1.3.1",
   "path": "數字圖片工具/數字包圖工具",
   "entry": "makefont.html",
   "icon": "",
@@ -11,9 +11,10 @@
     "數字圖片工具",
     "數字包圖工具"
   ],
-  "updatedAt": "2026-09-04",
-  "size": "767.1 KB",
+  "updatedAt": "2026-09-05",
+  "size": "",
   "changelog": [
+    "1.3.1：修正 dot/comma 字碼往返、Unicode 命名、超限圖集防錯；快取透明邊界，ZIP 離線可用。",
     "BMFont Gen v3.30：修正 v3.29 全數字相同 glyph 幾何導致 Cocos 3.8 滾分畫面不更新；固定前進寬度與右邊界，同時保留字形差異。",
     "BMFont Gen v3.29：新增 Cocos 透明等寬數字格，修正末位 1 造成的 Label 寬度微跳；防止重複字元與 NUM_X-1 誤判。"
   ]

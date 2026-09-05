@@ -6,6 +6,12 @@ import shutil
 import subprocess
 import sys
 import threading
+import hashlib
+import json
+import os
+import tempfile
+import uuid
+import queue
 from pathlib import Path
 
 from PIL import Image, ImageChops, ImageDraw, ImageStat
@@ -22,6 +28,97 @@ MODEL_LABELS = {
     "realesrgan-x4plus-anime": "插畫線條推薦：realesrgan-x4plus-anime",
     "realesrgan-x4plus": "通用圖片：realesrgan-x4plus",
 }
+
+WORK_OWNER = 'spine-alpha-upscale-v1'
+
+def validate_paths(input_dir: Path, output_dir: Path, work_base: Path) -> None:
+    input_dir, output_dir, work_base = (p.resolve() for p in (input_dir, output_dir, work_base))
+    if not input_dir.is_dir():
+        raise ValueError('來源必須是資料夾。')
+    if output_dir == input_dir or output_dir in input_dir.parents:
+        raise ValueError('輸出不可等於來源或包含來源資料夾。')
+    if work_base == input_dir or work_base in input_dir.parents or work_base == output_dir or work_base in output_dir.parents or output_dir in work_base.parents:
+        raise ValueError('工作資料夾不可與來源相同／包含來源，亦不可與輸出重疊。')
+
+def input_signature(files, scale, model):
+    return {'owner': WORK_OWNER, 'scale': scale, 'model': model,
+            'inputs': {str(p.resolve()): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}}
+
+def create_work_directory(base: Path, signature: dict, resume=False) -> Path:
+    base.mkdir(parents=True, exist_ok=True)
+    pointer = base / '.last-upscale-task.json'
+    if resume:
+        if not pointer.is_file():
+            raise ValueError('找不到可恢復的工作；請先正常放大並勾選保留中介檔。')
+        task = (base / json.loads(pointer.read_text(encoding='utf-8'))['directory']).resolve()
+        if task.parent != base.resolve() or not task.name.startswith('.spine-upscale-'):
+            raise ValueError('工作路徑不屬於此工具。')
+        marker = task / '.task.json'
+        if not marker.is_file() or json.loads(marker.read_text(encoding='utf-8')) != signature:
+            raise ValueError('中介檔與目前來源／模型／倍率不同，請重新放大。')
+        return task
+    task = Path(tempfile.mkdtemp(prefix='.spine-upscale-', dir=base)).resolve()
+    (task / '.task.json').write_text(json.dumps(signature), encoding='utf-8')
+    pointer.write_text(json.dumps({'directory': task.name}), encoding='utf-8')
+    return task
+
+def cleanup_work_directory(task: Path, base: Path, signature: dict) -> None:
+    task, base = task.resolve(), base.resolve()
+    marker = task / '.task.json'
+    if task.parent != base or not task.name.startswith('.spine-upscale-') or not marker.is_file() or json.loads(marker.read_text(encoding='utf-8')) != signature:
+        raise ValueError('拒絕清除非本次工具工作目錄。')
+    shutil.rmtree(task)
+
+def output_path_for(path: Path, collision='rename') -> Path | None:
+    if not path.exists() or collision == 'overwrite': return path
+    if collision == 'skip': return None
+    index = 2
+    while path.with_name(f'{path.stem}_{index}{path.suffix}').exists(): index += 1
+    return path.with_name(f'{path.stem}_{index}{path.suffix}')
+
+def publish_png(image, path: Path, collision='rename') -> Path | None:
+    temporary = path.with_name('.' + path.name + '.' + uuid.uuid4().hex + '.tmp')
+    try:
+        image.save(temporary, 'PNG', optimize=True)
+        if collision == 'overwrite':
+            os.replace(temporary, path)
+            return path
+        candidate = path
+        while True:
+            try:
+                # Linking a complete same-directory file is atomic and refuses
+                # existing destinations, including a concurrent export's file.
+                os.link(temporary, candidate)
+                return candidate
+            except FileExistsError:
+                if collision == 'skip': return None
+                candidate = output_path_for(path, 'rename')
+            except OSError:
+                # FAT/network destinations may not support hard links. Still
+                # reserve a new name exclusively, never replace someone else's.
+                try:
+                    destination = candidate.open('xb')
+                except FileExistsError:
+                    if collision == 'skip': return None
+                    candidate = output_path_for(path, 'rename')
+                    continue
+                try:
+                    with destination, temporary.open('rb') as source:
+                        shutil.copyfileobj(source, destination)
+                    return candidate
+                except Exception:
+                    candidate.unlink(missing_ok=True)
+                    raise
+    finally:
+        if temporary.exists(): temporary.unlink()
+
+def terminate_process_tree(proc) -> None:
+    if proc is None or proc.poll() is not None: return
+    if sys.platform.startswith('win'):
+        subprocess.run(['taskkill', '/PID', str(proc.pid), '/T', '/F'], capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW, timeout=10)
+    else:
+        import signal
+        os.killpg(proc.pid, signal.SIGTERM)
 
 
 def clamp(v: float) -> int:
@@ -187,12 +284,16 @@ def apply_alpha_and_validate(
     output_dir: Path,
     scale: int,
     crop_boxes: dict[str, tuple[int, int, int, int] | None],
+    collision: str = 'rename',
 ) -> list[dict[str, object]]:
     output_dir.mkdir(parents=True, exist_ok=True)
     rows: list[dict[str, object]] = []
     for src_path in files:
         raw_path = raw_output / src_path.name
-        final_path = output_dir / src_path.name
+        final_path = output_path_for(output_dir / src_path.name, collision)
+        if final_path is None:
+            rows.append({'file': src_path.name, 'output_file': src_path.name, 'skipped': True})
+            continue
         src = Image.open(src_path).convert("RGBA")
         expected_size = (src.width * scale, src.height * scale)
         alpha = scaled_alpha(src, scale)
@@ -210,7 +311,10 @@ def apply_alpha_and_validate(
             if quality_issue:
                 out = resized_source(src, expected_size)
                 fallback_used = True
-            out.save(final_path, "PNG", optimize=True)
+            final_path = publish_png(out, final_path, collision)
+            if final_path is None:
+                rows.append({'file':src_path.name,'output_file':src_path.name,'skipped':True})
+                continue
 
         output_exists = final_path.exists()
         if output_exists:
@@ -226,6 +330,8 @@ def apply_alpha_and_validate(
         rows.append(
             {
                 "file": src_path.name,
+                "output_file": final_path.name,
+                "skipped": False,
                 "raw_exists": raw_exists,
                 "output_exists": output_exists,
                 "width": src.width,
@@ -250,6 +356,8 @@ def write_report(rows: list[dict[str, object]], report_path: Path) -> None:
             fh,
             fieldnames=[
                 "file",
+                "output_file",
+                "skipped",
                 "raw_exists",
                 "output_exists",
                 "width",
@@ -280,8 +388,9 @@ def paste_on_checker(canvas: Image.Image, img: Image.Image, xy: tuple[int, int],
     canvas.alpha_composite(checker, xy)
 
 
-def make_preview(files: list[Path], output_dir: Path, preview_path: Path, preview_count: int) -> None:
-    selected = [p for p in files if (output_dir / p.name).exists()][:preview_count]
+def make_preview(files: list[Path], output_dir: Path, preview_path: Path, preview_count: int, output_names=None) -> None:
+    output_names = output_names or {}
+    selected = [p for p in files if (output_dir / output_names.get(p.name, p.name)).exists()][:preview_count]
     if not selected:
         return
 
@@ -303,7 +412,7 @@ def make_preview(files: list[Path], output_dir: Path, preview_path: Path, previe
         draw.text((x + 4, y + 3), src_path.name[:24], fill=(235, 235, 235, 255))
 
         old = Image.open(src_path).convert("RGBA")
-        new = Image.open(output_dir / src_path.name).convert("RGBA")
+        new = Image.open(output_dir / output_names.get(src_path.name, src_path.name)).convert("RGBA")
         old.thumbnail((thumb, thumb), Image.Resampling.LANCZOS)
         new.thumbnail((thumb, thumb), Image.Resampling.LANCZOS)
         paste_on_checker(sheet, old, (x + (thumb - old.width) // 2, y + header_h + (thumb - old.height) // 2))
@@ -342,6 +451,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--preview-count", type=int, default=24, help="Number of files to include in preview sheet.")
     parser.add_argument("--skip-upscale", action="store_true", help="Skip Real-ESRGAN and only reapply alpha to raw outputs.")
     parser.add_argument("--keep-work", action="store_true", help="Keep intermediate RGB and raw Real-ESRGAN folders.")
+    parser.add_argument('--collision', choices=['rename', 'skip', 'overwrite'], default='rename', help='Existing PNG policy; default preserves the old file with a new numbered name.')
     return parser.parse_args()
 
 
@@ -392,6 +502,17 @@ def launch_gui(args: argparse.Namespace) -> int:
     skip_upscale_var = tk.BooleanVar(value=args.skip_upscale)
     running = {"value": False}
     process = {"value": None}
+    cancelled = threading.Event()
+    ui_events = queue.Queue()
+    def post_ui(function, *values):
+        ui_events.put((function, values))
+    def drain_ui():
+        while not ui_events.empty():
+            function, values = ui_events.get_nowait()
+            function(*values)
+        root.after(100, drain_ui)
+    root.after(100, drain_ui)
+    collision_var = tk.StringVar(value=args.collision)
 
     output_var.set(default_output(input_var.get()))
 
@@ -448,6 +569,9 @@ def launch_gui(args: argparse.Namespace) -> int:
     ttk.Entry(options, textvariable=preview_var, width=10).grid(row=2, column=3, sticky="w", padx=(6, 20), pady=(12, 0))
     ttk.Checkbutton(options, text="保留中繼資料夾", variable=keep_work_var).grid(row=2, column=4, sticky="w", pady=(12, 0))
     ttk.Checkbutton(options, text="只套 alpha，不重新放大", variable=skip_upscale_var).grid(row=2, column=5, sticky="w", pady=(12, 0))
+    ttk.Label(options, text='同名輸出', style='Panel.TLabel').grid(row=3, column=0, sticky='w', pady=(10,0))
+    ttk.Combobox(options, textvariable=collision_var, values=['rename','skip','overwrite'], state='readonly', width=12).grid(row=3,column=1,sticky='w',pady=(10,0))
+    ttk.Label(options, text='rename：保留並編號；skip：略過；overwrite：覆寫輸出', style='Panel.TLabel').grid(row=3,column=2,columnspan=4,sticky='w',pady=(10,0))
 
     log_panel = ttk.Frame(root, style="Panel.TFrame", padding=16)
     log_panel.grid(row=3, column=0, sticky="nsew", padx=22, pady=(0, 14))
@@ -494,17 +618,23 @@ def launch_gui(args: argparse.Namespace) -> int:
 
     def validate() -> tuple[bool, list[str]]:
         errors = []
+        try:
+            validate_paths(Path(input_var.get()), Path(output_var.get()), Path(output_var.get() + '_work'))
+        except ValueError as exc:
+            errors.append(str(exc))
         if not Path(input_var.get()).exists():
             errors.append("來源資料夾不存在。")
         if not output_var.get().strip():
             errors.append("請設定輸出資料夾。")
         try:
             int(preview_var.get())
+            if not 0 <= int(preview_var.get()) <= 100: raise ValueError()
         except ValueError:
             errors.append("預覽張數必須是整數。")
         if tile_var.get().strip():
             try:
                 int(tile_var.get())
+                if int(tile_var.get()) < 0: raise ValueError()
             except ValueError:
                 errors.append("Tile Size 必須是整數或空白。")
         if not (here / "tools" / "realesrgan-ncnn-vulkan.exe").exists():
@@ -538,6 +668,7 @@ def launch_gui(args: argparse.Namespace) -> int:
             command.append("--keep-work")
         if skip_upscale_var.get():
             command.append("--skip-upscale")
+        command.extend(['--collision', collision_var.get()])
         return command
 
     def set_running(value: bool) -> None:
@@ -549,10 +680,9 @@ def launch_gui(args: argparse.Namespace) -> int:
         else:
             progress.stop()
 
-    def run_worker() -> None:
-        command = build_command()
-        append_log("執行命令：\n" + " ".join(f'"{part}"' if " " in part else part for part in command) + "\n\n")
+    def run_worker(command) -> None:
         try:
+            if cancelled.is_set(): raise RuntimeError('已取消')
             process["value"] = subprocess.Popen(
                 command,
                 cwd=str(here),
@@ -561,20 +691,23 @@ def launch_gui(args: argparse.Namespace) -> int:
                 text=True,
                 encoding="utf-8",
                 errors="replace",
+                start_new_session=not sys.platform.startswith('win'),
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform.startswith('win') else 0,
             )
+            if cancelled.is_set(): terminate_process_tree(process['value'])
             assert process["value"].stdout is not None
             for line in process["value"].stdout:
-                root.after(0, append_log, line)
+                post_ui(append_log, line)
             code = process["value"].wait()
         except Exception as exc:
-            root.after(0, append_log, f"\n執行失敗：{exc}\n")
+            post_ui(append_log, f"\n執行失敗：{exc}\n")
             code = 1
         finally:
             process["value"] = None
-            root.after(0, set_running, False)
-            root.after(0, append_log, "\n完成。\n" if code == 0 else f"\n處理結束，錯誤碼：{code}\n")
+            post_ui(set_running, False)
+            post_ui(append_log, "\n完成。\n" if code == 0 else f"\n處理結束，錯誤碼：{code}\n")
             if code == 0:
-                root.after(0, lambda: messagebox.showinfo("完成", "圖片解析度提高完成。"))
+                post_ui(lambda: messagebox.showinfo("完成", "圖片解析度提高完成。"))
 
     def start() -> None:
         if running["value"]:
@@ -584,13 +717,17 @@ def launch_gui(args: argparse.Namespace) -> int:
             messagebox.showwarning("設定有誤", "\n".join(errors))
             return
         log_text.delete("1.0", "end")
+        command = build_command()
+        append_log('執行命令：\n' + ' '.join(command) + '\n')
+        cancelled.clear()
         set_running(True)
-        threading.Thread(target=run_worker, daemon=True).start()
+        threading.Thread(target=run_worker, args=(command,), daemon=True).start()
 
     def stop() -> None:
+        cancelled.set()
         proc = process["value"]
         if proc and proc.poll() is None:
-            proc.terminate()
+            terminate_process_tree(proc)
             append_log("\n已要求停止處理。\n")
 
     def open_output() -> None:
@@ -608,7 +745,13 @@ def launch_gui(args: argparse.Namespace) -> int:
     stop_button = ttk.Button(buttons, text="停止", state="disabled", command=stop)
     stop_button.grid(row=0, column=2, padx=(8, 0))
     ttk.Button(buttons, text="開啟輸出資料夾", command=open_output).grid(row=0, column=3, padx=(8, 0))
-    ttk.Button(buttons, text="關閉", command=root.destroy).grid(row=0, column=4, padx=(8, 0))
+    def close():
+        if running['value']:
+            if not messagebox.askyesno('停止並關閉', '目前仍在處理，要停止本次作業並關閉？'): return
+            stop()
+        root.destroy()
+    ttk.Button(buttons, text="關閉", command=close).grid(row=0, column=4, padx=(8, 0))
+    root.protocol('WM_DELETE_WINDOW', close)
 
     root.mainloop()
     return 0
@@ -621,11 +764,23 @@ def main() -> int:
 
     input_dir = Path(args.input).resolve()
     output_dir = Path(args.output).resolve()
-    work_dir = Path(args.work).resolve()
+    work_base = Path(args.work).resolve()
+    try:
+        validate_paths(input_dir, output_dir, work_base)
+        if not 0 <= args.preview_count <= 100 or args.tile_size < 0: raise ValueError('預覽張數限 0–100，Tile Size 不可小於 0。')
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    files = source_files(input_dir)
+    if not files:
+        print('No source PNG files found.', file=sys.stderr)
+        return 1
+    signature = input_signature(files, args.scale, args.model)
+    work_dir = create_work_directory(work_base, signature, args.skip_upscale)
     work_input = work_dir / "input_rgb"
     raw_output = work_dir / "raw_realesr"
-    report_path = output_dir / "_validation_report.csv"
-    preview_path = output_dir / "_preview_contact_sheet.png"
+    report_path = output_path_for(output_dir / "_validation_report.csv")
+    preview_path = output_path_for(output_dir / "_preview_contact_sheet.png")
     exe = Path(args.exe).resolve()
     model_dir = Path(args.model_dir).resolve()
 
@@ -653,19 +808,19 @@ def main() -> int:
     if not args.skip_upscale:
         run_realesrgan(exe, model_dir, work_input, raw_output, args.model, args.scale, args.tile_size)
 
-    rows = apply_alpha_and_validate(files, raw_output, output_dir, args.scale, crop_boxes)
+    rows = apply_alpha_and_validate(files, raw_output, output_dir, args.scale, crop_boxes, args.collision)
     write_report(rows, report_path)
-    make_preview(files, output_dir, preview_path, args.preview_count)
+    make_preview(files, output_dir, preview_path, args.preview_count, {r['file']:r['output_file'] for r in rows})
     fallback_count = sum(1 for row in rows if row.get("fallback_used"))
 
     bad = [
         row
         for row in rows
-        if not row["raw_exists"]
+        if not row.get('skipped') and (not row["raw_exists"]
         or not row["output_exists"]
         or row["output_width"] != row["expected_width"]
         or row["output_height"] != row["expected_height"]
-        or not row["alpha_matches_scaled_original"]
+        or not row["alpha_matches_scaled_original"])
     ]
     print(f"Finished: {len(rows)} files")
     print(f"Validation failures: {len(bad)}")
@@ -674,7 +829,7 @@ def main() -> int:
     print(f"Preview: {preview_path}")
 
     if not args.keep_work and not bad:
-        shutil.rmtree(work_dir, ignore_errors=True)
+        cleanup_work_directory(work_dir, work_base, signature)
         print(f"Removed work folder: {work_dir}")
     elif args.keep_work:
         print(f"Kept work folder: {work_dir}")

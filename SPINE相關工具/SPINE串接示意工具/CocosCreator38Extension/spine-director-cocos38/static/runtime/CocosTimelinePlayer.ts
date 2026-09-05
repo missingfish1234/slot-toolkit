@@ -134,6 +134,35 @@ export class CocosTimelinePlayer extends Component {
     private currentTime = 0;
     private playing = false;
     private loading = false;
+    private lifecycleRevision = 0;
+    private disposed = false;
+    private resumeOnEnable = false;
+
+    protected onEnable(): void {
+        if (!this.timeline && this.configPath && !this.loading) void this.loadTimeline();
+        else if (this.resumeOnEnable) { this.resumeOnEnable = false; this.play(); }
+    }
+
+    protected onDisable(): void {
+        this.lifecycleRevision += 1;
+        this.loading = false;
+        this.resumeOnEnable = this.playing;
+        this.playing = false;
+        for (const binding of this.bindings) {
+            if (binding.spine?.isValid) binding.spine.timeScale = 0;
+            if (binding.animation?.isValid) binding.animation.pause();
+            if (binding.particle3d?.isValid) binding.particle3d.pause();
+        }
+    }
+
+    protected onDestroy(): void {
+        this.disposed = true;
+        this.lifecycleRevision += 1;
+        this.loading = false;
+        this.playing = false;
+        this.bindings = [];
+        this.timeline = null;
+    }
 
     protected getDefaultConfigPath(): string {
         return '';
@@ -147,6 +176,8 @@ export class CocosTimelinePlayer extends Component {
     public async loadTimeline(): Promise<void> {
         if (this.loading || !this.configPath) return;
         this.loading = true;
+        const revision = ++this.lifecycleRevision;
+        const loadingScene = director.getScene();
         try {
             const asset = await new Promise<JsonAsset>((resolve, reject) => {
                 resources.load(this.configPath, JsonAsset, (error, result) => {
@@ -154,6 +185,7 @@ export class CocosTimelinePlayer extends Component {
                     else resolve(result);
                 });
             });
+            if (this.disposed || revision !== this.lifecycleRevision || !this.isValid || !this.enabledInHierarchy || director.getScene() !== loadingScene) return;
             const timeline = asset.json as unknown as NativeTimeline;
             if (!timeline || timeline.schema !== 'cocos-native-timeline@1') {
                 throw new Error('Timeline 格式不正確。');
@@ -164,9 +196,9 @@ export class CocosTimelinePlayer extends Component {
             this.seek(0);
             if (this.playOnLoad) this.play();
         } catch (error) {
-            console.error('[CocosTimelinePlayer] 載入失敗', error);
+            if (!this.disposed && revision === this.lifecycleRevision) console.error('[CocosTimelinePlayer] 載入失敗', error);
         } finally {
-            this.loading = false;
+            if (revision === this.lifecycleRevision) this.loading = false;
         }
     }
 

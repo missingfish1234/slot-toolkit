@@ -2,8 +2,8 @@
   "id": "sharder-unity-unity-4e2d959358d36697908a6846767c4eae6548679c-unity63-darkcenteredgeglow",
   "name": "Unity63_DarkCenterEdgeGlow",
   "category": "Sharder",
-  "description": "",
-  "version": "1.0.0",
+  "description": "Unity UGUI 壓暗中心、發亮輪廓與扭曲特效。",
+  "version": "1.0.1",
   "path": "Sharder/Unity/Unity_中間壓暗邊框發亮效果/Unity63_DarkCenterEdgeGlow",
   "entry": "",
   "icon": "",
@@ -11,7 +11,10 @@
     "Sharder",
     "Unity63_DarkCenterEdgeGlow"
   ],
-  "updatedAt": "2026-07-02",
+  "updatedAt": "2026-09-05",
   "size": "46.3 KB",
-  "changelog": []
+  "changelog": [
+    "新增可選 4 方向 Lightweight 模式；預設仍為完整 8 方向效果。"
+  ],
+  "documentation": "README_更新與安裝.md"
 }

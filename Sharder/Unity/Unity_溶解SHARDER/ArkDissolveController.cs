@@ -123,6 +123,8 @@ public class ArkDissolveController : MonoBehaviour
     private Renderer cachedRenderer;
     private Material runtimeMaterial;
     private Material sourceMaterial;
+    private Material originalMaterial;
+    private bool ownsMaterial;
     private float previewTimer;
 
     private static readonly int ID_DissolveAmount = Shader.PropertyToID("_DissolveAmount");
@@ -158,27 +160,34 @@ public class ArkDissolveController : MonoBehaviour
 
     private void Reset()
     {
-        CacheComponents();
-        ResolveMaterial();
         Apply();
     }
 
     private void OnEnable()
     {
-        CacheComponents();
-        ResolveMaterial();
         Apply();
     }
 
     private void OnDisable()
     {
-        // 編輯器或執行時都不強制還原材質，避免干擾使用者手動指定材質。
+        ReleaseMaterial();
+    }
+
+    private void OnDestroy() { ReleaseMaterial(); }
+
+    private void ReleaseMaterial()
+    {
+        if (ownsMaterial && runtimeMaterial != null)
+        {
+            if (cachedGraphic != null && cachedGraphic.material == runtimeMaterial) cachedGraphic.material = originalMaterial;
+            if (cachedRenderer != null && cachedRenderer.sharedMaterial == runtimeMaterial) cachedRenderer.sharedMaterial = originalMaterial;
+            if (Application.isPlaying) Destroy(runtimeMaterial); else DestroyImmediate(runtimeMaterial);
+        }
+        runtimeMaterial = null; sourceMaterial = null; originalMaterial = null; ownsMaterial = false;
     }
 
     private void OnValidate()
     {
-        CacheComponents();
-        ResolveMaterial();
         Apply();
     }
 
@@ -224,56 +233,30 @@ public class ArkDissolveController : MonoBehaviour
 
     private void ResolveMaterial()
     {
-        if (targetMaterial != null)
+        Material attached = cachedGraphic != null ? cachedGraphic.material : (cachedRenderer != null ? cachedRenderer.sharedMaterial : null);
+        Material source = targetMaterial != null ? targetMaterial : (ownsMaterial && attached == runtimeMaterial ? sourceMaterial : attached);
+        bool needInstance = Application.isPlaying && instanceMaterialOnPlay;
+        if (runtimeMaterial != null && source == sourceMaterial && ownsMaterial == needInstance) return;
+        ReleaseMaterial();
+        if (source == null) return;
+        sourceMaterial = source;
+        originalMaterial = cachedGraphic != null ? cachedGraphic.material : (cachedRenderer != null ? cachedRenderer.sharedMaterial : null);
+        ownsMaterial = needInstance;
+        runtimeMaterial = needInstance ? new Material(source) { name = source.name + " (Dissolve Instance)", hideFlags = HideFlags.DontSave } : source;
+        if (needInstance)
         {
-            runtimeMaterial = targetMaterial;
-            sourceMaterial = targetMaterial;
-            return;
-        }
-
-        if (cachedGraphic != null)
-        {
-            Material graphicMaterial = cachedGraphic.material;
-
-            if (graphicMaterial == null)
-            {
-                runtimeMaterial = null;
-                sourceMaterial = null;
-                return;
-            }
-
-            if (Application.isPlaying && instanceMaterialOnPlay)
-            {
-                if (runtimeMaterial == null || sourceMaterial != graphicMaterial)
-                {
-                    runtimeMaterial = new Material(graphicMaterial);
-                    runtimeMaterial.name = graphicMaterial.name + " Instance";
-                    cachedGraphic.material = runtimeMaterial;
-                    sourceMaterial = runtimeMaterial;
-                }
-            }
-            else
-            {
-                runtimeMaterial = graphicMaterial;
-                sourceMaterial = graphicMaterial;
-            }
-
-            return;
-        }
-
-        if (cachedRenderer != null)
-        {
-            Material rendererMaterial = Application.isPlaying && instanceMaterialOnPlay
-                ? cachedRenderer.material
-                : cachedRenderer.sharedMaterial;
-
-            runtimeMaterial = rendererMaterial;
-            sourceMaterial = rendererMaterial;
+            if (cachedGraphic != null) cachedGraphic.material = runtimeMaterial;
+            else if (cachedRenderer != null) cachedRenderer.sharedMaterial = runtimeMaterial;
         }
     }
 
     public void Apply()
     {
+        // Inspector validation and external animation calls must not recreate a
+        // material after OnDisable has released it.
+        if (!isActiveAndEnabled) return;
+        CacheComponents();
+        ResolveMaterial();
         if (runtimeMaterial == null)
         {
             return;

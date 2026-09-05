@@ -100,6 +100,7 @@ function describe(label, Label, UITransform) {
         path: nodePath(label.node),
         text: label.string,
         fontName: label.font ? (label.font.name || 'BitmapFont') : (label.fontFamily || 'System Font'),
+        fontUuid: label.font ? (label.font.uuid || label.font._uuid || label.font.name || '') : '',
         bitmapFont: !!label.font,
         fontSize,
         actualFontSize,

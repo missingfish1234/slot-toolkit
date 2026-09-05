@@ -41,6 +41,7 @@ public class SpineSkeletonGraphicMaskDriver : MonoBehaviour
 
     private SkeletonGraphic skeletonGraphic;
     private Material runtimeMaterial;
+    private Material originalMaterial;
     private Texture lastMainTexture;
 
     private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
@@ -64,6 +65,7 @@ public class SpineSkeletonGraphicMaskDriver : MonoBehaviour
     private void OnEnable()
     {
         skeletonGraphic = GetComponent<SkeletonGraphic>();
+        originalMaterial = skeletonGraphic.material;
 
         if (maskShader == null)
             maskShader = Shader.Find("Custom/Spine/SkeletonGraphic Alpha Mask");
@@ -75,9 +77,9 @@ public class SpineSkeletonGraphicMaskDriver : MonoBehaviour
 
     private void OnDisable()
     {
-        if (skeletonGraphic != null)
+        if (skeletonGraphic != null && skeletonGraphic.material == runtimeMaterial)
         {
-            skeletonGraphic.material = null;
+            skeletonGraphic.material = originalMaterial;
             skeletonGraphic.SetMaterialDirty();
         }
 
@@ -114,7 +116,7 @@ public class SpineSkeletonGraphicMaskDriver : MonoBehaviour
 
             EditorApplication.delayCall += () =>
             {
-                if (this == null)
+                if (this == null || !isActiveAndEnabled)
                     return;
 
                 CreateOrUpdateMaterial();
@@ -178,8 +180,7 @@ public class SpineSkeletonGraphicMaskDriver : MonoBehaviour
         if (runtimeMaterial == null)
             return;
 
-        if (maskTexture != null)
-            runtimeMaterial.SetTexture(MaskTexId, maskTexture);
+        runtimeMaterial.SetTexture(MaskTexId, maskTexture != null ? maskTexture : Texture2D.whiteTexture);
 
         runtimeMaterial.SetFloat(MaskSoftnessId, softness);
         runtimeMaterial.SetFloat(MaskChannelId, (float)maskChannel);
@@ -188,6 +189,9 @@ public class SpineSkeletonGraphicMaskDriver : MonoBehaviour
 
         Vector4 localMaskRect = CalculateMaskRectInTargetLocalSpace();
         runtimeMaterial.SetVector(MaskRectId, localMaskRect);
+        runtimeMaterial.SetFloat("_UseMaskMatrix", 1f);
+        runtimeMaterial.SetMatrix("_MaskTransform", maskRectTransform != null
+            ? maskRectTransform.worldToLocalMatrix * transform.localToWorldMatrix : Matrix4x4.identity);
     }
 
     private Vector4 CalculateMaskRectInTargetLocalSpace()
@@ -205,22 +209,8 @@ public class SpineSkeletonGraphicMaskDriver : MonoBehaviour
             return new Vector4(-100f, -100f, 200f, 200f);
         }
 
-        maskRectTransform.GetWorldCorners(worldCorners);
-
-        Vector3 local0 = transform.InverseTransformPoint(worldCorners[0]);
-        Vector3 local1 = transform.InverseTransformPoint(worldCorners[1]);
-        Vector3 local2 = transform.InverseTransformPoint(worldCorners[2]);
-        Vector3 local3 = transform.InverseTransformPoint(worldCorners[3]);
-
-        float minX = Mathf.Min(local0.x, local1.x, local2.x, local3.x);
-        float maxX = Mathf.Max(local0.x, local1.x, local2.x, local3.x);
-        float minY = Mathf.Min(local0.y, local1.y, local2.y, local3.y);
-        float maxY = Mathf.Max(local0.y, local1.y, local2.y, local3.y);
-
-        float width = Mathf.Max(0.0001f, maxX - minX);
-        float height = Mathf.Max(0.0001f, maxY - minY);
-
-        return new Vector4(minX, minY, width, height);
+        Rect maskRect = maskRectTransform.rect;
+        return new Vector4(maskRect.xMin, maskRect.yMin, Mathf.Max(0.0001f, maskRect.width), Mathf.Max(0.0001f, maskRect.height));
     }
 
     private void DestroyRuntimeMaterial()

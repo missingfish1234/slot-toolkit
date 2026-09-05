@@ -241,7 +241,8 @@ canvas{width:100%;max-height:320px;background:
       offset: [0, 0],
       index: -1,
       splits: null,
-      pads: null
+      pads: null,
+      extra: {}
     };
   }
 
@@ -255,6 +256,10 @@ canvas{width:100%;max-height:320px;background:
 
     function commit() {
       if (currentRegion) {
+        if (currentRegion.size.some(v => !Number.isFinite(v) || v <= 0) || currentRegion.xy.some(v => !Number.isFinite(v) || v < 0))
+          throw new Error(`Region 座標／尺寸無效：${currentRegion.name}`);
+        if (!['false', 'true', '0', '90'].includes(String(currentRegion.rotate).toLowerCase()))
+          throw new Error(`暫不支援旋轉 ${currentRegion.rotate} 度：${currentRegion.name}，請以 0／90 度重新匯出。`);
         if (!currentRegion.orig) currentRegion.orig = [...currentRegion.size];
         if (!currentRegion.offset) currentRegion.offset = [0, 0];
         regions.push(currentRegion);
@@ -316,11 +321,14 @@ canvas{width:100%;max-height:320px;background:
           if (key === "rotate") currentRegion.rotate = val;
           else if (key === "xy") currentRegion.xy = parsePair(val);
           else if (key === "size") currentRegion.size = parsePair(val);
+          else if (key === "bounds") { const q = parseQuad(val); currentRegion.xy = q.slice(0, 2); currentRegion.size = q.slice(2); }
+          else if (key === "offsets") { const q = parseQuad(val); currentRegion.offset = q.slice(0, 2); currentRegion.orig = q.slice(2); }
           else if (key === "orig") currentRegion.orig = parsePair(val);
           else if (key === "offset") currentRegion.offset = parsePair(val);
           else if (key === "index") currentRegion.index = parseInt(val, 10);
           else if (key === "split" || key === "splits") currentRegion.splits = parseQuad(val);
           else if (key === "pad" || key === "pads") currentRegion.pads = parseQuad(val);
+          else currentRegion.extra[key] = val;
           continue;
         }
         commit();
@@ -333,11 +341,25 @@ canvas{width:100%;max-height:320px;background:
   }
 
   async function addFiles(list) {
-    for (const f of Array.from(list || [])) state.files.set(normalizePath(f.name), f);
-    await refreshLoadedFiles();
+    try {
+      const pending = new Map(state.files);
+      for (const f of Array.from(list || [])) {
+        const name = normalizePath(f.name);
+        const old = pending.get(name);
+        if (old && old !== f) {
+          const a = new Uint8Array(await old.arrayBuffer()), b = new Uint8Array(await f.arrayBuffer());
+          if (a.length !== b.length || a.some((v, i) => v !== b[i]))
+            throw new Error(`同名檔案內容不同：${name}。請先清除或將 Atlas 的引用與 PNG 一起改名後再匯入。`);
+        }
+        pending.set(name, f);
+      }
+      state.files = pending;
+      await refreshLoadedFiles();
+    } catch (error) { log(`[匯入失敗] ${error.message}`, 'reset'); }
   }
 
   async function refreshLoadedFiles() {
+    for (const bitmap of state.imageBitmaps.values()) bitmap.close?.();
     state.imageBitmaps.clear();
     state.parsedAtlases = [];
 
@@ -483,10 +505,11 @@ canvas{width:100%;max-height:320px;background:
       for (const region of parsed.regions) {
         const crop = cropRegionToCanvas(region);
         const hash = canvasHash(crop);
-        const old = byName.get(region.name);
+        const key = JSON.stringify([region.name, region.index]);
+        const old = byName.get(key);
 
         if (old) {
-          if (allow && old.hash === hash) {
+          if (allow && old.hash === hash && regionMetadataKey(old.region) === regionMetadataKey(region) && sameCanvasPixels(old.crop, crop)) {
             skipped.push({ name: region.name, from: region.atlasFileName, sameAs: old.region.atlasFileName });
             continue;
           }
@@ -494,17 +517,29 @@ canvas{width:100%;max-height:320px;background:
           continue;
         }
 
-        byName.set(region.name, { region, crop, hash });
+        byName.set(key, { region, crop, hash });
         unique.push({ region, crop, hash });
       }
     }
 
     if (conflicts.length) {
-      throw new Error("發現同名 region 但圖片內容不同，為避免貼錯圖，已停止合併。\n" +
+      throw new Error("發現同名同 index 的 region，但像素或原尺寸／偏移等資料不同，已停止合併。\n" +
         conflicts.map(c => `- ${c.name}: ${c.a} / ${c.b}`).join("\n"));
     }
 
     return { unique, skipped };
+  }
+
+  function regionMetadataKey(r) {
+    return JSON.stringify([r.orig, r.offset, r.index, r.splits, r.pads,
+      Object.entries(r.extra || {}).sort(([a], [b]) => a.localeCompare(b))]);
+  }
+
+  function sameCanvasPixels(a, b) {
+    if (a.width !== b.width || a.height !== b.height) return false;
+    const ap = a.getContext('2d').getImageData(0, 0, a.width, a.height).data;
+    const bp = b.getContext('2d').getImageData(0, 0, b.width, b.height).data;
+    return ap.every((v, i) => v === bp[i]);
   }
 
   function packShelfAtWidth(sortedItems, padding, packWidth) {
@@ -606,16 +641,12 @@ canvas{width:100%;max-height:320px;background:
     }
 
     // 若 maxWidth 太小導致完全放不下，最後用最小必要寬度再試一次，避免直接失敗。
-    if (!best) {
-      const fallbackWidth = nextPowerOfTwo(minItemWidth);
-      const basePack = packShelfAtWidth(sorted, padding, fallbackWidth);
-      best = buildPackCandidate(basePack, sizeMode);
-    }
 
     if (!best) {
       throw new Error("包圖失敗：有單張 region 寬度超過可用輸出尺寸，請提高最大寬度。");
     }
 
+    if (best.width > upper || best.height > 16384) throw new Error("輸出超過設定寬度或 16384px 高度安全上限；請拆批合圖。");
     return { packed: best.packed, width: best.width, height: best.height };
   }
 
@@ -641,6 +672,7 @@ canvas{width:100%;max-height:320px;background:
       lines.push(`  index: ${Number.isFinite(r.index) ? r.index : -1}`);
       if (r.splits) lines.push(`  split: ${r.splits[0]}, ${r.splits[1]}, ${r.splits[2]}, ${r.splits[3]}`);
       if (r.pads) lines.push(`  pad: ${r.pads[0]}, ${r.pads[1]}, ${r.pads[2]}, ${r.pads[3]}`);
+      for (const [key, value] of Object.entries(r.extra || {})) lines.push(`  ${key}: ${value}`);
     }
     return lines.join("\n") + "\n";
   }
@@ -796,6 +828,10 @@ canvas{width:100%;max-height:320px;background:
     try {
       const missing = findMissingImages();
       if (missing.length) throw new Error("有 atlas 找不到引用圖片：\n" + missing.map(m => `- ${m.atlas} -> ${m.image}`).join("\n"));
+      const pageModes = new Set(state.parsedAtlases.flatMap(a => a.pages).map(p => JSON.stringify([
+        String(p.pma || 'false').toLowerCase(), p.filter, p.repeat, p.format
+      ])));
+      if (pageModes.size > 1) throw new Error("來源 Atlas 的 PMA／filter／repeat／format 不一致，請先統一匯出設定後再合圖。");
 
       const outputName = safeName($("outputName").value);
       const maxWidth = Math.max(256, parseInt($("maxWidth").value, 10) || 2048);
@@ -828,6 +864,7 @@ canvas{width:100%;max-height:320px;background:
       const reportText = buildReport({ outputName, packed, width, height, skipped, aliases: aliasAtlasFiles, atlasText, exportMainAtlas, sizeMode });
 
       const pngBlob = await new Promise(res => outCanvas.toBlob(res, "image/png"));
+      if (!pngBlob) throw new Error("PNG 編碼失敗，請降低包圖尺寸或拆批。");
       const atlasBlob = new Blob([atlasText], { type: "text/plain;charset=utf-8" });
       const reportBlob = new Blob([reportText], { type: "text/plain;charset=utf-8" });
       const aliasReadmeBlob = new Blob([aliasReadmeText], { type: "text/plain;charset=utf-8" });
@@ -872,6 +909,7 @@ canvas{width:100%;max-height:320px;background:
   function clearAll() {
     revokeOldUrls();
     state.files.clear();
+    for (const bitmap of state.imageBitmaps.values()) bitmap.close?.();
     state.imageBitmaps.clear();
     state.parsedAtlases = [];
     state.lastOutput = null;

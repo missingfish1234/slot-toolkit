@@ -26,6 +26,10 @@ public class FullScreenAfterimageEffect : MonoBehaviour
     [InspectorName("效果材質")]
     [Tooltip("指定全畫面殘影使用的材質。")]
     public Material effectMaterial;
+    [Header("History 品質（預設維持原畫面）")]
+    [Range(1, 4)] public int historyDownsample = 1;
+    [Tooltip("啟用後 History 使用來源格式；原本的 ARGB32 預設保持不變。")]
+    public bool preserveSourceFormat = false;
 
     [Header("主控制")]
     [InspectorName("播放時啟用效果")]
@@ -155,6 +159,7 @@ public class FullScreenAfterimageEffect : MonoBehaviour
     private bool _toggle;
     private int _lastWidth;
     private int _lastHeight;
+    private RenderTextureFormat _lastFormat;
 
     private Camera _cam;
     private PreviewPreset _lastAppliedPreset = PreviewPreset.Custom;
@@ -352,25 +357,26 @@ public class FullScreenAfterimageEffect : MonoBehaviour
         ReleaseHistory();
     }
 
-    private void EnsureHistoryTextures(int width, int height)
+    private void EnsureHistoryTextures(int width, int height, RenderTextureFormat format)
     {
-        if (_historyA != null && _historyB != null && width == _lastWidth && height == _lastHeight)
+        if (_historyA != null && _historyB != null && width == _lastWidth && height == _lastHeight && format == _lastFormat)
             return;
 
         ReleaseHistory();
 
-        _historyA = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32);
+        _historyA = new RenderTexture(width, height, 0, format);
         _historyA.name = "AfterimageHistoryA";
         _historyA.hideFlags = HideFlags.HideAndDontSave;
         _historyA.Create();
 
-        _historyB = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32);
+        _historyB = new RenderTexture(width, height, 0, format);
         _historyB.name = "AfterimageHistoryB";
         _historyB.hideFlags = HideFlags.HideAndDontSave;
         _historyB.Create();
 
         _lastWidth = width;
         _lastHeight = height;
+        _lastFormat = format;
 
         var active = RenderTexture.active;
 
@@ -432,7 +438,9 @@ public class FullScreenAfterimageEffect : MonoBehaviour
             return;
         }
 
-        EnsureHistoryTextures(src.width, src.height);
+        int divisor = Mathf.Clamp(historyDownsample, 1, 4);
+        RenderTextureFormat format = preserveSourceFormat && SystemInfo.SupportsRenderTextureFormat(src.format) ? src.format : RenderTextureFormat.ARGB32;
+        EnsureHistoryTextures(Mathf.Max(1, src.width / divisor), Mathf.Max(1, src.height / divisor), format);
 
         RenderTexture readHistory = _toggle ? _historyA : _historyB;
         RenderTexture writeHistory = _toggle ? _historyB : _historyA;

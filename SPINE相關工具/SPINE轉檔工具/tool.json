@@ -2,8 +2,8 @@
   "id": "spine76f895dc5de55177-spine8f496a945de55177",
   "name": "SPINE轉檔工具",
   "category": "SPINE相關工具",
-  "description": "",
-  "version": "1.0.0",
+  "description": "使用本機 Spine CLI 批次升級／降級／同版本轉出遊戲資源。",
+  "version": "1.0.1",
   "path": "SPINE相關工具/SPINE轉檔工具",
   "entry": "spine_converter_gui.py",
   "icon": "",
@@ -11,7 +11,10 @@
     "SPINE相關工具",
     "SPINE轉檔工具"
   ],
-  "updatedAt": "2026-06-11",
+  "updatedAt": "2026-09-05",
   "size": "21.8 KB",
-  "changelog": []
+  "changelog": [
+    "隔離本次產物、安全發佈並保留舊成果；加入取消／五分鐘逾時與主執行緒 UI 更新。"
+  ],
+  "documentation": "README_更新與安裝.md"
 }

@@ -131,7 +131,8 @@ Module._load = function patchedLoad(request, parent, isMain) {
 };
 global.Editor = { App: { path: process.cwd() } };
 
-const sceneExtension = require('../spine-director-cocos38/dist/scene.js');
+const extensionRoot = fs.existsSync(path.join(__dirname, '..', 'dist')) ? path.join(__dirname, '..') : path.join(__dirname, '..', 'spine-director-cocos38');
+const sceneExtension = require(path.join(extensionRoot, 'dist', 'scene.js'));
 const described = sceneExtension.methods.describeTimelineNodes(['node-1']);
 assert.equal(described.length, 1);
 assert.equal(described[0].capabilities.spine, true);
@@ -249,6 +250,11 @@ assert.equal(particle2d.enabled, false);
 assert.ok(particle2d.resetCount >= 2);
 
 const restored = sceneExtension.methods.restoreNativeTimeline();
+assert.equal(preview.transforms.length, 1);
+assert.equal(preview.transforms[0].nodeUuid, 'node-1');
+assert.equal(preview.transforms[0].transform.x, 100);
+assert.equal(preview.transforms[0].transform.rz, 45);
+assert.equal(preview.transforms[0].transform.opacity, 128);
 assert.equal(restored.restored, 2);
 assert.equal(target.position.x, 10);
 assert.equal(target.eulerAngles.z, 5);
@@ -259,7 +265,6 @@ assert.equal(particle2d.enabled, true);
 
 Module._load = originalLoad;
 
-const extensionRoot = path.join(__dirname, '..', 'spine-director-cocos38');
 const panelSource = fs.readFileSync(path.join(extensionRoot, 'dist', 'panels', 'default', 'index.js'), 'utf8');
 const mainSource = fs.readFileSync(path.join(extensionRoot, 'dist', 'main.js'), 'utf8');
 const runtimeSource = fs.readFileSync(path.join(extensionRoot, 'static', 'runtime', 'CocosTimelinePlayer.ts'), 'utf8');
@@ -274,7 +279,7 @@ assert.match(panelSource, /createNewProject\(\)/);
 assert.match(panelSource, /ownedTypes:/);
 assert.match(panelSource, /MIN_TIMELINE_ZOOM = 0\.1/);
 assert.match(panelSource, /const visibleDuration = Math\.max\(this\.project\.duration, width \/ pps\)/);
-assert.equal(extensionPackage.version, '0.13.0');
+assert.equal(extensionPackage.version, '0.13.2');
 assert.ok(fs.existsSync(path.join(extensionRoot, 'static', 'runtime', 'CocosTimelinePlayer.ts')));
 assert.match(mainSource, /'Game',\s*'Animation',\s*'Timeline'/);
 assert.match(mainSource, /const outputRoot = path\.join\(timelineRoot, 'resources'\)/);

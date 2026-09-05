@@ -3,9 +3,9 @@
   "name": "Cocos Creator 3.8 滾分 QA 插件",
   "category": "COCOS內插件",
   "description": "安裝到 Cocos Creator 3.8 專案 extensions 後，可直接在 Scene 測試 BMFont 滾分、SHRINK、字距與渲染寬度漂移。",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "path": "COCOS內插件/CocosCreator38Extension",
-  "entry": "rolling-score-tester-v1.2.0.zip",
+  "entry": "rolling-score-tester-v1.2.1.zip",
   "icon": "",
   "tags": [
     "COCOS內插件",
@@ -14,9 +14,10 @@
     "BMFont",
     "QA"
   ],
-  "updatedAt": "2026-09-04",
+  "updatedAt": "2026-09-05",
   "size": "",
   "changelog": [
+    "v1.2.1：終值等待 Scene 確認、run-id 防舊回應、壓力案例逐個確認；同格式診斷、切字型清除旧樣本。",
     "v1.2.0：強制重建 Label 並呼叫 repaintInEditMode，修正 Inspector 字串更新但 Scene 畫面停住。"
   ]
 }

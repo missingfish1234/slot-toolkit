@@ -2,6 +2,7 @@ Shader "Ark/UI/Dark Center Self Contour Glow Distortion"
 {
     Properties
     {
+        [Toggle(_LIGHTWEIGHT)] _Lightweight ("Lightweight (4-direction contour)", Float) = 0
         [PerRendererData] _MainTex ("Source Texture (RGBA)", 2D) = "white" {}
         _Color ("UI Tint", Color) = (1,1,1,1)
 
@@ -91,6 +92,7 @@ Shader "Ark/UI/Dark Center Self Contour Glow Distortion"
 
             CGPROGRAM
             #pragma target 3.0
+            #pragma shader_feature_local _LIGHTWEIGHT
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_local _ UNITY_UI_CLIP_RECT
@@ -212,10 +214,14 @@ Shader "Ark/UI/Dark Center Self Contour Glow Distortion"
                 fixed4 e1 = SampleMain(uv + float2(-ep.x, 0));
                 fixed4 e2 = SampleMain(uv + float2(0,  ep.y));
                 fixed4 e3 = SampleMain(uv + float2(0, -ep.y));
+                #ifdef _LIGHTWEIGHT
+                fixed4 e4 = e0, e5 = e1, e6 = e2, e7 = e3;
+                #else
                 fixed4 e4 = SampleMain(uv + float2( ep.x * DIAG,  ep.y * DIAG));
                 fixed4 e5 = SampleMain(uv + float2(-ep.x * DIAG,  ep.y * DIAG));
                 fixed4 e6 = SampleMain(uv + float2( ep.x * DIAG, -ep.y * DIAG));
                 fixed4 e7 = SampleMain(uv + float2(-ep.x * DIAG, -ep.y * DIAG));
+                #endif
 
                 float minAlpha = min(min(min(e0.a, e1.a), min(e2.a, e3.a)),
                                      min(min(e4.a, e5.a), min(e6.a, e7.a)));
@@ -257,10 +263,14 @@ Shader "Ark/UI/Dark Center Self Contour Glow Distortion"
                 fixed4 g1 = SampleMain(uv + float2(-gp.x, 0));
                 fixed4 g2 = SampleMain(uv + float2(0,  gp.y));
                 fixed4 g3 = SampleMain(uv + float2(0, -gp.y));
+                #ifdef _LIGHTWEIGHT
+                fixed4 g4 = g0, g5 = g1, g6 = g2, g7 = g3;
+                #else
                 fixed4 g4 = SampleMain(uv + float2( gp.x * DIAG,  gp.y * DIAG));
                 fixed4 g5 = SampleMain(uv + float2(-gp.x * DIAG,  gp.y * DIAG));
                 fixed4 g6 = SampleMain(uv + float2( gp.x * DIAG, -gp.y * DIAG));
                 fixed4 g7 = SampleMain(uv + float2(-gp.x * DIAG, -gp.y * DIAG));
+                #endif
 
                 float maxGlowAlpha = max(max(max(g0.a, g1.a), max(g2.a, g3.a)),
                                          max(max(g4.a, g5.a), max(g6.a, g7.a)));

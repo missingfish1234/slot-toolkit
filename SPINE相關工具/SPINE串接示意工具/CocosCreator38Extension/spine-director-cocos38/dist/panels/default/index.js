@@ -80,7 +80,7 @@ module.exports = Editor.Panel.define({
                 <label title="依最後一個動畫片段或 Transform 關鍵幀自動設定長度"><input id="auto-duration" type="checkbox" checked> 自動長度</label>
                 <label>FPS <input id="fps" type="number" min="1" max="120" step="1" value="30"></label>
                 <label><input id="loop" type="checkbox"> Loop</label>
-                <span id="drag-monitor">v0.13.0｜拖放待命</span>
+                <span id="drag-monitor">v${packageJSON.version}｜拖放待命</span>
                 <span id="status">拖曳 Hierarchy 物件到下方 Timeline</span>
             </div>
             <ui-drag-area id="workspace" droppable="cc.Node">
@@ -257,7 +257,7 @@ module.exports = Editor.Panel.define({
             this.$.status.className = kind;
         },
         setDragMonitor(text, kind = '') {
-            this.$.dragMonitor.textContent = `v0.13.0｜${text}`;
+            this.$.dragMonitor.textContent = `v${packageJSON.version}｜${text}`;
             this.$.dragMonitor.className = kind;
         },
         deleteSelection() {
@@ -771,7 +771,7 @@ module.exports = Editor.Panel.define({
                 states: this.project.tracks.map((track) => ({
                     nodeUuid: track.nodeUuid,
                     ownedTypes: [...new Set((track.clips || []).map((clip) => clip.type))],
-                    transform: interpolateKeys(track.transformKeys, this.currentTime, track.initialTransform),
+                    transform: { ...interpolateKeys(track.transformKeys, this.currentTime, track.initialTransform) },
                     clips: (track.clips || []).filter((clip) => (
                         this.currentTime >= clip.start && this.currentTime < clip.start + clip.duration
                     )).map((clip) => ({ ...clip, localTime: Math.max(0, this.currentTime - clip.start) }))
@@ -779,24 +779,52 @@ module.exports = Editor.Panel.define({
             };
         },
         queuePreview() {
+            // Invalidate any Scene read started before this preview, even on A -> B -> A seeks.
+            this.sceneRevision += 1;
             this.pendingPreview = this.evaluate();
             void this.flushPreview();
         },
         async flushPreview() {
-            if (this.previewBusy || !this.pendingPreview) return;
+            if (this.previewBusy) return this.previewTask;
+            if (this.restoringScene || !this.pendingPreview) return;
             this.previewBusy = true;
-            try {
-                while (this.pendingPreview) {
-                    const payload = this.pendingPreview;
+            this.previewTask = (async () => {
+                try {
+                    while (this.pendingPreview && !this.restoringScene) {
+                        const payload = this.pendingPreview;
+                        this.pendingPreview = null;
+                        const result = await Editor.Message.request(packageJSON.name, 'timeline-preview', payload);
+                        if (!result || result.ok === false) throw new Error('Scene 未完成預覽');
+                        // Use the applied pose (including Animation sampling / engine rounding),
+                        // not the previous recorded Key, as the next recording baseline.
+                        this.rememberTransforms(result.transforms || payload.states);
+                    }
+                } catch (error) {
                     this.pendingPreview = null;
-                    await Editor.Message.request(packageJSON.name, 'timeline-preview', payload);
+                    this.recordSnapshot.clear();
+                    this.setStatus(`Scene 預覽失敗：${error.message || error}`, 'error');
+                } finally {
+                    this.previewBusy = false;
                 }
-            } catch (error) {
-                this.pendingPreview = null;
-                this.setStatus(`Scene 預覽失敗：${error.message || error}`, 'error');
-            } finally {
-                this.previewBusy = false;
+            })();
+            return this.previewTask;
+        },
+        rememberTransforms(nodes) {
+            for (const node of nodes || []) {
+                if (node && node.transform) this.recordSnapshot.set(node.nodeUuid, { ...node.transform });
             }
+        },
+        captureContext() {
+            return {
+                project: this.project, time: this.snap(this.currentTime),
+                revision: this.sceneRevision, session: this.recordSession
+            };
+        },
+        canCaptureTransform(context) {
+            return !this.panelClosed && !this.playing && !this.scrubbing && !this.restoringScene
+                && !this.previewBusy && !this.pendingPreview
+                && context.project === this.project && context.time === this.snap(this.currentTime)
+                && context.revision === this.sceneRevision && context.session === this.recordSession;
         },
         extractDragPayload(dataTransfer) {
             if (!dataTransfer) return [];
@@ -913,6 +941,7 @@ module.exports = Editor.Panel.define({
                     collapsed: false
                 });
                 added += 1;
+                this.rememberTransforms([node]);
                 if (shouldSuggestName && added === 1) {
                     const parts = String(node.nodePath || '').split('/').filter(Boolean);
                     const parent = parts.length > 1 ? parts[parts.length - 2] : '';
@@ -965,19 +994,27 @@ module.exports = Editor.Panel.define({
             this.render();
             this.queuePreview();
         },
+        writeTransformKey(track, transform, time) {
+            const existing = track.transformKeys.find((key) => Math.abs(key.time - time) < 0.0005);
+            const key = { ...transform, id: existing ? existing.id : uid('key'), time };
+            if (existing) Object.assign(existing, key);
+            else track.transformKeys.push(key);
+            this.rememberTransforms([{ nodeUuid: track.nodeUuid, transform }]);
+            this.selection = { trackId: track.id, kind: 'key', itemId: key.id };
+        },
         async captureSingleTrack(track, transformOverride = null) {
+            const context = this.captureContext();
             try {
+                await this.flushPreview();
+                if (!this.canCaptureTransform(context)) return;
                 let transform = transformOverride;
                 if (!transform) {
                     const nodes = await Editor.Message.request(packageJSON.name, 'timeline-inspect-nodes', [track.nodeUuid]);
                     if (!nodes || !nodes[0]) throw new Error('Scene 中找不到該節點');
                     transform = nodes[0].transform;
                 }
-                const existing = track.transformKeys.find((key) => Math.abs(key.time - this.currentTime) < 0.0005);
-                const key = { id: existing ? existing.id : uid('key'), time: this.snap(this.currentTime), ...transform };
-                if (existing) Object.assign(existing, key);
-                else track.transformKeys.push(key);
-                this.selection = { trackId: track.id, kind: 'key', itemId: key.id };
+                if (!this.canCaptureTransform(context) || !this.project.tracks.includes(track)) return;
+                this.writeTransformKey(track, transform, context.time);
                 this.render();
                 this.queuePreview();
             } catch (error) {
@@ -986,32 +1023,40 @@ module.exports = Editor.Panel.define({
         },
         async toggleRecording() {
             this.recording = !this.recording;
+            const session = ++this.recordSession;
+            if (this.recordTimer) clearTimeout(this.recordTimer);
+            this.recordTimer = 0;
             this.$.record.classList.toggle('active', this.recording);
-            this.setStatus(this.recording ? 'Recording：在 Scene 或 Inspector 移動物件會自動記錄 Transform' : '已停止錄製', this.recording ? 'error' : '');
+            this.setStatus(this.recording ? 'Recording：停在指定時間後移動物件才記錄；拖曳時間與播放不錄製' : '已停止錄製', this.recording ? 'error' : '');
             if (this.recording) {
                 this.recordSnapshot = new Map();
                 try {
+                    await this.flushPreview();
+                    if (!this.recording || session !== this.recordSession) return;
+                    const context = this.captureContext();
                     const uuids = this.project.tracks.map((track) => track.nodeUuid);
                     const nodes = await Editor.Message.request(packageJSON.name, 'timeline-inspect-nodes', uuids);
-                    for (const node of nodes || []) this.recordSnapshot.set(node.nodeUuid, { ...node.transform });
+                    if (!this.recording || session !== this.recordSession) return;
+                    if (this.canCaptureTransform(context)) this.rememberTransforms(nodes);
                 } catch (error) {
+                    if (session !== this.recordSession) return;
                     this.recording = false;
                     this.$.record.classList.remove('active');
                     this.setStatus(`無法開始錄製：${error.message || error}`, 'error');
                     return;
                 }
                 this.scheduleRecordPoll();
-            } else if (this.recordTimer) {
-                clearTimeout(this.recordTimer);
-                this.recordTimer = 0;
             }
         },
         scheduleRecordPoll() {
+            if (this.recordTimer) clearTimeout(this.recordTimer);
+            this.recordTimer = 0;
             if (!this.recording) return;
             this.recordTimer = setTimeout(() => void this.pollRecording(), 250);
         },
         async pollRecording() {
-            if (!this.recording || this.recordPolling || !this.project.tracks.length) {
+            const context = this.captureContext();
+            if (!this.recording || this.recordPolling || !this.project.tracks.length || !this.canCaptureTransform(context)) {
                 this.scheduleRecordPoll();
                 return;
             }
@@ -1019,19 +1064,30 @@ module.exports = Editor.Panel.define({
             try {
                 const uuids = this.project.tracks.map((track) => track.nodeUuid);
                 const nodes = await Editor.Message.request(packageJSON.name, 'timeline-inspect-nodes', uuids);
+                if (!this.recording || !this.canCaptureTransform(context)) return;
+                const changed = [];
                 for (const node of nodes || []) {
                     const expected = this.recordSnapshot.get(node.nodeUuid);
                     if (expected && !sameTransform(expected, node.transform)) {
                         const track = this.project.tracks.find((item) => item.nodeUuid === node.nodeUuid);
                         if (track) {
-                            await this.captureSingleTrack(track, node.transform);
-                            this.recordSnapshot.set(node.nodeUuid, { ...node.transform });
-                            this.setStatus(`Recorded：${track.nodeName} @ ${round(this.currentTime)}s`, 'error');
+                            this.writeTransformKey(track, node.transform, context.time);
+                            changed.push(track.nodeName);
                         }
                     }
                 }
+                this.rememberTransforms(nodes);
+                // Commit all edited nodes before previewing, so one node's preview
+                // cannot overwrite another node's edit during the same sample.
+                if (changed.length) {
+                    this.render();
+                    this.queuePreview();
+                    this.setStatus(`Recorded：${changed.join('、')} @ ${round(context.time)}s`, 'error');
+                }
             } catch (error) {
-                this.setStatus(`錄製失敗：${error.message || error}`, 'error');
+                if (this.recording && this.canCaptureTransform(context)) {
+                    this.setStatus(`錄製失敗：${error.message || error}`, 'error');
+                }
             } finally {
                 this.recordPolling = false;
                 this.scheduleRecordPoll();
@@ -1072,14 +1128,25 @@ module.exports = Editor.Panel.define({
             if (this.playing) this.frameHandle = requestAnimationFrame(() => this.playFrame());
         },
         async stopPlayback() {
+            this.restoringScene = true;
+            this.sceneRevision += 1;
+            this.pendingPreview = null;
             this.playing = false;
             this.$.play.textContent = '▶';
             if (this.frameHandle) cancelAnimationFrame(this.frameHandle);
             try {
+                if (this.previewTask) await this.previewTask;
                 const result = await Editor.Message.request(packageJSON.name, 'timeline-restore');
+                const nodes = await Editor.Message.request(packageJSON.name, 'timeline-inspect-nodes', this.project.tracks.map((track) => track.nodeUuid));
+                this.recordSnapshot.clear();
+                this.rememberTransforms(nodes);
                 this.setStatus(`已停止並還原 ${result.restored || 0} 個 Scene 物件`, 'success');
             } catch (error) {
+                this.recordSnapshot.clear();
                 this.setStatus(`還原失敗：${error.message || error}`, 'error');
+            } finally {
+                this.restoringScene = false;
+                void this.flushPreview();
             }
         },
         deleteSelectedItem() {
@@ -1143,6 +1210,13 @@ module.exports = Editor.Panel.define({
         this.currentTime = 0;
         this.playing = false;
         this.recording = false;
+        this.recordSession = 0;
+        this.recordSnapshot = new Map();
+        this.sceneRevision = 0;
+        this.scrubbing = false;
+        this.restoringScene = false;
+        this.panelClosed = false;
+        this.previewTask = null;
         this.magnetEnabled = true;
         this.rippleEnabled = true;
         this.zoom = 1;
@@ -1198,14 +1272,19 @@ module.exports = Editor.Panel.define({
         }
         this.$.ruler.addEventListener('pointerdown', (event) => {
             if (event.button !== 0) return;
+            this.scrubbing = true;
+            this.sceneRevision += 1;
             const move = (pointerEvent) => this.seekFromEvent(pointerEvent);
             const up = () => {
+                this.scrubbing = false;
                 document.removeEventListener('pointermove', move);
                 document.removeEventListener('pointerup', up);
+                document.removeEventListener('pointercancel', up);
             };
             move(event);
             document.addEventListener('pointermove', move);
             document.addEventListener('pointerup', up);
+            document.addEventListener('pointercancel', up);
         });
         this.$.timeScroll.addEventListener('wheel', (event) => this.zoomAtPointer(event), { passive: false });
         this.$.timeScroll.addEventListener('pointerdown', (event) => this.beginTimelinePan(event));
@@ -1342,6 +1421,10 @@ module.exports = Editor.Panel.define({
         }, 80);
     },
     close() {
+        this.panelClosed = true;
+        this.sceneRevision += 1;
+        this.recordSession += 1;
+        this.pendingPreview = null;
         this.playing = false;
         this.recording = false;
         if (this.frameHandle) cancelAnimationFrame(this.frameHandle);
@@ -1355,6 +1438,7 @@ module.exports = Editor.Panel.define({
             this.$.workspace.removeEventListener('dragleave', this.onTimelineDragLeave);
             this.$.workspace.removeEventListener('drop', this.onTimelineDrop);
         }
-        void Editor.Message.request(packageJSON.name, 'timeline-restore').catch(() => {});
+        void Promise.resolve(this.previewTask)
+            .then(() => Editor.Message.request(packageJSON.name, 'timeline-restore')).catch(() => {});
     }
 });

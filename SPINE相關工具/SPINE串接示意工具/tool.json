@@ -2,8 +2,8 @@
   "id": "spine76f895dc5de55177-spine4e3263a5793a610f5de55177",
   "name": "SPINE串接示意工具",
   "category": "SPINE相關工具",
-  "description": "支援SPINE3.8與4.0版本，可直接串接SPINE動畫製作示意動畫",
-  "version": "1.0.0",
+  "description": "Spine 3.8／4.0／4.1 動畫串接、時間軸編排與示意影片匯出。",
+  "version": "1.0.1",
   "path": "SPINE相關工具/SPINE串接示意工具",
   "entry": "SpinePlayTest.html",
   "icon": "",
@@ -11,7 +11,10 @@
     "SPINE相關工具",
     "SPINE串接示意工具"
   ],
-  "updatedAt": "2026-06-11",
+  "updatedAt": "2026-09-05",
   "size": "9.7 MB",
-  "changelog": []
+  "changelog": [
+    "修正 Atlas 存讀／複製、缺圖驗證與失敗保留原專案；內附固定版本離線相依檔。"
+  ],
+  "documentation": "README_更新與安裝.md"
 }

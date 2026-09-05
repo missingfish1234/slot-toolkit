@@ -3,16 +3,16 @@
   "name": "Photoshop內掛件",
   "category": "PS內插件",
   "description": "可自動導出美術圖層，並可以針對UNITY、COCOS或SPINE版面位置的PREFAB檔案，免去重新在引擎中擺放位置的步驟。",
-  "version": "1.0.0",
+  "version": "1.2.19",
   "path": "PS內插件/Photoshop自動導出引擎對齊掛件",
-  "entry": "PSDExportManager.exe",
+  "entry": "Install_PSDExportPipeline_1.2.19.cmd",
   "icon": "",
   "tags": [
     "PS內插件",
     "Photoshop",
     "Photoshop內掛件"
   ],
-  "updatedAt": "2026-06-11",
-  "size": "97.7 KB",
-  "changelog": []
+  "updatedAt": "2026-09-05",
+  "size": "",
+  "changelog": ["1.2.19：每 PSD 獨立暫存／驗證／替換匯出，來源識別防止同名不同 PSD 覆蓋，保留其他 PSD、自訂檔與前版備份；修正安裝退出碼，提供來源與可重現 CCX 打包。"]
 }

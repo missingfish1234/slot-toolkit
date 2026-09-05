@@ -13,18 +13,20 @@ export class SweepLightController extends Component {
 
     @property({ tooltip: '是否啟動時自動循環' })
     loop: boolean = true;
+    @property({ tooltip: '啟用時各 Sprite 使用獨立進度；關閉時需由單一 Controller 同步控制共用材質。' })
+    independentMaterial = true;
 
     private _material: Material | null = null;
     private _timer: number = 0;
     private _isSweeping: boolean = false;
     private _waitTimer: number = 0;
 
-    protected start() {
+    protected onEnable() {
         const sprite = this.getComponent(Sprite);
         if (sprite) {
             // 獲取自定義材質的實例 (Instance)
             // 這樣修改 progress 時，才不會影響到其他使用同一顆材質的物件
-            this._material = sprite.customMaterial;
+            this._material = this.independentMaterial ? sprite.getMaterialInstance(0) : sprite.customMaterial;
         }
         
         // 初始狀態將光芒移出畫面外
@@ -49,19 +51,26 @@ export class SweepLightController extends Component {
         }
     }
 
+    protected onDisable() {
+        this._isSweeping = false;
+        this.resetProgress();
+        this._material = null;
+    }
+
     protected update(dt: number) {
         if (!this._material) return;
 
         if (this._isSweeping) {
             this._timer += dt;
-            let timeRatio = this._timer / this.duration;
+            const safeDuration = Number.isFinite(this.duration) ? Math.max(0.001, this.duration) : 1;
+            let timeRatio = Math.min(1, this._timer / safeDuration);
             
             // 將時間比例 (0~1) 映射到 Shader 需要的進度 (-1.0 ~ 1.0)
             let shaderProgress = math.lerp(-1.0, 1.0, timeRatio);
             this._material.setProperty('progress', shaderProgress);
 
             // 掃光結束
-            if (this._timer >= this.duration) {
+            if (this._timer >= safeDuration) {
                 this._isSweeping = false;
                 this.resetProgress();
             }

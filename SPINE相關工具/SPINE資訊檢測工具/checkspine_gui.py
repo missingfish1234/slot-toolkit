@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 import threading
 import time
+import sys
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
@@ -340,7 +341,8 @@ def analyze_spine_json(json_path: str, original_path: str) -> dict | None:
                     vertex_count += len(attachment.get("uvs", [])) // 2
                 else:
                     vertex_count += int(attachment.get("vertexCount", 0) or 0)
-                if attachment.get("vertices") and attachment.get("bones"):
+                # JSON encodes bone influences inside vertices; `bones` is a runtime field.
+                if len(attachment.get("vertices", []) or []) > len(attachment.get("uvs", []) or []):
                     weighted_mesh_count += 1
             elif attachment_type == "clipping":
                 clipping_count += 1
@@ -361,8 +363,8 @@ def analyze_spine_json(json_path: str, original_path: str) -> dict | None:
         skel_h = float(skeleton.get("height", 0) or 0)
         area_sqrt = int(math.sqrt(skel_w * skel_h)) if skel_w > 0 and skel_h > 0 else "未設定"
 
-        estimated_draw_calls = 1
-        current_blend = "normal"
+        estimated_draw_calls = 0
+        current_blend = None
         for slot in data.get("slots", []) or []:
             if not isinstance(slot, dict):
                 continue
@@ -505,7 +507,7 @@ class SpineScannerApp:
             ("面數上限", "verts"),
             ("點變形上限", "deforms"),
             ("遮罩上限", "clips"),
-            ("DrawCall 上限", "drawcalls"),
+            ("DrawCall 粗估上限", "drawcalls"),
         ]
         for label, key in threshold_fields:
             wrap = tk.Frame(std, bg=self.card_color)
@@ -554,7 +556,7 @@ class SpineScannerApp:
             ("weighted", "權重 Mesh", 80),
             ("deforms", "點變形", 70),
             ("clips", "遮罩", 60),
-            ("drawcalls", "預估 DrawCall", 100),
+            ("drawcalls", "DrawCall 粗估", 110),
             ("area_sqrt", "面積平方根", 90),
             ("tex_count", "包圖數", 70),
             ("tex_dims", "圖集尺寸", 260),
@@ -620,9 +622,6 @@ class SpineScannerApp:
         if not folder or not os.path.exists(folder):
             messagebox.showwarning("提醒", "請先選擇有效的專案資料夾。")
             return
-        if not os.path.exists(spine_exe) or not spine_exe.lower().endswith(".exe"):
-            messagebox.showerror("錯誤", f"找不到 Spine 執行檔，請重新選擇：\n{spine_exe}")
-            return
 
         self.cancel_event.clear()
         self.last_results = []
@@ -648,6 +647,9 @@ class SpineScannerApp:
             for filename in files:
                 lowered = filename.lower()
                 if lowered.endswith((".skel", ".skel.bytes")):
+                    if not os.path.isfile(spine_exe) or not spine_exe.lower().endswith('.exe'):
+                        self.process_failed(filename, "未知", "二進位需要有效的 Spine.exe；JSON 檔可直接掃描。", scan_results)
+                        continue
                     targets.append(os.path.join(root_dir, filename))
                 elif lowered.endswith(".json") and not lowered.startswith("spine_export_"):
                     targets.append(os.path.join(root_dir, filename))
@@ -882,7 +884,31 @@ class SpineScannerApp:
             messagebox.showerror("錯誤", f"匯出失敗：\n{exc}")
 
 
-if __name__ == "__main__":
+def self_test_report(output_path: str) -> int:
+    """Headless smoke test for the packaged executable; only uses its own temp input."""
+    try:
+        with tempfile.TemporaryDirectory(prefix="spine-qc-selftest-") as folder:
+            fixture = Path(folder) / 'weighted.json'
+            fixture.write_text(json.dumps({
+                'skeleton': {'spine': '4.0.56'},
+                'skins': [{'name': 'default', 'attachments': {'slot': {'mesh': {
+                    'type': 'mesh', 'uvs': [0, 0, 1, 0, 0, 1],
+                    'vertices': [1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1]
+                }}}}]
+            }), encoding='utf-8')
+            stats = analyze_spine_json(str(fixture), str(fixture))
+            if not stats or (stats['weighted'], stats['verts']) != (1, 3):
+                raise RuntimeError('Weighted mesh self-test failed')
+            report = {'ok': True, 'version': '1.0.3', 'weighted': stats['weighted'], 'vertices': stats['verts']}
+    except Exception as exc:
+        report = {'ok': False, 'error': str(exc)}
+    Path(output_path).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+    return 0 if report['ok'] else 1
+
+
+if __name__ == "__main__" and len(sys.argv) == 3 and sys.argv[1] == '--self-test':
+    raise SystemExit(self_test_report(sys.argv[2]))
+elif __name__ == "__main__":
     root = tk.Tk()
     app = SpineScannerApp(root)
     root.mainloop()

@@ -387,13 +387,30 @@
         document.getElementById('startT').addEventListener('input', (e) => { let s = parseFloat(e.target.value); v.currentTime = s; updateOutputEstimation(); });
         document.getElementById('endT').addEventListener('input', (e) => { let eT = parseFloat(e.target.value); v.currentTime = eT; updateOutputEstimation(); });
 
+        function readFiniteDuration(media) {
+            if(Number.isFinite(media.duration)&&media.duration>0)return Promise.resolve(media.duration);
+            return new Promise((resolve,reject)=>{
+                let timer;
+                const cleanup=()=>{clearTimeout(timer);['durationchange','timeupdate','seeked'].forEach(event=>media.removeEventListener(event,check));media.removeEventListener('error',fail);};
+                const fail=()=>{cleanup();reject(new Error('無法讀取影片長度；請重新封裝成具有片長資訊的 MP4/WebM'));};
+                const check=()=>{if(Number.isFinite(media.duration)&&media.duration>0){const value=media.duration;cleanup();media.currentTime=0;resolve(value);}};
+                ['durationchange','timeupdate','seeked'].forEach(event=>media.addEventListener(event,check));media.addEventListener('error',fail);
+                timer=setTimeout(fail,10000);media.currentTime=1e100;
+            });
+        }
+
         document.getElementById('videoUpload').onchange = (e) => {
             if(!e.target.files[0]) return;
             isLooping = false; v.pause(); playBtn.innerText = "⏯ 開啟循環預覽"; playBtn.style.background = "#444";
             activeTimelineDrag = null; isDraggingCanvas = false;
 
+            if(v.src.startsWith('blob:'))URL.revokeObjectURL(v.src);
             v.src = URL.createObjectURL(e.target.files[0]); v.load();
-            v.onloadedmetadata = () => {
+            v.onloadedmetadata = async () => {
+                const loadingSource=v.src;
+                recordBtn.disabled=true;playBtn.disabled=true;
+                try { await readFiniteDuration(v); } catch(error) { if(v.src===loadingSource)document.getElementById('warningText').innerText=error.message; return; }
+                if(v.src!==loadingSource)return;
                 vidDuration = v.duration; document.getElementById('tLabelTotal').innerText = vidDuration.toFixed(1) + 's';
                 document.getElementById('startT').value = "0.00";
                 document.getElementById('endT').value = Math.min(2.0, vidDuration).toFixed(2);
@@ -490,70 +507,98 @@
             renderLoopId = requestAnimationFrame(render);
         }
 
-        document.getElementById('recordBtn').onclick = async () => {
-            const btn = document.getElementById('recordBtn');
-            btn.innerText = "壓製中，請稍候..."; btn.disabled = true; document.getElementById('downloadLink').style.display = 'none';
-            if(isLooping) playBtn.click(); v.pause();
+        let recording = false, cancelRecording = null, outputBlobUrl = null;
+        const cancelRecordBtn = document.createElement('button');
+        cancelRecordBtn.textContent = '取消壓製'; cancelRecordBtn.disabled = true;
+        cancelRecordBtn.onclick = () => cancelRecording?.(new Error('已取消壓製'));
+        recordBtn.insertAdjacentElement('afterend', cancelRecordBtn);
 
-            const start = parseFloat(document.getElementById('startT').value), end = parseFloat(document.getElementById('endT').value);
-            const cw = parseInt(document.getElementById('cW').value), ch = parseInt(document.getElementById('cH').value);
-            const plat = platformTarget.value;
-            
-            let outW, outH;
-            if (plat === 'telegram') {
-                const s = Math.min(512 / cw, 512 / ch); outW = Math.round(cw * s); outH = Math.round(ch * s);
-            } else if (plat === 'line') {
-                const s = Math.min(320 / cw, 270 / ch); outW = Math.round(cw * s); outH = Math.round(ch * s);
-                if(outW % 2 !== 0) outW -= 1; if(outH % 2 !== 0) outH -= 1;
-            } else {
-                const targetEdge = parseInt(outEdgeNum.value) || 512;
-                const s = targetEdge / Math.max(cw, ch); outW = Math.round(cw * s); outH = Math.round(ch * s);
+        function recordingParameters() {
+            const start = Number(document.getElementById('startT').value), end = Number(document.getElementById('endT').value);
+            const cw = Number(document.getElementById('cW').value), ch = Number(document.getElementById('cH').value);
+            const x = Number(document.getElementById('cX').value), y = Number(document.getElementById('cY').value);
+            if(!Number.isFinite(v.duration) || !v.videoWidth) throw new Error('請先載入可解碼的影片');
+            if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end<=start||end>v.duration) throw new Error('請設定 0 ≤ 起點 < 終點 ≤ 影片長度');
+            if(![cw,ch,x,y].every(Number.isFinite)||cw<1||ch<1||cw>16384||ch>16384) throw new Error('裁切尺寸必須為 1–16384 像素');
+            const plat=platformTarget.value, edge=Number(outEdgeNum.value)||512;
+            if(!Number.isFinite(edge)||edge<1||edge>4096) throw new Error('最長邊限 1–4096 像素');
+            const s=plat==='telegram'?Math.min(512/cw,512/ch):plat==='line'?Math.min(320/cw,270/ch):edge/Math.max(cw,ch);
+            let outW=Math.max(1,Math.round(cw*s)),outH=Math.max(1,Math.round(ch*s));
+            if(plat==='line'){outW=Math.max(2,outW-outW%2);outH=Math.max(2,outH-outH%2);}
+            if(!Number.isFinite(currentRecordFps)||currentRecordFps<1||currentRecordFps>60)throw new Error('FPS 限 1–60');
+            return {start,end,cw,ch,x,y,plat,outW,outH};
+        }
+
+        function seekRecordingStart(time) {
+            return new Promise((resolve,reject) => {
+                let timer;
+                const finish=(error)=>{clearTimeout(timer);v.removeEventListener('seeked',onSeek);v.removeEventListener('error',onError);cancelRecording=null;error?reject(error):resolve();};
+                const onSeek=()=>finish(),onError=()=>finish(new Error('影片定位失敗'));
+                cancelRecording=finish;
+                if(Math.abs(v.currentTime-time)<.00001&&v.readyState>=2){finish();return;}
+                v.addEventListener('seeked',onSeek);v.addEventListener('error',onError);
+                timer=setTimeout(()=>finish(new Error('影片定位逾時')),5000);v.currentTime=time;
+            });
+        }
+
+        recordBtn.onclick = async () => {
+            if(recording)return;
+            let stream,recorder,frameId=null,deadline=null;
+            const savedControls=[];
+            try {
+                const p=recordingParameters();
+                if(!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream)throw new Error('此瀏覽器不支援 WebM 錄影，請用 Chrome／Edge');
+                recording=true;
+                if(isLooping)playBtn.click();v.pause();
+                document.querySelectorAll('input,select,button').forEach(el=>{savedControls.push([el,el.disabled]);el.disabled=true;});
+                cancelRecordBtn.disabled=false;recordBtn.innerText='壓製中，請保持此頁在前景…';
+                document.getElementById('downloadLink').style.display='none';
+                await seekRecordingStart(p.start);
+                const offscreen=document.createElement('canvas');offscreen.width=p.outW;offscreen.height=p.outH;
+                const oCtx=offscreen.getContext('2d');
+                const drawFrame=()=>{oCtx.clearRect(0,0,p.outW,p.outH);oCtx.drawImage(v,p.x,p.y,p.cw,p.ch,0,0,p.outW,p.outH);applyTextOverlay(oCtx,false,p.outW,p.outH);};
+                drawFrame();
+                stream=offscreen.captureStream(currentRecordFps);
+                const mime=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(t=>MediaRecorder.isTypeSupported(t));
+                if(!mime)throw new Error('此瀏覽器不支援 WebM 編碼');
+                recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:window.targetBps});
+                const chunks=[];
+                await new Promise((resolve,reject)=>{
+                    let stopping=false,settled=false;
+                    const cleanupListeners=()=>{v.removeEventListener('ended',onEnded);v.removeEventListener('error',onVideoError);};
+                    const fail=(error)=>{if(settled)return;settled=true;cleanupListeners();reject(error);};
+                    const stop=()=>{if(stopping)return;stopping=true;if(recorder.state!=='inactive')recorder.stop();};
+                    const onEnded=()=>stop(),onVideoError=()=>fail(new Error('影片解碼失敗'));
+                    cancelRecording=fail;
+                    recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+                    recorder.onerror=e=>fail(e.error||new Error('WebM 編碼失敗'));
+                    recorder.onstop=()=>{cleanupListeners();if(!settled){settled=true;resolve();}};
+                    v.addEventListener('ended',onEnded);v.addEventListener('error',onVideoError);
+                    const tick=()=>{if(settled||stopping)return;if(v.ended||v.currentTime>=p.end){stop();return;}drawFrame();frameId=requestAnimationFrame(tick);};
+                    deadline=setTimeout(()=>fail(new Error('壓製逾時；請保持分頁在前景並重試')),(p.end-p.start)*2000+15000);
+                    recorder.start(1000);
+                    v.play().then(tick).catch(fail);
+                });
+                const blob=new Blob(chunks,{type:'video/webm'});
+                if(!blob.size)throw new Error('錄製未產生影片資料');
+                if(outputBlobUrl)URL.revokeObjectURL(outputBlobUrl);outputBlobUrl=URL.createObjectURL(blob);
+                const link=document.getElementById('downloadLink');
+                let name=document.getElementById('outFilename').value.trim()||'my_video';
+                if(!name.endsWith('.webm'))name+='.webm';link.href=outputBlobUrl;link.download=name;link.style.display='block';
+                const kb=(blob.size/1024).toFixed(1);
+                document.getElementById('warningText').innerText=p.plat==='telegram'&&blob.size>256*1024?'輸出 '+kb+' KB，超過目標大小；請縮短或降低尺寸。':p.plat==='line'?'WebM 中繼檔完成 ('+kb+' KB)，仍需轉 APNG。':'輸出完成：'+kb+' KB。';
+            } catch(error) {
+                document.getElementById('warningText').innerText=error.message||String(error);
+            } finally {
+                if(frameId!==null)cancelAnimationFrame(frameId);clearTimeout(deadline);
+                if(recorder&&recorder.state!=='inactive'){try{recorder.stop();}catch(_){}}
+                if(stream)stream.getTracks().forEach(track=>track.stop());
+                if(recording)v.pause();cancelRecording=null;recording=false;
+                savedControls.forEach(([el,disabled])=>el.disabled=disabled);
+                cancelRecordBtn.disabled=true;recordBtn.innerText='⏺ 壓製目標素材';
             }
-
-            const offscreen = document.createElement('canvas'); offscreen.width = outW; offscreen.height = outH;
-            const oCtx = offscreen.getContext('2d');
-            
-            // V9: 核心更新！根據模式傳入正確的 FPS 幀率
-            const stream = offscreen.captureStream(currentRecordFps);
-            
-            let options = { mimeType: 'video/webm; codecs=vp9', videoBitsPerSecond: window.targetBps };
-            if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: 'video/webm', videoBitsPerSecond: window.targetBps };
-            const recorder = new MediaRecorder(stream, options); const chunks = [];
-
-            recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
-            recorder.onstop = () => {
-                const blob = new Blob(chunks, { type: 'video/webm' });
-                const realKB = (blob.size / 1024).toFixed(1);
-                const warning = document.getElementById('warningText');
-                
-                if (plat === 'telegram' && realKB > 256) {
-                    warning.innerText = `⚠️ 真實大小為 ${realKB} KB，稍微超標！請再縮短一點時間。`;
-                } else if (plat === 'line') {
-                    warning.innerText = `✅ LINE 中繼檔輸出完成！(${realKB} KB) 請接續丟到 Ezgif 減色成 APNG。`;
-                } else {
-                    warning.innerText = `✅ 輸出成功！真實檔案大小為 ${realKB} KB。`;
-                }
-
-                const url = URL.createObjectURL(blob);
-                const link = document.getElementById('downloadLink');
-                let filename = document.getElementById('outFilename').value.trim() || 'my_video';
-                if (!filename.endsWith('.webm')) filename += '.webm';
-                
-                link.href = url; link.download = filename; link.style.display = "block";
-                btn.innerText = "⏺ 重新壓製"; btn.disabled = false;
-            };
-
-            v.currentTime = start; await v.play(); recorder.start();
-            const track = () => {
-                if (v.currentTime >= end) { recorder.stop(); v.pause(); return; }
-                oCtx.clearRect(0,0,outW,outH);
-                oCtx.drawImage(v, document.getElementById('cX').value, document.getElementById('cY').value, cw, ch, 0, 0, outW, outH);
-                
-                applyTextOverlay(oCtx, false, outW, outH);
-                requestAnimationFrame(track);
-            };
-            track();
         };
+        window.addEventListener('pagehide',()=>{cancelRecording?.(new Error('頁面已關閉'));if(outputBlobUrl)URL.revokeObjectURL(outputBlobUrl);if(v.src.startsWith('blob:'))URL.revokeObjectURL(v.src);});
     </script>
 </body>
 </html>

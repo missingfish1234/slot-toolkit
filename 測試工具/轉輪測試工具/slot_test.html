@@ -1107,9 +1107,52 @@
 
         function _delay(ms) { return new Promise(res => setTimeout(res, ms)); }
         function _revokeBlobUrl(url) { try { if (typeof url === 'string' && url.startsWith('blob:')) URL.revokeObjectURL(url); } catch (_) {} }
-        function _revokeAllSymbolImageUrls() { try { (settings.images || []).forEach(img => _revokeBlobUrl(img && img.url)); } catch (_) {} }
+        function _revokeSpineUrls(img, keepPreview = false) { Object.values(img?.spineData?.rawDataURIs || {}).filter(url => !keepPreview || url !== img.url).forEach(_revokeBlobUrl); }
+        function _revokeAllSymbolImageUrls() { try { (settings.images || []).forEach(img => { _revokeBlobUrl(img && img.url); _revokeSpineUrls(img); }); } catch (_) {} }
+
+        async function packSpineData(img) {
+            if(!img.isSpine) return null;
+            const data = img.spineData;
+            if(!data?.rawDataURIs?.[data.jsonName] || !data.rawDataURIs[data.atlasName]) throw new Error('Spine 綁定缺少骨架或 atlas：' + img.name);
+            const resources = {};
+            for(const [name, url] of Object.entries(data.rawDataURIs)) {
+                const encoded = await blobToBase64(url);
+                if(!encoded) throw new Error('無法保存 Spine 資源：' + name);
+                resources[name] = encoded;
+            }
+            return { jsonName: data.jsonName, atlasName: data.atlasName, resources };
+        }
+
+        function validateProjectPack(d) {
+            if(!d || typeof d !== 'object' || (d.schemaVersion && d.schemaVersion > 3)) throw new Error('不支援的專案版本');
+            if(!d.pack) return;
+            if(!Array.isArray(d.pack.symbols) || !d.pack.assets || !d.pack.bg) throw new Error('專案資源資料不完整');
+            function checkData(value) {
+                if(typeof value !== 'string' || !/^data:[^,]*;base64,/.test(value)) throw new Error('專案資源格式無效');
+                atob(value.slice(value.indexOf(',') + 1));
+            }
+            for(const s of d.pack.symbols) {
+                checkData(s.b64);
+                if(s.isSpine) {
+                    const data=s.spineData;
+                    if(!data?.resources?.[data.jsonName] || !data.resources[data.atlasName]) throw new Error('Spine 資源不完整：' + s.name);
+                    Object.values(data.resources).forEach(checkData);
+                }
+            }
+            Object.values(d.pack.assets).filter(Boolean).forEach(checkData);
+            Object.values(d.pack.bg).filter(Boolean).forEach(checkData);
+        }
+
+        function restoreSpineData(s) {
+            if(!s.isSpine) return undefined;
+            return {
+                jsonName:s.spineData.jsonName, atlasName:s.spineData.atlasName,
+                rawDataURIs:Object.fromEntries(Object.entries(s.spineData.resources).map(([name,data])=>[name,base64ToBlobUrl(data)]))
+            };
+        }
 
         async function blobToBase64(blobUrl) {
+            if(typeof blobUrl === 'string' && blobUrl.startsWith('data:')) return blobUrl;
             if (!blobUrl || !blobUrl.startsWith('blob:')) return null;
             try {
                 const response = await fetch(blobUrl);
@@ -1128,7 +1171,7 @@
                 const bin = atob(base64.split(',')[1]);
                 const arr = new Uint8Array(bin.length);
                 for(let i=0; i<bin.length; i++) arr[i] = bin.charCodeAt(i);
-                const blob = new Blob([arr], {type: 'image/png'}); 
+                const blob = new Blob([arr], {type: base64.slice(5, base64.indexOf(';')) || 'application/octet-stream'});
                 return URL.createObjectURL(blob);
             } catch (e) { return null; }
         }
@@ -3305,7 +3348,7 @@
         
         function initSaveLoad() {
             const buildConfig = () => {
-                const config = { app: 'slot-sim', appVersion: APP_VERSION, schemaVersion: 2, params: {}, toggles: {} };
+                const config = { app: 'slot-sim', appVersion: APP_VERSION, schemaVersion: 3, params: {}, toggles: {} };
                 document.querySelectorAll('.input-controls input[type="number"]').forEach(input => { config.params[input.id] = input.value; });
                 config.params['ease-type'] = document.getElementById('ease-type').value; config.params['anim-mode'] = document.getElementById('anim-mode').value;
                 config.params['top-dir'] = document.getElementById('top-reel-dir').value;
@@ -3327,7 +3370,10 @@
                 cfg.pack = { symbols: [], assets: {}, bg: {} };
                 for(let img of settings.images) {
                     const b64 = await blobToBase64(img.url);
+                    if(!b64) throw new Error('無法保存圖騰：' + img.name);
+                    const spineData = await packSpineData(img);
                     if(b64) cfg.pack.symbols.push({ 
+                        isSpine: !!img.isSpine, spineData,
                         id: img.id, b64: b64, name: img.name, weight: img.weight, span: img.span, scale: img.scale || 1, 
                         reelsSpec: img.reelsSpec, isWild: img.isWild, isScatter: img.isScatter,
                         collectType: img.collectType || '',
@@ -3457,6 +3503,7 @@
         }
 
         function applyConfig(d) { 
+            validateProjectPack(d);
             if(d.params) { 
                 for(let key in d.params) { const el = document.getElementById(key); if(el) { el.value = d.params[key]; el.dispatchEvent(new Event('input')); } } 
                 if(d.params['ease-type']) { const el = document.getElementById('ease-type'); el.value = d.params['ease-type']; el.dispatchEvent(new Event('change')); } 
@@ -3515,6 +3562,8 @@
                         const url = base64ToBlobUrl(s.b64);
                         if(url) {
                             settings.images.push({ 
+                                isSpine: !!s.isSpine,
+                                spineData: restoreSpineData(s),
                                 id: s.id, name: s.name, url: url, weight: s.weight, span: s.span, scale: s.scale || 1, reelsSpec: s.reelsSpec, 
                                 isWild: s.isWild, isScatter: s.isScatter, collectType: s.collectType || '',
                                 allowMain: (s.allowMain !== undefined) ? s.allowMain : true, 
@@ -3643,6 +3692,7 @@
 
                 // 將資料寫入原本的靜態圖片物件中
                 const imgObj = settings.images[_bindSpineTargetIdx];
+                _revokeSpineUrls(imgObj, true);
                 imgObj.isSpine = true;
                 imgObj.spineData = {
                     jsonName: jsonFile.name,

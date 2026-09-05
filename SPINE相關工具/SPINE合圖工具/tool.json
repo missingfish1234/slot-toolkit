@@ -2,8 +2,8 @@
   "id": "spine76f895dc5de55177-spine540857165de55177",
   "name": "SPINE合圖工具",
   "category": "SPINE相關工具",
-  "description": "",
-  "version": "1.0.0",
+  "description": "合併多份 Spine Atlas 與 PNG，保留角色 Region 資料。",
+  "version": "1.0.1",
   "path": "SPINE相關工具/SPINE合圖工具",
   "entry": "spine_atlas_merge.html",
   "icon": "",
@@ -11,7 +11,10 @@
     "SPINE相關工具",
     "SPINE合圖工具"
   ],
-  "updatedAt": "2026-06-11",
+  "updatedAt": "2026-09-05",
   "size": "35.8 KB",
-  "changelog": []
+  "changelog": [
+    "支援 compact／舊 Atlas、完整 metadata 去重、同名檔衝突及尺寸／頁面模式檢查。"
+  ],
+  "documentation": "README_更新與安裝.md"
 }

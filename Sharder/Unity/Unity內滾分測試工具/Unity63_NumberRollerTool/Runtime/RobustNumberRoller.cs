@@ -18,6 +18,8 @@ namespace SlotTools.NumberRoller
     /// Unity 6.3 老虎機數字滾分工具 v4。
     /// 重點支援：UGUI Text + Font、TMP、UGUI Image Sprite、MakeFont/BMFont、UGUI_IMAGE Text Font 類型 Prefab/Component。
     /// </summary>
+    // Receive destruction callbacks for glyphs created by the Inspector preview too.
+    [ExecuteAlways]
     [DisallowMultipleComponent]
     [RequireComponent(typeof(RectTransform))]
     [AddComponentMenu("Slot Tools/Number Roller/Robust Number Roller v4")]
@@ -125,9 +127,9 @@ namespace SlotTools.NumberRoller
         [Tooltip("DurationSmooth：照時間平滑補間。UnitsPerSecond：依每秒增加分數。StepPerTick：每幾秒固定加幾分，適合一分一分快速跳。")]
         public CountMode countMode = CountMode.UnitsPerSecond;
         [Min(0.01f)] public float duration = 1.6f;
-        [Min(0.01)] public double unitsPerSecond = 6000;
+        [Min(0.01f)] public double unitsPerSecond = 6000;
         [Tooltip("StepPerTick 模式用。1 = 一分一分加；10 = 每次跳 10 分。")]
-        [Min(0.0001)] public double pointsPerTick = 1;
+        [Min(0.0001f)] public double pointsPerTick = 1;
         [Tooltip("StepPerTick 模式用。0.01 = 每 0.01 秒跳一次。示意影片建議 0.005 ~ 0.03。")]
         [Min(0.0001f)] public float tickInterval = 0.01f;
         [Tooltip("避免分數很大時單幀卡死。")]
@@ -185,6 +187,22 @@ namespace SlotTools.NumberRoller
         private bool _isRolling;
         private string _lastText;
         private string _layoutText;
+        private bool _glyphsReady;
+        private int _glyphSignature;
+        private readonly List<Sprite> _ownedSprites = new List<Sprite>();
+        private readonly List<GameObject> _lineCells = new List<GameObject>();
+
+        private void OnDestroy()
+        {
+            ReleaseOwnedSprites();
+        }
+
+        private void ReleaseOwnedSprites()
+        {
+            foreach (Sprite sprite in _ownedSprites)
+                if (sprite != null) { if (Application.isPlaying) Destroy(sprite); else DestroyImmediate(sprite); }
+            _ownedSprites.Clear();
+        }
 
         private void Reset()
         {
@@ -193,6 +211,7 @@ namespace SlotTools.NumberRoller
 
         private void Awake()
         {
+            if (!Application.isPlaying) return;
             AutoBind();
             RebuildDisplay();
             SetImmediate(startValue);
@@ -200,12 +219,13 @@ namespace SlotTools.NumberRoller
 
         private void OnEnable()
         {
-            if (playOnEnable) Play();
+            if (Application.isPlaying && playOnEnable) Play();
         }
 
 #if UNITY_EDITOR
         private void OnValidate()
         {
+            _glyphsReady = false;
             digitCount = Mathf.Max(1, digitCount);
             charWidth = Mathf.Max(1, charWidth);
             charHeight = Mathf.Max(1, charHeight);
@@ -217,7 +237,7 @@ namespace SlotTools.NumberRoller
 
         private void Update()
         {
-            if (!_isRolling) return;
+            if (!Application.isPlaying || !_isRolling) return;
 
             float dt = useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
             if (countMode == CountMode.StepPerTick)
@@ -244,6 +264,7 @@ namespace SlotTools.NumberRoller
         public void RebuildDisplay()
         {
             AutoBind();
+            _glyphsReady = false;
             BuildGlyphs();
             ClearChildren();
             _columns.Clear();
@@ -430,8 +451,35 @@ namespace SlotTools.NumberRoller
             BuildGlyphs();
             if (_lastText == text) return;
             _lastText = text;
-            ClearChildren();
-            foreach (char c in text) CreateImageGlyph(c, imageRoot, false, 0);
+            EnsureLayout();
+            if (imageRoot == null) return;
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (i >= _lineCells.Count || _lineCells[i] == null)
+                {
+                    GameObject cell = new GameObject("NumberCell", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+                    cell.transform.SetParent(imageRoot, false);
+                    cell.AddComponent<NumberRollerGeneratedNode>().owner = this;
+                    GameObject fallback = new GameObject("Fallback", typeof(RectTransform), typeof(TextMeshProUGUI));
+                    fallback.transform.SetParent(cell.transform, false);
+                    RectTransform fr = fallback.GetComponent<RectTransform>();
+                    fr.anchorMin = Vector2.zero; fr.anchorMax = Vector2.one; fr.offsetMin = fr.offsetMax = Vector2.zero;
+                    if (i < _lineCells.Count) _lineCells[i] = cell; else _lineCells.Add(cell);
+                }
+                GameObject go = _lineCells[i]; go.SetActive(true);
+                GlyphInfo g = GetGlyph(text[i]);
+                Image img = go.GetComponent<Image>();
+                TMP_Text fallbackText = go.GetComponentInChildren<TMP_Text>(true);
+                bool available = g != null && g.sprite != null;
+                img.enabled = available; img.sprite = available ? g.sprite : null;
+                img.color = imageColor; img.preserveAspect = preserveAspect;
+                fallbackText.gameObject.SetActive(!available);
+                if (!available) { fallbackText.text = text[i].ToString(); fallbackText.font = fallbackTMPFont; fallbackText.fontSize = fallbackFontSize; fallbackText.color = imageColor; fallbackText.alignment = TextAlignmentOptions.Center; }
+                float width = useNativeGlyphWidth && available && g.advance > 0 ? g.advance : (char.IsDigit(text[i]) ? charWidth : symbolWidth);
+                go.GetComponent<RectTransform>().sizeDelta = new Vector2(width, charHeight);
+                LayoutElement le = go.GetComponent<LayoutElement>(); le.preferredWidth = width; le.preferredHeight = charHeight;
+            }
+            for (int i = text.Length; i < _lineCells.Count; i++) if (_lineCells[i] != null) _lineCells[i].SetActive(false);
         }
 
         public string FormatValue(double value)
@@ -499,6 +547,7 @@ namespace SlotTools.NumberRoller
         {
             GameObject viewportGO = new GameObject("Digit_10^" + placeIndex, typeof(RectTransform), typeof(RectMask2D), typeof(LayoutElement));
             viewportGO.transform.SetParent(imageRoot, false);
+            viewportGO.AddComponent<NumberRollerGeneratedNode>().owner = this;
             RectTransform viewport = viewportGO.GetComponent<RectTransform>();
             LayoutElement le = viewportGO.GetComponent<LayoutElement>();
             viewport.sizeDelta = new Vector2(charWidth, charHeight);
@@ -556,7 +605,7 @@ namespace SlotTools.NumberRoller
 
             foreach (DigitColumn col in _columns)
             {
-                long p = Pow10(col.placeIndex);
+                double p = Pow10(col.placeIndex);
                 int startDigit = (int)((from / p) % 10);
                 int targetDigit = (int)((to / p) % 10);
                 float end = targetDigit;
@@ -584,6 +633,7 @@ namespace SlotTools.NumberRoller
 
             GameObject go = new GameObject("Glyph_" + SafeName(c), typeof(RectTransform), typeof(Image), typeof(LayoutElement));
             go.transform.SetParent(parent, false);
+            if (parent == imageRoot) go.AddComponent<NumberRollerGeneratedNode>().owner = this;
             RectTransform rt = go.GetComponent<RectTransform>();
             Image img = go.GetComponent<Image>();
             LayoutElement le = go.GetComponent<LayoutElement>();
@@ -603,6 +653,7 @@ namespace SlotTools.NumberRoller
         {
             GameObject go = new GameObject("Missing_" + s, typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
             go.transform.SetParent(parent, false);
+            if (parent == imageRoot) go.AddComponent<NumberRollerGeneratedNode>().owner = this;
             RectTransform rt = go.GetComponent<RectTransform>();
             TMP_Text txt = go.GetComponent<TMP_Text>();
             LayoutElement le = go.GetComponent<LayoutElement>();
@@ -611,7 +662,7 @@ namespace SlotTools.NumberRoller
             txt.fontSize = fallbackFontSize;
             txt.alignment = TextAlignmentOptions.Center;
             txt.color = imageColor;
-            txt.enableWordWrapping = false;
+            txt.textWrappingMode = TextWrappingModes.NoWrap;
             float w = char.IsDigit(s[0]) ? charWidth : symbolWidth;
             rt.sizeDelta = new Vector2(w, charHeight);
             le.preferredWidth = w;
@@ -620,7 +671,13 @@ namespace SlotTools.NumberRoller
 
         private void BuildGlyphs()
         {
+            int signature = GlyphSignature();
+            if (_glyphsReady && signature == _glyphSignature) return;
+            ReleaseOwnedSprites();
             _glyphs.Clear();
+            _glyphsReady = true;
+            _glyphSignature = signature;
+            _lastText = null;
             switch (glyphSource)
             {
                 case GlyphSource.DirectSprites:
@@ -640,7 +697,7 @@ namespace SlotTools.NumberRoller
 
         private GlyphInfo GetGlyph(char c)
         {
-            if (_glyphs.Count == 0) BuildGlyphs();
+            if (!_glyphsReady) BuildGlyphs();
             if (_glyphs.TryGetValue(c, out GlyphInfo g)) return g;
             return null;
         }
@@ -858,6 +915,7 @@ namespace SlotTools.NumberRoller
             try
             {
                 Sprite s = Sprite.Create(tex, rect, new Vector2(0.5f, 0.5f), spritePixelsPerUnit);
+                _ownedSprites.Add(s);
                 s.name = "NumGlyph_" + SafeName(c);
                 _glyphs[c] = new GlyphInfo { sprite = s, size = size, advance = advance > 0 ? advance : size.x };
             }
@@ -893,14 +951,37 @@ namespace SlotTools.NumberRoller
 
         private void ClearChildren()
         {
+            _lineCells.Clear();
             if (imageRoot == null) return;
             for (int i = imageRoot.childCount - 1; i >= 0; i--)
             {
                 Transform child = imageRoot.GetChild(i);
+                NumberRollerGeneratedNode marker = child.GetComponent<NumberRollerGeneratedNode>();
+                if (marker == null || marker.owner != this) continue;
+                child.gameObject.SetActive(false);
                 if (Application.isPlaying) Destroy(child.gameObject);
                 else DestroyImmediate(child.gameObject);
             }
         }
+
+        private int GlyphSignature()
+        {
+            unchecked
+            {
+                int h = (int)glyphSource;
+                h = h * 31 + ObjectId(bmFontText); h = h * 31 + ObjectId(bmFontTexture);
+                h = h * 31 + ObjectId(unityFont); h = h * 31 + ObjectId(uguiImageTextFontObject);
+                h = h * 31 + spritePixelsPerUnit.GetHashCode();
+                if (digitSprites != null) foreach (Sprite s in digitSprites) h = h * 31 + ObjectId(s);
+                h = h * 31 + ObjectId(commaSprite); h = h * 31 + ObjectId(dotSprite);
+                h = h * 31 + ObjectId(minusSprite); h = h * 31 + ObjectId(plusSprite); h = h * 31 + ObjectId(dollarSprite);
+                if (extraSprites != null) foreach (CharSpritePair p in extraSprites)
+                    if (p != null) { h = h * 31 + (p.character ?? "").GetHashCode(); h = h * 31 + ObjectId(p.sprite); }
+                return h;
+            }
+        }
+
+        private static int ObjectId(UnityEngine.Object value) => value == null ? 0 : value.GetInstanceID();
 
         private void ResolveDirection(ref double from, ref double to)
         {

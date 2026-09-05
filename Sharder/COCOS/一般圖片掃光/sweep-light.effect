@@ -93,7 +93,7 @@ CCProgram sprite-fs %{
     float dist = dot(centerUV, dir);
     float distToLine = abs(dist - progress);
     
-    float intensity = smoothstep(lightWidth, 0.0, distToLine);
+    float intensity = 1.0 - smoothstep(0.0, max(lightWidth, 0.0001), distToLine);
 
     // 疊加光芒，乘以 o.a 確保透明區域不會發光
     vec3 finalColor = o.rgb + lightColor.rgb * lightColor.a * intensity * o.a;

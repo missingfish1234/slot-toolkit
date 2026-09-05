@@ -2,8 +2,8 @@
   "id": "sharder-cocos-5f69867963835149",
   "name": "彩虹掃光",
   "category": "Sharder",
-  "description": "",
-  "version": "1.0.0",
+  "description": "Cocos Creator 3.8 彩虹、掃光、噪聲與扭曲的 2D 材質。",
+  "version": "1.0.1",
   "path": "Sharder/COCOS/彩虹掃光",
   "entry": "",
   "icon": "",
@@ -11,7 +11,10 @@
     "Sharder",
     "彩虹掃光"
   ],
-  "updatedAt": "2026-06-11",
+  "updatedAt": "2026-09-05",
   "size": "3.4 MB",
-  "changelog": []
+  "changelog": [
+    "Noise／Distort 強度為零時略過對應 FBM 計算，保留原有效果設定。"
+  ],
+  "documentation": "README_更新與安裝.md"
 }

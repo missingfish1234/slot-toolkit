@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import zipfile
 from pathlib import Path
 from typing import Callable
@@ -52,6 +55,8 @@ from .models import (
 )
 from .services import ConfigStore, GitHubClient, StateStore, ToolLibrary, app_data_dir, compare_versions, ensure_safe_child
 from .styles import APP_QSS
+from .storage import atomic_json, recover_json
+from .git_ops import git_run, git_output, git_tool_update_paths, git_status_lines_for_paths, commit_tool_paths
 
 
 TOOL_CARD_HEIGHT = 202
@@ -236,6 +241,7 @@ class DetailsPanel(QFrame):
         self.layout.addSpacing(12)
         self.layout.addWidget(section("工具資訊"))
         for key, value in [
+            ("工具類型", tool.kind or ("引擎資源（請開啟資料夾閱讀說明）" if not tool.entry else "一般工具")),
             ("本機版本", local_version or "-"),
             ("雲端版本", tool.version),
             ("更新時間", tool.updated_at or "-"),
@@ -268,6 +274,8 @@ class AdminDialog(QDialog):
         super().__init__(parent)
         self.config = config
         self.config_store = config_store
+        self.git_worker_thread = None
+        self.git_worker = None
         self.index: ToolIndex | None = None
         self.current_tool: ToolInfo | None = None
         self.loading_tool = False
@@ -410,9 +418,13 @@ class AdminDialog(QDialog):
         if not root.exists():
             QMessageBox.warning(self, APP_NAME, "工具包根目錄不存在。")
             return
-        index = scan_tools(root)
-        save_all_tool_metadata(root, index)
-        save_index(index, root / INDEX_FILE_NAME)
+        try:
+            index = scan_tools(root)
+            save_all_tool_metadata(root, index)
+            save_index(index, root / INDEX_FILE_NAME)
+        except Exception as exc:
+            QMessageBox.warning(self, APP_NAME, f"掃描未完成，請先修正資料：\n{exc}")
+            return
         self.index = index
         self.has_pending_save = False
         self.populate_tool_list()
@@ -545,6 +557,8 @@ class AdminDialog(QDialog):
             QMessageBox.information(self, APP_NAME, "工具文件已更新完成。")
 
     def push_tool_updates_to_git(self) -> None:
+        if self.git_worker_thread and self.git_worker_thread.isRunning():
+            return
         root = self.root_path()
         if not root.exists():
             QMessageBox.warning(self, APP_NAME, "工具包根目錄不存在。")
@@ -561,7 +575,7 @@ class AdminDialog(QDialog):
                 self.mark_saved()
                 self.index_updated.emit()
 
-            status = git_output(root, ["status", "--short"])
+            status = git_output(root, ["status", "--porcelain=v1", "-z", "--untracked-files=all"])
             if not status.strip():
                 QMessageBox.information(self, APP_NAME, "目前沒有需要推送的工具更新。")
                 return
@@ -597,20 +611,51 @@ class AdminDialog(QDialog):
                 QMessageBox.warning(self, APP_NAME, "提交訊息不可空白。")
                 return
 
-            git_run(root, ["add", "-A", "--", *paths])
-            staged = git_output(root, ["diff", "--cached", "--name-only"])
-            if not staged.strip():
-                QMessageBox.information(self, APP_NAME, "沒有可提交的工具更新。")
-                return
-            git_run(root, ["commit", "-m", message])
-            branch = git_output(root, ["branch", "--show-current"]).strip() or "main"
-            git_run(root, ["push", "origin", branch])
-            self.summary.setText(f"已提交並推送到 origin/{branch}：{message}")
-            QMessageBox.information(self, APP_NAME, f"工具更新已推送到 Git：origin/{branch}")
+            def job(_progress):
+                branch = git_output(root, ["branch", "--show-current"]).strip()
+                if not branch:
+                    raise RuntimeError("目前是 detached HEAD，請先切換分支。")
+                commit_tool_paths(root, paths, message)
+                git_run(root, ["push", "origin", branch])
+                return branch
+            thread = QThread(self)
+            worker = Worker(job)
+            worker.moveToThread(thread)
+            thread.started.connect(worker.run)
+            worker.finished.connect(self.git_finished)
+            worker.failed.connect(self.git_failed)
+            worker.finished.connect(thread.quit, Qt.DirectConnection)
+            worker.failed.connect(thread.quit, Qt.DirectConnection)
+            worker.finished.connect(worker.deleteLater)
+            worker.failed.connect(worker.deleteLater)
+            thread.finished.connect(self.clear_git_worker)
+            thread.finished.connect(thread.deleteLater)
+            self.git_worker_thread, self.git_worker = thread, worker
+            self.setEnabled(False)
+            self.summary.setText("正在背景提交及推送，完成前請勿關閉。")
+            thread.start()
         except Exception as exc:
             QMessageBox.warning(self, APP_NAME, f"Git 推送失敗：\n{exc}")
 
+    def git_finished(self, branch: str) -> None:
+        self.setEnabled(True)
+        self.summary.setText(f"已提交並推送到 origin/{branch}。")
+        QMessageBox.information(self, APP_NAME, f"工具更新已推送到 Git：origin/{branch}")
+
+    def git_failed(self, message: str) -> None:
+        self.setEnabled(True)
+        QMessageBox.warning(self, APP_NAME, f"Git 推送失敗：\n{message}\n若已完成本機提交，請檢查 Git 狀態後重試 git push；不要重新修改版本。")
+
+    def clear_git_worker(self) -> None:
+        self.git_worker_thread, self.git_worker = None, None
+
+    def reject(self) -> None:
+        if self.confirm_close_with_unsaved_changes():
+            super().reject()
+
     def confirm_close_with_unsaved_changes(self) -> bool:
+        if self.git_worker_thread and self.git_worker_thread.isRunning():
+            return False
         self.store_current_editor_changes()
         if not self.has_pending_save:
             return True
@@ -880,15 +925,29 @@ class MainWindow(QMainWindow):
         splitter.setSizes([270, 780, 390])
         return splitter
 
-    def load_local_index(self) -> None:
+    def load_local_index(self, override: Path | None = None) -> None:
         local_index = local_index_path()
-        if local_index.exists():
-            data = json.loads(local_index.read_text(encoding="utf-8-sig"))
-            self.tools = ToolIndex.from_dict(data).tools
-            self.sync_status.setText("GitHub 同步狀態：已載入本機索引")
+        cache = self.index_cache_path()
+        cache_backup = cache.with_suffix(cache.suffix + ".bak")
+        candidates = [cache, cache_backup, local_index] if getattr(sys, "frozen", False) else [local_index, cache, cache_backup]
+        if override:
+            candidates.insert(0, override)
+        self.tools = []
+        for candidate in candidates:
+            if not candidate.exists():
+                continue
+            try:
+                data = json.loads(candidate.read_text(encoding="utf-8-sig"))
+                index = ToolIndex.from_dict(data)
+                self.tools = index.tools
+                self.github.source_revision = index.source_revision
+                self.github.index_fingerprint = hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
+                self.sync_status.setText("GitHub 同步狀態：已載入離線快取" if candidate == cache else "GitHub 同步狀態：已載入本機索引")
+                break
+            except (OSError, ValueError, TypeError, AttributeError):
+                continue
         else:
-            self.tools = []
-            self.sync_status.setText("GitHub 同步狀態：尚未設定，請先用管理者模式產生索引")
+            self.sync_status.setText("GitHub 同步狀態：無有效本機索引，請重新同步或用管理者模式產生索引")
         self.reconcile_selected_tool()
         self.render_categories()
         self.render_tools()
@@ -906,6 +965,7 @@ class MainWindow(QMainWindow):
         self.start_worker(job, self.apply_remote_index)
 
     def apply_remote_index(self, index: ToolIndex) -> None:
+        atomic_json(self.index_cache_path(), index.to_dict())
         self.tools = index.tools
         self.sync_status.setText(f"GitHub 同步狀態：已同步（{index.updated_at or '剛剛'}）")
         self.reconcile_selected_tool()
@@ -913,6 +973,11 @@ class MainWindow(QMainWindow):
         self.render_tools()
         if not self.manager_update_checked:
             QTimer.singleShot(300, self.check_manager_update_silent)
+
+    def index_cache_path(self) -> Path:
+        identity = f"{self.config.github_owner}/{self.config.github_repo}/{self.config.github_branch}"
+        key = hashlib.sha256(identity.encode()).hexdigest()[:20]
+        return app_data_dir() / "cache" / f"index-{key}.json"
 
     def reconcile_selected_tool(self) -> None:
         if not self.selected_tool:
@@ -1153,17 +1218,18 @@ class MainWindow(QMainWindow):
 
     def install_manager_update(self, zip_path: Path) -> None:
         updates_dir = app_data_dir() / "updates"
-        extract_dir = updates_dir / "extracted"
-        if extract_dir.exists():
-            shutil.rmtree(extract_dir)
-        extract_dir.mkdir(parents=True, exist_ok=True)
+        updates_dir.mkdir(parents=True, exist_ok=True)
+        extract_dir = Path(tempfile.mkdtemp(prefix="manager-", dir=updates_dir))
         extract_update_zip(zip_path, extract_dir)
         source_dir = find_update_source_dir(extract_dir)
         target_dir = manager_dir()
-        script_path = write_update_script(source_dir, target_dir)
-        QMessageBox.information(self, APP_NAME, "更新包已下載完成。按下確定後，管理器會關閉、套用更新並重新啟動。")
+        script_path, request_path = write_update_script(source_dir, target_dir)
+        QMessageBox.information(self, APP_NAME, "更新包已下載完成。按下確定後，管理器會關閉、驗證及套用更新並重新啟動。舊版與設定會保留；若套用失敗，請查看更新資料夾中的 .status.json。")
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-        subprocess.Popen(["cmd", "/c", str(script_path)], cwd=str(target_dir), creationflags=flags)
+        subprocess.Popen(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path), "-RequestPath", str(request_path)], cwd=str(updates_dir), creationflags=flags)
+        if self.worker_thread:
+            self.worker_thread.quit()
+            self.worker_thread.wait(5000)
         app = QApplication.instance()
         if app:
             app.quit()
@@ -1179,10 +1245,10 @@ class MainWindow(QMainWindow):
         self.worker_failed_callback = on_failed
         thread.started.connect(worker.run)
         worker.finished.connect(self.worker_finished)
-        worker.finished.connect(thread.quit)
+        worker.finished.connect(thread.quit, Qt.DirectConnection)
         worker.finished.connect(worker.deleteLater)
         worker.failed.connect(self.worker_failed_dispatch)
-        worker.failed.connect(thread.quit)
+        worker.failed.connect(thread.quit, Qt.DirectConnection)
         worker.failed.connect(worker.deleteLater)
         worker.progress.connect(self.worker_progress)
         thread.finished.connect(self.clear_worker)
@@ -1196,6 +1262,13 @@ class MainWindow(QMainWindow):
         self.worker = None
         self.worker_done_callback = None
         self.worker_failed_callback = None
+
+    def closeEvent(self, event) -> None:
+        if self.worker_thread and self.worker_thread.isRunning():
+            QMessageBox.information(self, APP_NAME, "下載或更新正在進行，請完成後再關閉，避免中斷安裝。")
+            event.ignore()
+            return
+        super().closeEvent(event)
 
     def worker_finished(self, result: object) -> None:
         callback = self.worker_done_callback
@@ -1235,9 +1308,9 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, APP_NAME, "管理者密碼錯誤。")
             return
         dialog = AdminDialog(self, self.config, self.config_store)
-        dialog.index_updated.connect(self.load_local_index)
+        dialog.index_updated.connect(lambda: self.load_local_index(dialog.root_path() / INDEX_FILE_NAME))
         if dialog.exec():
-            self.load_local_index()
+            self.load_local_index(dialog.root_path() / INDEX_FILE_NAME)
 
     def open_settings(self) -> None:
         dialog = SettingsDialog(self, self.config, self.config_store)
@@ -1368,64 +1441,6 @@ def labeled_input(layout: QVBoxLayout, label: str, value: str) -> QLineEdit:
     return field
 
 
-def git_run(root: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
-    command = ["git", "-c", "core.quotepath=false", *args]
-    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-    result = subprocess.run(
-        command,
-        cwd=str(root),
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=300,
-        creationflags=flags,
-    )
-    if result.returncode != 0:
-        output = (result.stderr or result.stdout or "").strip()
-        raise RuntimeError(output or f"git {' '.join(args)} 執行失敗。")
-    return result
-
-
-def git_output(root: Path, args: list[str]) -> str:
-    return git_run(root, args).stdout
-
-
-def git_tool_update_paths(root: Path, status: str) -> list[str]:
-    ignored_roots = {".git", ".github", "manager", "design", "dist", "build"}
-    root_entries = {
-        path.name
-        for path in root.iterdir()
-        if path.is_dir() and path.name not in ignored_roots
-    }
-    allowed_paths = {INDEX_FILE_NAME, *root_entries}
-    result: list[str] = []
-    for line in status.splitlines():
-        path = git_status_path(line)
-        if not path:
-            continue
-        top = path.split("/", 1)[0]
-        if top in allowed_paths:
-            result.append(path)
-    return result
-
-
-def git_status_path(line: str) -> str:
-    path = line[3:].strip()
-    if " -> " in path:
-        path = path.rsplit(" -> ", 1)[1].strip()
-    return path
-
-
-def git_status_lines_for_paths(status: str, paths: list[str]) -> list[str]:
-    allowed = set(paths)
-    return [
-        line
-        for line in status.splitlines()
-        if git_status_path(line) in allowed
-    ]
-
-
 def extract_update_zip(zip_path: Path, destination: Path) -> None:
     with zipfile.ZipFile(zip_path) as archive:
         for info in archive.infolist():
@@ -1446,25 +1461,18 @@ def find_update_source_dir(extract_dir: Path) -> Path:
     return matches[0].parent
 
 
-def write_update_script(source_dir: Path, target_dir: Path) -> Path:
+def write_update_script(source_dir: Path, target_dir: Path) -> tuple[Path, Path]:
     updates_dir = app_data_dir() / "updates"
     updates_dir.mkdir(parents=True, exist_ok=True)
-    script_path = updates_dir / "apply_toolkit_manager_update.bat"
-    script = f"""@echo off
-setlocal
-chcp 65001 >nul
-set "SOURCE={source_dir}"
-set "TARGET={target_dir}"
-set "CONFIG_BACKUP=%TEMP%\\ToolkitManager.config.backup.json"
-timeout /t 2 /nobreak >nul
-if exist "%TARGET%\\config.json" copy /Y "%TARGET%\\config.json" "%CONFIG_BACKUP%" >nul
-xcopy "%SOURCE%\\*" "%TARGET%\\" /E /I /Y /Q >nul
-if exist "%CONFIG_BACKUP%" copy /Y "%CONFIG_BACKUP%" "%TARGET%\\config.json" >nul
-start "" "%TARGET%\\ToolkitManager.exe"
-endlocal
-"""
-    script_path.write_text(script, encoding="utf-8")
-    return script_path
+    job_dir = Path(tempfile.mkdtemp(prefix="apply-", dir=updates_dir))
+    base = Path(getattr(sys, "_MEIPASS", manager_dir()))
+    script_path = job_dir / "apply_update.ps1"
+    shutil.copy2(base / "apply_update.ps1", script_path)
+    request_path = job_dir / "request.json"
+    atomic_json(request_path, {"source_dir": str(source_dir.resolve()), "target_dir": str(target_dir.resolve()), "parent_pid": os.getpid()}, backup=False)
+    if not (source_dir / "release-manifest.json").is_file():
+        raise RuntimeError("更新包缺少完整性清單；請手動安裝新版。")
+    return script_path, request_path
 
 
 def manager_dir() -> Path:
@@ -1480,9 +1488,32 @@ def local_index_path() -> Path:
 
 
 def main() -> None:
+    # Frozen executable smoke test uses a disposable config/state, never the user profile.
+    smoke = "--smoke-test" in sys.argv
+    temporary = tempfile.TemporaryDirectory(prefix="toolkit-exe-smoke-") if smoke else None
+    if smoke:
+        os.environ["QT_QPA_PLATFORM"] = "offscreen"
+        smoke_root = Path(temporary.name)
+        config = AppConfig(auto_check_on_start=False, install_root=str(smoke_root / "tools"))
+        ConfigStore(smoke_root).save(config)
+        from unittest.mock import patch
+        config_patch = patch(__name__ + ".manager_dir", return_value=smoke_root)
+        data_patch = patch(__name__ + ".app_data_dir", return_value=smoke_root / "state")
+        index_patch = patch(__name__ + ".local_index_path", return_value=Path(sys.executable).parent / INDEX_FILE_NAME)
+        config_patch.start()
+        data_patch.start()
+        index_patch.start()
     app = QApplication(sys.argv)
     app.setStyleSheet(APP_QSS)
     app.setApplicationName(APP_NAME)
     window = MainWindow()
     window.show()
-    sys.exit(app.exec())
+    if smoke:
+        QTimer.singleShot(300, app.quit)
+    result = app.exec()
+    if temporary:
+        config_patch.stop()
+        data_patch.stop()
+        index_patch.stop()
+        temporary.cleanup()
+    sys.exit(result)

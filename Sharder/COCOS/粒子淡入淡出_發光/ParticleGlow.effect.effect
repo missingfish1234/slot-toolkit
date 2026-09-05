@@ -93,8 +93,10 @@ CCProgram sprite-fs %{
     vec4 tint = mix(startTint, endTint, life);
 
     // 淡入 / 淡出包絡
-    float fadeIn = smoothstep(0.0, fadeParams.x, life);
-    float fadeOut = 1.0 - smoothstep(fadeParams.y, 1.0, life);
+    float inEnd = clamp(fadeParams.x, 0.0, 1.0);
+    float outStart = clamp(fadeParams.y, inEnd, 1.0);
+    float fadeIn = inEnd <= 0.0001 ? 1.0 : smoothstep(0.0, inEnd, life);
+    float fadeOut = outStart >= 0.9999 ? 1.0 - step(1.0, life) : 1.0 - smoothstep(outStart, 1.0, life);
     float fadeEnvelope = clamp(fadeIn * fadeOut, 0.0, 1.0);
 
     vec4 o = tex;

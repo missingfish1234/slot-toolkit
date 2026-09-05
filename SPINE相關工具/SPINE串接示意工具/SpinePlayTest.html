@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <title>Spine Director V123 (MP4 Export)</title>
     
-    <script src="https://unpkg.com/vis-timeline/standalone/umd/vis-timeline-graph2d.min.js"></script>
-    <link href="https://unpkg.com/vis-timeline/styles/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
+    <script src="vendor/vis-timeline-graph2d.min.js"></script>
+    <link href="vendor/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
 
     <style>
         :root {
@@ -858,19 +858,19 @@
 
         try {
             // 統一使用最穩定的 PixiJS v7.3.2
-            await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js");
+            await loadScript("vendor/pixi.min.js");
             
             if (currentSpineVer === '3.8') {
                 statusEl.innerText = "Loading Core (3.8)...";
-                await loadScript("https://cdn.jsdelivr.net/npm/@pixi-spine/all-3.8@4.0.6/dist/pixi-spine-3.8.js");
+                await loadScript("vendor/pixi-spine-3.8.js");
             } else if (currentSpineVer === '4.0') { 
                 statusEl.innerText = "Loading Core (4.0)...";
                 // 💡 修正檔名：拿掉 -all- 與 .min
-                await loadScript("https://cdn.jsdelivr.net/npm/@pixi-spine/all-4.0@4.0.6/dist/pixi-spine-4.0.js");
+                await loadScript("vendor/pixi-spine-4.0.js");
             } else { 
                 statusEl.innerText = "Loading Core (4.1)...";
                 // 💡 修正檔名：拿掉 -all- 與 .min
-                await loadScript("https://cdn.jsdelivr.net/npm/@pixi-spine/all-4.1@4.0.6/dist/pixi-spine-4.1.js");
+                await loadScript("vendor/pixi-spine-4.1.js");
             }
             
             document.getElementById('loading-overlay').style.display = 'none';
@@ -1709,11 +1709,9 @@
         return bytes.buffer;
     }
 
-    async function createSpine(rawData, atlasText, textureMap, isBinary, name, reuseId=null, reuseConfig=null, assets=null) {
+    function buildSpineObject(rawData, atlasText, textureMap, isBinary, assets) {
         const spineNamespace = PIXI.spine || (window.PIXI && window.PIXI.spine);
-        if (!spineNamespace) { alert("找不到 Spine 插件！請確認 CDN 載入是否完整。"); return; }
-
-        try {
+        if (!spineNamespace) throw new Error("找不到 Spine 插件，請檢查相依檔載入。");
             // 專屬包已經把所有類別攤平在最上層，直接取用即可
             const TextureAtlas = spineNamespace.TextureAtlas || spineNamespace.core?.TextureAtlas;
             const AtlasAttachmentLoader = spineNamespace.AtlasAttachmentLoader || spineNamespace.core?.AtlasAttachmentLoader;
@@ -1724,7 +1722,8 @@
                 throw new Error("無法解析 Spine 核心類別，請確認 CDN 載入是否完整。");
             }
 
-            // ...下方從 if (typeof atlasText === 'string') 開始，保留你原本的程式碼不要動...
+            atlasText = atlasText || assets?.atlas;
+            if (typeof atlasText !== 'string' || !atlasText.trim()) throw new Error("缺少 Atlas 文字，原專案保持不變。");
 
             const internalTextureMap = {}; const sourceImages = assets ? assets.images : (textureMap || {});
             for (let imgName in sourceImages) {
@@ -1736,7 +1735,7 @@
 
             const spineAtlas = new TextureAtlas(atlasText, (line, cb) => {
                 const cleanLine = line.split('/').pop(); const bt = internalTextureMap[cleanLine] || internalTextureMap[line] || (PIXI.utils.TextureCache[line] ? PIXI.utils.TextureCache[line].baseTexture : null);
-                if (bt) { cb(bt); } else { cb(PIXI.Texture.WHITE.baseTexture); }
+                if (bt) { cb(bt); } else { throw new Error(`Atlas 缺少貼圖：${line}`); }
             });
 
             const loader = new AtlasAttachmentLoader(spineAtlas); let spineData;
@@ -1744,6 +1743,12 @@
             else { const parser = new SkeletonJson(loader); spineData = parser.readSkeletonData(rawData); }
             
             const spine = new PIXI.spine.Spine(spineData); spine.autoUpdate = false; spine.assets = assets; 
+            return { spine, spineData };
+    }
+
+    async function createSpine(rawData, atlasText, textureMap, isBinary, name, reuseId=null, reuseConfig=null, assets=null) {
+        try {
+            const { spine, spineData } = buildSpineObject(rawData, atlasText, textureMap, isBinary, assets);
             finalizeCharacterCreation(spine, name, reuseId, reuseConfig, 'spine', spineData);
         } catch(e) { console.error("Spine Error:", e); alert(`匯入失敗！\n錯誤細節: ${e.message}`); }
         renderSceneList();
@@ -1812,7 +1817,7 @@
         }; 
         const blob = new Blob([JSON.stringify(d)], {type:"application/json"});
         const filename = prompt("請輸入檔案名稱", "spine_project");
-        if(filename) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename.endsWith('.json') ? filename : filename + ".json"; a.click(); }
+        if(filename) { const a = document.createElement('a'); const url = URL.createObjectURL(blob); a.href = url; a.download = filename.endsWith('.json') ? filename : filename + ".json"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
     }
 
     function enhancedLoadProject(file) { 
@@ -1821,25 +1826,60 @@
         reader.onload = (e) => { 
             try { 
                 const data = JSON.parse(e.target.result); 
-                characters.forEach(c => c.spine.destroy());
-                characters = []; timelineData.clear(); timelineGroups.clear();
-                
-                if(data.timeline) {
-                     const tls = data.timeline.map(i => { if(i.start) i.start = new Date(i.start); if(i.end) i.end = new Date(i.end); return i; });
-                     timelineData.add(tls);
-                }
-                if(data.groups) timelineGroups.add(data.groups);
-                Object.assign(clipRegistry, data.clipRegistry || {});
-                
-                if(data.characters) {
-                    data.characters.forEach(c => {
-                        if (c.type === 'spine') createSpine(null, null, null, false, c.name, c.id, c, c.assets);
-                        else createImageObject(null, c.name, c.id, c, c.assets);
-                    });
-                }
+                restoreProjectData(data);
             } catch(e) { console.error(e); alert("載入失敗: " + e.message); } 
         }; 
         reader.readAsText(file); 
+    }
+
+    function restoreProjectData(data) {
+        if (!data || !Array.isArray(data.characters) || !Array.isArray(data.timeline) || !Array.isArray(data.groups))
+            throw new Error("專案必須包含 characters、timeline、groups 陣列。");
+        const ids = new Set();
+        const staged = [];
+        try {
+            for (const c of data.characters) {
+                if (!c.id || ids.has(c.id) || !c.assets) throw new Error("角色 ID 重複或缺少資源。");
+                ids.add(c.id);
+                if (c.type === 'spine') staged.push({ ...buildSpineObject(null, null, null, false, c.assets), config: c });
+                else if (c.type === 'image' && c.assets.texture) {
+                    const spine = new PIXI.Sprite(PIXI.Texture.from(c.assets.texture));
+                    spine.anchor.set(0.5); spine.assets = c.assets;
+                    staged.push({ spine, spineData: null, config: c });
+                } else throw new Error(`不支援的角色或缺圖：${c.name}`);
+            }
+            const tls = data.timeline.map(item => {
+                const copy = { ...item };
+                for (const key of ['start', 'end']) if (copy[key] != null) {
+                    copy[key] = new Date(copy[key]);
+                    if (!Number.isFinite(copy[key].getTime())) throw new Error("時間軸日期無效。");
+                }
+                return copy;
+            });
+            // Validate duplicate item/group IDs before changing the visible project.
+            new vis.DataSet(tls); new vis.DataSet(data.groups);
+            const old = { characters, timeline: timelineData.get(), groups: timelineGroups.get(), registry: { ...clipRegistry } };
+            try {
+                stop();
+                characters = []; timelineData.clear(); timelineGroups.clear();
+                timelineData.add(tls); timelineGroups.add(data.groups);
+                for (const key of Object.keys(clipRegistry)) delete clipRegistry[key];
+                Object.assign(clipRegistry, data.clipRegistry || {});
+                for (const item of staged) finalizeCharacterCreation(item.spine, item.config.name, item.config.id, item.config, item.config.type, item.spineData);
+                old.characters.forEach(c => c.spine.destroy());
+            } catch (error) {
+                characters = old.characters;
+                timelineData.clear(); timelineData.add(old.timeline);
+                timelineGroups.clear(); timelineGroups.add(old.groups);
+                for (const key of Object.keys(clipRegistry)) delete clipRegistry[key];
+                Object.assign(clipRegistry, old.registry);
+                throw error;
+            }
+        } catch (error) {
+            staged.forEach(item => { if (!item.spine.destroyed) item.spine.destroy(); });
+            throw error;
+        }
+        renderSceneList();
     }
 
     function updateCharTransform(type) { 

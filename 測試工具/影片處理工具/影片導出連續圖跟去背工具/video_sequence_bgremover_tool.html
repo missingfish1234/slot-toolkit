@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>影片連續圖導出與去背工具 - 小魚骨頭</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="./vendor/jszip.min.js"></script>
   <style>
     :root{
       --bg:#10131a; --panel:#181d28; --panel2:#202738; --text:#edf2ff; --muted:#aeb7cc;
@@ -104,11 +104,18 @@
 const $=id=>document.getElementById(id);
 const video=$('video'), canvas=$('canvas'), ctx=canvas.getContext('2d',{willReadFrequently:true});
 let currentBlobUrl=null; let lastDataUrl=null;
+let exportBusy=false, exportCancelled=false;
+const thumbnailUrls=new Set();
+const cancelExport=document.createElement('button'); cancelExport.textContent='取消匯出'; cancelExport.disabled=true;
+cancelExport.onclick=()=>{exportCancelled=true;msg('正在取消，已完成的來源影片保持不變。')}; $('exportSeq').parentElement.appendChild(cancelExport);
+function checkCancelled(){if(exportCancelled)throw new Error('已取消匯出');}
+function setExportBusy(value){exportBusy=value; cancelExport.disabled=!value; document.querySelectorAll('input,select,button').forEach(el=>{if(el!==cancelExport)el.disabled=value}); video.controls=!value;}
 function msg(t){$('status').textContent=t} function bar(p){$('bar').style.width=Math.max(0,Math.min(100,p))+'%'}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function hexToRgb(hex){hex=hex.replace('#','');return {r:parseInt(hex.slice(0,2),16),g:parseInt(hex.slice(2,4),16),b:parseInt(hex.slice(4,6),16)}}
 function refreshLabels(){['tol','soft','erode','feather'].forEach(id=>$(id+'V').textContent=$(id).value);$('contrastV').textContent=Number($('contrast').value).toFixed(2)}
 function loadVideoFile(f){
+  if(exportBusy){msg('請先取消或等待目前匯出完成。');return;}
   if(!f) return;
   if(!f.type || !f.type.startsWith('video/')){ msg('拖入的檔案不是影片格式，請改放入 MP4 / WebM / MOV 等影片檔。'); return; }
   if(currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
@@ -133,36 +140,53 @@ dropZone.addEventListener('drop',e=>{
 });
 window.addEventListener('dragover',e=>e.preventDefault());
 window.addEventListener('drop',e=>e.preventDefault());
-video.addEventListener('loadedmetadata',()=>{ $('start').value=0; $('end').value=video.duration.toFixed(2); msg(`影片已載入：${video.videoWidth}×${video.videoHeight}，長度 ${video.duration.toFixed(2)} 秒。`); drawPreview();});
+function readFiniteDuration(media){if(Number.isFinite(media.duration)&&media.duration>0)return Promise.resolve(media.duration);return new Promise((resolve,reject)=>{let timer;const cleanup=()=>{clearTimeout(timer);['durationchange','timeupdate','seeked'].forEach(event=>media.removeEventListener(event,check));media.removeEventListener('error',fail);};const fail=()=>{cleanup();reject(new Error('無法讀取影片長度；請重新封裝成具有片長資訊的 MP4/WebM'));};const check=()=>{if(Number.isFinite(media.duration)&&media.duration>0){const value=media.duration;cleanup();media.currentTime=0;resolve(value);}};['durationchange','timeupdate','seeked'].forEach(event=>media.addEventListener(event,check));media.addEventListener('error',fail);timer=setTimeout(fail,10000);media.currentTime=1e100;});}
+video.addEventListener('loadedmetadata',async()=>{const loadingSource=video.src;try{await readFiniteDuration(video);if(video.src!==loadingSource)return;$('start').value=0; $('end').value=video.duration.toFixed(2); msg(`影片已載入：${video.videoWidth}×${video.videoHeight}，長度 ${video.duration.toFixed(2)} 秒。`); if(video.readyState>=2)drawPreview();}catch(error){if(video.src===loadingSource)msg(error.message)}});
+video.addEventListener('loadeddata',()=>{if(!exportBusy&&video.readyState>=2)drawPreview(false)});
 video.addEventListener('timeupdate',()=>{ if(!video.paused) drawPreview(false); });
 $('setStart').onclick=()=>{$('start').value=video.currentTime.toFixed(2)}; $('setEnd').onclick=()=>{$('end').value=video.currentTime.toFixed(2)}; $('previewBtn').onclick=()=>drawPreview(true);
 $('resetBtn').onclick=()=>{ $('mode').value='none'; $('keyColor').value='#00ff00'; $('tol').value=80; $('soft').value=35; $('erode').value=0; $('feather').value=1; $('contrast').value=1.1; $('premultiply').checked=true; refreshLabels(); drawPreview(); };
-function getOutputSize(){let w=Number($('outW').value)||video.videoWidth||1280; let h=Number($('outH').value)||video.videoHeight||720; if(Number($('outW').value)>0 && Number($('outH').value)<=0) h=Math.round(w*(video.videoHeight/video.videoWidth)); if(Number($('outH').value)>0 && Number($('outW').value)<=0) w=Math.round(h*(video.videoWidth/video.videoHeight)); return {w,h};}
-function drawPreview(show=true){ if(!video.videoWidth) return; const {w,h}=getOutputSize(); canvas.width=w; canvas.height=h; ctx.clearRect(0,0,w,h); ctx.drawImage(video,0,0,w,h); processCanvas(); lastDataUrl=canvas.toDataURL('image/png'); if(show) msg(`目前預覽時間：${video.currentTime.toFixed(2)} 秒，輸出 ${w}×${h}`); }
+function getOutputSize(){let w=Number($('outW').value)||video.videoWidth||1280; let h=Number($('outH').value)||video.videoHeight||720; if(Number($('outW').value)>0 && Number($('outH').value)<=0) h=Math.round(w*(video.videoHeight/video.videoWidth)); if(Number($('outH').value)>0 && Number($('outW').value)<=0) w=Math.round(h*(video.videoWidth/video.videoHeight)); if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w>8192||h>8192||w*h>16777216)throw new Error('輸出尺寸限 1–8192 像素，單張最多 1600 萬像素。'); return {w,h};}
+function drawPreview(show=true){ if(!video.videoWidth) return; const {w,h}=getOutputSize(); if(canvas.width!==w)canvas.width=w;if(canvas.height!==h)canvas.height=h; ctx.clearRect(0,0,w,h); ctx.drawImage(video,0,0,w,h); processCanvas(); if(show) msg(`目前預覽時間：${video.currentTime.toFixed(2)} 秒，輸出 ${w}×${h}`); }
 function processCanvas(){ const mode=$('mode').value; if(mode==='none') return; const w=canvas.width,h=canvas.height; let img=ctx.getImageData(0,0,w,h), d=img.data; const key=hexToRgb($('keyColor').value); const tol=Number($('tol').value), soft=Math.max(1,Number($('soft').value)); const contrast=Number($('contrast').value); const spill=$('premultiply').checked;
   for(let i=0;i<d.length;i+=4){let r=d[i],g=d[i+1],b=d[i+2],a=d[i+3]/255; let matte=1;
     if(mode==='chroma'){ const dist=Math.hypot(r-key.r,g-key.g,b-key.b); matte=clamp((dist-tol)/soft,0,1); if(spill && matte<1){ const kr=key.r/255,kg=key.g/255,kb=key.b/255; const kmax=Math.max(kr,kg,kb); if(kmax===kg) d[i+1]=Math.min(d[i+1], Math.max(d[i],d[i+2])*1.05); if(kmax===kb) d[i+2]=Math.min(d[i+2], Math.max(d[i],d[i+1])*1.05); if(kmax===kr) d[i]=Math.min(d[i], Math.max(d[i+1],d[i+2])*1.05); }
     } else if(mode==='dark'){ const lum=(r*0.2126+g*0.7152+b*0.0722); matte=clamp((lum-tol)/soft,0,1); }
     else if(mode==='light'){ const lum=(r*0.2126+g*0.7152+b*0.0722); matte=clamp(((255-lum)-tol)/soft,0,1); }
     else if(mode==='alphaOnly'){ matte=a; }
-    matte=clamp((matte-.5)*contrast+.5,0,1); d[i+3]=Math.round(255*a*matte);
+    matte=clamp((matte-.5)*contrast+.5,0,1); d[i+3]=Math.round(255*(mode==='alphaOnly'?matte:a*matte));
   }
   ctx.putImageData(img,0,0); const er=Number($('erode').value), fe=Number($('feather').value); if(er>0 || fe>0) refineAlpha(er,fe); }
 function refineAlpha(erode,feather){ const w=canvas.width,h=canvas.height; let img=ctx.getImageData(0,0,w,h), d=img.data; let alpha=new Uint8ClampedArray(w*h); for(let p=0;p<w*h;p++) alpha[p]=d[p*4+3];
   for(let n=0;n<erode;n++){let out=new Uint8ClampedArray(alpha); for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){let idx=y*w+x; let m=255; for(let yy=-1;yy<=1;yy++)for(let xx=-1;xx<=1;xx++)m=Math.min(m,alpha[idx+yy*w+xx]); out[idx]=m;} alpha=out;}
   for(let n=0;n<feather;n++){let out=new Uint8ClampedArray(alpha); for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){let idx=y*w+x; let sum=0,c=0; for(let yy=-1;yy<=1;yy++)for(let xx=-1;xx<=1;xx++){sum+=alpha[idx+yy*w+xx];c++;} out[idx]=sum/c;} alpha=out;}
   for(let p=0;p<w*h;p++) d[p*4+3]=alpha[p]; ctx.putImageData(img,0,0); }
-function seekTo(t){return new Promise((res,rej)=>{const on=()=>{video.removeEventListener('seeked',on); setTimeout(res,20)}; video.addEventListener('seeked',on); video.currentTime=clamp(t,0,video.duration||t); setTimeout(()=>{video.removeEventListener('seeked',on);res()},3000);});}
-function canvasBlob(){return new Promise(r=>canvas.toBlob(r,'image/png'))}
+function seekTo(t){return new Promise((res,rej)=>{const target=clamp(t,0,Math.max(0,video.duration-.0001));let timer;const finish=(err)=>{clearTimeout(timer);video.removeEventListener('seeked',on);video.removeEventListener('error',fail);err?rej(err):res();};const on=()=>finish();const fail=()=>finish(new Error('影片解碼失敗'));if(Math.abs(video.currentTime-target)<.00001&&video.readyState>=2){res();return;}video.addEventListener('seeked',on);video.addEventListener('error',fail);timer=setTimeout(()=>finish(new Error('影片定位逾時，請改用可解碼的 MP4/WebM')),5000);video.currentTime=target;});}
+function canvasBlob(){return new Promise((res,rej)=>canvas.toBlob(b=>b?res(b):rej(new Error('圖片編碼失敗')),'image/png'))}
 function pad(n,len=4){return String(n).padStart(len,'0')}
-function addThumb(url,name){const div=document.createElement('div');div.className='thumb';div.innerHTML=`<img src="${url}"><div class="t">${name}</div>`;$('thumbs').prepend(div)}
+function addThumb(url,name){thumbnailUrls.add(url);const div=document.createElement('div');div.className='thumb';const img=document.createElement('img');img.src=url;const label=document.createElement('div');label.className='t';label.textContent=name;div.append(img,label);$('thumbs').prepend(div)}
 function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
-async function exportFrames(onlyLast=false){ if(!video.videoWidth){msg('請先載入影片。');return;} const start=Number($('start').value)||0, end=Number($('end').value)||video.duration; const count=onlyLast?1:Math.max(1,Number($('count').value)||1); if(end<start && !onlyLast){msg('結束秒數不可小於開始秒數。');return;} const prefix=$('prefix').value||'frame_'; const base=Number($('indexStart').value)||0; const useZip=!!window.JSZip; let zip=useZip?new JSZip():null; msg(useZip?'開始匯出 ZIP…':'JSZip 未載入，改成逐張下載…'); bar(0);
-  for(let i=0;i<count;i++){const t=onlyLast?(video.duration||end): (count===1?start:start+(end-start)*(i/(count-1))); await seekTo(t); drawPreview(false); const blob=await canvasBlob(); const name= onlyLast ? `${prefix}last.png` : `${prefix}${pad(base+i)}.png`; if(useZip) zip.file(name,blob); else downloadBlob(blob,name); if(i<8) addThumb(URL.createObjectURL(blob),name); bar(((i+1)/count)*90); msg(`匯出中 ${i+1}/${count}：${name} @ ${t.toFixed(2)}s`); await new Promise(r=>setTimeout(r,10)); }
-  if(useZip){ const content=await zip.generateAsync({type:'blob'},meta=>bar(90+meta.percent*.1)); downloadBlob(content, onlyLast?`${prefix}last_frame.zip`:`${prefix}sequence_${count}frames.zip`); }
-  bar(100); msg(onlyLast?'最後一幀已匯出。':`完成：已匯出 ${count} 張 PNG。`); }
-$('exportSeq').onclick=()=>exportFrames(false); $('exportLast').onclick=()=>exportFrames(true); $('downloadCurrent').onclick=async()=>{drawPreview(false); const b=await canvasBlob(); downloadBlob(b,($('prefix').value||'frame_')+'preview.png')}; $('clearThumbs').onclick=()=>{$('thumbs').innerHTML=''};
-window.addEventListener('keydown',e=>{ if(e.code==='Space' && document.activeElement.tagName!=='INPUT'){e.preventDefault(); video.paused?video.play():video.pause();} });
+async function exportFrames(onlyLast=false){
+ if(exportBusy)return;
+ try {
+  if(!video.videoWidth||!Number.isFinite(video.duration))throw new Error('請先載入可解碼、具有有限長度的影片。');
+  const start=Number($('start').value),end=Number($('end').value),count=onlyLast?1:Number($('count').value),{w,h}=getOutputSize();
+  if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end<start||end>video.duration+.01)throw new Error('時間範圍必須介於 0 與影片長度之間。');
+  if(!Number.isInteger(count)||count<1||count>300)throw new Error('張數必須為 1–300 的整數。');
+  if(w*h*4*count>512*1024*1024)throw new Error('本次原始像素超過 512 MiB 預算，請減少張數或輸出尺寸後分批匯出。');
+  exportCancelled=false;setExportBusy(true);video.pause();
+  const prefix=($('prefix').value||'frame_').replace(/[<>:"/\\|?*]/g,'_'),base=Number($('indexStart').value)||0,useZip=!!window.JSZip,zip=useZip?new JSZip():null;
+  msg(useZip?'開始匯出 ZIP…':'JSZip 未載入，改成逐張下載…');bar(0);
+  for(let i=0;i<count;i++){checkCancelled();const t=onlyLast?video.duration:(count===1?start:start+(end-start)*(i/(count-1)));await seekTo(t);checkCancelled();drawPreview(false);const blob=await canvasBlob();checkCancelled();const name=onlyLast?`${prefix}last.png`:`${prefix}${pad(base+i)}.png`;if(useZip)zip.file(name,blob);else downloadBlob(blob,name);if(i<8)addThumb(URL.createObjectURL(blob),name);bar((i+1)/count*90);msg(`匯出中 ${i+1}/${count}：${name}`);await new Promise(r=>setTimeout(r,0));}
+  if(useZip){const content=await zip.generateAsync({type:'blob'},meta=>{checkCancelled();bar(90+meta.percent*.1)});checkCancelled();downloadBlob(content,onlyLast?`${prefix}last_frame.zip`:`${prefix}sequence_${count}frames.zip`);}
+  bar(100);msg(`完成：已匯出 ${count} 張 PNG。`);
+ }catch(error){msg(error.message||String(error));}finally{if(exportBusy)setExportBusy(false);}
+}
+$('exportSeq').onclick=()=>exportFrames(false); $('exportLast').onclick=()=>exportFrames(true); $('downloadCurrent').onclick=async()=>{if(exportBusy)return;try{drawPreview(false); const b=await canvasBlob(); downloadBlob(b,($('prefix').value||'frame_')+'preview.png')}catch(e){msg(e.message)}};
+function clearThumbnails(){thumbnailUrls.forEach(url=>URL.revokeObjectURL(url));thumbnailUrls.clear();$('thumbs').innerHTML='';}
+$('clearThumbs').onclick=clearThumbnails;
+window.addEventListener('pagehide',()=>{exportCancelled=true;clearThumbnails();if(currentBlobUrl)URL.revokeObjectURL(currentBlobUrl)});
+window.addEventListener('keydown',e=>{ if(!exportBusy&&e.code==='Space' && document.activeElement.tagName!=='INPUT'){e.preventDefault(); video.paused?video.play():video.pause();} });
 </script>
 </body>
 </html>

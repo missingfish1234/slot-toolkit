@@ -1,0 +1,24 @@
+'use strict';
+const assert=require('assert'), fs=require('fs'), vm=require('vm'), path=require('path');
+const html=fs.readFileSync(path.join(__dirname,'..','slot_symbol_center_align_tool.html'),'utf8');
+let placement;
+const context={TextEncoder,Blob,document:{createElement:()=>({getContext:()=>({clearRect(){},drawImage(...args){placement=args.slice(1)}})})}};
+vm.createContext(context);
+const section=(a,b)=>html.slice(html.indexOf(a),html.indexOf(b,html.indexOf(a)+a.length));
+vm.runInContext(section('function detectBounds(','function decideOutputSize(')+section('function renderCentered(','function render()')+section('function createSimpleZip(','function clearAll('),context);
+const data=new Uint8ClampedArray(10*10*4).fill(255);
+const canvas={width:10,height:10,getContext:()=>({getImageData:()=>({data})})};
+const bounds=context.detectBounds(canvas,8);
+assert.strictEqual(bounds.bottomY,10);
+const out=context.renderCentered({bounds,sourceCanvas:canvas,width:10,height:10,name:'數字.png'},0,{alignMode:'bottomCenter',padding:0,offsetX:0,offsetY:0,prefix:''},10,10);
+assert.strictEqual(placement[1],0);assert.strictEqual(out.clipped,false);
+const tooSmall=context.renderCentered({bounds,sourceCanvas:canvas,width:10,height:10,name:'x.png'},0,{alignMode:'bottomCenter',padding:0,offsetX:0,offsetY:0,prefix:''},5,5);
+assert.strictEqual(tooSmall.clipped,true);
+const preview=context.previewDimensions(400,100,1);assert.strictEqual(preview.width,180);assert.strictEqual(preview.height,45);
+(async()=>{
+ const bytes=new Uint8Array(await context.createSimpleZip([{name:'數字.png',data:new Uint8Array([1,2,3])}]).arrayBuffer());const view=new DataView(bytes.buffer);
+ assert.strictEqual(view.getUint16(6,true),0x0800);
+ const central=30+new TextEncoder().encode('數字.png').length+3;assert.strictEqual(view.getUint32(central,true),0x02014b50);assert.strictEqual(view.getUint16(central+8,true),0x0800);
+ for(const match of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) new vm.Script(match[1]);
+ console.log('Center regression: bottom edge, clipping, proportional preview, ZIP Unicode headers passed');
+})().catch(error=>{console.error(error);process.exitCode=1});
