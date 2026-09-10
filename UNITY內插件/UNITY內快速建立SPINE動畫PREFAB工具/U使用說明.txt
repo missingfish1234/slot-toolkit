@@ -1,0 +1,34 @@
+放到專案的任意 Editor 資料夾底下，例如：
+
+Assets/Editor/SpinePrefabBuilderWindow.cs
+
+另一台 Unity 重新編譯後，就會出現在：
+
+Tools > Spine > Spine Prefab Builder
+
+機種名前綴（2026-09-10 新增）：
+
+在「Machine Name / 機種名」輸入共同機種名，例如 Game238_MoneyGone，再按 Build。
+原始 Spine 為 Hero_SkeletonData、動畫為 Idle 時，會輸出：
+  Game238_MoneyGone_Hero.prefab
+  Game238_MoneyGone_Hero_Idle.anim
+  Game238_MoneyGone_Hero.controller
+
+留空或只輸入空白：維持原本 Hero.prefab、Hero_Idle.anim、Hero.controller。
+機種名前後空白會忽略；自動補上 _ 分隔，若尾端已有 _ 則不再多加。
+支援中文；不可輸入 < > : " / \ | ? * 或控制字元，視窗會提示並停用 Build。
+視窗提供檔名預覽；設定記在本機的此 Unity 專案下，重開視窗仍保留，不會共用到其他專案。
+
+只更改輸出資產及 Prefab 根物件名稱，不改來源 SkeletonData、Spine 內部動畫名稱、
+Animator State 名稱或動畫事件索引。例如 State 仍是 Hero_Idle，Spine 動畫仍是 Idle。
+「Skip SkeletonData when prefab already exists」會檢查加上機種名後的完整檔名。
+更換機種名會另外產生一組資產，不會自動改名或刪除舊輸出；已放入場景的舊 Prefab 也不會自動替換。
+重新生成同一前綴時，仍依原本 Skip / Overwrite 選項處理。
+
+要注意幾個前提：
+
+另一台專案也要有 Spine.Unity
+另一台專案也要有 IGS_GAME_EX.SpineGraphicCtrl
+另一台專案也要有 IGS_GAME_EX.SpineGraphicAnimationEventCtrl
+SkeletonGraphicDefault 材質 GUID 要一樣
+如果是同一個 Unity 專案版本庫搬過去，通常會一樣；如果 GUID 不同，工具裡的材質欄位可以手動拖 SkeletonGraphicDefault 進去再 Build。
