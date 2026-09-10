@@ -7,6 +7,20 @@ const html = fs.readFileSync(path.join(__dirname, '..', 'makefont.html'), 'utf8'
 function section(from, until) { return html.slice(html.indexOf(from), html.indexOf(until, html.indexOf(from) + from.length)); }
 const guess = vm.runInNewContext(section('function guessCharFromFileName(', 'function getDuplicateCharCodes(') + ';guessCharFromFileName');
 for (const [name, char] of [['dot.png', '.'], ['comma.png', ','], ['u0078.png', 'x'], ['X.png', 'X'], ['u1f600.png', '😀'], ['NUM_X-1.png', 'X'], ['num_0.png', '0']]) assert.strictEqual(guess({name}), char);
+for (const name of ['bU.png','kU.png','X2.png','X_a.png','WIN.png','Font_Win.png','ud800.png','u110000.png','u000a.png']) assert.strictEqual(guess({name}), '', name+' must not silently map to a trailing character');
+for (const [name,char] of [['NUM_..png','.'],['NUM_,.png',','],['digit-8.png','8'],['A.png','A'],['a.png','a'],['-.png','-'],['space.png',' ']]) assert.strictEqual(guess({name}),char);
+const importAPI = vm.runInNewContext(section('function guessCharFromFileName(', 'function getDuplicateCharCodes(') + ';({suggestImportChar,validateImportRows,isValidGlyphChar})');
+assert.strictEqual(importAPI.suggestImportChar({name:'bU.png'}).char,'B');
+assert.strictEqual(importAPI.suggestImportChar({name:'xU.png'}).char,'X');
+assert.strictEqual(importAPI.suggestImportChar({name:'X2.png'}).char,'X');
+assert.strictEqual(importAPI.suggestImportChar({name:'X_a.png'}).char,'X');
+const row=char=>({char,include:true,replace:false});
+assert(importAPI.validateImportRows([row('X'),row('X')],[]).every(Boolean));
+assert(importAPI.validateImportRows([row('X')],[{charCode:88}])[0]);
+assert.strictEqual(importAPI.validateImportRows([{...row('X'),replace:true}],[{charCode:88}])[0],'');
+assert(importAPI.validateImportRows([row('WIN')],[])[0]);
+assert(!importAPI.validateImportRows([row('X'),row('x'),row('😀')],[]).some(Boolean));
+assert(!importAPI.validateImportRows([row('X'),{...row('X'),include:false}],[]).some(Boolean));
 let scans = 0;
 const context = {
     state: { glyphs: [], config: {padding:2, fontSize:72, lineHeight:80, exportScale:1, trim:true, maxWidth:512, unifiedTop:true, monospaceNum:true, cocosFixedDigitCell:true, autoSafeLineHeight:true}, glyphOffsets:{} },

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BMFont Gen (v3.31 / Tool 1.3.1) - by 小魚骨頭</title>
+    <title>BMFont Gen (v3.32 / Tool 1.3.2) - by 小魚骨頭</title>
     <script src="vendor/jszip-3.10.1.min.js"></script>
     <style>
         /* --- 🎨 設計系統 --- */
@@ -143,12 +143,29 @@
         .mini-btn:hover { background: var(--accent); color: #fff; }
         .mini-btn:active { transform: scale(0.9); }
         .glyph-card input.glyph-advance { font-weight: 700; letter-spacing: 0.2px; }
+        .import-dialog { color:var(--text-primary); background:var(--bg-panel); border:1px solid var(--border); border-radius:8px; width:min(1000px,95vw); max-height:90vh; padding:18px; }
+        .import-dialog::backdrop { background:#000b; }
+        .import-dialog h2 { margin:0 0 8px; font-size:18px; }
+        .import-help { color:#bbb; line-height:1.6; margin-bottom:12px; }
+        .import-rows { overflow:auto; max-height:58vh; }
+        .import-row { display:grid; grid-template-columns:24px 72px minmax(100px,1fr) 80px minmax(150px,1fr); align-items:center; gap:10px; padding:10px 4px; border-top:1px solid var(--border); }
+        .import-row img { width:72px; height:52px; object-fit:contain; background:#333; }
+        .import-row > * { min-width:0; }
+        .import-row .import-char { width:100%; text-align:center; font-size:16px; }
+        .import-feedback { overflow-wrap:anywhere; }
+        .import-filename { overflow-wrap:anywhere; user-select:text; }
+        .import-reason { font-size:11px; color:#aaa; margin-top:4px; }
+        .import-error, .import-summary { color:#ffca80; white-space:pre-line; }
+        .import-replace { display:flex; align-items:center; gap:4px; }
+        .import-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:12px; }
+        .btn:disabled { opacity:.45; cursor:not-allowed; }
+        @media(max-width:650px) { .import-row { grid-template-columns:24px 52px minmax(80px,1fr) 70px; } .import-row img { width:52px; } .import-feedback { grid-column:3 / -1; } }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="app-title">BMFont Gen <span>v3.31 / Tool 1.3.1</span></div>
+    <div class="app-title">BMFont Gen <span>v3.32 / Tool 1.3.2</span></div>
     <div class="author-tag">Author: 小魚骨頭</div>
 </header>
 
@@ -564,17 +581,109 @@
     }
 
     function guessCharFromFileName(file) {
-        // 支援：0.png、num_0.png、digit-0.png；資料夾匯入時改讀 basename，不受路徑影響。
-        // Windows 複製檔常會產生 NUM_X-1.png / NUM_X-2.png；此處把尾碼視為副本編號，字元仍是 X。
+        // Only explicit names are trusted. Never use an arbitrary final character.
         const baseName = (file.name || '').replace(/\.[^/.]+$/, '');
         const aliases = { dot: '.', comma: ',', space: ' ', plus: '+', minus: '-', dollar: '$' };
         if (Object.prototype.hasOwnProperty.call(aliases, baseName.toLowerCase())) return aliases[baseName.toLowerCase()];
         const unicodeName = baseName.match(/^u(?:ni)?[_-]?([0-9a-f]{4,6})$/i);
-        if (unicodeName && parseInt(unicodeName[1], 16) <= 0x10ffff) return String.fromCodePoint(parseInt(unicodeName[1], 16));
-        const copySuffixMatch = baseName.match(/(?:^|_)([^_\s-])-([1-9]\d*)$/u);
-        if (copySuffixMatch) return copySuffixMatch[1];
-        const match = baseName.match(/([^\s_\-])$/u);
-        return match ? match[1] : '?';
+        if (unicodeName) {
+            const code = parseInt(unicodeName[1], 16);
+            return code <= 0x10ffff && isValidGlyphChar(String.fromCodePoint(code)) ? String.fromCodePoint(code) : '';
+        }
+        if (isValidGlyphChar(baseName)) return baseName;
+        const explicit = baseName.match(/^(?:(?:num|digit|char)[_-])?([^\s])(?:-[1-9]\d*)?$/iu);
+        return explicit && isValidGlyphChar(explicit[1]) ? explicit[1] : '';
+    }
+
+    function isValidGlyphChar(value) {
+        if (Array.from(value).length !== 1) return false;
+        const code = value.codePointAt(0);
+        return code >= 32 && !(code >= 127 && code <= 159) && !(code >= 0xd800 && code <= 0xdfff);
+    }
+
+    function suggestImportChar(file) {
+        const char = guessCharFromFileName(file);
+        if (char) return { char, reason: '依字元檔名辨識，請核對圖片。' };
+        const base = file.name.replace(/\.[^/.]+$/, '');
+        const upper = base.match(/^([a-z])U$/);
+        if (upper) return { char: upper[1].toUpperCase(), reason: '推測 U 為大寫後綴；請確認，不是圖片文字辨識。' };
+        const variant = base.match(/^([a-zA-Z])(?:\d+|_[a-zA-Z0-9]+)$/);
+        if (variant) return { char: variant[1], reason: '可能是字形變體；請確認大小寫，重複時改字元或取消勾選。' };
+        return { char: '', reason: '檔名不明，請手動填入一個字元；整個單字圖需指定單一代碼。' };
+    }
+
+    function validateImportRows(rows, glyphs) {
+        const counts = new Map();
+        rows.filter(row => row.include && !row.error).forEach(row => counts.set(row.char, (counts.get(row.char) || 0) + 1));
+        return rows.map(row => {
+            if (!row.include) return '';
+            if (row.error) return row.error;
+            if (!isValidGlyphChar(row.char)) return '請輸入恰好一個字元（可輸入空格，不能填整個單字）。';
+            if (counts.get(row.char) > 1) return `本批重複字元「${row.char}」：請改字元或取消勾選其中一張。`;
+            if (glyphs.some(g => g.charCode === row.char.codePointAt(0)) && !row.replace) return `已存在「${row.char}」：需勾選取代才會更新。`;
+            return '';
+        });
+    }
+
+    function reviewImport(rows) {
+        return new Promise(resolve => {
+            const dialog = document.createElement('dialog');
+            dialog.className = 'import-dialog';
+            dialog.setAttribute('aria-label', '確認圖片與字元配對');
+            dialog.innerHTML = `<h2>確認圖片 → 字元配對</h2>
+                <div class="import-help">每張圖片對應一個字元，大小寫不同。請核對建議值；取消左側勾選可略過圖片。<br>不明檔名不再取最後一字，重複字元不會自動覆蓋。取消或按 Esc 不會變更現有字形。</div>
+                <div class="import-rows"></div><p class="import-summary" role="status"></p>
+                <div class="import-actions"><button class="btn import-cancel">取消</button><button class="btn primary import-confirm">確認匯入</button></div>`;
+            const list = dialog.querySelector('.import-rows');
+            const confirm = dialog.querySelector('.import-confirm');
+            const controls = rows.map(row => {
+                const element = document.createElement('div');
+                element.className = 'import-row';
+                element.innerHTML = `<input type="checkbox" class="import-include" aria-label="匯入此圖"><img alt="圖片預覽"><div><div class="import-filename"></div><div class="import-reason"></div></div><input type="text" class="import-char" aria-label="對應字元" placeholder="字元"><div class="import-feedback"><label class="import-replace"><input type="checkbox">取代現有字形</label><div class="import-error"></div></div>`;
+                // Filenames and user-supplied labels must never become HTML.
+                element.querySelector('.import-filename').textContent = row.file.webkitRelativePath || row.file.name;
+                element.querySelector('.import-reason').textContent = row.reason;
+                if (row.img) element.querySelector('img').src = row.img.src;
+                const include = element.querySelector('.import-include');
+                const input = element.querySelector('.import-char');
+                const replaceLabel = element.querySelector('.import-replace');
+                const replace = replaceLabel.querySelector('input');
+                include.checked = row.include;
+                include.disabled = !!row.error;
+                input.value = row.char;
+                input.disabled = !!row.error;
+                include.onchange = () => { row.include = include.checked; refresh(); };
+                input.oninput = () => { row.char = input.value; row.replace = false; replace.checked = false; refresh(); };
+                replace.onchange = () => { row.replace = replace.checked; refresh(); };
+                list.appendChild(element);
+                return { element, replaceLabel };
+            });
+            function refresh() {
+                const errors = validateImportRows(rows, state.glyphs);
+                controls.forEach(({ element, replaceLabel }, i) => {
+                    replaceLabel.style.display = rows[i].include && isValidGlyphChar(rows[i].char) && state.glyphs.some(g => g.charCode === rows[i].char.codePointAt(0)) ? 'flex' : 'none';
+                    element.querySelector('.import-error').textContent = rows[i].error || errors[i];
+                });
+                const selected = rows.filter(row => row.include).length;
+                const failed = rows.filter(row => row.error).length;
+                confirm.disabled = !selected || errors.some(Boolean);
+                dialog.querySelector('.import-summary').textContent = `選取 ${selected} / ${rows.length} 張` + (failed ? `；${failed} 張解碼失敗，已略過。` : '') + (errors.some(Boolean) ? '；請先處理上方提示。' : '；請核對後確認。');
+            }
+            let settled = false;
+            function finish(result) {
+                if (settled) return;
+                settled = true;
+                dialog.close(); dialog.remove(); resolve(result);
+            }
+            dialog.querySelector('.import-cancel').onclick = () => finish(null);
+            dialog.oncancel = event => { event.preventDefault(); finish(null); };
+            confirm.onclick = () => {
+                refresh();
+                if (!confirm.disabled) finish(rows.filter(row => row.include));
+            };
+            document.body.appendChild(dialog);
+            refresh(); dialog.showModal();
+        });
     }
 
     function getDuplicateCharCodes(glyphs = state.glyphs) {
@@ -587,7 +696,9 @@
         return [...duplicates];
     }
 
+    let importBusy = false;
     async function processFiles(files) {
+        if (importBusy) return;
         const fileList = Array.from(files || [])
             .filter(isImageFile)
             .sort((a, b) => {
@@ -601,16 +712,32 @@
             return;
         }
 
-        if (els.importStatus) els.importStatus.textContent = `正在匯入 ${fileList.length} 張圖片...`;
-
-        let imported = 0;
-        let replaced = 0;
-        let failed = 0;
-
-        for (const file of fileList) {
-            try {
-                const img = await loadImage(file);
-                const charStr = guessCharFromFileName(file);
+        importBusy = true;
+        try {
+            if (els.importStatus) els.importStatus.textContent = `正在讀取 ${fileList.length} 張圖片，接著確認字元配對...`;
+            const rows = [];
+            for (const file of fileList) {
+                const suggestion = suggestImportChar(file);
+                try {
+                    const img = await loadImage(file);
+                    rows.push({ file, img, ...suggestion, include: true, replace: false });
+                } catch (error) {
+                    rows.push({ file, ...suggestion, include: false, replace: false, error: error.message || String(error) });
+                }
+            }
+            const selected = await reviewImport(rows);
+            if (!selected) {
+                if (els.importStatus) els.importStatus.textContent = '已取消匯入，現有字形未變更。';
+                return;
+            }
+            // Validate again at the mutation boundary; never silently overwrite.
+            const errors = validateImportRows(selected, state.glyphs).filter(Boolean);
+            if (errors.length) throw new Error(errors.join('\n'));
+            let imported = 0;
+            let replaced = 0;
+            for (const row of selected) {
+                const { file, img } = row;
+                const charStr = row.char;
                 const charCode = charStr.codePointAt(0);
 
                 const existingGlyph = state.glyphs.find(g => g.charCode === charCode);
@@ -641,23 +768,19 @@
                 addGlyphToTray(glyph);
                 imported++;
 
-                // 大量圖片時每 20 張刷新一次，避免瀏覽器看起來像卡住。
-                if ((imported + replaced) % 20 === 0) {
-                    packAndDraw(); renderPreview();
-                    await new Promise(r => requestAnimationFrame(r));
-                }
-            } catch (err) {
-                failed++;
-                console.warn(err);
             }
-        }
-
-        packAndDraw(); renderPreview();
-        if (els.importStatus) {
-            const result = [`新增 ${imported} 張`];
-            if (replaced > 0) result.push(`同字元更新 ${replaced} 張（未重複加入）`);
-            if (failed > 0) result.push(`失敗 ${failed} 張`);
-            els.importStatus.textContent = result.join('，') + '。';
+            const packed = packAndDraw(); renderPreview();
+            if (els.importStatus) {
+                const result = [`新增 ${imported} 張`];
+                if (replaced > 0) result.push(`經確認取代 ${replaced} 張`);
+                if (rows.length > selected.length) result.push(`略過 ${rows.length - selected.length} 張`);
+                els.importStatus.textContent = result.join('，') + '。' + (packed === false ? ` 包圖失敗：${state.packError}` : '');
+            }
+        } catch (error) {
+            if (els.importStatus) els.importStatus.textContent = `匯入失敗：${error.message || error}`;
+            console.warn(error);
+        } finally {
+            importBusy = false;
         }
     }
 

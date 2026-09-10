@@ -12,7 +12,7 @@ async function evaluate(c,expression){const result=await c.send('Runtime.evaluat
 (async()=>{
  let port;for(let i=0;i<100;i++){const file=path.join(profile,'DevToolsActivePort');if(fs.existsSync(file)){port=fs.readFileSync(file,'utf8').split('\n')[0];break;}await delay(100)}if(!port)throw Error('Headless Chromium did not start');
  const numbers=path.resolve(__dirname,'..','..');
- async function page(file){const target=await(await fetch(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(pathToFileURL(file).href)}`,{method:'PUT'})).json();const c=lastConnection=await connect(target.webSocketDebuggerUrl);for(let i=0;i<100;i++){if(await evaluate(c,'document.readyState')==='complete')return c;await delay(50)}throw Error('HTML load timeout');}
+ async function page(file){const url=pathToFileURL(file).href;const target=await(await fetch(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(url)}`,{method:'PUT'})).json();const c=lastConnection=await connect(target.webSocketDebuggerUrl);for(let i=0;i<100;i++){if(await evaluate(c,`location.href===${JSON.stringify(url)} && document.readyState==='complete'`))return c;await delay(50)}throw Error('HTML load timeout');}
  let c=await page(path.join(numbers,'合併數字圖拆分工具','split_glyph_tool_dragdrop_v5.html'));
  const split=await evaluate(c,`(async()=>{
    srcCanvas.width=200;srcCanvas.height=24;srcCtx.clearRect(0,0,200,24);srcCtx.fillStyle='white';for(let i=0;i<6;i++)srcCtx.fillRect(3+i*30,3,12,16);srcImg=srcCanvas;
@@ -42,7 +42,11 @@ async function evaluate(c,expression){const result=await c.send('Runtime.evaluat
    const actualFonts=await evaluate(c,`(async()=>{
      clearAll();const inputs=${JSON.stringify(inputs)};
      const files=inputs.map(input=>new File([Uint8Array.from(atob(input.data),c=>c.charCodeAt(0))],input.name,{type:'image/png'}));
-     await processFiles(files);if(state.glyphs.length!==inputs.length)throw Error('source glyph count mismatch');
+     const pending=processFiles(files);
+     for(let i=0;i<200&&!document.querySelector('.import-dialog[open]');i++)await new Promise(r=>setTimeout(r,20));
+     const confirm=document.querySelector('.import-confirm');
+     if(!confirm||confirm.disabled)throw Error('Source fixture requires manual mapping; use import-browser.test.js for ambiguous names');
+     confirm.click();await pending;if(state.glyphs.length!==inputs.length)throw Error('source glyph count mismatch');
      const result=[];for(const scale of [1,0.67,0.75]){state.config.exportScale=scale;if(!packAndDraw())throw Error(state.packError);await exportZip();const zip=await JSZip.loadAsync(await(await fetch(window.downloadURL)).arrayBuffer());result.push({scale,fnt:await zip.file('myFont.fnt').async('string')})}return result;
    })()`);
    for(const fixture of actualFonts){if(process.argv[3])require('./cocos-engine-check')(fixture.fnt,process.argv[3]);console.log('Actual input PNG fixture passed: '+sourceFolder+'; '+inputs.length+' glyphs; scale='+fixture.scale)}
