@@ -1,4 +1,6 @@
-# Cocos Timeline / Spine Director 0.13.1
+# Cocos Timeline / Spine Director 0.13.2
+
+0.13.2 保留以下 0.13.1 錄製流程，另補上非同步載入生命週期的回應隔離。
 
 適用：
 

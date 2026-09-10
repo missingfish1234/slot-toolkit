@@ -22,7 +22,7 @@ Unity 6.3 / Built-in：Dark Center Edge Glow Distortion
    - Compression：None 或 High Quality
    - sRGB：關閉（建議）
 3. 建立 Material，Shader 選：
-   Ark/UI/Dark Center Edge Glow Distortion
+   Ark/UI/Dark Center Self Contour Glow Distortion
 4. 把材質指定給 Canvas 下的 Image 或 RawImage。
 5. MainTex 通常由 Image 自動提供；Noise Texture 指定 Noise_Seamless_256.png。
 

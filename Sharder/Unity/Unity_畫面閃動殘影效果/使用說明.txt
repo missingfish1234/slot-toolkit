@@ -1,5 +1,9 @@
 Unity 全畫面殘影三段式演出教學
 
+2026-09-10 操作更正：請先讀同層「使用指南.md」。目前 AfterimageAnimEventProxy 的播放事件為
+Anim_PlayPresetSequence，停止為 Anim_StopAfterimage；本文的 Anim_PlayOctoSequence 為舊名稱。
+Prefab 自主控制腳本為 AfterimageEffectProxyV2.cs。以下保留原演出概念與參數建議，以目前程式入口為準。
+
 適用環境：
 
 Unity Built-in Render Pipeline
