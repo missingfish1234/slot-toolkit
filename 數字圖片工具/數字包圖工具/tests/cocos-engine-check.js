@@ -2,7 +2,7 @@
 // Executes the installed Creator's original TextProcessing / FontAtlas source.
 // Canvas pool and numeric value objects are host stubs; no editor Scene/GPU is claimed.
 const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('assert');
-module.exports=function checkEngineFont(fnt,creatorRoot){
+module.exports=function checkEngineFont(fnt,creatorRoot,options={}){
  const ts=require(path.join(creatorRoot,'resources/app.asar.unpacked/node_modules/typescript'));
  const engine=path.join(creatorRoot,'resources/resources/3d/engine');
  class Vec2{constructor(x=0,y=0){this.x=x;this.y=y}clone(){return new Vec2(this.x,this.y)}set(x=0,y=0){this.x=x;this.y=y;return this}}Vec2.ZERO=new Vec2();
@@ -28,10 +28,19 @@ module.exports=function checkEngineFont(fnt,creatorRoot){
  for(const line of fnt.split('\n')){const a=getAttrs(line);if(line.startsWith('info '))fontSize=a.size;if(line.startsWith('common '))lineHeight=a.lineHeight;if(line.startsWith('char ')){const g=new bitmap.FontLetterDefinition();Object.assign(g,{u:a.x,v:a.y,w:a.width,h:a.height,offsetX:a.xoffset,offsetY:a.yoffset,xAdvance:a.xadvance,valid:true});atlas.addLetterDefinitions(String(a.id),g)}}
  shared.shareLabelInfo.fontAtlas=atlas;
  const proc=TextProcessing.instance;
- function sample(text,overflow,width=200){const style=new TextStyle(),layout=new TextLayout(),data=new TextOutputLayoutData(),render=new TextOutputRenderData();Object.assign(style,{fontSize:20,actualFontSize:20,originFontSize:fontSize,fntConfig:{fontSize,kerningDict:{}}});Object.assign(layout,{overFlow:overflow,wrapping:false,lineHeight,horizontalAlign:1});data.nodeContentSize.set(width,100);proc.processingString(true,style,layout,data,text);const quads=[];proc.generateRenderInfo(true,style,layout,data,render,text,(_s,_l,_r,_offset,_texture,rect)=>quads.push({x:rect.x,y:rect.y,width:rect.width,height:rect.height}));return {width:data.nodeContentSize.width,fontSize:style.actualFontSize,quads};}
+ function sample(text,overflow,width=200,settings={}){
+  const style=new TextStyle(),layout=new TextLayout(),data=new TextOutputLayoutData(),render=new TextOutputRenderData();
+  const labelSize=settings.fontSize||20;
+  Object.assign(style,{fontSize:labelSize,actualFontSize:labelSize,originFontSize:fontSize,fntConfig:{fontSize,kerningDict:{}}});
+  Object.assign(layout,{overFlow:overflow,wrapping:false,lineHeight:settings.lineHeight||40,horizontalAlign:1,verticalAlign:1});
+  data.nodeContentSize.set(width,settings.height||40);render.uiTransAnchorX=.5;render.uiTransAnchorY=.5;
+  proc.processingString(true,style,layout,data,text);const quads=[];
+  proc.generateRenderInfo(true,style,layout,data,render,text,(_s,_l,_r,_offset,_texture,rect,rotation,positionX,positionY)=>quads.push({char:Array.from(text)[quads.length],x:rect.x,y:rect.y,width:rect.width,height:rect.height,positionX,positionY}));
+  return {width:data.nodeContentSize.width,height:data.nodeContentSize.height,fontSize:style.actualFontSize,scale:style.bmfontScale,quads};
+ }
  const widths=new Set();for(let i=0;i<120;i++){const result=sample(String(100000+i),0);widths.add(result.width);assert.strictEqual(result.fontSize,20);assert.strictEqual(result.quads.length,6)}assert.strictEqual(widths.size,1,'Cocos NONE layout must stay fixed for same digit count');
  const one=sample('111111',0),eight=sample('888888',0);assert.strictEqual(one.width,eight.width);assert.notDeepStrictEqual(one.quads,eight.quads,'Cocos must select new atlas rectangles');
  const shrunk=sample('888888',2,30);assert(shrunk.fontSize<20,'narrow SHRINK fixture must actually shrink');
- console.log(`INSTALLED COCOS CORE PASSED: ${creatorRoot}; 120 changing strings, stable NONE width=${one.width}, current UV rectangles and SHRINK=${shrunk.fontSize}; host math/canvas stubs, no Scene/GPU.`);
- return {engineWidth:one.width,shrinkSize:shrunk.fontSize};
+ if(!options.quiet)console.log(`INSTALLED COCOS CORE PASSED: ${creatorRoot}; 120 changing strings, stable NONE width=${one.width}, current UV rectangles and SHRINK=${shrunk.fontSize}; host math/canvas stubs, no Scene/GPU.`);
+ return {engineWidth:one.width,shrinkSize:shrunk.fontSize,samples:(options.samples||[]).map(s=>sample(s.text,s.overflow||0,s.width||200,s))};
 };

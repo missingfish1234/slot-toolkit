@@ -134,6 +134,7 @@ async function screenshot(name) {
         console.log('PASS actual PNG review + FNT/PNG export, 3 scales: '+folder+' ('+files.length+' glyphs)');
     }
     console.log('PASS: review, case-sensitive mapping, batch conflicts, explicit replacement, unknown/multichar input, corrupt PNG, skip, cancel/Escape');
+    if(process.argv[4] && process.argv[5])await require('./centering-browser-check')({evaluate,screenshot},process.argv[4],path.resolve(process.argv[5]));
     await connection.send('Browser.close');closed=true;
 })().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{
     if(connection&&!closed){try{await connection.send('Browser.close');}catch(_){}}
