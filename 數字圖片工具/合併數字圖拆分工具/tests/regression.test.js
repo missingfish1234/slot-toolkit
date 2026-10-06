@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('assert'), fs=require('fs'), vm=require('vm'), path=require('path');
 const html=fs.readFileSync(path.join(__dirname,'..','split_glyph_tool_dragdrop_v5.html'),'utf8');
-const controls={chars:{value:'0123456789.,xX'},zipBtn:{disabled:false}};
+const controls={chars:{value:'0123456789.,xX'},outputScale:{value:'100'},zipBtn:{disabled:false}};
 const ctx={$:id=>controls[id],err:{},out:{},runsDiv:{},srcImg:{},srcCanvas:{width:10,height:10},srcCtx:{getImageData:()=>({})},buildMask:()=>({}),detectRuns:()=>[{},{},{}],drawPreview(){}};
 vm.createContext(ctx);
 vm.runInContext(html.slice(html.indexOf('function charsArray('),html.indexOf('function median(')),ctx);
@@ -12,5 +12,8 @@ assert.strictEqual(ctx.glyphFileStem('/'),'u002f');assert.notStrictEqual(ctx.gly
 vm.runInContext(html.slice(html.indexOf('function split()'),html.indexOf('function downloadCanvas(')),ctx);
 ctx.split();assert.strictEqual(ctx.results.length,0);assert.strictEqual(controls.zipBtn.disabled,true);assert.match(ctx.err.textContent,/偵測到 3/);
 controls.chars.value='001';ctx.split();assert.match(ctx.err.textContent,/重複/);assert.strictEqual(ctx.results.length,0);
+controls.outputScale.value='0';ctx.split();assert.match(ctx.err.textContent,/縮放比例/);assert.strictEqual(controls.zipBtn.disabled,true);
+controls.outputScale.value='Infinity';ctx.split();assert.match(ctx.err.textContent,/縮放比例/);
+controls.outputScale.value='401';ctx.split();assert.match(ctx.err.textContent,/縮放比例/);
 for(const match of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) new vm.Script(match[1]);
 console.log('Split regression: punctuation/Unicode naming, case-safe files, duplicate and run-count blocking passed');

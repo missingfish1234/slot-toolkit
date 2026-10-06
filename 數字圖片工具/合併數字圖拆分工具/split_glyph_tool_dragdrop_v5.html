@@ -177,6 +177,12 @@
     </div>
 
     <div class="row">
+      <label for="outputScale">輸出縮放比例（%）</label>
+      <input id="outputScale" type="number" value="100" min="1" max="400" step="0.1">
+      <div class="hint">100% 保持原尺寸；拆分後統一縮放每張 PNG，單張下載與 ZIP 尺寸相同。可輸入 50、67.5、200 等比例。</div>
+    </div>
+
+    <div class="row">
       <label class="check"><input id="removeBg" type="checkbox" checked> 輸出時移除背景色，轉成透明 PNG</label>
       <label class="check"><input id="showGuides" type="checkbox" checked> 預覽顯示切線</label>
       <label class="check"><input id="centerY" type="checkbox" checked> 垂直置中內容</label>
@@ -196,7 +202,8 @@
         2. 「.」與「,」會統一成較窄同寬。<br>
         3. 英文字母/其他符號以內容寬 + 左右安全邊輸出，預設左右各 1px。<br>
         4. 所有輸出 PNG 高度一致，可直接丟進 BMFont packing 或 Photoshop 對齊。<br>
-        5. 啟用「保留原始垂直位置」後，像「.」「,」這類符號會維持原本偏下的高度，不會被置中跑位。
+        5. 啟用「保留原始垂直位置」後，像「.」「,」這類符號會維持原本偏下的高度，不會被置中跑位。<br>
+        6. 「輸出縮放比例」會在完成裁切與對位後套用，原圖預覽及來源檔不變。
       </div>
     </div>
 
@@ -425,15 +432,37 @@ function makeGlyphCanvas(char, run, targetW, targetH, bg, globalTop){
   transparentize(c, bg);
   return c;
 }
+function scaleGlyphCanvas(canvas, scale){
+  if(scale === 1) return canvas; // 100% 不重採樣，維持舊版像素。
+  const width = Math.max(1, Math.round(canvas.width * scale));
+  const height = Math.max(1, Math.round(canvas.height * scale));
+  const scaled = document.createElement("canvas");
+  scaled.width = width;
+  scaled.height = height;
+  if(scaled.width !== width || scaled.height !== height) throw new Error("縮放後尺寸超出瀏覽器限制。");
+  const ctx = scaled.getContext("2d");
+  if(!ctx) throw new Error("瀏覽器無法建立縮放圖片。");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(canvas, 0, 0, width, height);
+  return scaled;
+}
 function split(){
   err.textContent = "";
   $("zipBtn").disabled = true;
   out.innerHTML = "";
+  runsDiv.textContent = "";
   results = [];
   if(!srcImg){
     err.textContent = "請先載入圖片。";
     return;
   }
+  const outputPercent = Number($("outputScale").value);
+  if(!Number.isFinite(outputPercent) || outputPercent < 1 || outputPercent > 400){
+    err.textContent = "輸出縮放比例請輸入 1%～400% 的數字。";
+    return;
+  }
+  const outputScale = outputPercent / 100;
   const chars = charsArray();
   if(!chars.length){
     err.textContent = "請先輸入字元順序。";
@@ -481,16 +510,18 @@ function split(){
   }
 
   runsDiv.innerHTML =
-    `<b>偵測結果</b><br>判定模式：${mode === "alpha" ? "Alpha 透明" : mode === "bg" ? "背景色差" : "亮度/顏色"}<br>` +
+    `<b>偵測結果</b><br>判定模式：${mode === "alpha" ? "Alpha 透明" : mode === "bg" ? "背景色差" : "亮度/顏色"}<br>輸出縮放：${outputPercent}%<br>` +
     runs.map((r,i)=>`${i+1}. ${chars[i] ?? "?"} : x=${r.x}, y=${r.y}, w=${r.w}, h=${r.h}`).join("<br>");
 
+  try {
   for(const p of pairs){
     let w;
     if(/[0-9]/.test(p.char)) w = digitW;
     else if(p.char === "." || p.char === ",") w = symbolW;
     else w = p.run.w + letterPad*2;
 
-    const c = makeGlyphCanvas(p.char, p.run, Math.max(1,w), Math.max(1,targetH), bg, globalTop);
+    const original = makeGlyphCanvas(p.char, p.run, Math.max(1,w), Math.max(1,targetH), bg, globalTop);
+    const c = scaleGlyphCanvas(original, outputScale);
     const safeName = glyphFileStem(p.char);
     results.push({char:p.char, name:safeName, canvas:c});
 
@@ -517,11 +548,18 @@ function split(){
     tile.appendChild(btn);
     out.appendChild(tile);
   }
+  } catch(e) {
+    results = [];
+    out.innerHTML = "";
+    err.textContent = `產生拆分圖片失敗：${e.message || e}`;
+    return;
+  }
 
   $("zipBtn").disabled = results.length === 0 || typeof JSZip === "undefined";
 }
 function downloadCanvas(canvas, filename){
   canvas.toBlob(blob=>{
+    if(!blob){ err.textContent = `無法匯出 ${filename}，請降低輸出縮放比例。`; return; }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = filename;
@@ -532,7 +570,7 @@ function downloadCanvas(canvas, filename){
 async function downloadZip(){
   if (!results.length || downloadZip.busy) return;
   if(typeof JSZip === "undefined"){
-    err.textContent = "JSZip 載入失敗，請確認網路連線，或改用單張下載。";
+    err.textContent = "ZIP 元件載入失敗，請確認 vendor 資料夾完整，或改用單張下載。";
     return;
   }
 
@@ -697,7 +735,7 @@ $("clearBtn").onclick = ()=>{
   preview.width = 0; preview.height = 0;
   $("splitBtn").disabled = true; $("zipBtn").disabled = true;
 };
-["chars","maskMode","threshold","gapMerge","minRun","digitPad","symbolPad","letterPad","heightMode","removeBg","showGuides","centerY","baselineAlign"].forEach(id=>{
+["chars","maskMode","threshold","gapMerge","minRun","digitPad","symbolPad","letterPad","heightMode","outputScale","removeBg","showGuides","centerY","baselineAlign"].forEach(id=>{
   $(id).addEventListener("change", ()=>{ if(srcImg) split(); });
 });
 
