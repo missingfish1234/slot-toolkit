@@ -1,0 +1,273 @@
+{
+"skeleton": { "hash": "kgMxqkBHLms", "spine": "4.0.56", "images": "./images/", "audio": "D:\\SLOT工作區\\老虎機測試工具\\我的工具包\\粒子系統\\examples" },
+"bones": [
+	{ "name": "root" },
+	{
+		"name": "hand",
+		"parent": "root",
+		"rotation": 15,
+		"x": 70,
+		"y": 45,
+		"scaleX": 1.2,
+		"scaleY": 0.8
+	},
+	{ "name": "ikBone", "parent": "root", "length": 55, "x": -160, "y": -55 },
+	{ "name": "ikTarget", "parent": "root", "x": -75, "y": 20, "color": "ff3f00ff" },
+	{ "name": "fx___root", "parent": "hand" },
+	{ "name": "fx___em_spark", "parent": "fx___root", "x": 12, "y": 8 },
+	{ "name": "fx___em_spark_p0", "parent": "fx___em_spark" },
+	{ "name": "fx___em_spark_p1", "parent": "fx___em_spark" }
+],
+"slots": [
+	{ "name": "backSlot", "bone": "root", "color": "88aaccff", "attachment": "back" },
+	{ "name": "handSlot", "bone": "hand", "color": "ffeebbff", "attachment": "gemBase" },
+	{ "name": "fx___em_spark_p0_slot", "bone": "fx___em_spark_p0", "color": "ffffff00", "blend": "additive" },
+	{ "name": "fx___em_spark_p1_slot", "bone": "fx___em_spark_p1", "color": "ffffff00", "blend": "additive" },
+	{ "name": "frontSlot", "bone": "root", "color": "99ccffee", "attachment": "front", "blend": "additive" }
+],
+"ik": [
+	{
+		"name": "originalIK",
+		"bones": [ "ikBone" ],
+		"target": "ikTarget",
+		"mix": 0.65
+	}
+],
+"skins": [
+	{
+		"name": "default",
+		"attachments": {
+			"backSlot": {
+				"back": {
+					"path": "base/particle",
+					"x": -140,
+					"y": -15,
+					"scaleX": 1.5625,
+					"scaleY": 1.25,
+					"width": 64,
+					"height": 64
+				}
+			},
+			"frontSlot": {
+				"front": { "path": "base/particle", "x": 120, "scaleX": 0.7813, "scaleY": 1.5625, "width": 64, "height": 64 }
+			},
+			"fx___em_spark_p0_slot": {
+				"fx___particle": { "path": "fx_/particle", "width": 64, "height": 64 }
+			},
+			"fx___em_spark_p1_slot": {
+				"fx___particle": { "path": "fx_/particle", "width": 64, "height": 64 }
+			},
+			"handSlot": {
+				"gemBase": { "path": "base/particle", "scaleX": 0.625, "scaleY": 0.625, "width": 64, "height": 64 }
+			}
+		}
+	},
+	{
+		"name": "alternate",
+		"attachments": {
+			"handSlot": {
+				"gemSkin": { "name": "alternate/gem", "path": "base/particle", "scaleX": 0.6875, "scaleY": 0.6875, "width": 64, "height": 64 },
+				"gemAlt": {
+					"name": "alternate/gemAlt",
+					"path": "base/particle",
+					"x": 4,
+					"y": 2,
+					"scaleX": 0.5625,
+					"scaleY": 0.8125,
+					"width": 64,
+					"height": 64
+				}
+			}
+		}
+	},
+	{
+		"name": "variant",
+		"attachments": {
+			"handSlot": {
+				"gemSkin": { "name": "variant/gem", "path": "base/particle", "scaleX": 0.75, "scaleY": 0.6563, "width": 64, "height": 64 },
+				"gemAlt": {
+					"name": "variant/gemAlt",
+					"path": "base/particle",
+					"x": 4,
+					"y": 2,
+					"scaleX": 0.5313,
+					"scaleY": 0.875,
+					"width": 64,
+					"height": 64
+				}
+			}
+		}
+	}
+],
+"events": {
+	"spark": { "int": 2, "float": 1.5, "string": "original" }
+},
+"animations": {
+	"idle": {
+		"bones": {
+			"hand": {
+				"translate": [
+					{ "x": -10, "curve": "stepped" },
+					{ "time": 1.5, "x": -10 }
+				]
+			}
+		},
+		"events": [
+			{ "time": 1.2, "name": "spark", "string": "idle-original" }
+		]
+	},
+	"main": {
+		"slots": {
+			"backSlot": {
+				"rgba": [
+					{ "color": "88aaccff" },
+					{ "time": 4, "color": "336699ff" }
+				]
+			},
+			"frontSlot": {
+				"rgba": [
+					{ "color": "99ccffee" },
+					{ "time": 4, "color": "99ccff88" }
+				]
+			},
+			"fx___em_spark_p0_slot": {
+				"rgba": [
+					{ "color": "ffffff00", "curve": "stepped" },
+					{ "time": 0.4, "color": "ffffffff", "curve": "stepped" },
+					{ "time": 1.2999, "color": "ffffffff", "curve": "stepped" },
+					{ "time": 1.3, "color": "ffffff00", "curve": "stepped" },
+					{ "time": 2, "color": "ffffff00" }
+				],
+				"attachment": [
+					{ "name": null },
+					{ "time": 0.4, "name": "fx___particle" },
+					{ "time": 1.3, "name": null },
+					{ "time": 2, "name": null }
+				]
+			},
+			"fx___em_spark_p1_slot": {
+				"rgba": [
+					{ "color": "ffffff00", "curve": "stepped" },
+					{ "time": 0.4, "color": "ffffff00", "curve": "stepped" },
+					{ "time": 0.5499, "color": "ffffff00", "curve": "stepped" },
+					{ "time": 0.55, "color": "ffffffff", "curve": "stepped" },
+					{ "time": 1.4499, "color": "ffffffff", "curve": "stepped" },
+					{ "time": 1.45, "color": "ffffff00", "curve": "stepped" },
+					{ "time": 2, "color": "ffffff00" }
+				],
+				"attachment": [
+					{ "name": null },
+					{ "time": 0.4, "name": null },
+					{ "time": 0.55, "name": "fx___particle" },
+					{ "time": 1.45, "name": null },
+					{ "time": 2, "name": null }
+				]
+			},
+			"handSlot": {
+				"rgba": [
+					{ "color": "ffeebbff" },
+					{ "time": 2, "color": "dd88aaff" },
+					{ "time": 4, "color": "ffeebbff" }
+				],
+				"attachment": [
+					{ "name": "gemBase" },
+					{ "time": 1.25, "name": "gemAlt" },
+					{ "time": 2.4, "name": null },
+					{ "time": 2.8, "name": "gemBase" }
+				]
+			}
+		},
+		"bones": {
+			"hand": {
+				"rotate": [
+					{},
+					{ "time": 2, "value": 75 },
+					{ "time": 4 }
+				],
+				"translate": [
+					{},
+					{ "time": 2, "x": 100, "y": 30 },
+					{ "time": 4 }
+				],
+				"scale": [
+					{},
+					{ "time": 2, "x": 1.2, "y": 0.7 },
+					{ "time": 4 }
+				]
+			},
+			"fx___em_spark_p0": {
+				"rotate": [
+					{ "time": 0.4, "curve": "stepped" },
+					{ "time": 1.2999, "curve": "stepped" },
+					{ "time": 1.3, "curve": "stepped" },
+					{ "time": 2 }
+				],
+				"translate": [
+					{ "time": 0.4 },
+					{ "time": 1.2999, "x": 42.86, "y": 24.75, "curve": "stepped" },
+					{ "time": 1.3, "x": 42.87, "y": 24.75, "curve": "stepped" },
+					{ "time": 2, "x": 42.87, "y": 24.75 }
+				],
+				"scale": [
+					{ "time": 0.4, "x": 0.156, "y": 0.156, "curve": "stepped" },
+					{ "time": 1.2999, "x": 0.156, "y": 0.156, "curve": "stepped" },
+					{ "time": 1.3, "x": 0.156, "y": 0.156, "curve": "stepped" },
+					{ "time": 2, "x": 0.156, "y": 0.156 }
+				]
+			},
+			"fx___em_spark_p1": {
+				"rotate": [
+					{ "time": 0.4, "curve": "stepped" },
+					{ "time": 0.5499, "curve": "stepped" },
+					{ "time": 0.55, "curve": "stepped" },
+					{ "time": 1.4499, "curve": "stepped" },
+					{ "time": 1.45, "curve": "stepped" },
+					{ "time": 2 }
+				],
+				"translate": [
+					{ "time": 0.4, "curve": "stepped" },
+					{ "time": 0.5499, "curve": "stepped" },
+					{ "time": 0.55 },
+					{ "time": 1.4499, "x": 42.86, "y": 24.75, "curve": "stepped" },
+					{ "time": 1.45, "x": 42.87, "y": 24.75, "curve": "stepped" },
+					{ "time": 2, "x": 42.87, "y": 24.75 }
+				],
+				"scale": [
+					{ "time": 0.4, "x": 0.156, "y": 0.156, "curve": "stepped" },
+					{ "time": 0.5499, "x": 0.156, "y": 0.156, "curve": "stepped" },
+					{ "time": 0.55, "x": 0.156, "y": 0.156, "curve": "stepped" },
+					{ "time": 1.4499, "x": 0.156, "y": 0.156, "curve": "stepped" },
+					{ "time": 1.45, "x": 0.156, "y": 0.156, "curve": "stepped" },
+					{ "time": 2, "x": 0.156, "y": 0.156 }
+				]
+			}
+		},
+		"ik": {
+			"originalIK": [
+				{ "mix": 0.65 },
+				{ "time": 2, "mix": 0.8 },
+				{ "time": 4, "mix": 0.65 }
+			]
+		},
+		"drawOrder": [
+			{
+				"time": 0.75,
+				"offsets": [
+					{ "slot": "backSlot", "offset": 4 }
+				]
+			},
+			{
+				"time": 1.8,
+				"offsets": [
+					{ "slot": "frontSlot", "offset": -4 }
+				]
+			},
+			{ "time": 3.2 }
+		],
+		"events": [
+			{ "time": 1, "name": "spark", "int": 4, "string": "kept-one" },
+			{ "time": 2.5, "name": "spark", "float": 0.25, "string": "kept-two" }
+		]
+	}
+}
+}

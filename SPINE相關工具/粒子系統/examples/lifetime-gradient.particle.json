@@ -1,0 +1,355 @@
+{
+  "format": "particle-studio-project",
+  "schemaVersion": 1,
+  "project": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "生命漸層與貝茲速度",
+    "fps": 60,
+    "duration": 3,
+    "loop": true,
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "emitter1",
+        "name": "生命變化示範",
+        "enabled": true,
+        "x": 0,
+        "y": -50,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 75,
+        "spread": 140,
+        "count": 32,
+        "emissionDuration": 1.2,
+        "life": 2,
+        "lifeRandom": 0,
+        "speed": 70,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 20,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#fff1b0",
+        "colorEnd": "#ff9900",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.3,
+            "curve": "bezier",
+            "out": {
+              "x": 0.25,
+              "y": 0.3
+            }
+          },
+          {
+            "t": 0.28,
+            "v": 1.6,
+            "in": {
+              "x": 0.75,
+              "y": 1.6
+            },
+            "curve": "bezier"
+          },
+          {
+            "t": 0.66,
+            "v": 0.9,
+            "curve": "bezier"
+          },
+          {
+            "t": 1,
+            "v": 0.15
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0,
+            "curve": "bezier",
+            "out": {
+              "x": 0.25,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.18,
+            "v": 1,
+            "in": {
+              "x": 0.75,
+              "y": 1
+            },
+            "curve": "bezier",
+            "out": {
+              "x": 0.25,
+              "y": 0.95
+            }
+          },
+          {
+            "t": 0.4,
+            "v": 0.55,
+            "in": {
+              "x": 0.7,
+              "y": 0.65
+            },
+            "curve": "bezier"
+          },
+          {
+            "t": 0.72,
+            "v": 0.85,
+            "curve": "bezier"
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": [
+          {
+            "t": 0,
+            "v": 0.25,
+            "curve": "bezier",
+            "out": {
+              "x": 0.2,
+              "y": 0.25
+            }
+          },
+          {
+            "t": 0.25,
+            "v": 1.6,
+            "in": {
+              "x": 0.8,
+              "y": 1.6
+            },
+            "curve": "bezier"
+          },
+          {
+            "t": 0.6,
+            "v": 0.9,
+            "curve": "bezier"
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "colorGradient": [
+          {
+            "t": 0,
+            "color": "#ff3300"
+          },
+          {
+            "t": 0.2,
+            "color": "#ffe600"
+          },
+          {
+            "t": 0.55,
+            "color": "#44ccff"
+          },
+          {
+            "t": 1,
+            "color": "#5544ff"
+          }
+        ],
+        "image": null
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    }
+  },
+  "bakedProject": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "生命漸層與貝茲速度",
+    "fps": 60,
+    "duration": 3,
+    "loop": true,
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "emitter1",
+        "name": "生命變化示範",
+        "enabled": true,
+        "x": 0,
+        "y": -50,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 75,
+        "spread": 140,
+        "count": 32,
+        "emissionDuration": 1.2,
+        "life": 2,
+        "lifeRandom": 0,
+        "speed": 70,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 20,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#fff1b0",
+        "colorEnd": "#ff9900",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.3,
+            "curve": "bezier",
+            "out": {
+              "x": 0.25,
+              "y": 0.3
+            }
+          },
+          {
+            "t": 0.28,
+            "v": 1.6,
+            "curve": "bezier",
+            "in": {
+              "x": 0.75,
+              "y": 1.6
+            }
+          },
+          {
+            "t": 0.66,
+            "v": 0.9,
+            "curve": "bezier"
+          },
+          {
+            "t": 1,
+            "v": 0.15
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0,
+            "curve": "bezier",
+            "out": {
+              "x": 0.25,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.18,
+            "v": 1,
+            "curve": "bezier",
+            "in": {
+              "x": 0.75,
+              "y": 1
+            },
+            "out": {
+              "x": 0.25,
+              "y": 0.95
+            }
+          },
+          {
+            "t": 0.4,
+            "v": 0.55,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 0.65
+            }
+          },
+          {
+            "t": 0.72,
+            "v": 0.85,
+            "curve": "bezier"
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": [
+          {
+            "t": 0,
+            "v": 0.25,
+            "curve": "bezier",
+            "out": {
+              "x": 0.2,
+              "y": 0.25
+            }
+          },
+          {
+            "t": 0.25,
+            "v": 1.6,
+            "curve": "bezier",
+            "in": {
+              "x": 0.8,
+              "y": 1.6
+            }
+          },
+          {
+            "t": 0.6,
+            "v": 0.9,
+            "curve": "bezier"
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "colorGradient": [
+          {
+            "t": 0,
+            "color": "#ff3300"
+          },
+          {
+            "t": 0.2,
+            "color": "#ffe600"
+          },
+          {
+            "t": 0.55,
+            "color": "#44ccff"
+          },
+          {
+            "t": 1,
+            "color": "#5544ff"
+          }
+        ],
+        "image": null
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    }
+  },
+  "view": {
+    "time": 1.2,
+    "mode": "baked",
+    "zoom": 1,
+    "panX": 0,
+    "panY": 40
+  }
+}

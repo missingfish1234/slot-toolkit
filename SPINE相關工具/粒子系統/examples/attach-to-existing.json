@@ -1,0 +1,372 @@
+{
+  "skeleton": {
+    "spine": "4.0.56",
+    "hash": "existing-rig-qa",
+    "x": -200,
+    "y": -100,
+    "width": 400,
+    "height": 260,
+    "images": "./images/"
+  },
+  "bones": [
+    {
+      "name": "root"
+    },
+    {
+      "name": "hand",
+      "parent": "root",
+      "x": 70,
+      "y": 45,
+      "rotation": 15,
+      "scaleX": 1.2,
+      "scaleY": 0.8
+    },
+    {
+      "name": "ikBone",
+      "parent": "root",
+      "x": -160,
+      "y": -55,
+      "length": 55
+    },
+    {
+      "name": "ikTarget",
+      "parent": "root",
+      "x": -75,
+      "y": 20
+    }
+  ],
+  "slots": [
+    {
+      "name": "backSlot",
+      "bone": "root",
+      "attachment": "back",
+      "color": "88aaccff"
+    },
+    {
+      "name": "handSlot",
+      "bone": "hand",
+      "attachment": "gemBase",
+      "color": "ffeebbff"
+    },
+    {
+      "name": "frontSlot",
+      "bone": "root",
+      "attachment": "front",
+      "color": "99ccffee",
+      "blend": "additive"
+    }
+  ],
+  "ik": [
+    {
+      "name": "originalIK",
+      "order": 0,
+      "bones": [
+        "ikBone"
+      ],
+      "target": "ikTarget",
+      "mix": 0.65
+    }
+  ],
+  "skins": [
+    {
+      "name": "default",
+      "attachments": {
+        "backSlot": {
+          "back": {
+            "type": "region",
+            "path": "base/particle",
+            "x": -140,
+            "y": -15,
+            "width": 64,
+            "height": 64,
+            "scaleX": 1.5625,
+            "scaleY": 1.25
+          }
+        },
+        "handSlot": {
+          "gemBase": {
+            "type": "region",
+            "path": "base/particle",
+            "x": 0,
+            "y": 0,
+            "width": 64,
+            "height": 64,
+            "scaleX": 0.625,
+            "scaleY": 0.625
+          }
+        },
+        "frontSlot": {
+          "front": {
+            "type": "region",
+            "path": "base/particle",
+            "x": 120,
+            "y": 0,
+            "width": 64,
+            "height": 64,
+            "scaleX": 0.78125,
+            "scaleY": 1.5625
+          }
+        }
+      }
+    },
+    {
+      "name": "alternate",
+      "attachments": {
+        "handSlot": {
+          "gemSkin": {
+            "type": "region",
+            "path": "base/particle",
+            "x": 0,
+            "y": 0,
+            "width": 64,
+            "height": 64,
+            "scaleX": 0.6875,
+            "scaleY": 0.6875,
+            "name": "alternate/gem"
+          },
+          "gemAlt": {
+            "type": "region",
+            "path": "base/particle",
+            "x": 4,
+            "y": 2,
+            "width": 64,
+            "height": 64,
+            "scaleX": 0.5625,
+            "scaleY": 0.8125,
+            "name": "alternate/gemAlt"
+          }
+        }
+      }
+    },
+    {
+      "name": "variant",
+      "attachments": {
+        "handSlot": {
+          "gemSkin": {
+            "type": "region",
+            "path": "base/particle",
+            "x": 0,
+            "y": 0,
+            "width": 64,
+            "height": 64,
+            "scaleX": 0.75,
+            "scaleY": 0.65625,
+            "name": "variant/gem"
+          },
+          "gemAlt": {
+            "type": "region",
+            "path": "base/particle",
+            "x": 4,
+            "y": 2,
+            "width": 64,
+            "height": 64,
+            "scaleX": 0.53125,
+            "scaleY": 0.875,
+            "name": "variant/gemAlt"
+          }
+        }
+      }
+    }
+  ],
+  "events": {
+    "spark": {
+      "int": 2,
+      "float": 1.5,
+      "string": "original"
+    }
+  },
+  "animations": {
+    "main": {
+      "bones": {
+        "hand": {
+          "translate": [
+            {
+              "time": 0,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "time": 2,
+              "x": 100,
+              "y": 30
+            },
+            {
+              "time": 4,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "rotate": [
+            {
+              "time": 0,
+              "value": 0
+            },
+            {
+              "time": 2,
+              "value": 75
+            },
+            {
+              "time": 4,
+              "value": 0
+            }
+          ],
+          "scale": [
+            {
+              "time": 0,
+              "x": 1,
+              "y": 1
+            },
+            {
+              "time": 2,
+              "x": 1.2,
+              "y": 0.7
+            },
+            {
+              "time": 4,
+              "x": 1,
+              "y": 1
+            }
+          ]
+        }
+      },
+      "slots": {
+        "backSlot": {
+          "rgba": [
+            {
+              "time": 0,
+              "color": "88aaccff"
+            },
+            {
+              "time": 4,
+              "color": "336699ff"
+            }
+          ]
+        },
+        "handSlot": {
+          "attachment": [
+            {
+              "time": 0,
+              "name": "gemBase"
+            },
+            {
+              "time": 1.25,
+              "name": "gemAlt"
+            },
+            {
+              "time": 2.4,
+              "name": null
+            },
+            {
+              "time": 2.8,
+              "name": "gemBase"
+            }
+          ],
+          "rgba": [
+            {
+              "time": 0,
+              "color": "ffeebbff"
+            },
+            {
+              "time": 2,
+              "color": "dd88aaff"
+            },
+            {
+              "time": 4,
+              "color": "ffeebbff"
+            }
+          ]
+        },
+        "frontSlot": {
+          "rgba": [
+            {
+              "time": 0,
+              "color": "99ccffee"
+            },
+            {
+              "time": 4,
+              "color": "99ccff88"
+            }
+          ]
+        }
+      },
+      "ik": {
+        "originalIK": [
+          {
+            "time": 0,
+            "mix": 0.65
+          },
+          {
+            "time": 2,
+            "mix": 0.8
+          },
+          {
+            "time": 4,
+            "mix": 0.65
+          }
+        ]
+      },
+      "drawOrder": [
+        {
+          "time": 0.75,
+          "offsets": [
+            {
+              "slot": "backSlot",
+              "offset": 2
+            }
+          ]
+        },
+        {
+          "time": 1.8,
+          "offsets": [
+            {
+              "slot": "frontSlot",
+              "offset": -2
+            }
+          ]
+        },
+        {
+          "time": 3.2
+        }
+      ],
+      "events": [
+        {
+          "time": 1,
+          "name": "spark",
+          "int": 4,
+          "string": "kept-one"
+        },
+        {
+          "time": 2.5,
+          "name": "spark",
+          "float": 0.25,
+          "string": "kept-two"
+        }
+      ]
+    },
+    "idle": {
+      "bones": {
+        "hand": {
+          "translate": [
+            {
+              "time": 0,
+              "x": -10,
+              "y": 0
+            },
+            {
+              "time": 1.5,
+              "x": -10,
+              "y": 0
+            }
+          ]
+        }
+      },
+      "events": [
+        {
+          "time": 1.2,
+          "name": "spark",
+          "string": "idle-original"
+        }
+      ]
+    }
+  }
+}

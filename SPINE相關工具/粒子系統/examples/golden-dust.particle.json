@@ -1,0 +1,183 @@
+{
+  "format": "particle-studio-project",
+  "schemaVersion": 1,
+  "project": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "金色光塵",
+    "fps": 30,
+    "duration": 3,
+    "loop": true,
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "emitter1",
+        "name": "金色光點",
+        "enabled": true,
+        "x": 0,
+        "y": 0,
+        "shape": "box",
+        "width": 180,
+        "height": 30,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 70,
+        "count": 48,
+        "emissionDuration": 3,
+        "life": 1.6,
+        "lifeRandom": 0.2,
+        "speed": 90,
+        "speedRandom": 20,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 18,
+        "sizeRandom": 4,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#fff1b0",
+        "colorEnd": "#ff9900",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.5
+          },
+          {
+            "t": 0.2,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.12,
+            "v": 1
+          },
+          {
+            "t": 0.8,
+            "v": 0.8
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "image": null
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    }
+  },
+  "bakedProject": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "金色光塵",
+    "fps": 30,
+    "duration": 3,
+    "loop": true,
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "emitter1",
+        "name": "金色光點",
+        "enabled": true,
+        "x": 0,
+        "y": 0,
+        "shape": "box",
+        "width": 180,
+        "height": 30,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 70,
+        "count": 48,
+        "emissionDuration": 3,
+        "life": 1.6,
+        "lifeRandom": 0.2,
+        "speed": 90,
+        "speedRandom": 20,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 18,
+        "sizeRandom": 4,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#fff1b0",
+        "colorEnd": "#ff9900",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.5
+          },
+          {
+            "t": 0.2,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.12,
+            "v": 1
+          },
+          {
+            "t": 0.8,
+            "v": 0.8
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "image": null
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    }
+  },
+  "view": {
+    "time": 1.2,
+    "mode": "baked",
+    "zoom": 1,
+    "panX": 0,
+    "panY": 40
+  }
+}

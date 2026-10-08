@@ -1,0 +1,11 @@
+# Local development and generated delivery material; not part of the toolkit package.
+/analysis/
+/deliverables/
+/tests/
+/dist/*.zip
+/package.json
+/scripts/build-release.js
+/scripts/build-spine-runtimes.js
+/scripts/create-tool-introduction.py
+/scripts/example.js
+/scripts/shapes-example.js

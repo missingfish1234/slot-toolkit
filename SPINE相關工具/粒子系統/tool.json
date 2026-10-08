@@ -1,0 +1,16 @@
+{
+  "id": "spine-particle-studio",
+  "name": "SPINE 粒子系統（Particle Studio）",
+  "category": "SPINE相關工具",
+  "description": "離線編排粒子效果，輸出 Spine 3.8／4.0／4.2 動畫與圖片；支援 In／Loop／Out 三段演出及既有骨架掛接。",
+  "version": "1.9.0",
+  "path": "SPINE相關工具/粒子系統",
+  "entry": "dist/Particle-Studio.html",
+  "icon": "",
+  "tags": ["SPINE相關工具", "Spine", "粒子", "特效", "離線網頁工具"],
+  "updatedAt": "2026-10-08",
+  "size": "",
+  "changelog": ["v1.9.0：加入工具包與管理器，可離線啟動粒子工作室。"],
+  "documentation": "使用指南.md",
+  "kind": "網頁工具"
+}

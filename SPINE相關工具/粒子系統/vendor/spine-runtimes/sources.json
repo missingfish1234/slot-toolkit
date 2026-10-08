@@ -1,0 +1,23 @@
+{
+  "3.8": {
+    "file": "3.8.core.min.js",
+    "licenseFile": "3.8.LICENSE.txt",
+    "namespace": "spine",
+    "sha256": "6cd0b7fb4c8b923faf27a242eb59caf52016b9bfa8f7d6a971142ba2d18275e1",
+    "source": "https://github.com/EsotericSoftware/spine-runtimes/tree/8b4844bd4b193ba9e54487ed397a777993cbad56/spine-ts/core"
+  },
+  "4.0": {
+    "file": "4.0.core.min.js",
+    "licenseFile": "4.0.LICENSE.txt",
+    "namespace": "spine40",
+    "sha256": "c26245a4c25ad0aecb22bfb8a695006578485dda84bddc54ecfad0adf116fca4",
+    "source": "https://www.npmjs.com/package/@esotericsoftware/spine-core/v/4.0.31"
+  },
+  "4.2": {
+    "file": "4.2.core.min.js",
+    "licenseFile": "4.2.LICENSE.txt",
+    "namespace": "spine42",
+    "sha256": "55f6d3866798f496c6e4a41fa74ad9d0b2753cd258e2360fe4592c8eb2d5dc7b",
+    "source": "https://www.npmjs.com/package/@esotericsoftware/spine-core/v/4.2.43"
+  }
+}

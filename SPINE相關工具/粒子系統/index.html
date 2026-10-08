@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b1119">
+  <title>粒子工作室 · Particle Studio 1.9</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="brand" aria-label="粒子工作室 Particle Studio">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 36 36"><ellipse class="brand-orbit" cx="18" cy="18" rx="15" ry="9" transform="rotate(-38 18 18)"/><path class="brand-spark" d="m18 6 3.1 8.9L30 18l-8.9 3.1L18 30l-3.1-8.9L6 18l8.9-3.1Z"/><circle class="brand-particle" cx="29" cy="8" r="3"/><circle class="brand-particle-small" cx="7" cy="26" r="1.8"/></svg></span>
+        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.9</span></span></div>
+        <label class="version-control"><span id="spineTargetMode">輸出版本</span><select id="spineVersion" aria-label="Spine 輸出版本" title="選擇 Spine JSON 輸出版本"><option value="3.8.99">SPINE 3.8</option><option value="4.0.56" selected>SPINE 4.0</option><option value="4.2.43">SPINE 4.2</option></select></label>
+      </div>
+      <div class="project-heading"><span class="project-caption"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h5l2 2h7v10H3Z"/></svg>目前專案</span><label class="sr-only" for="projectName">專案名稱</label><input id="projectName" type="text" value="金色光塵" maxlength="80" spellcheck="false" aria-label="專案名稱"></div>
+      <nav class="file-actions" aria-label="專案操作">
+        <button id="loadProject" type="button" class="quiet-button"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M2.5 6h5l1.5-2h8.5v12h-15Z"/></svg><span>開啟</span></button>
+        <input id="projectFile" type="file" accept=".json,application/json" hidden>
+        <button id="saveProject" type="button" class="quiet-button"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M4 3h10l3 3v11H3V3Z M6 3v5h7V3 M6 17v-6h8v6"/></svg><span>儲存專案</span></button>
+        <span class="action-divider" aria-hidden="true"></span>
+        <button id="bakeButton" type="button" class="secondary-button"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m10 2 1.9 5.7L18 10l-6.1 2.3L10 18l-1.9-5.7L2 10l6.1-2.3Z"/></svg><span>更新烘焙</span></button>
+        <button id="exportButton" type="button" class="primary-button" disabled><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M10 2v10 M6 8l4 4 4-4 M3 13v4h14v-4"/></svg><span>輸出 Spine</span></button>
+        <button id="helpButton" type="button" class="icon-button help-button" aria-label="操作說明" title="操作說明">?</button>
+      </nav>
+    </header>
+
+    <div class="project-bar" aria-label="全域動畫設定">
+      <div class="project-settings">
+        <span class="section-eyebrow"><svg aria-hidden="true" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg>動畫設定</span>
+        <label class="inline-control" for="duration">長度 <span class="unit-input"><input id="duration" type="number" min="0.05" max="30" step="0.01" value="3"><span>秒</span></span></label>
+        <label class="inline-control" for="fps">幀率 <select id="fps"><option value="24">24 FPS</option><option value="30">30 FPS</option><option value="60">60 FPS</option></select></label>
+        <label class="checkbox-label" for="loop"><input id="loop" type="checkbox" checked>循環</label>
+        <button id="flowSettingsButton" type="button" class="quiet-button flow-settings-button" aria-haspopup="dialog"><span>動畫段落</span></button>
+        <label class="inline-control seed-control" for="projectSeed">隨機種子 <input id="projectSeed" type="number" min="0" max="4294967295" step="1" value="2026"></label>
+      </div>
+      <div id="bakeStatus" class="bake-status" role="status" aria-live="polite"><span class="status-dot" aria-hidden="true"></span>等待烘焙</div>
+    </div>
+
+    <main class="workspace">
+      <aside class="emitter-sidebar panel" aria-labelledby="emitterHeading">
+        <div class="panel-header"><div class="panel-title-group"><span class="panel-eyebrow" aria-hidden="true">EFFECT LAYERS</span><h2 id="emitterHeading">發射器</h2></div><span class="panel-header-note">圖層順序</span></div>
+        <div class="preset-control"><label for="preset">新增效果</label><div class="preset-add"><select id="preset"><option value="glow">柔光粒子</option><option value="sparks">迸射火花</option><option value="coins">金幣噴發</option><option value="bubbles">漂浮氣泡</option></select><button id="addEmitter" type="button" class="add-button" title="新增發射器" aria-label="新增發射器">＋</button></div></div>
+        <div id="emitterList" class="emitter-list" aria-label="發射器清單"></div>
+        <div class="emitter-actions" aria-label="發射器操作">
+          <button id="moveEmitterUp" type="button" class="icon-button" title="圖層上移" aria-label="發射器上移"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m5 12 5-5 5 5"/></svg></button>
+          <button id="moveEmitterDown" type="button" class="icon-button" title="圖層下移" aria-label="發射器下移"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m5 8 5 5 5-5"/></svg></button>
+          <button id="duplicateEmitter" type="button" class="icon-button" title="複製發射器" aria-label="複製發射器"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M7 7h10v10H7Z M3 13V3h10"/></svg></button>
+          <button id="deleteEmitter" type="button" class="icon-button danger-button" title="刪除選取的發射器" aria-label="刪除發射器"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h14 M7 5V3h6v2 M5 5l1 12h8l1-12 M8 8v6 M12 8v6"/></svg></button>
+        </div>
+        <div class="sidebar-note"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m10 2 8 4-8 4-8-4Z M2 10l8 4 8-4 M2 14l8 4 8-4"/></svg><p>每個發射器可獨立調整。<br>輸出時依圖層順序疊加。</p></div>
+      </aside>
+
+      <section class="preview-panel panel" aria-labelledby="previewHeading">
+        <div class="preview-header">
+          <div class="panel-title-group preview-title-group"><span class="panel-eyebrow" aria-hidden="true">PREVIEW</span><h2 id="previewHeading">效果畫布</h2></div>
+          <div class="segmented-control" role="group" aria-label="預覽模式"><button id="modeLive" type="button" class="active" aria-pressed="true">即時預覽</button><button id="modeBaked" type="button" aria-pressed="false">烘焙結果</button></div>
+          <button id="spineMergeButton" type="button" class="quiet-button attach-project-button" aria-haspopup="dialog" title="載入既有 Spine 骨架，選擇父骨骼並追加粒子動畫"><svg aria-hidden="true" viewBox="0 0 20 20"><circle cx="5" cy="4" r="2"/><circle cx="5" cy="16" r="2"/><circle cx="15" cy="10" r="2"/><path d="M5 6v8 M7 10h6"/></svg><span>掛接骨架</span></button>
+          <div class="canvas-view-actions"><button id="centerView" type="button" class="icon-button" title="回到畫布中心" aria-label="回到畫布中心"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M7 3H3v4 M13 3h4v4 M3 13v4h4 M17 13v4h-4 M7 10h6 M10 7v6"/></svg></button><label class="zoom-control" for="zoom"><span>縮放</span><input id="zoom" type="range" min="25" max="200" step="5" value="100"><output id="zoomLabel" for="zoom">100%</output></label></div>
+        </div>
+        <div id="flowPreviewBar" class="flow-preview-bar" hidden><div class="segmented-control" role="group" aria-label="動畫段落預覽"><button id="previewFlowIn" type="button" data-flow-preview="in" aria-pressed="false">IN</button><button id="previewFlowLoop" type="button" data-flow-preview="loop" aria-pressed="true">LOOP</button><button id="previewFlowOut" type="button" data-flow-preview="out" aria-pressed="false">OUT</button></div><span id="flowPreviewStatus" class="flow-preview-status" role="status"></span><div class="flow-preview-actions"><button id="flowPlaySequence" type="button" class="text-button">串接試播</button><button id="flowRequestOut" type="button" class="text-button" disabled>結束 Loop</button></div></div>
+        <div id="attachmentPreviewBar" class="attachment-preview-bar" hidden><div class="segmented-control" role="group" aria-label="預覽座標"><button id="previewAttached" type="button" aria-pressed="true">掛接預覽</button><button id="previewLocal" type="button" aria-pressed="false">粒子單獨</button></div><label class="attachment-bones-toggle"><input id="previewBones" type="checkbox" checked>骨架</label><label id="previewSkinField" hidden>Skin <select id="previewSkin" aria-label="預覽原骨架 Skin"></select></label><button id="previewFocus" type="button" class="text-button">對焦掛接點</button><button id="previewFxStart" type="button" class="text-button">跳到粒子開始</button><span id="attachmentPreviewStatus" class="attachment-preview-status" role="status"></span></div>
+        <div id="canvasStage" class="canvas-stage"><canvas id="previewCanvas" aria-label="粒子動畫預覽畫布">此工具需要支援 Canvas 的瀏覽器。</canvas><div id="emitterHandles" class="emitter-handles" role="group" aria-label="畫布發射器控制點"></div><span id="emitterDragHint" class="stage-control-hint"><span class="emitter-handle-dot" aria-hidden="true"></span>紅色控制點：點選切換，拖曳移動位置</span><span id="spineTargetChip" class="spine-target-chip" hidden></span><span class="stage-coordinate-note">X →　Y ↑</span><span class="stage-watermark" aria-hidden="true">PARTICLE STUDIO</span></div>
+        <div class="canvas-bottom-bar">
+          <div class="background-controls"><label class="color-swatch-label" for="backgroundColor"><input id="backgroundColor" type="color" value="#12151a" title="畫布背景顏色"><span>背景</span></label><button id="backgroundButton" type="button" class="text-button">載入參考圖</button><input id="backgroundFile" type="file" accept="image/png,image/jpeg,image/webp" hidden><button id="removeBackground" type="button" class="text-button muted" title="移除背景參考圖">移除</button></div><span class="canvas-hint">拖曳空白處移動視角</span>
+        </div>
+        <section class="timeline-panel" aria-label="播放與時間軸">
+          <div class="playback-bar">
+            <div class="playback-controls"><button id="restartButton" type="button" class="icon-button" title="回到開始" aria-label="回到開始"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M4 4v12 M15 4l-9 6 9 6Z"/></svg></button><button id="framePrev" type="button" class="icon-button" title="前一幀" aria-label="前一幀"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m12 4-7 6 7 6"/></svg></button><button id="playButton" type="button" class="play-button" title="播放或暫停" aria-label="播放或暫停"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m7 4 9 6-9 6Z"/></svg></button><button id="frameNext" type="button" class="icon-button" title="下一幀" aria-label="下一幀"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m8 4 7 6-7 6"/></svg></button></div>
+            <output id="timeLabel" class="time-label" for="timeline">0.00 / 3.00 秒</output><span class="timeline-hint"><kbd>Space</kbd> 播放／暫停</span>
+          </div>
+          <label class="sr-only" for="timeline">動畫時間</label><input id="timeline" class="timeline-slider" type="range" min="0" max="3" step="0.033333333333" value="0">
+          <div class="timeline-ruler" aria-hidden="true"><span>開始</span><span>25%</span><span>50%</span><span>75%</span><span>結束</span></div>
+        </section>
+      </section>
+
+      <aside class="inspector panel" aria-labelledby="inspectorHeading">
+        <div class="panel-header"><div class="panel-title-group"><span class="panel-eyebrow" aria-hidden="true">PROPERTIES</span><h2 id="inspectorHeading">發射器設定</h2></div><span class="panel-header-note"><span class="panel-live-dot" aria-hidden="true"></span>即時更新</span></div>
+        <div class="inspector-tabs" role="tablist" aria-label="發射器參數分類"><button id="tabBasic" type="button" role="tab" data-tab="basic" aria-controls="panelBasic" aria-selected="true" class="active"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M4 16 16 4 M9 4h7v7 M4 5v3 M3 11h3 M10 16h3"/></svg><span>發射</span></button><button id="tabLook" type="button" role="tab" data-tab="look" aria-controls="panelLook" aria-selected="false"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M10 3c-4 0-7 3-7 7s3 7 7 7h2a2 2 0 0 0 1-4l-1-.5a1 1 0 0 1 1-1.5h2a2 2 0 0 0 2-2c0-3-3-6-7-6Z"/><circle cx="6.5" cy="9" r=".7"/><circle cx="10" cy="6.5" r=".7"/><circle cx="13.5" cy="8" r=".7"/></svg><span>外觀</span></button><button id="tabMotion" type="button" role="tab" data-tab="motion" aria-controls="panelMotion" aria-selected="false"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M2 12c4 0 3-6 7-6s3 8 7 8 M14 10l3 4-4 2"/></svg><span>運動</span></button></div>
+        <div class="inspector-scroll">
+          <section id="panelBasic" class="inspector-tab-panel" data-panel="basic" role="tabpanel" aria-labelledby="tabBasic">
+            <div class="inspector-section">
+              <div class="inspector-section-heading"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M4 5h12 M4 10h12 M4 15h12"/><circle cx="8" cy="5" r="2"/><circle cx="13" cy="10" r="2"/><circle cx="7" cy="15" r="2"/></svg><span>基本資料</span></h3><button id="centerEmitter" type="button" class="text-button position-center-button" title="將選取的發射器位置設為 X=0、Y=0"><svg aria-hidden="true" viewBox="0 0 20 20"><circle cx="10" cy="10" r="4"/><path d="M10 2v4 M10 14v4 M2 10h4 M14 10h4"/></svg>置中發射器</button></div>
+              <label class="field full-field"><span>名稱</span><input data-field="name" type="text" value="柔光粒子" maxlength="60" spellcheck="false"></label>
+              <div class="field-row"><label class="field"><span>X 位置 <small>px</small></span><input data-field="x" type="number" min="-4000" max="4000" step="1" value="0"></label><label class="field"><span>Y 位置 <small>px · 向上為正</small></span><input data-field="y" type="number" min="-4000" max="4000" step="1" value="0"></label></div>
+              <p id="numberScrubHint" class="field-hint number-scrub-hint">數值欄位可左右拖曳；Shift 加速、Alt 微調，也可直接輸入。</p>
+            </div>
+            <div class="inspector-section">
+              <h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="m10 2 7 4v8l-7 4-7-4V6Z"/><circle cx="10" cy="10" r="2"/></svg><span>發射區域</span></h3>
+              <label class="field full-field"><span>形狀</span><select id="emitterShape" data-field="shape"><option value="point">點狀</option><option value="direction">定向</option><option value="line">線形</option><option value="circle">圓形</option><option value="ring">圓環</option><option value="box">矩形</option></select></label>
+              <label id="emitFromField" class="field full-field" data-shape-for="box circle ring" hidden><span>發射位置</span><select id="emitFrom" data-field="emitFrom"><option value="area">區域內</option><option value="edge">輪廓線上 · 邊框</option></select></label>
+              <p id="emitFromHint" class="field-hint" data-shape-for="box circle ring" hidden></p>
+              <div id="shapeDimensions" class="field-row" data-shape-for="box circle ring direction" hidden><label class="field"><span>寬度 <small>px</small></span><input data-field="width" type="number" min="0" max="2000" step="1" value="100"></label><label class="field" data-shape-for="box circle ring"><span>高度 <small>px</small></span><input data-field="height" type="number" min="0" max="2000" step="1" value="100"></label></div>
+              <div id="lineControls" class="field-row" data-shape-for="line" hidden><label class="field"><span>線長 <small>px</small></span><input id="lineLength" data-field="lineLength" type="number" min="0" max="2000" step="1" value="120"></label><label class="field"><span>線段方向 <small>°</small></span><input id="lineRotation" data-field="lineRotation" type="number" min="-3600" max="3600" step="1" value="0"></label></div>
+              <p class="field-hint shape-hint" data-shape-for="line" hidden>線段以發射器為中心；0° 為水平，90° 為垂直。</p>
+              <div id="arcControls" class="field-row" data-shape-for="ring" hidden><label class="field"><span>圓環範圍 <small>°</small></span><input id="arcAngle" data-field="arcAngle" type="number" min="1" max="360" step="1" value="360"></label><label class="field"><span>弧段中心方向 <small>°</small></span><input id="arcRotation" data-field="arcRotation" type="number" min="-3600" max="3600" step="1" value="90"></label></div>
+              <p class="field-hint shape-hint" data-shape-for="ring" hidden>360° 為完整圓環；較小角度可限制弧段範圍。</p>
+              <div class="field-row"><label class="field"><span>發射方向 <small>°</small></span><input data-field="angle" type="number" min="-3600" max="3600" step="1" value="90"></label><label class="field"><span>散射角 <small>°</small></span><input data-field="spread" type="number" min="0" max="360" step="1" value="360"></label></div>
+              <p class="field-hint">0° 向右，90° 向上；發射方向與區域方向可獨立調整。</p>
+            </div>
+            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg><span>數量與生命</span></h3><label class="field full-field range-field"><span>粒子總數 <output data-readout="count">48</output></span><input data-field="count" type="range" min="1" max="400" step="1" value="48"></label><label class="field full-field"><span>發射時間 <small>秒</small></span><input data-field="emissionDuration" type="number" min="0" max="30" step="0.01" value="3"></label><div class="field-row"><label class="field"><span>生命長度 <small>秒</small></span><input data-field="life" type="number" min="0.05" max="10" step="0.05" value="1.5"></label><label class="field"><span>生命隨機 <small>± 秒</small></span><input data-field="lifeRandom" type="number" min="0" max="8" step="0.05" value="0.3"></label></div><p class="field-hint">發射時間為 0 時，所有粒子同時出生。</p></div>
+          </section>
+
+          <section id="panelLook" class="inspector-tab-panel" data-panel="look" role="tabpanel" aria-labelledby="tabLook" hidden>
+            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" rx="2"/><circle cx="7" cy="7" r="1"/><path d="m4 15 5-5 3 3 2-2 3 4"/></svg><span>粒子貼圖</span></h3><div class="texture-card"><img id="textureThumbnail" class="texture-thumbnail" alt="目前粒子貼圖" hidden><div class="texture-details"><span id="textureInfo">使用內建柔光貼圖</span><div class="texture-actions"><button id="textureButton" type="button" class="text-button">載入圖片</button><button id="removeTexture" type="button" class="text-button muted">重設</button></div></div></div><input id="textureFile" type="file" accept="image/png,image/jpeg,image/webp" hidden><p class="field-hint">建議使用透明 PNG，貼圖會一起儲存於專案。</p><label class="field full-field"><span>混合方式</span><select data-field="blend"><option value="additive">加色 · 發光</option><option value="normal">一般 · 透明疊加</option></select></label></div>
+            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 8V3h5 M12 3h5v5 M17 12v5h-5 M8 17H3v-5"/><path d="M7 9a3 3 0 0 1 5-2 M13 11a3 3 0 0 1-5 2"/></svg><span>尺寸與旋轉</span></h3><div class="field-row"><label class="field"><span>粒子尺寸 <small>px</small></span><input data-field="size" type="number" min="1" max="1000" step="1" value="24"></label><label class="field"><span>尺寸隨機 <small>± px</small></span><input data-field="sizeRandom" type="number" min="0" max="1000" step="1" value="8"></label></div><label class="field full-field"><span>起始旋轉 <small>°</small></span><input data-field="rotation" type="number" min="-36000" max="36000" step="1" value="0"></label><div class="field-row"><label class="field"><span>旋轉速度 <small>°/秒</small></span><input data-field="spin" type="number" min="-3600" max="3600" step="1" value="0"></label><label class="field"><span>旋轉隨機 <small>± °/秒</small></span><input data-field="spinRandom" type="number" min="0" max="3600" step="1" value="30"></label></div><label class="checkbox-label standalone-check"><input data-field="alignDirection" type="checkbox">貼圖朝向移動方向</label></div>
+            <div class="inspector-section">
+              <h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M10 2c0 0-6 6-6 10a6 6 0 0 0 12 0c0-4-6-10-6-10Z"/><path d="M7 12a3 3 0 0 0 3 3"/></svg><span>生命期間的顏色</span></h3>
+              <div id="gradientEditor" class="gradient-editor" role="group" aria-label="生命期間的顏色與透明度漸層">
+                <div class="gradient-track-caption"><span>透明度</span><span>上方節點</span></div>
+                <div id="alphaKeyTrack" class="gradient-key-track alpha-key-track" role="group" aria-label="透明度節點，點擊或拖曳調整"></div>
+                <div class="gradient-preview-wrap"><div id="gradientPreview" class="gradient-preview" role="img" aria-label="粒子生命期間的 RGBA 漸層"></div></div>
+                <div id="colorKeyTrack" class="gradient-key-track color-key-track" role="group" aria-label="顏色節點，點擊或拖曳調整"></div>
+                <div class="gradient-track-caption"><span>顏色</span><span>下方節點</span></div>
+                <div class="gradient-endpoints" aria-hidden="true"><span>出生 0%</span><span>死亡 100%</span></div>
+              </div>
+              <div class="gradient-actions"><button id="addAlphaKey" type="button" class="text-button">＋透明度</button><button id="addColorKey" type="button" class="text-button">＋顏色</button><button id="resetGradient" type="button" class="text-button muted">重設</button></div>
+              <p id="gradientSelectionInfo" class="gradient-selection-info" role="status" aria-live="polite">上方為透明度節點，下方為顏色節點。</p>
+              <div class="field-row gradient-node-fields"><label id="gradientTimeField" class="field"><span>生命位置 <small>%</small></span><input id="gradientKeyTime" type="number" min="0" max="100" step="0.1" value="0"></label><label id="gradientColorField" class="field"><span>顏色</span><input id="gradientKeyColor" type="color" value="#fff1b0"></label><label id="gradientAlphaField" class="field"><span>透明度</span><input id="gradientKeyAlpha" type="number" min="0" max="1" step="0.001" value="1"></label><button id="deleteGradientKey" type="button" class="icon-button curve-delete-button" title="刪除選取的漸層節點" aria-label="刪除選取的漸層節點"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h14 M7 5V3h6v2 M5 5l1 12h8l1-12 M8 8v6 M12 8v6"/></svg></button></div>
+              <p class="field-hint">點擊節點選取，左右拖曳調整生命位置。</p>
+            </div>
+            <div class="inspector-section">
+              <h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 3v14h14 M5 13c5 0 2-7 6-7s2 4 6 4"/></svg><span>生命期間的變化</span></h3>
+              <div class="curve-header"><span>透明度倍率曲線</span><div class="curve-header-actions"><select id="alphaInterpolation" class="curve-interpolation" aria-label="透明度目前曲線段的插值方式"><option value="linear">線性</option><option value="bezier">貝茲</option><option value="stepped">階梯</option></select><button id="resetAlpha" type="button" class="text-button muted">重設</button></div></div>
+              <canvas id="alphaCurveCanvas" class="curve-canvas" width="260" height="100" tabindex="0" aria-label="透明度曲線，拖曳節點調整" title="點擊新增節點；選節點後可拖藍色控制柄，插值設定目前曲線段。右鍵或 Delete 刪除節點。">透明度曲線</canvas>
+              <div class="curve-labels" aria-hidden="true"><span>出生</span><span>死亡</span></div>
+              <div class="field-row curve-node-fields"><label class="field"><span>生命位置 <small>%</small></span><input id="alphaCurveTime" type="number" min="0" max="100" step="0.1" value="0"></label><label class="field"><span>透明度倍率</span><input id="alphaCurveValue" type="number" min="0" max="1" step="0.001" value="1"></label><button id="deleteAlphaPoint" type="button" class="icon-button curve-delete-button" title="刪除選取的透明度曲線節點" aria-label="刪除透明度曲線節點"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h14 M7 5V3h6v2 M5 5l1 12h8l1-12 M8 8v6 M12 8v6"/></svg></button></div>
+              <div class="curve-header"><span>尺寸倍率曲線</span><div class="curve-header-actions"><select id="sizeInterpolation" class="curve-interpolation" aria-label="尺寸目前曲線段的插值方式"><option value="linear">線性</option><option value="bezier">貝茲</option><option value="stepped">階梯</option></select><button id="resetSize" type="button" class="text-button muted">重設</button></div></div>
+              <canvas id="sizeCurveCanvas" class="curve-canvas" width="260" height="100" tabindex="0" aria-label="尺寸曲線，拖曳節點調整" title="點擊新增節點；選節點後可拖藍色控制柄，插值設定目前曲線段。右鍵或 Delete 刪除節點。">尺寸曲線</canvas>
+              <div class="curve-labels" aria-hidden="true"><span>出生</span><span>死亡</span></div>
+              <div class="field-row curve-node-fields"><label class="field"><span>生命位置 <small>%</small></span><input id="sizeCurveTime" type="number" min="0" max="100" step="0.1" value="0"></label><label class="field"><span>尺寸倍率</span><input id="sizeCurveValue" type="number" min="0" max="4" step="0.001" value="1"></label><button id="deleteSizePoint" type="button" class="icon-button curve-delete-button" title="刪除選取的尺寸曲線節點" aria-label="刪除尺寸曲線節點"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h14 M7 5V3h6v2 M5 5l1 12h8l1-12 M8 8v6 M12 8v6"/></svg></button></div>
+              <p class="field-hint">選節點後可拖藍色控制柄；插值設定目前曲線段。右鍵或 Delete 刪除節點。尺寸 1 為原始大小，4 為四倍。</p>
+            </div>
+          </section>
+
+          <section id="panelMotion" class="inspector-tab-panel" data-panel="motion" role="tabpanel" aria-labelledby="tabMotion" hidden>
+            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="m4 14 10-10 M8 4h6v6 M3 8h3 M9 16h3"/></svg><span>初始速度</span></h3><div class="field-row"><label class="field"><span>移動速度 <small>px/秒</small></span><input data-field="speed" type="number" min="0" max="4000" step="1" value="80"></label><label class="field"><span>速度隨機 <small>± px/秒</small></span><input data-field="speedRandom" type="number" min="0" max="4000" step="1" value="30"></label></div><div id="legacyMotionControls"><label id="legacyMotionField" class="field full-field"><span>移動節奏</span><select data-field="motionCurve"><option value="linear">線性 · 恆定速度</option><option value="easeOut">漸慢 · 起快末慢</option><option value="easeIn">漸快 · 起慢末快</option><option value="easeInOut">緩入緩出</option></select></label><p class="field-hint">啟用速度曲線後，曲線會覆蓋此移動節奏。</p></div></div>
+            <div class="inspector-section">
+              <div class="inspector-section-heading"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 15c3 0 3-10 7-10s3 7 7 7 M14 9l3 3-3 3"/></svg><span>生命期間的速度</span></h3><label class="checkbox-label"><input id="enableSpeedCurve" type="checkbox">啟用速度曲線</label></div>
+              <div class="curve-header"><span>速度倍率曲線</span><div class="curve-header-actions"><select id="speedInterpolation" class="curve-interpolation" aria-label="速度目前曲線段的插值方式"><option value="linear">線性</option><option value="bezier">貝茲</option><option value="stepped">階梯</option></select><button id="resetSpeed" type="button" class="text-button muted">重設</button></div></div>
+              <canvas id="speedCurveCanvas" class="curve-canvas" width="260" height="100" tabindex="0" aria-label="速度曲線，拖曳節點調整" title="點擊會啟用速度曲線；選節點後可拖藍色控制柄，插值設定目前曲線段。右鍵或 Delete 刪除節點。">速度曲線</canvas>
+              <div class="curve-labels" aria-hidden="true"><span>出生</span><span>死亡</span></div>
+              <div class="field-row curve-node-fields"><label class="field"><span>生命位置 <small>%</small></span><input id="speedCurveTime" type="number" min="0" max="100" step="0.1" value="0"></label><label class="field"><span>速度倍率</span><input id="speedCurveValue" type="number" min="0" max="4" step="0.001" value="1"></label><button id="deleteSpeedPoint" type="button" class="icon-button curve-delete-button" title="刪除選取的速度曲線節點" aria-label="刪除速度曲線節點"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h14 M7 5V3h6v2 M5 5l1 12h8l1-12 M8 8v6 M12 8v6"/></svg></button></div>
+              <p class="field-hint">0 為停止，1 為基礎速度，4 為四倍速度。選節點後可拖藍色控制柄；插值設定目前曲線段。</p>
+            </div>
+            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M10 2v16 M2 10h16 M7 5l3-3 3 3 M7 15l3 3 3-3"/></svg><span>外力</span></h3><label class="field full-field"><span>重力 <small>px/秒² · ＋向下／−向上</small></span><input data-field="gravity" type="number" min="-6000" max="6000" step="1" value="0"></label><label class="field full-field"><span>風向 <small>px/秒² · ＋向右／−向左</small></span><input data-field="wind" type="number" min="-3000" max="3000" step="1" value="0"></label><p class="field-hint">風向：正值往右吹，負值往左吹。<br>重力：正值往下，負值往上；0 表示無此外力。</p></div>
+            <div class="inspector-note"><span class="note-mark" aria-hidden="true">↗</span><p>隨機種子固定後，每次預覽與烘焙都會得到相同的粒子路徑。</p></div>
+          </section>
+        </div>
+      </aside>
+    </main>
+
+    <div id="message" class="app-message" role="alert" hidden></div>
+    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.9</span></span></footer>
+  </div>
+
+  <dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle"><div class="dialog-header"><div><span class="section-eyebrow">PARTICLE STUDIO</span><h2 id="helpTitle">從粒子到 Spine 動畫</h2></div><button id="closeHelp" type="button" class="icon-button" aria-label="關閉操作說明">×</button></div><div class="dialog-content"><p>這是獨立開發的本機粒子編輯器。介面與模擬程式都存放在本機，操作時不需要連線。</p><ol class="help-steps"><li><strong>建立效果</strong><p>從左側新增發射器，調整發射、外觀與運動參數。即時預覽會顯示修改後的效果。</p></li><li><strong>檢查時間軸</strong><p>暫停、拖曳或逐格播放，確認粒子出生、消失與循環接縫。畫布背景僅供參考。</p></li><li><strong>更新烘焙</strong><p>烘焙把粒子路徑轉成固定幀率的骨骼關鍵幀。修改參數後需要重新烘焙，再輸出 Spine 資料。</p></li><li><strong>匯入對應版本 Spine</strong><p>解開輸出套件，保留 JSON 與 images 資料夾的位置。在 Spine 選擇「檔案 → 匯入資料（Import Data）」載入 JSON，確認 Images 路徑指向素材資料夾。</p></li></ol><div class="help-callout"><strong>記得儲存編輯專案</strong><p>「儲存專案」包含發射器參數與粒子貼圖，可用「開啟」接續編輯。Spine 輸出是動畫交付資料。Atlas 圖集可在 Spine 匯出時產生。</p></div></div><div class="dialog-footer">Particle Studio · Spine 3.8 / 4.0 / 4.2</div></dialog>
+  <dialog id="spineMergeDialog" class="help-dialog spine-merge-dialog" aria-labelledby="spineMergeTitle">
+    <div class="dialog-header"><div><span class="section-eyebrow">ATTACH TO SPINE</span><h2 id="spineMergeTitle">追加到既有骨架</h2></div><button id="spineCloseMerge" type="button" class="icon-button" aria-label="關閉掛接設定">×</button></div>
+    <div class="dialog-content spine-merge-content">
+      <section class="spine-source-card"><div class="spine-source-actions"><button id="spineLoadSource" type="button" class="secondary-button">載入原骨架 JSON</button><button id="spineClearSource" type="button" class="text-button muted" disabled>移除掛接</button><label class="checkbox-label"><input id="spineMergeEnabled" type="checkbox" disabled>啟用追加輸出</label></div><input id="spineSourceFile" type="file" accept=".json,.spine,application/json" hidden><p id="spineSourceInfo" class="spine-source-info" role="status">尚未載入原骨架</p><p class="field-hint">支援 Spine 3.8、4.0、4.2 的單一骨架 JSON；追加輸出自動跟隨原骨架版本。原生 .spine 請先用離線包附帶的「Spine 工程轉換」，或在對應版本 Spine 匯出 JSON 並勾選 Nonessential。</p></section>
+      <section id="spineAssetsFields" class="spine-form-section" hidden><h3>原骨架預覽素材</h3><div class="spine-source-actions"><button id="spineLoadImages" type="button" class="secondary-button">載入角色圖片</button><button id="spineLoadImagesFolder" type="button" class="secondary-button">選擇 Images 資料夾</button><button id="spineLoadAtlas" type="button" class="secondary-button">載入 Atlas 圖集</button><button id="spineClearAssets" type="button" class="text-button muted" disabled>清除預覽素材</button></div><input id="spineImagesFile" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden><input id="spineImagesFolder" type="file" accept="image/png,image/jpeg,image/webp" multiple webkitdirectory hidden><input id="spineAtlasFile" type="file" accept=".atlas,text/plain" hidden><p id="spineAssetsInfo" class="spine-source-info" role="status">尚未載入角色圖片；預覽會顯示骨架與粒子。</p><p class="field-hint">原始圖片請選擇原 Images 根資料夾，保留 body/head.png 等子目錄。若使用圖集，請載入 .atlas 及對應 PNG 頁面。每張圖片上限 4 MiB、2048 像素，內嵌素材合計上限 16 MiB。</p><p id="spineAssetsPreviewInfo" class="field-hint" role="status" aria-live="polite"></p></section>
+      <div id="spineMergeFields" hidden>
+        <section class="spine-form-section"><h3>掛接位置</h3><div class="spine-bone-picker"><label class="field"><span>搜尋骨骼</span><input id="spineParentFilter" type="search" placeholder="例如 hand、head、root…" autocomplete="off"></label><label class="field"><span>預設父骨骼</span><select id="spineParentBone"></select></label></div><p id="spineParentPath" class="spine-bone-path"></p><p class="field-hint">粒子的 X/Y 以父骨骼為原點，會跟隨骨骼的移動、旋轉與縮放。</p><details class="spine-binding-details"><summary>各發射器分別掛接</summary><div id="spineEmitterBindings" class="spine-emitter-bindings"></div></details></section>
+        <section id="spineSingleAnimationFields" class="spine-form-section"><h3>追加表演</h3><div class="field-row"><label class="field"><span>動畫方式</span><select id="spineAnimationMode"><option value="existing">追加至原動畫</option><option value="new">新增動畫</option></select></label><label id="spineExistingAnimationField" class="field"><span>目標動畫</span><select id="spineAnimationSelect"></select></label><label id="spineNewAnimationField" class="field" hidden><span>新動畫名稱</span><input id="spineNewAnimation" type="text" value="particle_effect" maxlength="80" spellcheck="false"></label></div><label class="field"><span>開始時間 <small>秒</small></span><input id="spineStartTime" type="number" min="0" max="600" step="0.01" value="0"></label><p class="field-hint">追加一段目前烘焙長度的粒子表演，段落結束後隱藏；原動畫的骨骼與其他表演軌保留。</p></section>
+        <section id="spineFlowAnimationFields" class="spine-form-section" hidden><h3>三段表演掛接</h3>
+          <div class="spine-form-section"><h4>IN · 進場</h4><div class="field-row"><label class="field"><span>動畫方式</span><select id="spineFlowInMode"><option value="existing">追加至原動畫</option><option value="new">新增動畫</option></select></label><label id="spineFlowInExistingField" class="field"><span>目標動畫</span><select id="spineFlowInSelect"></select></label><label id="spineFlowInNewField" class="field" hidden><span>新動畫名稱</span><input id="spineFlowInName" type="text" value="in" maxlength="80" spellcheck="false"></label><label class="field"><span>開始時間 <small>秒</small></span><input id="spineFlowInStart" type="number" min="0" max="600" step="0.01" value="0"></label></div></div>
+          <div class="spine-form-section"><h4>LOOP · 循環</h4><div class="field-row"><label class="field"><span>動畫方式</span><select id="spineFlowLoopMode"><option value="existing">追加至原動畫</option><option value="new">新增動畫</option></select></label><label id="spineFlowLoopExistingField" class="field"><span>目標動畫</span><select id="spineFlowLoopSelect"></select></label><label id="spineFlowLoopNewField" class="field" hidden><span>新動畫名稱</span><input id="spineFlowLoopName" type="text" value="loop" maxlength="80" spellcheck="false"></label><label class="field"><span>開始時間 <small>固定 0 秒</small></span><input id="spineFlowLoopStart" type="number" min="0" max="600" step="0.01" value="0" disabled></label></div></div>
+          <div class="spine-form-section"><h4>OUT · 退場</h4><div class="field-row"><label class="field"><span>動畫方式</span><select id="spineFlowOutMode"><option value="existing">追加至原動畫</option><option value="new">新增動畫</option></select></label><label id="spineFlowOutExistingField" class="field"><span>目標動畫</span><select id="spineFlowOutSelect"></select></label><label id="spineFlowOutNewField" class="field" hidden><span>新動畫名稱</span><input id="spineFlowOutName" type="text" value="out" maxlength="80" spellcheck="false"></label><label class="field"><span>開始時間 <small>秒</small></span><input id="spineFlowOutStart" type="number" min="0" max="600" step="0.01" value="0"></label></div></div>
+          <p id="spineFlowHint" class="field-hint">三段使用相同粒子骨骼與素材。LOOP 從 0 秒循環，在完整循環邊界接 OUT；原 LOOP 動畫不可長於粒子 LOOP。</p>
+        </section>
+        <section class="spine-form-section"><label class="field"><span>新增群組名稱 <small>英數、底線</small></span><input id="spinePrefix" type="text" value="particle_fx" maxlength="48" pattern="[A-Za-z0-9_-]+" spellcheck="false"></label></section>
+        <section class="spine-form-section"><h3>前後圖層</h3><div class="field-row"><label class="field"><span>粒子放置順序</span><select id="spineDrawOrder"><option value="front">最前方</option><option value="back">最後方</option><option value="after">指定插槽之後</option></select></label><label id="spineAfterSlotField" class="field" hidden><span>參考插槽</span><select id="spineAfterSlot"></select></label></div><p class="field-hint">Spine 以插槽決定前後順序；父骨骼與圖層可以分開指定。</p></section>
+      </div>
+      <p class="spine-preview-note">畫布依原骨架動畫預覽粒子掛接位置；未載入或缺少圖片時會顯示骨架與粒子。請載入原素材確認角色外觀，並在 Spine 檢查最終輸出。</p>
+      <p id="spineMergeFeedback" class="spine-merge-feedback" role="alert" hidden></p>
+      <p id="spineMergeSummary" class="spine-merge-summary" role="status" aria-live="polite"></p>
+    </div>
+    <div class="spine-merge-footer"><button id="spineCloseMergeFooter" type="button" class="quiet-button">關閉</button><button id="spineFocusParent" type="button" class="secondary-button">定位掛接骨骼</button><button id="spineBakeMerge" type="button" class="secondary-button">更新粒子烘焙</button><button id="spineExportMerge" type="button" class="primary-button" disabled>輸出追加包</button></div>
+  </dialog>
+  <script src="curve-math.js"></script>
+  <script src="core.js"></script>
+  <script src="zip.js"></script>
+  <script src="spine-merge.js"></script>
+  <script src="storage.js"></script>
+  <script src="preview.js"></script>
+  <script src="scrub.js"></script>
+  <script src="curve-editor.js"></script>
+  <script src="gradient-editor.js"></script>
+  <script src="spine-attachment-ui.js"></script>
+  <dialog id="flowDialog" class="flow-dialog" aria-labelledby="flowTitle"><div class="dialog-header"><div><span class="section-eyebrow">ANIMATION FLOW</span><h2 id="flowTitle">In / Loop / Out 動畫段落</h2></div><button id="closeFlow" type="button" class="icon-button" aria-label="關閉動畫段落">×</button></div><div class="dialog-content"><label class="checkbox-label flow-enable-label"><input id="flowEnabled" type="checkbox">啟用三段動畫</label><p class="field-hint">三段共用同一組粒子骨骼；每段可設定自己的長度與輸出動畫名稱。</p><div id="flowPhaseFields" class="flow-phase-fields"><section class="flow-phase-card"><div class="flow-phase-heading"><span class="flow-phase-badge">IN</span><div><h3>進場</h3><p>淡入並銜接 Loop 的循環畫面。</p></div></div><div class="field-row"><label class="field"><span>In 動畫名稱</span><input id="flowInName" type="text" maxlength="80" value="in" spellcheck="false"></label><label class="field"><span>In 長度 <small>秒</small></span><input id="flowInDuration" type="number" min="0.05" max="30" step="0.01" value="1"></label></div></section><section class="flow-phase-card"><div class="flow-phase-heading"><span class="flow-phase-badge">LOOP</span><div><h3>循環</h3><p>持續發射，可反覆播放完整一輪。</p></div></div><div class="field-row"><label class="field"><span>Loop 動畫名稱</span><input id="flowLoopName" type="text" maxlength="80" value="loop" spellcheck="false"></label><label class="field"><span>Loop 長度 <small>秒</small></span><input id="flowLoopDuration" type="number" min="0.05" max="30" step="0.01" value="3"></label></div></section><section class="flow-phase-card"><div class="flow-phase-heading"><span class="flow-phase-badge">OUT</span><div><h3>收尾</h3><p>停止發射，存活粒子繼續移動並淡出。</p></div></div><div class="field-row"><label class="field"><span>Out 動畫名稱</span><input id="flowOutName" type="text" maxlength="80" value="out" spellcheck="false"></label><label class="field"><span>Out 長度 <small>秒</small></span><input id="flowOutDuration" type="number" min="0.05" max="30" step="0.01" value="1"></label></div></section></div><p class="flow-transition-note">Out 以 Loop 完整一輪結束的狀態銜接。若遊戲在任意時點切換 Out，需要安排到循環結束，或另外設定動畫混合。</p><p class="field-hint">追加原工程時，可在「掛接骨架」為三段分別選擇既有動畫或建立新動畫。</p><p id="flowFeedback" class="spine-merge-feedback" role="alert" hidden></p></div><div class="spine-merge-footer"><button id="flowAttach" type="button" class="quiet-button">掛接原工程</button><button id="flowCloseFooter" type="button" class="secondary-button">完成設定</button><button id="flowBake" type="button" class="primary-button">更新三段烘焙</button></div></dialog>
+  <script src="flow-playback.js"></script>
+  <script src="spine-runtimes.js"></script>
+  <script src="spine-runtime-preview.js"></script>
+  <script src="spine-canvas-renderer.js"></script>
+  <script src="attachment-preview.js"></script>
+  <script src="spine-assets-ui.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

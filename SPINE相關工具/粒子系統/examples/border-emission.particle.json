@@ -1,0 +1,351 @@
+{
+  "format": "particle-studio-project",
+  "schemaVersion": 1,
+  "project": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "邊框發射 · 320×180",
+    "fps": 60,
+    "spineVersion": "4.0.56",
+    "duration": 3,
+    "loop": true,
+    "flow": {
+      "enabled": false,
+      "in": {
+        "name": "in",
+        "duration": 1
+      },
+      "loop": {
+        "name": "loop",
+        "duration": 3
+      },
+      "out": {
+        "name": "out",
+        "duration": 1
+      }
+    },
+    "seed": 83,
+    "emitters": [
+      {
+        "id": "cyanBorder",
+        "name": "青色邊框 · 64",
+        "enabled": true,
+        "x": 0,
+        "y": 0,
+        "shape": "box",
+        "width": 320,
+        "height": 180,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 64,
+        "emissionDuration": 3,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 16,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#57ead8",
+        "colorEnd": "#57ead8",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 1
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.12,
+            "v": 0.8
+          },
+          {
+            "t": 0.88,
+            "v": 0.8
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": null,
+        "emitFrom": "edge"
+      },
+      {
+        "id": "pinkBorder",
+        "name": "粉色點綴 · 36",
+        "enabled": true,
+        "x": 0,
+        "y": 0,
+        "shape": "box",
+        "width": 320,
+        "height": 180,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 36,
+        "emissionDuration": 3,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 13,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#ef87cb",
+        "colorEnd": "#ef87cb",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 1
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.15,
+            "v": 0.7
+          },
+          {
+            "t": 0.85,
+            "v": 0.7
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": null,
+        "emitFrom": "edge"
+      }
+    ],
+    "background": {
+      "color": "#101827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    }
+  },
+  "bakedProject": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "邊框發射 · 320×180",
+    "fps": 60,
+    "spineVersion": "4.0.56",
+    "duration": 3,
+    "loop": true,
+    "flow": {
+      "enabled": false,
+      "in": {
+        "name": "in",
+        "duration": 1
+      },
+      "loop": {
+        "name": "loop",
+        "duration": 3
+      },
+      "out": {
+        "name": "out",
+        "duration": 1
+      }
+    },
+    "seed": 83,
+    "emitters": [
+      {
+        "id": "cyanBorder",
+        "name": "青色邊框 · 64",
+        "enabled": true,
+        "x": 0,
+        "y": 0,
+        "shape": "box",
+        "width": 320,
+        "height": 180,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 64,
+        "emissionDuration": 3,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 16,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#57ead8",
+        "colorEnd": "#57ead8",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 1
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.12,
+            "v": 0.8
+          },
+          {
+            "t": 0.88,
+            "v": 0.8
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": null,
+        "emitFrom": "edge"
+      },
+      {
+        "id": "pinkBorder",
+        "name": "粉色點綴 · 36",
+        "enabled": true,
+        "x": 0,
+        "y": 0,
+        "shape": "box",
+        "width": 320,
+        "height": 180,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 36,
+        "emissionDuration": 3,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 13,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#ef87cb",
+        "colorEnd": "#ef87cb",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 1
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.15,
+            "v": 0.7
+          },
+          {
+            "t": 0.85,
+            "v": 0.7
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": null,
+        "emitFrom": "edge"
+      }
+    ],
+    "background": {
+      "color": "#101827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    }
+  },
+  "view": {
+    "time": 1.1,
+    "mode": "baked",
+    "zoom": 1,
+    "panX": 0,
+    "panY": 0
+  }
+}

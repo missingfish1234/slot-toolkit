@@ -1,0 +1,319 @@
+{
+  "format": "particle-studio-project",
+  "schemaVersion": 1,
+  "project": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "線形與 120° 圓環",
+    "fps": 30,
+    "duration": 3,
+    "loop": true,
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "arc",
+        "name": "圓環 · 120°",
+        "enabled": true,
+        "x": 180,
+        "y": 0,
+        "shape": "ring",
+        "width": 240,
+        "height": 160,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 120,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 48,
+        "emissionDuration": 0,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 12,
+        "sizeRandom": 3,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#a8f5ff",
+        "colorEnd": "#51a8f0",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.5
+          },
+          {
+            "t": 0.2,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.12,
+            "v": 1
+          },
+          {
+            "t": 0.8,
+            "v": 0.8
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "image": null
+      },
+      {
+        "id": "line",
+        "name": "線形 · 300 px",
+        "enabled": true,
+        "x": -180,
+        "y": 0,
+        "shape": "line",
+        "width": 120,
+        "height": 120,
+        "lineLength": 300,
+        "lineRotation": 30,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 48,
+        "emissionDuration": 0,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 12,
+        "sizeRandom": 3,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#fff1b0",
+        "colorEnd": "#ff9900",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.5
+          },
+          {
+            "t": 0.2,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.12,
+            "v": 1
+          },
+          {
+            "t": 0.8,
+            "v": 0.8
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "image": null
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    }
+  },
+  "bakedProject": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "線形與 120° 圓環",
+    "fps": 30,
+    "duration": 3,
+    "loop": true,
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "arc",
+        "name": "圓環 · 120°",
+        "enabled": true,
+        "x": 180,
+        "y": 0,
+        "shape": "ring",
+        "width": 240,
+        "height": 160,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 120,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 48,
+        "emissionDuration": 0,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 12,
+        "sizeRandom": 3,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#a8f5ff",
+        "colorEnd": "#51a8f0",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.5
+          },
+          {
+            "t": 0.2,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.12,
+            "v": 1
+          },
+          {
+            "t": 0.8,
+            "v": 0.8
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "image": null
+      },
+      {
+        "id": "line",
+        "name": "線形 · 300 px",
+        "enabled": true,
+        "x": -180,
+        "y": 0,
+        "shape": "line",
+        "width": 120,
+        "height": 120,
+        "lineLength": 300,
+        "lineRotation": 30,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 48,
+        "emissionDuration": 0,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 12,
+        "sizeRandom": 3,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#fff1b0",
+        "colorEnd": "#ff9900",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.5
+          },
+          {
+            "t": 0.2,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.12,
+            "v": 1
+          },
+          {
+            "t": 0.8,
+            "v": 0.8
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "image": null
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    }
+  },
+  "view": {
+    "time": 1.2,
+    "mode": "baked",
+    "zoom": 1,
+    "panX": 0,
+    "panY": 20
+  }
+}
