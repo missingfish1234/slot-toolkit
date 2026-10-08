@@ -9,8 +9,10 @@
   "icon": "",
   "tags": ["SPINE相關工具", "Spine", "粒子", "特效", "離線網頁工具"],
   "updatedAt": "2026-10-08",
-  "size": "",
+  "size": "613.5 KB（下載）",
   "changelog": ["v1.9.0：加入工具包與管理器，可離線啟動粒子工作室。"],
+  "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/b9cd636a5fef35d1d184c69103fa2164dcbb21bb/releases/tool-spine-particle-studio-1.9.0.zip",
+  "sha256": "b5857b2860c4897fc5a8c4ea7cb3c2eea7238528c6c9423d9f2ed55147d1e155",
   "documentation": "使用指南.md",
   "kind": "網頁工具"
 }

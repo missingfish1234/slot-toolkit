@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-09-05 10:17:15",
+  "updatedAt": "2026-10-08 12:19:15",
   "tools": [
     {
       "id": "cocos-creator-38-rolling-score-tester",
@@ -490,6 +490,39 @@
       ],
       "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.1/tool-spine76f895dc5de55177-spine540857165de55177-1.0.1.zip",
       "sha256": "34191b409ade66e09eb49a528a883428c63eccfc4e04aa93f294dd89706d84ce",
+      "kind": "網頁工具",
+      "preservePaths": [
+        "user-data",
+        "outputs",
+        "presets",
+        "config.json",
+        "settings.json"
+      ]
+    },
+    {
+      "id": "spine-particle-studio",
+      "name": "SPINE 粒子系統（Particle Studio）",
+      "category": "SPINE相關工具",
+      "description": "離線編排粒子效果，輸出 Spine 3.8／4.0／4.2 動畫與圖片；支援 In／Loop／Out 三段演出及既有骨架掛接。",
+      "version": "1.9.0",
+      "path": "SPINE相關工具/粒子系統",
+      "entry": "dist/Particle-Studio.html",
+      "icon": "",
+      "tags": [
+        "SPINE相關工具",
+        "Spine",
+        "粒子",
+        "特效",
+        "離線網頁工具",
+        "SPINE 粒子系統（Particle Studio）"
+      ],
+      "updatedAt": "2026-10-08",
+      "size": "613.5 KB（下載）",
+      "changelog": [
+        "v1.9.0：加入工具包與管理器，可離線啟動粒子工作室。"
+      ],
+      "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/b9cd636a5fef35d1d184c69103fa2164dcbb21bb/releases/tool-spine-particle-studio-1.9.0.zip",
+      "sha256": "b5857b2860c4897fc5a8c4ea7cb3c2eea7238528c6c9423d9f2ed55147d1e155",
       "kind": "網頁工具",
       "preservePaths": [
         "user-data",
