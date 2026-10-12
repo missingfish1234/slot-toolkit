@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Spine Director V123 (MP4 Export)</title>
+    <title>Spine Director V124 · SPINE 開關與動畫編排</title>
     
     <script src="vendor/vis-timeline-graph2d.min.js"></script>
     <link href="vendor/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
@@ -44,7 +44,7 @@
         
         /* V122 版面調整：右側操作面板固定延伸到底，左側時間軸縮短 */
         #workspace { 
-            flex: none; height: 72%; display: flex; overflow: hidden; min-height: 200px; position: relative;
+            flex: none; height: 60%; display: flex; overflow: hidden; min-height: 200px; position: relative;
             width: calc(100vw - 320px); align-self: flex-start;
         }
         
@@ -99,8 +99,10 @@
 
         .panel-footer {
             background: var(--bg-header); border-top: 1px solid var(--border);
-            padding: 12px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; z-index: 10;
+            padding: 10px 12px; flex-shrink: 0; z-index: 10;
         }
+        .panel-footer summary { cursor: pointer; color: var(--anim-color); font-weight: 600; }
+        .export-body { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; }
 
         .menu-item:hover { background-color: var(--accent) !important; color: white !important; }
 
@@ -188,6 +190,17 @@
         .track-rotate { border-left: 3px solid var(--rotate-color); border-right: 3px solid var(--rotate-color); background-color: rgba(255, 159, 10, 0.15); color: #D0D0D0; }
         .track-scale { border-left: 3px solid var(--scale-color); border-right: 3px solid var(--scale-color); background-color: rgba(10, 132, 255, 0.15); color: #D0D0D0; }
         .track-alpha { border-left: 3px solid var(--alpha-color); border-right: 3px solid var(--alpha-color); background-color: rgba(50, 173, 230, 0.15); color: #D0D0D0; }
+        .track-visibility { background: #254436; border-color: #5bdc9a; color: #b5f5d1; }
+        .track-visibility.is-off { background: #423034; border-color: #d68995; color: #f6c3cc; }
+        .vis-item.track-visibility.vis-selected { background: #235342; color: #e0ffee; }
+        .vis-item.track-visibility.is-off.vis-selected { background: #653c46; color: #ffe3e9; }
+        button:disabled { opacity: 0.4; cursor: default; }
+        #quick-composer { padding: 10px 12px; border-bottom: 1px solid var(--border); background: #252b32; flex-shrink: 0; display: flex; flex-direction: column; gap: 7px; }
+        #quick-composer .label { width: 48px; }
+        .composer-title { font-size: 11px; color: #89bdff; font-weight: 700; }
+        .composer-hint { color: var(--text-sub); font-size: 10px; line-height: 1.5; }
+        .visibility-status { font-size: 10px; color: #b5f5d1; white-space: nowrap; }
+        #workflow-status { min-height: 14px; color: #b5c5da; }
 
         .layer-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: grab; margin-bottom: 2px; border: 1px solid transparent; }
         .layer-item:active { cursor: grabbing; }
@@ -230,7 +243,7 @@
 <body>
     
     <div id="loading-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #121212; z-index: 99999; display: flex; justify-content: center; align-items: center; flex-direction: column; color: #888;">
-        <div style="margin-bottom: 10px; color: #0A84FF; font-weight: bold;">Spine Director V123</div>
+        <div style="margin-bottom: 10px; color: #0A84FF; font-weight: bold;">Spine Director V124</div>
         <div id="loading-status">Loading Engine...</div>
     </div>
 
@@ -253,11 +266,11 @@
     <div id="workspace">
         <div id="canvas-container">
             <div style="position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.6); backdrop-filter:blur(4px); padding: 4px 10px; border-radius: 4px; font-size: 11px; color: #888; pointer-events: none; z-index:100;">
-                <span id="ver-tag">V123</span>
+                <span id="ver-tag">V124</span>
             </div>
         </div>
         
-        <div class="section-content">
+        <div style="display:none;">
             <input type="file" id="fileInput" multiple accept=".json,.skel,.bytes,.skel.bytes,.atlas,.atlas.txt,.txt,.png,.jpg" style="display:none" onchange="handleFiles(this)">
             <input type="file" id="folderInput" webkitdirectory directory multiple style="display:none" onchange="handleFiles(this)">
             <input type="file" id="imgImportInput" multiple accept=".png,.jpg,.jpeg,.webp" style="display:none" onchange="handleImageFiles(this)">
@@ -274,6 +287,22 @@
                 </div>
             </div>
             
+            <div id="quick-composer">
+                <div class="composer-title">選物件 → 選動作 → 排時間</div>
+                <div class="control-row"><label class="label" for="composer-character">物件</label><select id="composer-character" onchange="selectCharacter(this.value)"><option value="">請先匯入素材</option></select></div>
+                <div id="composer-animation-controls" style="display:flex; flex-direction:column; gap:7px;">
+                    <div class="control-row"><label class="label" for="charAnimList">動作</label><select id="charAnimList" onchange="rememberComposerAnimation()"></select></div>
+                    <div class="control-row"><label class="label" for="composer-track">軌道</label><select id="composer-track" onchange="selectTrack(this.value)"></select><button id="composer-extra-track" class="sm" onclick="addExtraAnimTrack()" title="新增動畫混合軌道">＋軌</button></div>
+                    <div class="control-row"><label class="label" for="composer-insert-mode">放入</label><select id="composer-insert-mode" onchange="renderQuickComposer()"><option value="playhead">播放頭位置（後段順延）</option><option value="append">接在此軌最後</option></select></div>
+                    <button id="composer-add-animation" class="primary full-width" onclick="addSpecificAnim()">＋放入動作</button>
+                </div>
+                <div class="control-row" style="justify-content:space-between;"><label style="font-size:11px; display:flex; align-items:center; gap:4px;"><input id="composer-initial-visible" type="checkbox" checked onchange="setInitialVisibility(this.checked)">初始開啟</label><span id="composer-visibility-status" class="visibility-status" aria-live="polite">尚未選物件</span></div>
+                <div class="xy-group"><button id="composer-show" style="flex:1; color:#b5f5d1;" onclick="addVisibilitySwitch(true)">此時開啟</button><button id="composer-hide" style="flex:1; color:#f6c3cc;" onclick="addVisibilitySwitch(false)">此時關閉</button></div>
+                <div class="composer-hint">開關依播放頭時間記錄，維持到下一個開關；不影響動畫軌。</div>
+                <div id="workflow-status" class="composer-hint" role="status">先匯入 SPINE 或圖片，再開始編排。</div>
+                <div id="autosave-warning" class="composer-hint" role="status" style="display:none; color:#ffc778;"></div>
+            </div>
+
             <div class="tab-bar">
                 <button class="tab-btn active" onclick="switchTab('project')" id="tab-btn-project">流程</button>
                 <button class="tab-btn" onclick="switchTab('character')" id="tab-btn-character">圖層/選取</button>
@@ -305,8 +334,8 @@
                         </div>
                         <div class="section-content" style="font-size:11px; color:var(--text-sub); line-height:1.7;">
                             <div>① 匯入 Spine / 圖片</div>
-                            <div>② 到「圖層/選取」選物件並調位置</div>
-                            <div>③ 到「屬性/編排」把動作放進時間軸</div>
+                            <div>② 在上方選物件、動作與軌道</div>
+                            <div>③ 放入動作，並在指定時間記錄開啟／關閉</div>
                             <div>④ 播放確認後匯出 Cocos .anim / JSON</div>
                         </div>
                     </div>
@@ -385,14 +414,7 @@
                                     <button class="sm" style="border:1px solid #777; color:white; background:#555;" onclick="forceKeyframe()" title="擷取當前所有TRS狀態打入時間軸">🔑 記錄目前狀態</button>
                                 </div>
                                 <div class="separator"></div>
-                                <div class="control-row">
-                                    <span class="label">動作列表</span>
-                                    <select id="charAnimList"></select>
-                                </div>
-                                <div class="xy-group" style="margin-top:2px;">
-                                    <button class="primary" style="flex:1;" onclick="addSpecificAnim()" title="增加選擇的動作至當前時間點軌道">把這個動作放到時間軸</button>
-                                    <button style="flex:0.6; font-size: 10px; padding: 0 4px;" onclick="addExtraAnimTrack()" title="為此物件增加獨立的動畫混合軌道">+ 增加軌道</button>
-                                </div>
+                                <div class="composer-hint">選物件、加動作與開關皆可在上方固定操作區完成。</div>
                             </div>
                         </div>
 
@@ -475,6 +497,10 @@
                                             <input type="checkbox" id="clipLoop" onchange="updateSelectedClip()"> 循環播放 (Loop)
                                         </label>
                                     </div>
+                                </div>
+                                <div id="visibility-controls" style="display:none;">
+                                    <div class="control-row"><label class="label" for="clipVisibility">開關</label><select id="clipVisibility" onchange="updateSelectedClip()"><option value="true">開啟</option><option value="false">關閉</option></select></div>
+                                    <div class="composer-hint">這個時間點起切換顯示狀態，直到下一個開關。</div>
                                 </div>
                                 
                                 <div class="xy-group" style="margin-top:5px;">
@@ -587,7 +613,7 @@
                             </div>
                         </div>
 
-                        <div class="section">
+                        <div class="section" id="clip-physics-section">
                             <div class="section-header" onclick="toggleSection(this)">
                                 <div class="section-title"><span style="color:var(--phys-color);">🏀 物理掉落 (Physics)</span></div><span class="arrow">▼</span>
                             </div>
@@ -615,8 +641,9 @@
                 </div>
             </div>
             
-            <div class="panel-footer">
-                <div style="font-size:10px; color:var(--anim-color); margin-bottom: 2px; font-weight:bold; text-align: center;">📤 匯出產物 (EXPORT)</div>
+            <details class="panel-footer">
+                <summary>📤 匯出影片 / Cocos / JSON</summary>
+                <div class="export-body">
                 <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
                     <span style="font-size:10px; color:var(--text-sub); flex-shrink:0;">影片格式</span>
                     <select id="videoFormatSelect" onchange="updateVideoExportFormatUI()" style="height:24px; font-size:11px; flex:1;">
@@ -637,7 +664,8 @@
                     </div>
                     <button class="sm" onclick="exportCodeSnippet()" style="white-space: nowrap; padding: 6px 10px; flex: 1; background:#444;">📄 匯出腳本</button>
                 </div>
-            </div>
+                </div>
+            </details>
         </div>
     </div>
 
@@ -808,7 +836,7 @@
         return { label, time: Date.now(), currentTime, selectedCharId, selectedClipId, selectedTrackId,
             timeline: timelineData ? timelineData.get().map(serializeTimelineItem) : [],
             groups: timelineGroups ? timelineGroups.get().map(g => ({ ...g })) : [],
-            characters: characters.map(c => ({ id: c.id, order: c.order, baseX: c.baseX, baseY: c.baseY, baseRot: c.baseRot, scaleX: c.scaleX, scaleY: c.scaleY, flipX: c.flipX, baseAlpha: c.baseAlpha, animTracks: c.animTracks ? [...c.animTracks] : [] })) };
+            characters: characters.map(c => ({ id: c.id, order: c.order, baseX: c.baseX, baseY: c.baseY, baseRot: c.baseRot, scaleX: c.scaleX, scaleY: c.scaleY, flipX: c.flipX, baseAlpha: c.baseAlpha, baseVisible: c.baseVisible !== false, animTracks: c.animTracks ? [...c.animTracks] : [] })) };
     }
     function recordHistoryCheckpoint(label = '') {
         if (isRestoringHistory || !timelineData || !timelineGroups) return;
@@ -830,7 +858,7 @@
         try {
             timelineData.clear(); timelineGroups.clear(); timelineGroups.add(snap.groups || []); timelineData.add((snap.timeline || []).map(deserializeTimelineItem));
             const charMap = new Map((snap.characters || []).map(c => [c.id, c]));
-            characters.forEach(c => { const state = charMap.get(c.id); if (!state) return; c.order = state.order; c.baseX = state.baseX; c.baseY = state.baseY; c.baseRot = state.baseRot; c.scaleX = state.scaleX; c.scaleY = state.scaleY; c.flipX = state.flipX; c.baseAlpha = state.baseAlpha; if (Array.isArray(state.animTracks)) c.animTracks = [...state.animTracks]; if (c.spine) c.spine.zIndex = c.order; });
+            characters.forEach(c => { const state = charMap.get(c.id); if (!state) return; c.order = state.order; c.baseX = state.baseX; c.baseY = state.baseY; c.baseRot = state.baseRot; c.scaleX = state.scaleX; c.scaleY = state.scaleY; c.flipX = state.flipX; c.baseAlpha = state.baseAlpha; c.baseVisible = state.baseVisible !== false; if (Array.isArray(state.animTracks)) c.animTracks = [...state.animTracks]; if (c.spine) c.spine.zIndex = c.order; });
             worldContainer.sortChildren();
             selectedCharId = snap.selectedCharId && getCharacterById(snap.selectedCharId) ? snap.selectedCharId : null;
             selectedClipId = snap.selectedClipId && timelineData.get(snap.selectedClipId) ? snap.selectedClipId : null;
@@ -935,15 +963,23 @@
     function autoSaveToLocal() {
         if (characters.length === 0 && timelineData.length === 0) return;
         const d = { 
-            version: "V123", timestamp: Date.now(),
+            version: "V124", timestamp: Date.now(),
             timeline: timelineData.get(), groups: timelineGroups.get(), clipRegistry, 
             characters: characters.map(c => ({ 
                 id: c.id, name: c.name, type: c.type, order: c.order, 
                 x: c.baseX, y: c.baseY, rotation: c.baseRot, scaleX: c.scaleX, scaleY: c.scaleY, flipX: c.flipX, alpha: c.baseAlpha,
-                skin: c.type === 'spine' ? c.spine.skeleton.skin?.name : null, assets: c.assets, animTracks: c.animTracks 
+                skin: c.type === 'spine' ? c.spine.skeleton.skin?.name : null, assets: c.assets, animTracks: c.animTracks, baseVisible: c.baseVisible !== false, preferredAnimation: c.preferredAnimation, preferredAnimTrack: c.preferredAnimTrack
             })) 
         };
-        try { localStorage.setItem('spineDirectorAutoSave', JSON.stringify(d)); } catch(e) { console.warn("AutoSave failed", e); }
+        try {
+            localStorage.setItem('spineDirectorAutoSave', JSON.stringify(d));
+            document.getElementById('autosave-warning').style.display = 'none';
+        } catch(e) {
+            console.warn("AutoSave failed", e);
+            const warning = document.getElementById('autosave-warning');
+            warning.textContent = '自動保存未成功：素材可能超過瀏覽器容量。請按右上角 💾 手動保存專案。';
+            warning.style.display = 'block';
+        }
     }
 
     function checkAutoSaveRestore() {
@@ -1012,6 +1048,9 @@
             if (!currentClass.includes('selected-track')) timelineGroups.update({id: trackId, className: currentClass + ' selected-track'});
             selectedTrackId = trackId;
         } else { selectedTrackId = null; }
+        const char = getCharacterById(selectedCharId);
+        if (char && char.animTracks.includes(selectedTrackId)) char.preferredAnimTrack = selectedTrackId;
+        renderQuickComposer();
     }
     
     function clearTrackSelection() {
@@ -1035,6 +1074,11 @@
             snap: function (date) { return Math.round(date.getTime() / 10) * 10; },
             
             onMoving: function (item, callback) {
+                if ((item.className || '').includes('track-visibility')) {
+                    item.start = new Date(Math.max(0, item.start.valueOf())); item.end = new Date(item.start.valueOf() + 10);
+                    currentTime = item.start.valueOf(); timeline.setCustomTime(currentTime, 'playhead'); updateTimeDisplay();
+                    callback(item); return;
+                }
                 const SNAP_DIST = 50; 
                 let start = item.start.valueOf(); 
                 let end = item.end.valueOf(); 
@@ -1107,6 +1151,12 @@
             },
             
             onMove: function (item, callback) {
+                if ((item.className || '').includes('track-visibility')) {
+                    item.start = new Date(Math.max(0, item.start.valueOf())); item.end = new Date(item.start.valueOf() + 10);
+                    const duplicates = getGroupClips(item.group).filter(i => i.id !== item.id && i.start.valueOf() === item.start.valueOf());
+                    if (duplicates.length) timelineData.remove(duplicates.map(i => i.id));
+                    callback(item); syncSpineToTime(currentTime); requestRenderInspector(); return;
+                }
                 try {
                     let startMs = Math.max(0, item.start.valueOf()); 
                     let endMs = Math.max(startMs + 10, item.end.valueOf());
@@ -1177,9 +1227,10 @@
                 if(item) {
                     const char = characters.find(c => 
                         c.tracks.anim === item.group || c.tracks.move === item.group || 
-                        c.tracks.rotate === item.group || c.tracks.scale === item.group || c.tracks.alpha === item.group || (c.animTracks && c.animTracks.includes(item.group))
+                        c.tracks.rotate === item.group || c.tracks.scale === item.group || c.tracks.alpha === item.group || c.tracks.visibility === item.group || (c.animTracks && c.animTracks.includes(item.group))
                     );
                     if (char) { selectCharacter(char.id, false); selectTrack(item.group); }
+                    else { renderInspector(); }
                 }
             } else { renderInspector(); }
         });
@@ -1192,7 +1243,7 @@
             if (p.group) {
                 if (p.group === SCENE_TRACK_ID) return;
                 const char = characters.find(c => 
-                    c.id === p.group || c.tracks.anim === p.group || c.tracks.move === p.group || c.tracks.rotate === p.group || c.tracks.scale === p.group || c.tracks.alpha === p.group || (c.animTracks && c.animTracks.includes(p.group))
+                    c.id === p.group || c.tracks.anim === p.group || c.tracks.move === p.group || c.tracks.rotate === p.group || c.tracks.scale === p.group || c.tracks.alpha === p.group || c.tracks.visibility === p.group || (c.animTracks && c.animTracks.includes(p.group))
                 );
                 if (char) {
                     if (selectedCharId !== char.id) selectCharacter(char.id);
@@ -1323,6 +1374,94 @@
         return defaultValue;
     }
 
+    function getVisibilityAtTime(char, time) {
+        let enabled = char.baseVisible !== false;
+        for (const item of getGroupClips(char.tracks.visibility)) {
+            if (item.start.valueOf() > time) break;
+            enabled = item.visibilityEnabled !== false;
+        }
+        return enabled;
+    }
+
+    function ensureVisibilityTrack(char) {
+        if (!timelineGroups.get(char.tracks.visibility)) timelineGroups.add({ id: char.tracks.visibility, content: '開關 (On / Off)', order: char.order * 10 + 0.5, className: 'vis-group-level-1' });
+        const group = timelineGroups.get(char.id);
+        if (group && !(group.nestedGroups || []).includes(char.tracks.visibility)) timelineGroups.update({ id: char.id, nestedGroups: [char.tracks.visibility, ...(group.nestedGroups || [])] });
+    }
+
+    function setInitialVisibility(enabled) {
+        const char = getCharacterById(selectedCharId); if (!char) return;
+        recordHistoryCheckpoint('before-initial-visibility');
+        char.baseVisible = !!enabled;
+        syncSpineToTime(currentTime); renderQuickComposer();
+        scheduleHistoryCheckpoint('initial-visibility');
+    }
+
+    function addVisibilitySwitch(enabled) {
+        const char = getCharacterById(selectedCharId); if (!char) return;
+        recordHistoryCheckpoint('before-visibility-switch');
+        ensureVisibilityTrack(char);
+        const start = Math.max(0, Math.round(currentTime));
+        const existing = getGroupClips(char.tracks.visibility).filter(i => i.start.valueOf() === start);
+        const item = { group: char.tracks.visibility, start: new Date(start), end: new Date(start + 10), type: 'point', content: enabled ? '開啟' : '關閉', visibilityEnabled: !!enabled, className: 'vis-item track-visibility' + (enabled ? '' : ' is-off') };
+        if (existing.length) {
+            item.id = existing[existing.length - 1].id;
+            timelineData.remove(existing.slice(0, -1).map(i => i.id));
+            timelineData.update(item);
+        } else item.id = timelineData.add(item)[0];
+        selectedClipId = item.id; timeline.setSelection([item.id]); selectTrack(char.tracks.visibility);
+        switchTab('inspector'); renderInspector(); syncSpineToTime(currentTime);
+        setWorkflowStatus(`${char.name}：${(start / 1000).toFixed(2)}s ${enabled ? '開啟' : '關閉'}`);
+        scheduleHistoryCheckpoint('visibility-switch');
+    }
+
+    function updateVisibilityStatus() {
+        const el = document.getElementById('composer-visibility-status'); if (!el) return;
+        const char = getCharacterById(selectedCharId);
+        const text = char ? `${(currentTime / 1000).toFixed(2)}s · ${char.visible ? '開啟' : '關閉'}` : '尚未選物件';
+        if (el.textContent !== text) el.textContent = text;
+    }
+
+    function setWorkflowStatus(text) { document.getElementById('workflow-status').textContent = text; }
+
+    function rememberComposerAnimation() {
+        const char = getCharacterById(selectedCharId);
+        if (char) char.preferredAnimation = document.getElementById('charAnimList').value;
+        renderQuickComposer();
+    }
+
+    function renderQuickComposer() {
+        const char = getCharacterById(selectedCharId);
+        const select = document.getElementById('composer-character');
+        select.replaceChildren();
+        if (!characters.length) select.add(new Option('請先匯入素材', ''));
+        else {
+            if (!char) select.add(new Option('請選擇物件', ''));
+            [...characters].sort((a,b) => b.order - a.order).forEach(c => select.add(new Option(`${c.type === 'spine' ? 'SPINE' : '圖片'} · ${c.name}`, c.id)));
+            select.value = char ? char.id : '';
+        }
+        const hasAnimation = !!(char && char.type === 'spine' && char.animations.length);
+        document.getElementById('composer-animation-controls').style.display = char && char.type === 'image' ? 'none' : 'flex';
+        const animSelect = document.getElementById('charAnimList'); animSelect.replaceChildren();
+        if (hasAnimation) {
+            char.animations.forEach(a => animSelect.add(new Option(a.name, a.name)));
+            if (!char.animations.some(a => a.name === char.preferredAnimation)) char.preferredAnimation = char.animations[0].name;
+            animSelect.value = char.preferredAnimation;
+        } else animSelect.add(new Option(char ? '此物件沒有動畫' : '請先選 SPINE', ''));
+        const trackSelect = document.getElementById('composer-track'); trackSelect.replaceChildren();
+        if (hasAnimation) {
+            char.animTracks.forEach((id,index) => trackSelect.add(new Option(`T${index} · ${index ? '混合軌' : '主軌'}`, id)));
+            if (!char.animTracks.includes(char.preferredAnimTrack)) char.preferredAnimTrack = char.animTracks[0];
+            trackSelect.value = char.preferredAnimTrack;
+        }
+        ['charAnimList','composer-track','composer-add-animation'].forEach(id => document.getElementById(id).disabled = !hasAnimation);
+        document.getElementById('composer-extra-track').disabled = !char || char.type !== 'spine';
+        ['composer-initial-visible','composer-show','composer-hide'].forEach(id => document.getElementById(id).disabled = !char);
+        document.getElementById('composer-initial-visible').checked = !char || char.baseVisible !== false;
+        document.getElementById('composer-add-animation').textContent = document.getElementById('composer-insert-mode').value === 'playhead' ? '＋放在播放頭（後段順延）' : '＋接在此軌最後';
+        updateVisibilityStatus();
+    }
+
     function syncSpineToTime(time) {
         if (bg2Sprite) {
             const sceneClips = getGroupClips(SCENE_TRACK_ID).filter(i => time >= i.start.valueOf() && time <= i.end.valueOf());
@@ -1330,6 +1469,7 @@
         }
 
         characters.forEach(char => {
+            char.visible = getVisibilityAtTime(char, time);
             if (char.type !== 'image') {
                 char.spine.visible = char.visible; 
                 
@@ -1413,6 +1553,7 @@
             char.spine.x = tx; char.spine.y = ty;
             char.spine.angle = tr; char.spine.scale.set(ts * (char.flipX ? -1 : 1), ts); 
         });
+        updateVisibilityStatus();
     }
 
     function addExtraAnimTrack() {
@@ -1588,7 +1729,7 @@
         drawDebugHelpers();
     }
 
-    function duplicateWithDialog() {
+    async function duplicateWithDialog() {
         if (!selectedCharId) return;
         const original = characters.find(c => c.id === selectedCharId); if (!original) return;
 
@@ -1598,36 +1739,28 @@
 
         const copyTracks = confirm(`複製物件 "${baseName}"？\n\n【確定】: 複製物件 + 所有動畫時間軸軌道。\n【取消】: 僅複製物件 (時間軸留空)。`);
 
-        if (original.type === 'spine') {
-            createSpine(null, null, null, null, nextName, null, {
-                x: original.spine.x + 20, y: original.spine.y + 20, name: nextName, scaleX: original.scaleX, scaleY: original.scaleY, flipX: original.flipX, rotation: original.baseRot, alpha: original.baseAlpha, skin: original.spine.skeleton.skin?.name, order: characters.length
-            }, original.assets);
-        } else {
-             createImageObject(null, nextName, null, {
-                x: original.spine.x + 20, y: original.spine.y + 20, name: nextName, scaleX: original.scaleX, scaleY: original.scaleY, flipX: original.flipX, rotation: original.baseRot, alpha: original.baseAlpha, order: characters.length
-            }, original.assets);
-        }
-
-        setTimeout(() => {
-            const newChar = characters[characters.length - 1];
-            if (copyTracks && newChar) {
-                const originalClips = timelineData.get({ filter: i => i.group === original.tracks.anim || i.group === original.tracks.move || i.group === original.tracks.rotate || i.group === original.tracks.scale || i.group === original.tracks.alpha });
+        const config = { x: original.spine.x + 20, y: original.spine.y + 20, name: nextName, scaleX: original.scaleX, scaleY: original.scaleY, flipX: original.flipX, rotation: original.baseRot, alpha: original.baseAlpha, baseVisible: original.baseVisible !== false, preferredAnimation: original.preferredAnimation, skin: original.type === 'spine' ? original.spine.skeleton.skin?.name : null, order: characters.length };
+        const newChar = original.type === 'spine'
+            ? await createSpine(null, null, null, null, nextName, null, config, original.assets)
+            : createImageObject(null, nextName, null, config, original.assets);
+        if (!newChar) return;
+            if (copyTracks) {
+                while (newChar.animTracks.length < original.animTracks.length) { selectCharacter(newChar.id); addExtraAnimTrack(); }
+                const groupMap = new Map(Object.keys(original.tracks).map(key => [original.tracks[key], newChar.tracks[key]]));
+                original.animTracks.forEach((id,index) => groupMap.set(id, newChar.animTracks[index]));
+                const originalClips = timelineData.get({ filter: i => groupMap.has(i.group) });
                 const newClips = originalClips.map(item => {
                     const clone = JSON.parse(JSON.stringify(item));
                     clone.id = 'clip_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                    if (item.group === original.tracks.anim) clone.group = newChar.tracks.anim;
-                    if (item.group === original.tracks.move) clone.group = newChar.tracks.move;
-                    if (item.group === original.tracks.rotate) clone.group = newChar.tracks.rotate;
-                    if (item.group === original.tracks.scale) clone.group = newChar.tracks.scale;
-                    if (item.group === original.tracks.alpha) clone.group = newChar.tracks.alpha;
+                    clone.group = groupMap.get(item.group);
                     if(clone.start) clone.start = new Date(clone.start);
                     if(clone.end) clone.end = new Date(clone.end);
                     return clone;
                 });
                 timelineData.add(newClips);
             }
-            if(newChar) selectCharacter(newChar.id);
-        }, 100);
+            newChar.preferredAnimTrack = newChar.animTracks[original.animTracks.indexOf(original.preferredAnimTrack)] || newChar.animTracks[0];
+            selectCharacter(newChar.id); syncSpineToTime(currentTime);
     }
 
     function fileToBase64(file) {
@@ -1749,7 +1882,7 @@
     async function createSpine(rawData, atlasText, textureMap, isBinary, name, reuseId=null, reuseConfig=null, assets=null) {
         try {
             const { spine, spineData } = buildSpineObject(rawData, atlasText, textureMap, isBinary, assets);
-            finalizeCharacterCreation(spine, name, reuseId, reuseConfig, 'spine', spineData);
+            return finalizeCharacterCreation(spine, name, reuseId, reuseConfig, 'spine', spineData);
         } catch(e) { console.error("Spine Error:", e); alert(`匯入失敗！\n錯誤細節: ${e.message}`); }
         renderSceneList();
     }
@@ -1757,12 +1890,12 @@
     function createImageObject(texture, name, reuseId=null, reuseConfig=null, assets=null) {
         if (assets && !texture) texture = PIXI.Texture.from(assets.texture);
         const sprite = new PIXI.Sprite(texture); sprite.anchor.set(0.5); sprite.assets = assets;
-        finalizeCharacterCreation(sprite, name, reuseId, reuseConfig, 'image', null);
+        return finalizeCharacterCreation(sprite, name, reuseId, reuseConfig, 'image', null);
     }
 
     function finalizeCharacterCreation(displayObj, name, reuseId, reuseConfig, type, spineData) {
-        const id = reuseId || ((type==='spine'?'char_':'img_') + Date.now());
-        const trackAnimId = id + '_anim'; const trackMoveId = id + '_move'; const trackRotateId = id + '_rotate'; const trackScaleId = id + '_scale'; const trackAlphaId = id + '_alpha';
+        const id = reuseId || ((type==='spine'?'char_':'img_') + Date.now() + '_' + Math.random().toString(36).slice(2, 8));
+        const trackAnimId = id + '_anim'; const trackMoveId = id + '_move'; const trackRotateId = id + '_rotate'; const trackScaleId = id + '_scale'; const trackAlphaId = id + '_alpha'; const trackVisibilityId = id + '_visibility';
         
         const startX = reuseConfig ? reuseConfig.x : 0; const startY = reuseConfig ? reuseConfig.y : 0;
         displayObj.x = startX; displayObj.y = startY; enableDrag(displayObj); displayObj.charId = id; worldContainer.addChild(displayObj);
@@ -1771,10 +1904,11 @@
             id, spine: displayObj, name: reuseConfig ? reuseConfig.name : name, type: type, assets: displayObj.assets, 
             animations: spineData ? spineData.animations : [], animDurations: {}, skins: spineData ? spineData.skins.map(s => s.name) : [],
             animTracks: reuseConfig && reuseConfig.animTracks ? reuseConfig.animTracks : [trackAnimId],
-            tracks: { anim: trackAnimId, move: trackMoveId, rotate: trackRotateId, scale: trackScaleId, alpha: trackAlphaId },
+            tracks: { anim: trackAnimId, move: trackMoveId, rotate: trackRotateId, scale: trackScaleId, alpha: trackAlphaId, visibility: trackVisibilityId },
             lastAnimClipId: {}, order: reuseConfig ? reuseConfig.order : characters.length,
             baseX: startX, baseY: startY, baseRot: reuseConfig ? reuseConfig.rotation : 0, baseAlpha: reuseConfig ? (reuseConfig.alpha !== undefined ? reuseConfig.alpha : 1) : 1,
-            scaleX: reuseConfig?(reuseConfig.scaleX||1):1, scaleY: reuseConfig?(reuseConfig.scaleY||1):1, flipX: reuseConfig?reuseConfig.flipX:false, visible: true
+            scaleX: reuseConfig?(reuseConfig.scaleX||1):1, scaleY: reuseConfig?(reuseConfig.scaleY||1):1, flipX: reuseConfig?reuseConfig.flipX:false, visible: true, baseVisible: reuseConfig ? reuseConfig.baseVisible !== false : true,
+            preferredAnimation: reuseConfig?.preferredAnimation, preferredAnimTrack: reuseConfig?.preferredAnimTrack
         };
 
         if (spineData && spineData.animations) spineData.animations.forEach(a => charObj.animDurations[a.name] = a.duration);
@@ -1792,7 +1926,7 @@
             
             if (type === 'spine') {
                 timelineGroups.add({ id: trackAnimId, content: '動作 T0 (Base)', order: charObj.order * 10 + 1, className: 'vis-group-level-1' });
-                addAnimClip(id, null, trackAnimId); 
+                if (!reuseConfig) addAnimClip(id, null, trackAnimId);
             }
             timelineGroups.add({ id: trackMoveId, content: '位移 (Move)', order: charObj.order * 10 + 2, className: 'vis-group-level-1' });
             timelineGroups.add({ id: trackRotateId, content: '旋轉 (Rot)', order: charObj.order * 10 + 3, className: 'vis-group-level-1' });
@@ -1800,19 +1934,22 @@
             timelineGroups.add({ id: trackAlphaId, content: '透明度 (Alpha)', order: charObj.order * 10 + 5, className: 'vis-group-level-1' });
             selectCharacter(id); refreshZIndex();
         }
+        ensureVisibilityTrack(charObj);
+        displayObj.visible = getVisibilityAtTime(charObj, currentTime);
         if (type === 'spine') { displayObj.update(0); }
         renderSceneList();
+        return charObj;
     }
 
     async function enhancedSaveProject() {
         autoSaveToLocal(); 
         const d = { 
-            version: "V122", 
+            version: "V124",
             timeline: timelineData.get(), groups: timelineGroups.get(), clipRegistry, 
             characters: characters.map(c => ({ 
                 id: c.id, name: c.name, type: c.type, order: c.order, 
                 x: c.baseX, y: c.baseY, rotation: c.baseRot, scaleX: c.scaleX, scaleY: c.scaleY, flipX: c.flipX, alpha: c.baseAlpha,
-                skin: c.type === 'spine' ? c.spine.skeleton.skin?.name : null, assets: c.assets, animTracks: c.animTracks 
+                skin: c.type === 'spine' ? c.spine.skeleton.skin?.name : null, assets: c.assets, animTracks: c.animTracks, baseVisible: c.baseVisible !== false, preferredAnimation: c.preferredAnimation, preferredAnimTrack: c.preferredAnimTrack
             })) 
         }; 
         const blob = new Blob([JSON.stringify(d)], {type:"application/json"});
@@ -1880,6 +2017,10 @@
             throw error;
         }
         renderSceneList();
+        selectedClipId = null; selectedTrackId = null; timeline.setSelection([]);
+        selectCharacter(characters[0]?.id || null);
+        syncSpineToTime(currentTime);
+        undoStack = []; lastHistoryJSON = ''; recordHistoryCheckpoint('load-project');
     }
 
     function updateCharTransform(type) { 
@@ -1917,7 +2058,7 @@
             c.order = i; c.spine.zIndex = i; 
             const updates = [{ id: c.id, order: c.order * 10 }]; 
             if (c.type === 'spine') c.animTracks.forEach((tId, tIdx) => updates.push({id: tId, order: c.order * 10 + 1 + (tIdx*0.1)}));
-            updates.push({ id: c.tracks.move, order: c.order * 10 + 2 }); updates.push({ id: c.tracks.rotate, order: c.order * 10 + 3 }); updates.push({ id: c.tracks.scale, order: c.order * 10 + 4 }); updates.push({ id: c.tracks.alpha, order: c.order * 10 + 5 });
+            updates.push({ id: c.tracks.visibility, order: c.order * 10 + 0.5 }); updates.push({ id: c.tracks.move, order: c.order * 10 + 2 }); updates.push({ id: c.tracks.rotate, order: c.order * 10 + 3 }); updates.push({ id: c.tracks.scale, order: c.order * 10 + 4 }); updates.push({ id: c.tracks.alpha, order: c.order * 10 + 5 });
             updates.forEach(u => { if(timelineGroups.get(u.id)) timelineGroups.update(u); }); 
         }); 
         worldContainer.sortChildren(); renderSceneList(); 
@@ -1927,12 +2068,12 @@
         if(!selectedCharId)return;
         recordHistoryCheckpoint('before-remove-character'); 
         const c=characters.find(x=>x.id===selectedCharId); if(!c) return; c.spine.destroy(); 
-        const groupsToRemove = [c.id, c.tracks.move, c.tracks.rotate, c.tracks.scale, c.tracks.alpha]; 
+        const groupsToRemove = [c.id, c.tracks.move, c.tracks.rotate, c.tracks.scale, c.tracks.alpha, c.tracks.visibility];
         if (c.animTracks) c.animTracks.forEach(tId => groupsToRemove.push(tId));
         timelineGroups.remove(groupsToRemove); 
         timelineData.remove(timelineData.get({filter:i=>groupsToRemove.includes(i.group)})); 
         characters = characters.filter(x=>x.id!==selectedCharId); 
-        selectedCharId=null; renderInspector(); renderSceneList(); scheduleHistoryCheckpoint('remove-character');
+        selectedCharId=null; selectedClipId=null; selectedTrackId=null; timeline.setSelection([]); renderInspector(); renderSceneList(); scheduleHistoryCheckpoint('remove-character');
     }
     
     function deleteSelectedClip(forceAll = false) { 
@@ -2014,7 +2155,7 @@
     function handleReloadFiles(input) { alert("此功能尚未實作。"); }
     function changeSkin() { if(!selectedCharId) return; const c = characters.find(x=>x.id===selectedCharId); const s = document.getElementById('skinSelect').value; if(c && c.type==='spine' && c.spine.skeleton) { c.spine.skeleton.setSkinByName(s); c.spine.skeleton.setSlotsToSetupPose(); } }
     
-    function addAnimClip(charId, specificAnimName = null, targetTrackId = null) {
+    function addAnimClip(charId, specificAnimName = null, targetTrackId = null, insertionMode = 'append') {
         const char = characters.find(c => c.id === charId); 
         if(!char || char.type !== 'spine') return;
         
@@ -2031,12 +2172,27 @@
         }
 
         const lastEnd = items.length > 0 ? Math.max(...items.map(i => i.end.valueOf())) : 0;
-        const start = Math.max(currentTime, lastEnd);
+        const start = insertionMode === 'playhead' ? Math.max(0, currentTime) : Math.max(currentTime, lastEnd);
         
         const anim = specificAnimName || (char.animations.length>0 ? char.animations[0].name : null);
         if(!anim) return;
         const dur = (char.animDurations[anim] || 1.0) * 1000;
         const color = getAnimColor(anim, avoidHue); 
+
+        recordHistoryCheckpoint('before-add-animation');
+        if (insertionMode === 'playhead') {
+            // Keep each existing animation intact, shifting only clips intersecting the insertion or following a displaced clip.
+            let barrier = start + dur;
+            const shifted = [];
+            items.forEach(item => {
+                if (item.end.valueOf() <= start) return;
+                const duration = item.end.valueOf() - item.start.valueOf();
+                const nextStart = Math.max(item.start.valueOf(), barrier);
+                if (nextStart !== item.start.valueOf()) shifted.push({ id: item.id, start: new Date(nextStart), end: new Date(nextStart + duration) });
+                barrier = nextStart + duration;
+            });
+            if (shifted.length) timelineData.update(shifted);
+        }
         
         const newItemId = timelineData.add({ 
             group: destTrackId, content: `${anim} (${(dur/1000).toFixed(2)}s)`, start: new Date(start), end: new Date(start + dur), 
@@ -2044,8 +2200,10 @@
             mixDuration: 0.2
         });
         
-        if(newItemId) { timeline.setSelection(newItemId); selectedClipId = newItemId[0]; renderInspector(); }
+        if(newItemId) { selectCharacter(char.id, false); selectTrack(destTrackId); timeline.setSelection(newItemId); selectedClipId = newItemId[0]; switchTab('inspector'); renderInspector(); }
         syncSpineToTime(currentTime);
+        setWorkflowStatus(`${char.name} · T${char.animTracks.indexOf(destTrackId)} · ${anim}：${(start / 1000).toFixed(2)}s`);
+        scheduleHistoryCheckpoint('add-animation');
     }
     
     function addSceneClip() { const items = timelineData.get({ filter: i => i.group === SCENE_TRACK_ID }); const lastEnd = items.length > 0 ? Math.max(...items.map(i => i.end.valueOf())) : 0; const start = Math.max(currentTime, lastEnd); timelineData.add({ group: SCENE_TRACK_ID, content: '顯示 BG2', start: new Date(start), end: new Date(start + 2000) }); }
@@ -2076,9 +2234,16 @@
     }
 
     function selectCharacter(id, focusTimeline = true) {
-        selectedCharId = id;
-        if (id && document.getElementById('tab-project').classList.contains('active')) switchTab('inspector');
+        const char = getCharacterById(id);
+        selectedCharId = char ? id : null;
+        if (focusTimeline) {
+            selectedClipId = null; if (timeline) timeline.setSelection([]);
+            clearTrackSelection();
+            if (char) selectTrack(char.type === 'spine' ? (char.preferredAnimTrack || char.animTracks[0]) : char.tracks.visibility);
+        }
+        if (id && (document.getElementById('tab-project').classList.contains('active') || !focusTimeline)) switchTab('inspector');
         renderSceneList(); renderInspector(); drawDebugHelpers();
+        setWorkflowStatus(char ? `目前選取：${char.name}` : '先匯入 SPINE 或圖片，再開始編排。');
     }
 
     let draggedLayerId = null;
@@ -2120,20 +2285,14 @@
                 const isSelected = selectedCharId === c.id;
                 const typeBadge = c.type === 'spine' ? '<span class="type-badge badge-spine">SPINE</span>' : '<span class="type-badge badge-img">IMG</span>';
                 const selectedBadge = isSelected ? '<span style="font-size:9px; padding:1px 4px; border-radius:3px; background:rgba(10,132,255,0.18); color:#7fc0ff; border:1px solid rgba(10,132,255,0.35);">已選取</span>' : '';
-                div.innerHTML = `<div class="layer-info">${typeBadge}<span class="layer-name" title="${c.name}">${c.name}</span>${selectedBadge}</div><div class="layer-actions"><span class="layer-z-disp">Z:${c.order}</span><button class="icon-only sm" onclick="recordHistoryCheckpoint('before-layer-up'); moveLayer(1); scheduleHistoryCheckpoint('layer-up'); event.stopPropagation();">▲</button><button class="icon-only sm" onclick="recordHistoryCheckpoint('before-layer-down'); moveLayer(-1); scheduleHistoryCheckpoint('layer-down'); event.stopPropagation();">▼</button></div>`;
+                div.innerHTML = `<div class="layer-info">${typeBadge}<span class="layer-name"></span>${selectedBadge}</div><div class="layer-actions"><span class="layer-z-disp">Z:${c.order}</span><button class="icon-only sm" title="往上移">▲</button><button class="icon-only sm" title="往下移">▼</button></div>`;
+                const nameEl = div.querySelector('.layer-name'); nameEl.textContent = c.name; nameEl.title = c.name;
+                div.querySelectorAll('.layer-actions button').forEach((button,index) => { button.onclick = e => { e.stopPropagation(); selectCharacter(c.id); moveLayer(index ? -1 : 1); }; });
                 list.appendChild(div);
             });
         }
         
-        const charSelect = document.getElementById('charAnimList');
-        if(charSelect) {
-            charSelect.innerHTML = '';
-            if (selectedCharId) {
-                const char = characters.find(c => c.id === selectedCharId);
-                if (char && char.type === 'spine' && char.animations.length > 0) { char.animations.forEach(a => { const opt = document.createElement('option'); opt.value = a.name; opt.text = a.name; charSelect.appendChild(opt); }); } 
-                else { charSelect.innerHTML = '<option>(無動畫)</option>'; }
-            } else { charSelect.innerHTML = '<option>---</option>'; }
-        }
+        renderQuickComposer();
     }
 
     function executeLayerReorder(draggedId, targetId, insertAfterUI) {
@@ -2153,7 +2312,7 @@
             c.order = i; c.spine.zIndex = i; 
             const updates = [{ id: c.id, order: c.order * 10 }]; 
             if (c.type === 'spine') c.animTracks.forEach((trackId, tIdx) => { updates.push({ id: trackId, order: c.order * 10 + 1 + (tIdx * 0.1) }); });
-            updates.push({ id: c.tracks.move, order: c.order * 10 + 2 }); updates.push({ id: c.tracks.rotate, order: c.order * 10 + 3 }); updates.push({ id: c.tracks.scale, order: c.order * 10 + 4 }); updates.push({ id: c.tracks.alpha, order: c.order * 10 + 5 });
+            updates.push({ id: c.tracks.visibility, order: c.order * 10 + 0.5 }); updates.push({ id: c.tracks.move, order: c.order * 10 + 2 }); updates.push({ id: c.tracks.rotate, order: c.order * 10 + 3 }); updates.push({ id: c.tracks.scale, order: c.order * 10 + 4 }); updates.push({ id: c.tracks.alpha, order: c.order * 10 + 5 });
             updates.forEach(u => { if(timelineGroups.get(u.id)) timelineGroups.update(u); }); 
         }); 
         worldContainer.sortChildren(); renderSceneList(); scheduleHistoryCheckpoint('reorder-layer'); 
@@ -2163,6 +2322,8 @@
         const emptyEl = document.getElementById('inspector-empty');
         const charEl = document.getElementById('inspector-char');
         const clipEl = document.getElementById('inspector-clip');
+        // Keep the selected clip's controls immediately below the tabs.
+        if (charEl.before) charEl.before(clipEl);
         
         if (selectedCharId) {
             const char = characters.find(c => c.id === selectedCharId);
@@ -2193,7 +2354,7 @@
             const item = timelineData.get(selectedClipId);
             if (item) {
                 emptyEl.style.display = 'none'; clipEl.style.display = 'block';
-                document.getElementById('clip-type-label').innerText = item.group === SCENE_TRACK_ID ? "SCENE EVENT" : item.className.includes('track-anim') ? "ANIMATION CLIP" : item.className.includes('track-move') ? "MOVE KEYFRAME" : item.className.includes('track-rotate') ? "ROTATE KEYFRAME" : item.className.includes('track-alpha') ? "ALPHA KEYFRAME" : "SCALE KEYFRAME";
+                document.getElementById('clip-type-label').innerText = item.group === SCENE_TRACK_ID ? "SCENE EVENT" : item.className.includes('track-visibility') ? "開關事件" : item.className.includes('track-anim') ? "ANIMATION CLIP" : item.className.includes('track-move') ? "MOVE KEYFRAME" : item.className.includes('track-rotate') ? "ROTATE KEYFRAME" : item.className.includes('track-alpha') ? "ALPHA KEYFRAME" : "SCALE KEYFRAME";
                 
                 const startMs = item.start.valueOf();
                 const durMs = item.end.valueOf() - startMs;
@@ -2215,9 +2376,17 @@
                 }
 
                 const animControls = document.getElementById('anim-controls'); const propControls = document.getElementById('prop-controls'); const physControls = document.getElementById('physics-controls');
+                const isVisibility = item.className.includes('track-visibility');
+                document.getElementById('clip-physics-section').style.display = item.className.includes('track-anim') ? 'block' : 'none';
+                document.getElementById('visibility-controls').style.display = isVisibility ? 'block' : 'none';
+                document.getElementById('wrap-clipDur').style.display = isVisibility ? 'none' : 'flex';
                 document.getElementById('move-inputs').style.display = 'none'; document.getElementById('rotate-inputs').style.display = 'none'; document.getElementById('scale-inputs').style.display = 'none'; document.getElementById('alpha-inputs').style.display = 'none';
 
-                if (item.className.includes('track-anim')) {
+                if (isVisibility) {
+                    document.getElementById('clipVisibility').value = String(item.visibilityEnabled !== false);
+                    animControls.style.display = 'none'; propControls.style.display = 'none'; physControls.style.display = 'none';
+                    document.getElementById('anim-mix-control').style.display = 'none';
+                } else if (item.className.includes('track-anim')) {
                     animControls.style.display = 'block'; propControls.style.display = 'block'; physControls.style.display = 'none';
                     document.getElementById('dropEnable').parentElement.style.display = 'flex';
                     document.getElementById('clipEasing').value = item.easing || 'linear';
@@ -2270,8 +2439,19 @@
             durValMs = parseFloat(document.getElementById('clipDuration').value) * 1000;
         }
         
-        const updates = { id: selectedClipId, start: new Date(startValMs), end: new Date(startValMs + durValMs) };
         const item = timelineData.get(selectedClipId); if(!item) return;
+        if (!Number.isFinite(startValMs) || startValMs < 0) return;
+        const isVisibility = item.className.includes('track-visibility');
+        durValMs = isVisibility ? 10 : durValMs;
+        if (!Number.isFinite(durValMs) || durValMs <= 0) return;
+        const updates = { id: selectedClipId, start: new Date(startValMs), end: new Date(startValMs + durValMs) };
+        if (isVisibility) {
+            updates.visibilityEnabled = document.getElementById('clipVisibility').value === 'true';
+            updates.content = updates.visibilityEnabled ? '開啟' : '關閉';
+            updates.className = 'vis-item track-visibility' + (updates.visibilityEnabled ? '' : ' is-off');
+            const duplicates = getGroupClips(item.group).filter(i => i.id !== item.id && i.start.valueOf() === startValMs);
+            if (duplicates.length) timelineData.remove(duplicates.map(i => i.id));
+        }
         
         if (item.className.includes('track-anim')) {
             const animName = document.getElementById('clipAnimSelect').value;
@@ -2292,6 +2472,7 @@
         else if (item.className.includes('track-alpha')) { updates.motStartA = parseFloat(document.getElementById('motStartA').value); updates.motEndA = parseFloat(document.getElementById('motEndA').value); }
 
         timelineData.update(updates); requestRenderInspector(); syncSpineToTime(currentTime); if (!isPlaying) drawDebugHelpers(); scheduleHistoryCheckpoint('update-clip');
+        if (isVisibility) setWorkflowStatus(`開關已更新：${(startValMs / 1000).toFixed(2)}s ${updates.visibilityEnabled ? '開啟' : '關閉'}`);
     }
 
     function captureToClip(type) {
@@ -2320,9 +2501,10 @@
         if (!selectedCharId) { alert("請先選取一個 Spine 物件"); return; }
         const animName = document.getElementById('charAnimList').value;
         if (animName && animName !== "---" && animName !== "(無動畫)") {
-            let target = selectedTrackId; const char = characters.find(c => c.id === selectedCharId);
+            let target = document.getElementById('composer-track').value; const char = characters.find(c => c.id === selectedCharId);
             if (target && char) { const isValid = char.animTracks.includes(target); if (!isValid) target = null; }
-            addAnimClip(selectedCharId, animName, target);
+            if (char) char.preferredAnimation = animName;
+            addAnimClip(selectedCharId, animName, target, document.getElementById('composer-insert-mode').value);
         }
     }
 
@@ -2667,5 +2849,6 @@
         const a = document.createElement('a'); a.href = dataStr; a.download = `${char.name}_Sequence.json`; a.click();
     }
 </script>
+<script src="scripts/visibility-exports.js"></script>
 </body>
 </html>

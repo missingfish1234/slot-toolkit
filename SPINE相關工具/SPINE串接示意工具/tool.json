@@ -2,8 +2,8 @@
   "id": "spine76f895dc5de55177-spine4e3263a5793a610f5de55177",
   "name": "SPINE串接示意工具",
   "category": "SPINE相關工具",
-  "description": "Spine 3.8／4.0／4.1 動畫串接、時間軸編排與示意影片匯出。",
-  "version": "1.0.1",
+  "description": "Spine 3.8／4.0／4.1 動畫編排、逐物件時間軸開關與示意影片匯出。",
+  "version": "1.1.0",
   "path": "SPINE相關工具/SPINE串接示意工具",
   "entry": "SpinePlayTest.html",
   "icon": "",
@@ -11,9 +11,12 @@
     "SPINE相關工具",
     "SPINE串接示意工具"
   ],
-  "updatedAt": "2026-09-05",
+  "updatedAt": "2026-10-12",
   "size": "9.7 MB",
   "changelog": [
+    "新增逐物件時間軸開關與初始顯示，保存／複製／JSON／Cocos 匯出支援。",
+    "集中角色切換、動畫選擇與新增，支援播放頭插入／末尾接續，修正選取同步及次軌複製。",
+    "匯出區可收合、片段屬性優先顯示，並提示自動保存容量不足。",
     "修正 Atlas 存讀／複製、缺圖驗證與失敗保留原專案；內附固定版本離線相依檔。"
   ],
   "documentation": "README_更新與安裝.md"

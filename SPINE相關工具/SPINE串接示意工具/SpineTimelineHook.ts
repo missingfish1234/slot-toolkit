@@ -1,4 +1,4 @@
-import { _decorator, Component, sp } from 'cc';
+import { _decorator, Component, Sprite, sp } from 'cc';
 const { ccclass, executeInEditMode } = _decorator;
 
 @ccclass('SpineTimelineHook')
@@ -36,5 +36,16 @@ export class SpineTimelineHook extends Component {
         const spine = this.getSpine();
         if (!spine) return;
         spine.setEmptyAnimation(0, mixDuration);
+    }
+
+    /**
+     * 時間軸開關事件。只切換 Skeleton 或 Sprite，保留節點與 Animation 事件播放器執行，
+     * 後續 setSpineVisible(true) 才能再次打開。
+     */
+    public setSpineVisible(visible: boolean = true) {
+        const spine = this.getSpine();
+        const visual = spine || this.getComponent(Sprite);
+        if (!visual) return;
+        visual.enabled = visible;
     }
 }
