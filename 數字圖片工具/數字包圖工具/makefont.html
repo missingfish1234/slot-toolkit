@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BMFont Gen (v3.34 / Tool 1.3.4) - by 小魚骨頭</title>
+    <title>數字包圖工具 1.4.0 - by 小魚骨頭</title>
     <script>
 /*
 JSZip v3.10.1 — MIT License
@@ -138,7 +138,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;
             background-image: radial-gradient(#333 1px, transparent 1px); background-size: 20px 20px;
         }
-        #previewCanvas { margin: 20px; transform-origin: center center; cursor: grab; }
+        #previewCanvas { margin: 8px; transform-origin: center center; cursor: grab; }
         #previewCanvas:active { cursor: grabbing; }
 
         .resizer-handle {
@@ -155,6 +155,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             flex: 1; padding: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
             grid-auto-rows: min-content; gap: 10px; overflow-y: auto; align-content: start; position: relative;
         }
+        .drop-overlay { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; background:#000c; pointer-events:none; }
+        .drop-overlay[hidden] { display:none; }
+        .drop-panel { display:grid; gap:8px; padding:40px 60px; text-align:center; border:2px dashed var(--accent); border-radius:14px; background:#1e1e1ef0; }
+        .drop-panel strong { font-size:20px; color:#fff; } .drop-panel span { color:var(--text-secondary); }
         .glyph-tray.drag-over { background-color: rgba(55, 148, 255, 0.1); box-shadow: inset 0 0 0 2px var(--accent); }
         .drag-hint { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; align-items: center; color: var(--accent); font-size: 14px; font-weight: bold; pointer-events: none; opacity: 0; }
         .glyph-tray.drag-over .drag-hint { opacity: 1; }
@@ -190,38 +194,104 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         .import-reason { font-size:11px; color:#aaa; margin-top:4px; }
         .import-error, .import-summary { color:#ffca80; white-space:pre-line; }
         .import-replace { display:flex; align-items:center; gap:4px; }
+        .import-bulk { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-bottom:10px; color:#aaa; font-size:12px; }
+        .import-bulk .btn { padding:4px 10px; }
         .import-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:12px; }
         .btn:disabled { opacity:.45; cursor:not-allowed; }
         @media(max-width:650px) { .import-row { grid-template-columns:24px 52px minmax(80px,1fr) 70px; } .import-row img { width:52px; } .import-feedback { grid-column:3 / -1; } }
+        /* 1.4.0 */
+        .version-tag { margin-left: 8px; }
+        .shortcut-hint { margin-left: 16px; font-size: 11px; font-weight: 400; color: var(--text-muted); }
+        .btn.icon { width: 32px; padding: 6px 0; flex: none; font-size: 15px; }
+        .mini-status { font-size: 11px; color: var(--text-muted); padding: 0 2px; min-height: 15px; line-height: 1.5; user-select: text; }
+        .mini-status.warn { color: #ffca28; }
+        .preset-select { width: 100%; padding: 7px 8px; color: var(--text-primary); background: var(--bg-input); border: 1px solid var(--accent); border-radius: 4px; font-size: 13px; }
+        .export-panel input[type=text]#fontName { width: 160px; text-align: left; }
+        .char-check { padding: 6px 8px; border-radius: 4px; background: #2a2a2a; color: var(--text-secondary); font-size: 12px; }
+        .char-check.good { color: #81c784; background: rgba(76,175,80,.12); }
+        .char-check.warn { color: #ffca28; background: rgba(255,202,40,.1); }
+        .char-check.bad { color: #ff8a80; background: rgba(255,77,79,.12); }
+        .batch-row { display: flex; gap: 6px; }
+        .batch-row input { flex: 1; width: auto; text-align: left; }
+        details.settings-group { border-top: 1px solid var(--border); }
+        details.settings-group > summary { cursor: pointer; list-style: none; padding: 12px 16px; }
+        details.settings-group > summary::-webkit-details-marker { display: none; }
+        details.settings-group > summary::before { content: '▸'; margin-right: 6px; transition: transform .15s; display: inline-block; }
+        details.settings-group[open] > summary::before { transform: rotate(90deg); }
+        details.settings-group > summary:hover { color: var(--text-primary); }
+        .toast-host { position: fixed; right: 16px; bottom: 16px; z-index: 2000; display: grid; gap: 8px; max-width: min(460px, 90vw); }
+        .toast { padding: 10px 14px; border-radius: 6px; background: #2b2b2e; border-left: 4px solid var(--accent); color: var(--text-primary); box-shadow: 0 6px 20px #0008; cursor: pointer; line-height: 1.5; user-select: text; transition: opacity .3s, transform .3s; }
+        .toast.ok { border-left-color: #4caf50; } .toast.warn { border-left-color: #ffca28; } .toast.error { border-left-color: var(--danger); }
+        .toast.leaving { opacity: 0; transform: translateY(6px); }
+        .sim-toolbar { flex-wrap: wrap; height: auto; min-height: 36px; padding: 4px 10px; row-gap: 4px; }
+        @media (max-width: 1400px) { .sidebar { width: 300px; } .shortcut-hint { display: none; } }
+        @media (max-height: 820px) {
+            .simulator-view { height: 170px; }
+            .bottom-panel { height: 210px; }
+            .glyph-tray { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; padding: 8px; }
+            .glyph-preview { height: 36px; }
+            .glyph-card { gap: 3px; padding: 5px; }
+        }
     </style>
 </head>
 <body>
 
+<div id="toastHost" class="toast-host" aria-live="polite"></div>
+<div id="dropOverlay" class="drop-overlay" hidden><div class="drop-panel"><strong>放開以加入</strong><span>字圖 PNG、整個資料夾，或專案／設定 JSON</span></div></div>
 <header>
-    <div class="app-title">BMFont Gen <span>v3.34 / Tool 1.3.4</span></div>
+    <div class="app-title">數字包圖工具 <span class="version-tag" title="BMFont 打包核心 3.34">v1.4.0</span><span class="shortcut-hint">拖進圖片／資料夾即可匯入 · Ctrl+S 儲存 · Ctrl+E 導出 · Ctrl+Z 復原</span></div>
     <div class="author-tag">Author: 小魚骨頭</div>
 </header>
 
 <div class="main-container">
     <div class="sidebar">
-        <div class="group-header">專案與資源</div>
+        <div class="group-header">專案</div>
         <div class="control-panel">
             <div class="btn-group">
-                <button class="btn" onclick="saveConfig()">💾 儲存設定</button>
-                <button class="btn" onclick="document.getElementById('configInput').click()">📂 讀取設定</button>
+                <button class="btn" onclick="saveProject()" title="儲存設定、字圖與每字微調（Ctrl+S）">💾 儲存專案</button>
+                <button class="btn" onclick="document.getElementById('configInput').click()" title="開啟專案檔或舊版設定檔（Ctrl+O）">📂 開啟</button>
+                <button class="btn icon" id="undoBtn" onclick="undo()" title="復原（Ctrl+Z）" disabled>↶</button>
+                <button class="btn icon" id="redoBtn" onclick="redo()" title="重做（Ctrl+Y）" disabled>↷</button>
             </div>
             <input type="file" id="configInput" accept=".json" style="display:none">
-            <div class="btn-group" style="margin-top:5px;">
-                <button class="btn primary" onclick="document.getElementById('fileInput').click()" style="flex:1;">➕ 批次匯入圖片</button>
+            <div id="saveStatus" class="mini-status">工作會自動保存在這個瀏覽器</div>
+            <div class="btn-group" style="margin-top:2px;">
+                <button class="btn primary" onclick="document.getElementById('fileInput').click()" style="flex:1;">➕ 匯入圖片</button>
                 <button class="btn" onclick="document.getElementById('folderInput').click()" style="flex:1;">📁 匯入資料夾</button>
             </div>
             <input type="file" id="fileInput" multiple accept="image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp" style="display:none">
             <input type="file" id="folderInput" multiple webkitdirectory directory accept="image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp" style="display:none">
-            <div id="importStatus" style="font-size:11px; color:var(--text-muted); padding:2px 0 0 2px; min-height:16px;">可多選圖片，也可整個資料夾匯入</div>
+            <div id="importStatus" class="mini-status">也可以把圖片、資料夾或專案檔直接拖進視窗</div>
         </div>
 
-        <div class="group-header">裁切與排版 (Trim & Layout)</div>
+        <div class="group-header">用途</div>
         <div class="control-panel">
+            <select id="presetSelect" class="preset-select" title="一鍵套用建議設定；之後仍可在下方進階設定個別調整"></select>
+            <div class="mini-status">選好用途即可，下方設定通常不用動。</div>
+        </div>
+
+        <div class="group-header">導出</div>
+        <div class="control-panel export-panel">
+            <div class="control-row">
+                <label>名稱</label>
+                <input type="text" id="fontName" value="myFont">
+            </div>
+            <div id="fontNameHint" class="mini-status"></div>
+            <div class="control-row highlight-row" style="border-color: #ffeb3b; background: rgba(255, 235, 59, 0.1);">
+                <div><label>導出縮放 (Scale)</label><span class="desc">1.0=原圖 / 0.5=一半</span></div>
+                <input type="number" id="exportScale" value="1.0" step="0.1" min="0.1" max="5.0">
+            </div>
+            <div id="charCheck" class="char-check">尚未匯入字圖</div>
+            <button class="btn primary" id="exportBtn" title="Ctrl+E">⬇️ 導出 ZIP（PNG＋FNT）</button>
+            <div class="batch-row">
+                <input type="text" id="batchScales" value="1, 0.75, 0.67" title="以逗號分隔多個比例" aria-label="批次比例">
+                <button class="btn" id="batchExportBtn" title="每個比例一個資料夾（Ctrl+Shift+E）">批次多比例</button>
+            </div>
+        </div>
+
+        <details class="settings-group" data-group="trim">
+            <summary class="group-header">裁切與排版</summary>
+            <div class="control-panel">
             <div class="control-row">
                 <div><label>啟用裁切</label><span class="desc">自動去除透明像素</span></div>
                 <input type="checkbox" id="trim" checked>
@@ -259,21 +329,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 <input type="number" id="padding" value="2">
             </div>
         </div>
-
-        <div class="group-header" style="color: #64b5f6;">畫布尺寸 (Canvas Size)</div>
-        <div class="control-panel">
-            <div class="control-row highlight-row" style="border-color: #9c27b0; background: rgba(156, 39, 176, 0.1);">
-                <div><label>強制正方形 (Square)</label></div>
-                <input type="checkbox" id="forceSquare">
-            </div>
-            <div class="control-row highlight-row" style="border-color: #00bcd4; background: rgba(0, 188, 212, 0.1);">
-                <div><label>2的次方 (Power of 2)</label></div>
-                <input type="checkbox" id="powerOfTwo">
-            </div>
-        </div>
-
-        <div class="group-header" style="color: #edaea9;">引擎對齊修正 (Alignment)</div>
-        <div class="control-panel">
+        </details>
+        <details class="settings-group" data-group="align">
+            <summary class="group-header">行高與對齊</summary>
+            <div class="control-panel">
             <div class="control-row">
                 <label>行高 (LineHeight)</label>
                 <input type="number" id="lineHeight" value="80">
@@ -296,17 +355,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 <input type="number" id="fontSize" value="72">
             </div>
         </div>
+        </details>
+        <details class="settings-group" data-group="engine">
+            <summary class="group-header">引擎相容</summary>
+            <div class="control-panel">
 
-        <div class="group-header">導出設定</div>
-        <div class="control-panel">
-            <div class="control-row">
-                <label>名稱</label>
-                <input type="text" id="fontName" value="myFont">
-            </div>
-            <div class="control-row highlight-row" style="border-color: #ffeb3b; background: rgba(255, 235, 59, 0.1); margin-top: 5px;">
-                <div><label>導出縮放 (Scale)</label><span class="desc">1.0=原圖 / 0.5=一半</span></div>
-                <input type="number" id="exportScale" value="1.0" step="0.1" min="0.1" max="5.0">
-            </div>
+
             <div class="control-row highlight-row" style="border-color: #ffeb3b; background: rgba(255, 235, 59, 0.1);">
                 <div><label>鎖定字號 (Lock Size)</label><span class="desc">防止引擎自作聰明二次放大</span></div>
                 <input type="checkbox" id="lockInfoSize" checked>
@@ -319,8 +373,22 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 <div><label>Cocos保持行高</label><span class="desc">只保留 FNT 行高中繼資料；Cocos Label 行高另設</span></div>
                 <input type="checkbox" id="cocosKeepLineHeight" checked>
             </div>
-            <button class="btn primary" id="exportBtn" style="margin-top:10px;">⬇️ 導出 ZIP 包 (BMFont)</button>
+
         </div>
+        </details>
+        <details class="settings-group" data-group="canvas">
+            <summary class="group-header">圖集尺寸</summary>
+            <div class="control-panel">
+            <div class="control-row highlight-row" style="border-color: #9c27b0; background: rgba(156, 39, 176, 0.1);">
+                <div><label>強制正方形 (Square)</label></div>
+                <input type="checkbox" id="forceSquare">
+            </div>
+            <div class="control-row highlight-row" style="border-color: #00bcd4; background: rgba(0, 188, 212, 0.1);">
+                <div><label>2的次方 (Power of 2)</label></div>
+                <input type="checkbox" id="powerOfTwo">
+            </div>
+        </div>
+        </details>
     </div>
 
     <div class="content-column">
@@ -344,7 +412,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             
             <div class="simulator-view" id="simulatorView">
                 <div class="sim-toolbar">
-                    <span style="font-weight:bold; color:#fff; margin-right: 5px;">100% 所見即所得預覽區</span>
+                    <span style="font-weight:bold; color:#fff; margin-right: 5px;" title="以 100% 匯出比例預覽，所見即所得">預覽</span>
                     <button class="btn zoom-btn" onclick="changeSimZoom(-0.1)">-</button>
                     <span id="simZoomDisplay" style="font-family:monospace; color:#fff; width:40px; text-align:center;">100%</span>
                     <button class="btn zoom-btn" onclick="changeSimZoom(0.1)">+</button>
@@ -363,6 +431,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                         </label>
                     </div>
                     
+                    <div class="sim-control-group">
+                        <label style="color:#aaa; font-size:11px; display:flex; align-items:center; gap:3px; cursor:pointer;" title="同時顯示多組測試字串，例如 111111、888888，檢查字寬與對齊">
+                            <input type="checkbox" id="simMulti" style="width:12px;height:12px;margin:0;"> 多組比對
+                        </label>
+                        <input type="text" id="simExtraLines" style="width:190px; padding:2px 6px;" title="以 | 分隔多組測試字串" placeholder="111111|888888|414141">
+                    </div>
                     <div class="sim-control-group">
                         <button class="btn" onclick="document.getElementById('bgInput').click()" style="padding: 2px 8px; font-size:11px;">🖼️ 置入底圖</button>
                         <input type="file" id="bgInput" accept="image/*" style="display:none">
@@ -391,15 +465,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 <span style="font-weight:600; font-size:12px;">字元列表 (可直接拖曳檔案，並精細微調 X/Y 偏移與 W 字寬；W 會置中擴張)</span>
                 <button class="btn" style="color:var(--danger); background:none; border:none;" onclick="clearAll()">🗑️ 清空全部</button>
             </div>
-            <div class="glyph-tray" id="glyphTray">
-                <div class="drag-hint">放開滑鼠以加入圖片</div>
-            </div>
+            <div class="glyph-tray" id="glyphTray"></div>
         </div>
 
     </div>
 </div>
 
 <script>
+    const TOOL_VERSION = '1.4.0';
     // State
     let state = {
         glyphs: [],
@@ -414,7 +487,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             simBgScale: 1.0, simBgOpacity: 0.6,
             previewText: '0123456789KMBGTQxX$.,+', simSpacing: 0,
             simBgPanX: 0, simBgPanY: 0,
-            simShowMissingGaps: false 
+            simShowMissingGaps: false,
+            batchScales: '1, 0.75, 0.67', simMulti: false, simExtraLines: '111111|888888|414141|1,234,567.89'
         },
         glyphOffsets: {},
         glyphWidths: {}, // 每個字元的自訂字寬 / xadvance；0 或未設定 = 自動
@@ -458,7 +532,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             exportScale: document.getElementById('exportScale'), lockInfoSize: document.getElementById('lockInfoSize'), cocosBaselineFix: document.getElementById('cocosBaselineFix'), cocosKeepLineHeight: document.getElementById('cocosKeepLineHeight'),
             simBgScale: document.getElementById('simBgScale'), simBgOpacity: document.getElementById('simBgOpacity'),
             previewText: document.getElementById('previewText'), simSpacing: document.getElementById('simSpacing'),
-            simShowMissingGaps: document.getElementById('simShowMissingGaps') 
+            simShowMissingGaps: document.getElementById('simShowMissingGaps'),
+            batchScales: document.getElementById('batchScales'), simMulti: document.getElementById('simMulti'), simExtraLines: document.getElementById('simExtraLines')
         }
     };
 
@@ -471,7 +546,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 else if (type === 'number') state.config[key] = parseFloat(e.target.value);
                 else state.config[key] = e.target.value;
                 
-                if (!key.startsWith('sim') && key !== 'previewText') packAndDraw();
+                if (!key.startsWith('sim') && key !== 'previewText' && key !== 'batchScales') { packAndDraw(); markChanged(); }
+                else scheduleAutosave();
                 renderPreview();
             });
         });
@@ -479,7 +555,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         els.fileInput.addEventListener('change', handleFileUpload);
         els.folderInput.addEventListener('change', handleFileUpload);
         els.configInput.addEventListener('change', handleConfigLoad);
-        document.getElementById('exportBtn').addEventListener('click', () => exportZip().catch(error => alert(error.message || String(error))));
+        document.getElementById('exportBtn').addEventListener('click', () => exportZip().catch(error => toast(error.message || String(error), 'error')));
+        document.getElementById('batchExportBtn').addEventListener('click', () => exportBatchZip().catch(error => toast(error.message || String(error), 'error')));
+        els.inputs.fontName.addEventListener('input', updateNameHint);
         
         els.countBtn.addEventListener('click', () => {
             state.isCounting = !state.isCounting;
@@ -563,8 +641,19 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     window.changeZoom = function(delta) { state.zoom = Math.max(0.1, Math.min(5.0, state.zoom + delta)); updateAtlasTransform(); }
     window.changeSimZoom = function(delta) {
         state.simZoom = Math.max(0.1, Math.min(5.0, state.simZoom + delta));
-        els.simZoomDisplay.textContent = Math.round(state.simZoom * 100) + '%';
-        els.previewCanvas.style.transform = `scale(${state.simZoom})`;
+        applySimZoom();
+    }
+    // With several comparison rows, shrink to fit so every row stays visible.
+    function applySimZoom() {
+        let zoom = state.simZoom;
+        const wrap = els.simContentWrapper, cvs = els.previewCanvas;
+        if (state.config.simMulti && wrap.clientHeight > 0 && cvs.height > 0) {
+            const fit = Math.min((wrap.clientHeight - 16) / cvs.height, (wrap.clientWidth - 16) / cvs.width);
+            if (fit > 0) zoom = Math.min(zoom, fit);
+        }
+        els.simZoomDisplay.textContent = Math.round(zoom * 100) + '%' + (zoom < state.simZoom ? '*' : '');
+        els.simZoomDisplay.title = zoom < state.simZoom ? '多組比對：自動縮小以顯示全部行' : '';
+        els.previewCanvas.style.transform = `scale(${zoom})`;
     }
 
     function initResizer() {
@@ -594,11 +683,56 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         window.addEventListener('mouseup', () => { isResizing = false; document.body.style.cursor = ''; document.body.style.userSelect = ''; });
     }
 
+    // Whole-window drop: images, folders (recursively) and project / config JSON.
+    // Files are taken synchronously with getAsFile(): pages opened via file://
+    // cannot read FileSystemEntry.file(), so entries are only used for folders.
+    async function collectDroppedFiles(dataTransfer) {
+        const items = Array.from(dataTransfer.items || []).filter(item => item.kind === 'file');
+        if (!items.length) return { files: Array.from(dataTransfer.files || []), folderFailures: 0 };
+        const direct = [], folders = [];
+        items.forEach(item => {
+            const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+            if (entry && entry.isDirectory) folders.push(entry);
+            else { const file = item.getAsFile(); if (file) direct.push(file); }
+        });
+        const files = [...direct]; let folderFailures = 0;
+        const readAll = reader => new Promise(resolve => {
+            const all = []; const next = () => reader.readEntries(batch => { if (!batch.length) resolve(all); else { all.push(...batch); next(); } }, () => resolve(all)); next();
+        });
+        async function walk(entry, path) {
+            if (entry.isFile) {
+                const file = await new Promise(resolve => entry.file(resolve, () => resolve(null)));
+                if (!file) { folderFailures++; return; }
+                try { Object.defineProperty(file, 'webkitRelativePath', { value: path + file.name }); } catch (_) {}
+                files.push(file);
+            } else if (entry.isDirectory) {
+                for (const child of await readAll(entry.createReader())) await walk(child, path + entry.name + '/');
+            }
+        }
+        for (const folder of folders) await walk(folder, '');
+        return { files, folderFailures };
+    }
     function initDragAndDrop() {
-        const tray = els.glyphTray;
-        ['dragenter', 'dragover'].forEach(n => tray.addEventListener(n, e => { e.preventDefault(); tray.classList.add('drag-over'); }, false));
-        ['dragleave', 'drop'].forEach(n => tray.addEventListener(n, e => { e.preventDefault(); tray.classList.remove('drag-over'); }, false));
-        tray.addEventListener('drop', e => processFiles(e.dataTransfer.files), false);
+        const overlay = document.getElementById('dropOverlay');
+        let depth = 0;
+        const hasFiles = e => Array.from(e.dataTransfer?.types || []).includes('Files');
+        window.addEventListener('dragenter', e => { if (!hasFiles(e) || document.querySelector('dialog[open]')) return; e.preventDefault(); if (depth++ === 0) overlay.hidden = false; });
+        window.addEventListener('dragover', e => { if (!hasFiles(e) || overlay.hidden) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+        window.addEventListener('dragleave', e => { if (!hasFiles(e) || overlay.hidden) return; if (--depth <= 0) { depth = 0; overlay.hidden = true; } });
+        window.addEventListener('drop', async e => {
+            if (!hasFiles(e)) return;
+            e.preventDefault(); depth = 0; overlay.hidden = true;
+            const { files, folderFailures } = await collectDroppedFiles(e.dataTransfer);
+            if (folderFailures && !files.some(isImageFile)) {
+                toast('瀏覽器不允許直接拖入資料夾（用檔案方式開啟本工具時的限制）。請打開資料夾全選圖片再拖進來，或按「📁 匯入資料夾」。', 'warn');
+                return;
+            }
+            if (folderFailures) toast(`資料夾內有 ${folderFailures} 個檔案瀏覽器不允許讀取，已略過；可改用「📁 匯入資料夾」。`, 'warn');
+            const json = files.find(file => /\.json$/i.test(file.name));
+            if (json) { await loadProjectOrConfigFile(json); return; }
+            if (!files.some(isImageFile)) { toast('拖入的檔案中沒有圖片（支援 PNG、JPG、WebP、GIF、BMP）。', 'warn'); return; }
+            await processFiles(files);
+        });
     }
 
     async function handleFileUpload(e) {
@@ -634,7 +768,23 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         return code >= 32 && !(code >= 127 && code <= 159) && !(code >= 0xd800 && code <= 0xdfff);
     }
 
-    function suggestImportChar(file) {
+    // Shared batch prefix such as "jp_num_01_" (cut back to the last separator).
+    function commonNamePrefix(files) {
+        const stems = Array.from(files || []).map(file => (file.name || '').replace(/\.[^/.]+$/, ''));
+        if (stems.length < 2) return '';
+        let prefix = stems[0];
+        for (const stem of stems.slice(1)) {
+            let i = 0;
+            while (i < prefix.length && i < stem.length && prefix[i] === stem[i]) i++;
+            prefix = prefix.slice(0, i);
+            if (!prefix) return '';
+        }
+        const cut = Math.max(prefix.lastIndexOf('_'), prefix.lastIndexOf('-'), prefix.lastIndexOf(' '));
+        prefix = cut >= 0 ? prefix.slice(0, cut + 1) : '';
+        return stems.every(stem => stem.length > prefix.length) ? prefix : '';
+    }
+
+    function suggestImportChar(file, prefix = '') {
         const char = guessCharFromFileName(file);
         if (char) return { char, reason: '依字元檔名辨識，請核對圖片。' };
         const base = file.name.replace(/\.[^/.]+$/, '');
@@ -642,6 +792,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         if (upper) return { char: upper[1].toUpperCase(), reason: '推測 U 為大寫後綴；請確認，不是圖片文字辨識。' };
         const variant = base.match(/^([a-zA-Z])(?:\d+|_[a-zA-Z0-9]+)$/);
         if (variant) return { char: variant[1], reason: '可能是字形變體；請確認大小寫，重複時改字元或取消勾選。' };
+        if (prefix && base.startsWith(prefix) && base.length > prefix.length) {
+            const rest = base.slice(prefix.length), ext = (file.name.match(/\.[^/.]+$/) || [''])[0];
+            const inner = suggestImportChar({ name: rest + ext });
+            if (inner.char) return { char: inner.char, reason: `去掉共同前綴「${prefix}」後辨識` + (inner.reason.startsWith('依字元') ? '，請核對圖片。' : '；' + inner.reason) };
+        }
+        const tail = base.match(/[_\-\s]([^_\-\s])$/u);
+        if (tail && isValidGlyphChar(tail[1])) return { char: tail[1], reason: '取檔名最後一段的字元，請核對圖片。' };
         return { char: '', reason: '檔名不明，請手動填入一個字元；整個單字圖需指定單一代碼。' };
     }
 
@@ -665,6 +822,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             dialog.setAttribute('aria-label', '確認圖片與字元配對');
             dialog.innerHTML = `<h2>確認圖片 → 字元配對</h2>
                 <div class="import-help">每張圖片對應一個字元，大小寫不同。請核對建議值；取消左側勾選可略過圖片。<br>不明檔名不再取最後一字，重複字元不會自動覆蓋。取消或按 Esc 不會變更現有字形。</div>
+                <div class="import-bulk"><span>批次：</span><button class="btn import-bulk-all" type="button">全選</button><button class="btn import-bulk-none" type="button">全不選</button><button class="btn import-bulk-upper" type="button">英文字母轉大寫</button><button class="btn import-bulk-lower" type="button">英文字母轉小寫</button><button class="btn import-bulk-replace" type="button">全部取代現有字形</button></div>
                 <div class="import-rows"></div><p class="import-summary" role="status"></p>
                 <div class="import-actions"><button class="btn import-cancel">取消</button><button class="btn primary import-confirm">確認匯入</button></div>`;
             const list = dialog.querySelector('.import-rows');
@@ -686,6 +844,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 input.value = row.char;
                 input.disabled = !!row.error;
                 include.onchange = () => { row.include = include.checked; refresh(); };
+                row.sync = () => { include.checked = row.include; input.value = row.char; replace.checked = !!row.replace; };
                 input.oninput = () => { row.char = input.value; row.replace = false; replace.checked = false; refresh(); };
                 replace.onchange = () => { row.replace = replace.checked; refresh(); };
                 list.appendChild(element);
@@ -708,6 +867,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 settled = true;
                 dialog.close(); dialog.remove(); resolve(result);
             }
+            const bulk = (selector, change) => { dialog.querySelector(selector).onclick = () => { rows.forEach(row => { if (!row.error) change(row); row.sync && row.sync(); }); refresh(); }; };
+            bulk('.import-bulk-all', row => { row.include = true; });
+            bulk('.import-bulk-none', row => { row.include = false; });
+            bulk('.import-bulk-upper', row => { if (row.include && /^[a-z]$/.test(row.char)) { row.char = row.char.toUpperCase(); row.replace = false; } });
+            bulk('.import-bulk-lower', row => { if (row.include && /^[A-Z]$/.test(row.char)) { row.char = row.char.toLowerCase(); row.replace = false; } });
+            bulk('.import-bulk-replace', row => { if (row.include && isValidGlyphChar(row.char) && state.glyphs.some(g => g.charCode === row.char.codePointAt(0))) row.replace = true; });
             dialog.querySelector('.import-cancel').onclick = () => finish(null);
             dialog.oncancel = event => { event.preventDefault(); finish(null); };
             confirm.onclick = () => {
@@ -749,8 +914,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         try {
             if (els.importStatus) els.importStatus.textContent = `正在讀取 ${fileList.length} 張圖片，接著確認字元配對...`;
             const rows = [];
+            const prefix = commonNamePrefix(fileList);
             for (const file of fileList) {
-                const suggestion = suggestImportChar(file);
+                const suggestion = suggestImportChar(file, prefix);
                 try {
                     const img = await loadImage(file);
                     rows.push({ file, img, ...suggestion, include: true, replace: false });
@@ -802,7 +968,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 imported++;
 
             }
-            const packed = packAndDraw(); renderPreview();
+            const packed = packAndDraw(); renderPreview(); markChanged();
             if (els.importStatus) {
                 const result = [`新增 ${imported} 張`];
                 if (replaced > 0) result.push(`經確認取代 ${replaced} 張`);
@@ -828,35 +994,32 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     };
 
     function handleConfigLoad(e) {
-        const file = e.target.files[0]; if(!file) return;
-        const reader = new FileReader();
-        reader.onload = (evt) => { 
-            try {
-                const data = JSON.parse(evt.target.result);
-                if (data.config) {
-                    state.config = { ...state.config, ...data.config };
-                    if (data.glyphOffsets) {
-                        state.glyphOffsets = data.glyphOffsets;
-                        state.glyphs.forEach(g => {
-                            if (state.glyphOffsets[g.char]) {
-                                g.customX = state.glyphOffsets[g.char].x || 0; g.customY = state.glyphOffsets[g.char].y || 0;
-                                const xInput = document.getElementById('offx-' + g.id); if(xInput) xInput.value = g.customX;
-                                const yInput = document.getElementById('offy-' + g.id); if(yInput) yInput.value = g.customY;
-                            }
-                        });
+        const file = e.target.files[0]; e.target.value = '';
+        if (file) loadProjectOrConfigFile(file);
+    }
+
+    function applyConfigData(data) {
+        if (data.config) {
+            state.config = { ...state.config, ...data.config };
+            if (data.glyphOffsets) {
+                state.glyphOffsets = data.glyphOffsets;
+                state.glyphs.forEach(g => {
+                    if (state.glyphOffsets[g.char]) {
+                        g.customX = state.glyphOffsets[g.char].x || 0; g.customY = state.glyphOffsets[g.char].y || 0;
+                        const xInput = document.getElementById('offx-' + g.id); if(xInput) xInput.value = g.customX;
+                        const yInput = document.getElementById('offy-' + g.id); if(yInput) yInput.value = g.customY;
                     }
-                    if (data.glyphWidths) {
-                        state.glyphWidths = data.glyphWidths;
-                        state.glyphs.forEach(g => {
-                            g.customAdvance = state.glyphWidths[g.char] || 0;
-                            const wInput = document.getElementById('adv-' + g.id); if(wInput) wInput.value = g.customAdvance || '';
-                        });
-                    }
-                } else { state.config = { ...state.config, ...data }; }
-                updateUIFromState(); packAndDraw(); renderPreview(); 
-            } catch (err) { alert("讀取設定檔失敗，格式不正確。"); }
-        };
-        reader.readAsText(file); e.target.value = '';
+                });
+            }
+            if (data.glyphWidths) {
+                state.glyphWidths = data.glyphWidths;
+                state.glyphs.forEach(g => {
+                    g.customAdvance = state.glyphWidths[g.char] || 0;
+                    const wInput = document.getElementById('adv-' + g.id); if(wInput) wInput.value = g.customAdvance || '';
+                });
+            }
+        } else { state.config = { ...state.config, ...data }; }
+        updateUIFromState(); packAndDraw(); renderPreview();
     }
 
     function updateUIFromState() {
@@ -887,6 +1050,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         // 因此每次字元偏移變動都要先重新 packAndDraw，再重繪所見即所得預覽。
         packAndDraw();
         renderPreview();
+        markChanged();
     }
 
     window.adjustGlyphPos = function(id, axis, delta) {
@@ -906,7 +1070,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         glyph.customAdvance = Math.max(1, Math.round(current + delta));
         state.glyphWidths[glyph.char] = glyph.customAdvance;
         const input = document.getElementById('adv-' + id); if (input) input.value = glyph.customAdvance;
-        packAndDraw(); renderPreview();
+        packAndDraw(); renderPreview(); markChanged();
     };
 
     window.resetGlyphAdvance = function(id) {
@@ -915,7 +1079,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         glyph.customAdvance = 0;
         delete state.glyphWidths[glyph.char];
         const input = document.getElementById('adv-' + id); if (input) input.value = '';
-        packAndDraw(); renderPreview();
+        packAndDraw(); renderPreview(); markChanged();
     };
 
     function addGlyphToTray(glyph) {
@@ -963,7 +1127,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                 glyph.char = newChar; glyph.charCode = newCharCode;
                 glyph.customAdvance = state.glyphWidths[glyph.char] || glyph.customAdvance || 0;
                 const wInput = document.getElementById('adv-' + glyph.id); if(wInput) wInput.value = glyph.customAdvance || '';
-                packAndDraw(); renderPreview();
+                packAndDraw(); renderPreview(); markChanged();
             }
         });
         div.querySelector('.glyph-x-off').addEventListener('input', e => { glyph.customX = parseInt(e.target.value) || 0; refreshGlyphOffsetPreview(glyph); });
@@ -973,12 +1137,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             glyph.customAdvance = (!isNaN(v) && v > 0) ? v : 0;
             if (glyph.customAdvance > 0) state.glyphWidths[glyph.char] = glyph.customAdvance;
             else delete state.glyphWidths[glyph.char];
-            packAndDraw(); renderPreview();
+            packAndDraw(); renderPreview(); markChanged();
         });
         els.glyphTray.appendChild(div);
     }
-    window.removeGlyph = function(id) { state.glyphs = state.glyphs.filter(g => g.id != id); document.getElementById('g-'+id)?.remove(); packAndDraw(); renderPreview(); };
-    window.clearAll = function() { state.glyphs = []; els.glyphTray.innerHTML = '<div class="drag-hint">放開滑鼠以加入圖片</div>'; packAndDraw(); renderPreview(); };
+    window.removeGlyph = function(id) { state.glyphs = state.glyphs.filter(g => g.id != id); document.getElementById('g-'+id)?.remove(); packAndDraw(); renderPreview(); markChanged(); };
+    window.clearAll = function() {
+        if (!state.glyphs.length) return;
+        state.glyphs = []; els.glyphTray.innerHTML = ''; packAndDraw(); renderPreview(); markChanged();
+        toast('已清空全部字元；按 Ctrl+Z 可復原。');
+    };
 
     function calculateRawTrim(img) {
         const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
@@ -1272,9 +1440,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     }
 
     function renderPreview() {
+        updateChecks();
         const ctx = els.previewCtx; const cvs = els.previewCanvas;
         if (state.packError) { ctx.clearRect(0, 0, cvs.width, cvs.height); return; }
         const text = state.config.previewText || ""; 
+        const lines = [text].concat(state.config.simMulti ? String(state.config.simExtraLines || '').split('|').map(line => line.trim()).filter(Boolean) : []);
         const scale = parseFloat(state.config.exportScale) || 1.0; 
         const lh = getMetricLineHeight(scale);
         const extraSpace = parseInt(state.config.simSpacing) || 0; 
@@ -1283,76 +1453,109 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         const bgScale = parseFloat(state.config.simBgScale) || 1.0;
         const bgOpacity = parseFloat(state.config.simBgOpacity) || 0.6;
         const missingGapW = Math.round(30 * scale); 
+        const glyphFor = char => state.glyphs.find(gl => gl.char === char);
 
-        let totalW = 0;
-        for(let char of text) {
-            const g = state.glyphs.find(gl => gl.char === char);
-            if (g && !g.computedTrim.empty) totalW += g.exW + extraSpace; 
-            else if (showMissing) totalW += missingGapW + extraSpace; 
+        const widthOf = line => {
+            let total = 0;
+            for (let char of line) {
+                const g = glyphFor(char);
+                if (g && !g.computedTrim.empty) total += g.exW + extraSpace;
+                else if (showMissing) total += missingGapW + extraSpace;
+            }
+            if (line.length > 0 && total > 0) total -= extraSpace;
+            return total;
+        };
+        const widths = lines.map(widthOf), maxW = Math.max(0, ...widths);
+        const rowH = Math.max(lh, getExportFontSize(scale)) * (lines.length > 1 ? 1.2 : 1.5);
+        // Multi-row comparison: choose the column count that fits the preview best.
+        let columns = 1;
+        if (lines.length > 1) {
+            const wrapW = Math.max(200, els.simContentWrapper.clientWidth - 16), wrapH = Math.max(80, els.simContentWrapper.clientHeight - 16);
+            const cellW = maxW + 120; let best = 0;
+            for (let c = 1; c <= lines.length; c++) {
+                const fit = Math.min(wrapW / (c * cellW), wrapH / (Math.ceil(lines.length / c) * rowH));
+                if (fit > best + 1e-6) { best = fit; columns = c; }
+            }
         }
-        if (text.length > 0 && totalW > 0) totalW -= extraSpace; 
+        const cellW = maxW + 120, gridRows = Math.ceil(lines.length / columns);
 
         let bgW = state.simBgImage ? state.simBgImage.width * bgScale : 0;
         let bgH = state.simBgImage ? state.simBgImage.height * bgScale : 0;
         
-        cvs.width = Math.max(800, totalW + 200, bgW); 
-        cvs.height = Math.max(lh * 3, 300, bgH);
+        cvs.width = lines.length > 1 ? Math.max(columns * cellW, bgW) : Math.max(800, maxW + 200, bgW);
+        cvs.height = lines.length > 1 ? Math.max(gridRows * rowH, bgH) : Math.max(lh * 3, 300, bgH);
         ctx.clearRect(0, 0, cvs.width, cvs.height);
 
-        const cx = cvs.width / 2; const cy = cvs.height / 2;
-
+        const centerX = cvs.width / 2;
         if (state.simBgImage) {
             ctx.globalAlpha = bgOpacity; 
-            ctx.drawImage(state.simBgImage, cx - bgW/2 + state.config.simBgPanX, cy - bgH/2 + state.config.simBgPanY, bgW, bgH);
+            ctx.drawImage(state.simBgImage, centerX - bgW/2 + state.config.simBgPanX, cvs.height / 2 - bgH/2 + state.config.simBgPanY, bgW, bgH);
             ctx.globalAlpha = 1.0;
         }
 
-        const baselineY = cy - lh / 2; const startX = cx - totalW / 2;
-        
-        ctx.fillStyle = "rgba(55, 148, 255, 0.1)"; ctx.strokeStyle = "#3794ff"; ctx.lineWidth = 1;
-        ctx.fillRect(startX, baselineY, totalW, lh); ctx.strokeRect(startX, baselineY, totalW, lh);
-        ctx.beginPath(); ctx.moveTo(startX, baselineY + lh/2); ctx.lineTo(startX + totalW, baselineY + lh/2); ctx.strokeStyle = "#ff4d4f"; ctx.stroke();
-
-        let cursorX = startX;
-        for (let char of text) {
-            const g = state.glyphs.find(gl => gl.char === char);
-            
-            if (!g || g.computedTrim.empty) {
-                if (showMissing) {
-                    ctx.strokeStyle = "rgba(255, 77, 79, 0.5)"; ctx.setLineDash([4, 4]);
-                    ctx.strokeRect(cursorX, baselineY, missingGapW, lh); ctx.setLineDash([]); 
-                    ctx.fillStyle = "rgba(255, 77, 79, 0.5)"; ctx.font = `bold ${Math.round(16 * scale)}px sans-serif`;
-                    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                    ctx.fillText("?", cursorX + missingGapW/2, baselineY + lh/2);
-                    cursorX += missingGapW + extraSpace; 
-                }
-                continue; 
+        const rows = lines.length;
+        lines.forEach((line, row) => {
+            const col = row % columns, gridRow = Math.floor(row / columns);
+            const cx = lines.length > 1 ? (cvs.width - columns * cellW) / 2 + cellW * (col + 0.5) : centerX;
+            const cy = lines.length > 1 ? (cvs.height - gridRows * rowH) / 2 + rowH * (gridRow + 0.5) : cvs.height / 2;
+            const totalW = widths[row];
+            const baselineY = cy - lh / 2; const startX = cx - totalW / 2;
+            ctx.fillStyle = "rgba(55, 148, 255, 0.1)"; ctx.strokeStyle = "#3794ff"; ctx.lineWidth = 1;
+            ctx.fillRect(startX, baselineY, totalW, lh); ctx.strokeRect(startX, baselineY, totalW, lh);
+            ctx.beginPath(); ctx.moveTo(startX, baselineY + lh/2); ctx.lineTo(startX + totalW, baselineY + lh/2); ctx.strokeStyle = "#ff4d4f"; ctx.stroke();
+            if (lines.length > 1) {
+                ctx.fillStyle = '#777'; ctx.font = '11px monospace'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+                ctx.fillText(Math.round(totalW) + 'px', startX - 6, cy);
             }
-
-            // Preview CENTER in atlas units, using the same em origin as Cocos.
-            const drawOriginY = state.config.cocosBaselineFix ? cy - getExportFontSize(scale) / 2 : baselineY;
-            const drawY = drawOriginY + getExportYOffset(g, lh, scale);
-            ctx.drawImage(g.img, g.computedTrim.x, g.computedTrim.y, g.computedTrim.w, g.computedTrim.h, cursorX + g.exOffX + g.exDrawInsetX, drawY, g.exVisualW, g.exDrawH);
-            
-            ctx.strokeStyle = "rgba(0, 255, 0, 0.3)"; ctx.strokeRect(cursorX + g.exOffX, drawY, g.exDrawW, g.exDrawH); 
-            cursorX += g.exW + extraSpace; 
-        }
+            let cursorX = startX;
+            for (let char of line) {
+                const g = glyphFor(char);
+                if (!g || g.computedTrim.empty) {
+                    if (showMissing) {
+                        ctx.strokeStyle = "rgba(255, 77, 79, 0.5)"; ctx.setLineDash([4, 4]);
+                        ctx.strokeRect(cursorX, baselineY, missingGapW, lh); ctx.setLineDash([]);
+                        ctx.fillStyle = "rgba(255, 77, 79, 0.5)"; ctx.font = `bold ${Math.round(16 * scale)}px sans-serif`;
+                        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                        ctx.fillText("?", cursorX + missingGapW/2, baselineY + lh/2);
+                        cursorX += missingGapW + extraSpace;
+                    }
+                    continue;
+                }
+                // Preview CENTER in atlas units, using the same em origin as Cocos.
+                const drawOriginY = state.config.cocosBaselineFix ? cy - getExportFontSize(scale) / 2 : baselineY;
+                const drawY = drawOriginY + getExportYOffset(g, lh, scale);
+                ctx.drawImage(g.img, g.computedTrim.x, g.computedTrim.y, g.computedTrim.w, g.computedTrim.h, cursorX + g.exOffX + g.exDrawInsetX, drawY, g.exVisualW, g.exDrawH);
+                ctx.strokeStyle = "rgba(0, 255, 0, 0.3)"; ctx.strokeRect(cursorX + g.exOffX, drawY, g.exDrawW, g.exDrawH);
+                cursorX += g.exW + extraSpace;
+            }
+        });
+        applySimZoom();
     }
 
-    async function exportZip() {
-        if(!state.glyphs.length) { alert("無資料"); return; }
-        if (!packAndDraw()) { alert(state.packError); return; }
-        if (typeof JSZip === 'undefined') { alert('ZIP 元件初始化失敗，請重新下載完整的 makefont.html，並用 Chrome／Edge 開啟。'); return; }
+    function exportFileName() { return (state.config.fontName || '').trim().replace(/[^a-zA-Z0-9_\-]/g, '_') || 'myFont'; }
+
+    // Common characters a score font usually needs; shown live and on export.
+    function missingCommonChars() {
+        const have = new Set(state.glyphs.filter(g => !g.computedTrim || !g.computedTrim.empty).map(g => g.char));
+        const digits = '0123456789'.split('').filter(ch => !have.has(ch));
+        const punctuation = [',', '.'].filter(ch => !have.has(ch));
+        return { digits, punctuation };
+    }
+
+    function validateBeforeExport() {
+        if (!state.glyphs.length) throw new Error('還沒有字圖，請先匯入圖片。');
+        if (!packAndDraw()) throw new Error(state.packError);
+        if (typeof JSZip === 'undefined') throw new Error('ZIP 元件初始化失敗，請重新下載完整的 makefont.html，並用 Chrome／Edge 開啟。');
         const duplicateChars = getDuplicateCharCodes();
-        if (duplicateChars.length > 0) {
-            alert(`無法匯出：重複字元 ${duplicateChars.map(ch => `「${ch}」`).join('、')}。請移除重複項目。`);
-            return;
-        }
+        if (duplicateChars.length > 0) throw new Error(`無法匯出：重複字元 ${duplicateChars.map(ch => `「${ch}」`).join('、')}。請移除重複項目。`);
+    }
+
+    // Builds one PNG + FNT pair at the current exportScale (atlas must be packed).
+    async function buildFontFiles() {
         const c = state.config; const scale = parseFloat(c.exportScale) || 1.0; 
         const scaledFontSize = getExportFontSize(scale);
-        const scaledLineHeight = Math.max(1, Math.round(c.lineHeight * scale)); 
         const metricLineHeight = getMetricLineHeight(scale);
-        const finalName = c.fontName.trim().replace(/[^a-zA-Z0-9_\-]/g, '_');
+        const finalName = exportFileName();
         const w = els.mainCanvas.width; const h = els.mainCanvas.height; 
         
         // Keep base within common.lineHeight for other BMFont consumers.
@@ -1375,16 +1578,271 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         validGlyphs.forEach(g => {
             fnt += `char id=${g.charCode} x=${g.rect.x} y=${g.rect.y} width=${g.exDrawW} height=${g.exDrawH} xoffset=${g.exOffX} yoffset=${getExportYOffset(g, metricLineHeight, scale)} xadvance=${g.exW} page=0 chnl=15\n`;
         });
-
-        const zip = new JSZip(); zip.file(`${finalName}.fnt`, fnt);
-        const pngBlob = await new Promise(r => els.mainCanvas.toBlob(r)); zip.file(`${finalName}.png`, pngBlob);
+        const pngBlob = await new Promise(r => els.mainCanvas.toBlob(r));
         if (!pngBlob) throw new Error('PNG 編碼失敗，請縮小圖集。');
-        const content = await zip.generateAsync({type:"blob"});
-        const a = document.createElement('a'); a.href = URL.createObjectURL(content); a.download = `${finalName}.zip`; a.click();
+        return { finalName, fnt, pngBlob, width: w, height: h };
+    }
+
+    function downloadBlob(blob, name) {
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     }
 
+    function warnMissing() {
+        const missing = missingCommonChars(), parts = [];
+        if (missing.digits.length) parts.push('數字 ' + missing.digits.join(' '));
+        if (missing.punctuation.length) parts.push('標點 ' + missing.punctuation.join(' '));
+        if (parts.length) toast('提醒：目前缺少 ' + parts.join('、') + '，已照常匯出。', 'warn');
+    }
+
+    async function exportZip() {
+        try { validateBeforeExport(); } catch (error) { toast(error.message, 'error'); return; }
+        const files = await buildFontFiles();
+        const zip = new JSZip(); zip.file(`${files.finalName}.fnt`, files.fnt); zip.file(`${files.finalName}.png`, files.pngBlob);
+        const content = await zip.generateAsync({type:"blob"});
+        downloadBlob(content, `${files.finalName}.zip`);
+        warnMissing();
+        toast(`已匯出 ${files.finalName}.zip（${files.width}×${files.height}）。`, 'ok');
+    }
+
+    function parseBatchScales(text) {
+        const values = String(text || '').split(/[\s,，、;；]+/).filter(Boolean).map(Number);
+        if (!values.length || values.some(v => !Number.isFinite(v) || v <= 0 || v > 5)) throw new Error('批次比例請輸入 0–5 之間的數字，以逗號分隔，例如 1, 0.75, 0.67。');
+        return [...new Set(values)];
+    }
+    function scaleLabel(value) { return 'x' + String(Number(value.toFixed(3))); }
+
+    // One ZIP, one sub-folder per scale; each folder holds a matching PNG + FNT.
+    async function exportBatchZip() {
+        const scales = parseBatchScales(state.config.batchScales);
+        try { validateBeforeExport(); } catch (error) { toast(error.message, 'error'); return; }
+        const original = state.config.exportScale, zip = new JSZip(), done = [];
+        try {
+            for (const value of scales) {
+                state.config.exportScale = value;
+                if (!packAndDraw()) throw new Error(`比例 ${value}：${state.packError}`);
+                const files = await buildFontFiles();
+                const folder = zip.folder(`${files.finalName}_${scaleLabel(value)}`);
+                folder.file(`${files.finalName}.fnt`, files.fnt); folder.file(`${files.finalName}.png`, files.pngBlob);
+                done.push(`${scaleLabel(value)} ${files.width}×${files.height}`);
+            }
+        } finally { state.config.exportScale = original; packAndDraw(); renderPreview(); }
+        const content = await zip.generateAsync({type:"blob"});
+        downloadBlob(content, `${exportFileName()}_批次${scales.length}種比例.zip`);
+        warnMissing();
+        toast('已匯出 ' + done.length + ' 種比例：' + done.join('、'), 'ok');
+    }
+
+    // ---- Toasts (non-blocking messages) ----
+    function toast(message, type = 'info') {
+        const host = document.getElementById('toastHost'); if (!host) return;
+        const item = document.createElement('div'); item.className = 'toast ' + type; item.textContent = message;
+        item.addEventListener('click', () => item.remove());
+        host.appendChild(item);
+        setTimeout(() => item.classList.add('leaving'), type === 'error' ? 7000 : 4200);
+        setTimeout(() => item.remove(), type === 'error' ? 7400 : 4600);
+        if (els.importStatus && type === 'error') els.importStatus.textContent = message;
+    }
+
+    function updateNameHint() {
+        const hint = document.getElementById('fontNameHint'); if (!hint) return;
+        const raw = (state.config.fontName || '').trim(), name = exportFileName();
+        hint.textContent = `輸出：${name}.fnt／${name}.png`;
+        hint.classList.toggle('warn', raw !== name);
+        if (raw !== name) hint.textContent += '（只能用英數、底線、減號，其餘已轉成 _）';
+    }
+
+    function updateChecks() {
+        const box = document.getElementById('charCheck'); if (!box) return;
+        if (!state.glyphs.length) { box.textContent = '尚未匯入字圖'; box.className = 'char-check'; return; }
+        const missing = missingCommonChars(), parts = [];
+        if (missing.digits.length) parts.push('缺數字 ' + missing.digits.join(' '));
+        if (missing.punctuation.length) parts.push('缺 ' + missing.punctuation.map(ch => ch === ',' ? '逗號 ,' : '小數點 .').join('、'));
+        box.textContent = parts.length ? parts.join('；') : '✓ 0–9、逗號、小數點都有';
+        box.className = 'char-check ' + (missing.digits.length ? 'bad' : parts.length ? 'warn' : 'good');
+    }
+
+    // ---- Project file (settings + glyph images) and autosave ----
+    const PROJECT_FORMAT = 'makefont-project';
+    function serializeProject() {
+        return {
+            format: PROJECT_FORMAT, version: 1, tool: TOOL_VERSION, savedAt: new Date().toISOString(),
+            config: { ...state.config }, glyphOffsets: state.glyphOffsets, glyphWidths: state.glyphWidths,
+            glyphs: state.glyphs.map(g => ({ char: g.char, sourceName: g.sourceName || '', dataUrl: g.img.src,
+                customX: g.customX || 0, customY: g.customY || 0, customAdvance: g.customAdvance || 0 }))
+        };
+    }
+    function imageFromDataUrl(src) {
+        return new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = () => reject(new Error('專案內的字圖無法解碼。')); i.src = src; });
+    }
+    async function restoreProject(data, { silent = false } = {}) {
+        if (!data || data.format !== PROJECT_FORMAT || !Array.isArray(data.glyphs)) throw new Error('不是數字包圖工具的專案檔。');
+        const glyphs = [];
+        for (const item of data.glyphs) {
+            if (typeof item.char !== 'string' || !isValidGlyphChar(item.char) || typeof item.dataUrl !== 'string' || !item.dataUrl.startsWith('data:image/')) continue;
+            const img = await imageFromDataUrl(item.dataUrl);
+            glyphs.push({ id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, img, char: item.char, charCode: item.char.codePointAt(0),
+                sourceName: item.sourceName || '', width: img.width, height: img.height, rawTrim: { x:0, y:0, w:img.width, h:img.height },
+                customX: Number(item.customX) || 0, customY: Number(item.customY) || 0, customAdvance: Number(item.customAdvance) || 0 });
+        }
+        state.config = { ...state.config, ...(data.config || {}) };
+        state.glyphOffsets = data.glyphOffsets || {}; state.glyphWidths = data.glyphWidths || {};
+        state.glyphs = glyphs; rebuildTray(); updateUIFromState(); packAndDraw(); renderPreview(); syncPresetSelect(); updateNameHint();
+        if (!silent) toast(`已開啟專案：${glyphs.length} 個字元。`, 'ok');
+        return glyphs.length;
+    }
+    window.saveProject = function() {
+        const blob = new Blob([JSON.stringify(serializeProject())], { type: 'application/json' });
+        downloadBlob(blob, `${exportFileName()}.makefont.json`);
+        toast('已下載專案檔（含字圖與所有微調），之後用「開啟」或拖進視窗即可完整還原。', 'ok');
+    };
+    async function loadProjectOrConfigFile(file) {
+        try {
+            const data = JSON.parse(await file.text());
+            if (data && data.format === PROJECT_FORMAT) { await restoreProject(data); }
+            else { applyConfigData(data); toast('已讀取設定（舊版設定檔不含字圖）。', 'ok'); }
+            commitHistory(true); scheduleAutosave();
+        } catch (error) { toast('無法讀取「' + file.name + '」：' + (error.message || '格式不正確'), 'error'); }
+    }
+
+    const AUTOSAVE_DB = 'makefont-autosave', AUTOSAVE_STORE = 'kv';
+    let autosaveTimer = null, autosaveReady = false;
+    function openAutosaveDb() {
+        return new Promise((resolve, reject) => {
+            if (!window.indexedDB) { reject(new Error('IndexedDB 不可用')); return; }
+            const request = indexedDB.open(AUTOSAVE_DB, 1);
+            request.onupgradeneeded = () => request.result.createObjectStore(AUTOSAVE_STORE);
+            request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+        });
+    }
+    async function autosaveWrite(value) {
+        const db = await openAutosaveDb();
+        await new Promise((resolve, reject) => { const tx = db.transaction(AUTOSAVE_STORE, 'readwrite'); tx.objectStore(AUTOSAVE_STORE).put(value, 'current'); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
+        db.close();
+    }
+    async function autosaveRead() {
+        const db = await openAutosaveDb();
+        const value = await new Promise((resolve, reject) => { const tx = db.transaction(AUTOSAVE_STORE, 'readonly'); const r = tx.objectStore(AUTOSAVE_STORE).get('current'); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
+        db.close(); return value;
+    }
+    function scheduleAutosave() {
+        if (!autosaveReady) return;
+        clearTimeout(autosaveTimer);
+        autosaveTimer = setTimeout(async () => {
+            try { await autosaveWrite(serializeProject()); setSaveStatus('已自動保存'); }
+            catch (_) { setSaveStatus('自動保存不可用，請用「儲存專案」'); }
+        }, 800);
+    }
+    function setSaveStatus(text) { const el = document.getElementById('saveStatus'); if (el) el.textContent = text; }
+    async function restoreAutosave() {
+        try {
+            const saved = await autosaveRead();
+            if (saved && saved.format === PROJECT_FORMAT && saved.glyphs && saved.glyphs.length && !state.glyphs.length) {
+                const count = await restoreProject(saved, { silent: true });
+                toast(`已恢復上次的工作（${count} 個字元）。不需要時按「清空全部」。`, 'ok');
+            }
+        } catch (_) { /* first run or storage blocked */ }
+        autosaveReady = true; commitHistory(true);
+    }
+
+    // ---- Undo / redo (snapshots of settings and glyph list) ----
+    const history = { stack: [], index: -1, timer: null, restoring: false };
+    function snapshot() {
+        return { config: JSON.parse(JSON.stringify(state.config)), glyphOffsets: JSON.parse(JSON.stringify(state.glyphOffsets)), glyphWidths: JSON.parse(JSON.stringify(state.glyphWidths)),
+            glyphs: state.glyphs.map(g => ({ id: g.id, img: g.img, char: g.char, charCode: g.charCode, sourceName: g.sourceName, width: g.width, height: g.height,
+                rawTrim: g.rawTrim, trimSource: g.trimSource, customX: g.customX || 0, customY: g.customY || 0, customAdvance: g.customAdvance || 0 })) };
+    }
+    function snapshotKey(snap) {
+        return JSON.stringify([snap.config, snap.glyphOffsets, snap.glyphWidths, snap.glyphs.map(g => [g.id, g.char, g.customX, g.customY, g.customAdvance, g.img && g.img.src.length, g.img && g.img.src.slice(-40)])]);
+    }
+    function commitHistory(immediate) {
+        if (history.restoring) return;
+        clearTimeout(history.timer);
+        const push = () => {
+            const snap = snapshot(), key = snapshotKey(snap);
+            if (history.index >= 0 && history.stack[history.index].key === key) return;
+            history.stack = history.stack.slice(0, history.index + 1); history.stack.push({ snap, key });
+            if (history.stack.length > 80) history.stack.shift();
+            history.index = history.stack.length - 1; updateHistoryButtons();
+        };
+        if (immediate) push(); else history.timer = setTimeout(push, 350);
+    }
+    function markChanged() { commitHistory(false); scheduleAutosave(); syncPresetSelect(); }
+    function restoreSnapshot(snap) {
+        history.restoring = true;
+        try {
+            state.config = JSON.parse(JSON.stringify(snap.config));
+            state.glyphOffsets = JSON.parse(JSON.stringify(snap.glyphOffsets)); state.glyphWidths = JSON.parse(JSON.stringify(snap.glyphWidths));
+            state.glyphs = snap.glyphs.map(g => ({ ...g }));
+            rebuildTray(); updateUIFromState(); packAndDraw(); renderPreview(); syncPresetSelect(); updateNameHint();
+        } finally { history.restoring = false; }
+        updateHistoryButtons(); scheduleAutosave();
+    }
+    window.undo = function() {
+        clearTimeout(history.timer); commitHistory(true);
+        if (history.index <= 0) { toast('沒有可以復原的步驟。'); return; }
+        history.index--; restoreSnapshot(history.stack[history.index].snap);
+    };
+    window.redo = function() {
+        if (history.index >= history.stack.length - 1) { toast('沒有可以重做的步驟。'); return; }
+        history.index++; restoreSnapshot(history.stack[history.index].snap);
+    };
+    function updateHistoryButtons() {
+        const u = document.getElementById('undoBtn'), r = document.getElementById('redoBtn');
+        if (u) u.disabled = history.index <= 0; if (r) r.disabled = history.index >= history.stack.length - 1;
+    }
+    function rebuildTray() { els.glyphTray.innerHTML = ''; state.glyphs.forEach(addGlyphToTray); }
+
+    function initShortcuts() {
+        document.addEventListener('keydown', e => {
+            if (document.querySelector('dialog[open]')) return;
+            const ctrl = e.ctrlKey || e.metaKey; if (!ctrl || e.altKey) return;
+            const key = e.key.toLowerCase();
+            const typing = e.target.closest && e.target.closest('input[type=text], input[type=number], textarea');
+            if (key === 's') { e.preventDefault(); saveProject(); }
+            else if (key === 'o') { e.preventDefault(); document.getElementById('configInput').click(); }
+            else if (key === 'e') { e.preventDefault(); (e.shiftKey ? exportBatchZip() : exportZip()).catch(error => toast(error.message, 'error')); }
+            else if ((key === 'z' || key === 'y') && !typing) { e.preventDefault(); if (key === 'y' || e.shiftKey) redo(); else undo(); }
+        });
+    }
+
+    // ---- Presets ----
+    const PRESETS = {
+        classic: { label: '一般（工具原始預設）', values: { trim: true, keepYBounds: false, unifiedTop: true, monospaceNum: false, cocosFixedDigitCell: true, opticalFitNum: true, fixPunctuation: false,
+            autoSafeLineHeight: true, groupCenter: true, lockInfoSize: true, cocosBaselineFix: true, cocosKeepLineHeight: true } },
+        cocosScore: { label: 'Cocos 滾分數字（建議）', values: { trim: true, keepYBounds: false, unifiedTop: true, monospaceNum: true, cocosFixedDigitCell: true, opticalFitNum: true, fixPunctuation: false,
+            autoSafeLineHeight: true, groupCenter: true, lockInfoSize: true, cocosBaselineFix: true, cocosKeepLineHeight: true } },
+        cocosLabel: { label: 'Cocos 一般文字 Label', values: { trim: true, keepYBounds: false, unifiedTop: true, monospaceNum: false, cocosFixedDigitCell: false, opticalFitNum: false, fixPunctuation: false,
+            autoSafeLineHeight: true, groupCenter: true, lockInfoSize: true, cocosBaselineFix: true, cocosKeepLineHeight: true } },
+        unity: { label: 'Unity（保留原圖高度）', values: { trim: true, keepYBounds: true, unifiedTop: true, monospaceNum: true, cocosFixedDigitCell: false, opticalFitNum: false, fixPunctuation: false,
+            autoSafeLineHeight: true, groupCenter: true, lockInfoSize: true, cocosBaselineFix: false, cocosKeepLineHeight: false } }
+    };
+    function detectPreset() {
+        return Object.keys(PRESETS).find(id => Object.entries(PRESETS[id].values).every(([key, value]) => state.config[key] === value)) || 'custom';
+    }
+    function syncPresetSelect() { const select = document.getElementById('presetSelect'); if (select) select.value = detectPreset(); }
+    function initPresets() {
+        const select = document.getElementById('presetSelect');
+        select.innerHTML = Object.entries(PRESETS).map(([id, p]) => `<option value="${id}">${p.label}</option>`).join('') + '<option value="custom" disabled>自訂（已手動調整）</option>';
+        select.addEventListener('change', () => {
+            const preset = PRESETS[select.value]; if (!preset) return;
+            Object.assign(state.config, preset.values); updateUIFromState(); packAndDraw(); renderPreview(); markChanged();
+            toast('已套用「' + preset.label + '」。進階設定仍可個別調整。', 'ok');
+        });
+        syncPresetSelect();
+    }
+    function initGroups() {
+        let open = {};
+        try { open = JSON.parse(localStorage.getItem('makefont-open-groups') || '{}'); } catch (_) { open = {}; }
+        document.querySelectorAll('details.settings-group').forEach(group => {
+            const key = group.dataset.group; if (key in open) group.open = !!open[key];
+            group.addEventListener('toggle', () => { open[key] = group.open; try { localStorage.setItem('makefont-open-groups', JSON.stringify(open)); } catch (_) {} });
+        });
+    }
+
     init();
+    if (window.ResizeObserver) new ResizeObserver(() => applySimZoom()).observe(els.simContentWrapper);
+    initShortcuts(); initPresets(); initGroups(); updateNameHint(); updateChecks(); restoreAutosave();
 </script>
 
 </body>

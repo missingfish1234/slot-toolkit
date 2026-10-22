@@ -252,7 +252,7 @@
     return {
       enabled: boolean(raw, 'enabled', true, label + '連續圖啟用'),
       fps: number(raw, 'fps', 12, 1, 120, true, label + '連續圖 FPS'),
-      mode: enumValue(raw, 'mode', 'loop', ['loop', 'once'], label + '連續圖播放模式'),
+      mode: enumValue(raw, 'mode', 'loop', ['loop', 'once', 'random'], label + '連續圖播放模式'),
       frames: raw.frames.map((frame, index) => {
         const normalized = image(frame, label + '連續圖第 ' + (index + 1) + ' 張');
         if (!normalized) fail(label + '連續圖不能包含空白素材。');
@@ -318,7 +318,9 @@
 
   // Attachment events use the same microsecond grid as births and deaths.
   // A boundary rounded down by half a microsecond still selects its new frame.
-  function sequenceFrame(sequence, age) {
+  // 'random' gives each particle one image for its whole life (chosen at bake).
+  function sequenceFrame(sequence, age, particle) {
+    if (sequence.mode === 'random') return particle && particle.randomFrame !== undefined ? particle.randomFrame : 0;
     const frame = Math.floor((Math.max(0, age) + 0.0000005 + EPS) * sequence.fps);
     return sequence.mode === 'once' ? Math.min(sequence.frames.length - 1, frame) : frame % sequence.frames.length;
   }
@@ -684,6 +686,9 @@
       if (e.path && e.path.enabled) lifecycle.path = PathMath.compile(e.path);
       const sequence = activeSequence(e);
       if (sequence) lifecycle.sequenceMaxDimension = Math.max(...sequence.frames.map(frame => Math.max(frame.width, frame.height)));
+      // A separate stream: switching to random images never reshuffles motion.
+      const frameRand = sequence && sequence.mode === 'random' && sequence.frames.length > 1
+        ? random(e.randomSeed === undefined ? (project.seed ^ seedHash(e.id + ':random-frame')) >>> 0 : (e.randomSeed ^ seedHash('random-frame')) >>> 0) : null;
       let index = 0, clipped = false;
       for (let sourceIndex = 0; sourceIndex < e.count; sourceIndex++) {
         // Use the same microsecond grid as JSON keys so birth/death attachment events
@@ -718,6 +723,7 @@
           sx = -Math.sin(e.angle * DEG) * distance; sy = Math.cos(e.angle * DEG) * distance;
         }
         const angle = emissionAngle(e, sx, sy, angleDraw, sampledNormal);
+        const randomFrame = frameRand ? Math.min(sequence.frames.length - 1, Math.floor(frameRand() * sequence.frames.length)) : undefined;
         const delay = Math.min(e.startDelay || 0, project.duration);
         const birth = round(delay + sourceIndex / e.count * Math.min(e.emissionDuration, project.duration - delay));
         clipped = clipped || (birth + life > project.duration);
@@ -729,7 +735,8 @@
           particles.push({emitterId: e.id, index: index++, sourceIndex, cycleIndex,
             birth, life, size, spin, sx, sy, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
             ax: e.wind, ay: -e.gravity,
-            direction: angle / DEG, emitter: e, lifecycle, startColor: rgb(e.colorStart), endColor: rgb(e.colorEnd)});
+            direction: angle / DEG, emitter: e, lifecycle, startColor: rgb(e.colorStart), endColor: rgb(e.colorEnd),
+            ...(randomFrame === undefined ? {} : {randomFrame})});
         }
         if (particles.length > MAX_POOL) fail('循環粒子池超過 ' + MAX_POOL + ' 個。請減少粒子數、縮短壽命，或增加動畫長度。');
       }
@@ -963,7 +970,7 @@
     const sizeU = curveProgress(e.sizeCurve, evaluatedAge, particle.life), alphaU = curveProgress(e.alphaCurve, evaluatedAge, particle.life);
     const scaleCurve = particle.lifecycle.sizeLinear ? evalCurve(e.sizeCurve, sizeU) : particle.lifecycle.size.sample(sizeU);
     const sequence = activeSequence(e);
-    const frameIndex = sequence ? sequenceFrame(sequence, evaluatedAge) : undefined;
+    const frameIndex = sequence ? sequenceFrame(sequence, evaluatedAge, particle) : undefined;
     const frameImage = sequence ? sequence.frames[frameIndex] : e.image;
     const maxDimension = sequence ? particle.lifecycle.sequenceMaxDimension : e.image ? Math.max(e.image.width, e.image.height) : 64;
     const scale = particle.size / maxDimension * scaleCurve;
@@ -1007,7 +1014,7 @@
   // animation cycles. Frame boundaries follow age, never the export FPS grid.
   function sequenceBoundaryRange(baked, particle) {
     const sequence = activeSequence(particle.emitter);
-    if (!sequence || sequence.frames.length < 2) return {first: 1, last: 0};
+    if (!sequence || sequence.frames.length < 2 || sequence.mode === 'random') return {first: 1, last: 0};
     const low = Math.max(0, baked.loop ? particle.cycleIndex * baked.duration : -particle.birth);
     const high = Math.min(particle.life, baked.loop ? (particle.cycleIndex + 1) * baked.duration : baked.duration - particle.birth);
     const first = Math.max(1, Math.ceil(low * sequence.fps - EPS));

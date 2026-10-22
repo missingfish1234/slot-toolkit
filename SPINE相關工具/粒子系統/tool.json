@@ -2,8 +2,8 @@
   "id": "spine-particle-studio",
   "name": "SPINE 粒子系統（Particle Studio）",
   "category": "SPINE相關工具",
-  "description": "離線編排粒子效果，輸出 Spine 3.8／4.0／4.2 動畫與圖片；支援 In／Loop／Out、既有骨架掛接、每層開始時間與批次輸出多版本／配色。",
-  "version": "1.25.0",
+  "description": "離線編排粒子效果，輸出 Spine 3.8／4.0／4.2 動畫與圖片；支援 RESET 新專案、多圖隨機粒子、既有骨架掛接與批次輸出。",
+  "version": "1.26.0",
   "path": "SPINE相關工具/粒子系統",
   "entry": "dist/Particle-Studio.html",
   "icon": "",
@@ -15,7 +15,9 @@
     "離線網頁工具"
   ],
   "updatedAt": "2026-10-22",
+  "size": "",
   "changelog": [
+    "v1.26.0：新增 RESET／新專案，可先儲存再重設整體介面並立即保存新草稿；支援多圖隨機粒子，每顆粒子出生時隨機挑一張圖片。",
     "v1.25.0：輸出自動烘焙、拖放載入、快捷鍵、圖層單獨顯示、每層開始時間、效果庫合併、批次輸出、參數區塊收合。",
     "v1.24.0：尺寸曲線可分別調整 X／Y。",
     "v1.23.0：沿路徑方向轉向。",
@@ -24,7 +26,11 @@
   ],
   "documentation": "使用指南.md",
   "kind": "網頁工具",
-  "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/2b906828a076e3d012d3bc57d3165cbe63c137aa/releases/tool-spine-particle-studio-1.25.0.zip",
-  "sha256": "0b2a8452345075f0327ab0cf37fa9475342ccd765c28dc0a660227f77ccd2b1c",
-  "size": "2.6 MB（下載）"
+  "preservePaths": [
+    "user-data",
+    "outputs",
+    "presets",
+    "config.json",
+    "settings.json"
+  ]
 }

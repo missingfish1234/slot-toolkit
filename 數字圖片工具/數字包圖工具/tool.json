@@ -2,8 +2,8 @@
   "id": "65785b57571672475de55177-65785b57530557165de55177",
   "name": "數字包圖工具",
   "category": "數字圖片工具",
-  "description": "離線 PNG 字形打包 BMFont（PNG＋FNT），支援標點／Unicode 檔名、Cocos 固定數字格、透明邊界快取與 4096px 圖集防錯。",
-  "version": "1.3.4",
+  "description": "離線 PNG 字形打包 BMFont（PNG＋FNT），支援前綴檔名自動辨識、拖放資料夾、自動保存、含圖專案檔、復原、多比例批次輸出與 Cocos 固定數字格。",
+  "version": "1.4.0",
   "path": "數字圖片工具/數字包圖工具",
   "entry": "makefont.html",
   "icon": "",
@@ -11,14 +11,24 @@
     "數字圖片工具",
     "數字包圖工具"
   ],
-  "updatedAt": "2026-10-06",
+  "updatedAt": "2026-10-22",
   "size": "",
   "changelog": [
+    "1.4.0：前綴檔名自動辨識與配對批次操作；全視窗拖放資料夾；自動保存、含圖專案檔、復原／重做與快捷鍵；多比例批次輸出、缺字檢查、檔名提醒、非阻擋提示；用途預設、多組比對預覽與小螢幕版面。",
     "1.3.4：JSZip 3.10.1 內嵌於 makefont.html，恢復單檔離線分享與 ZIP 匯出，更新缺件提示及操作說明。",
     "1.3.3：修正 Cocos 垂直置中：依 info.size 與數字可見邊界補償 yoffset，保留標點基線與手動偏移；同步預覽，新增透明留白及引擎頂點位置回歸。",
     "1.3.2：新增匯入前圖片／字元配對確認，修正英文後綴誤判；未知檔名手動指定，本批重複阻擋匯入，取代既有字形須明確勾選。",
     "1.3.1：修正 dot/comma 字碼往返、Unicode 命名、超限圖集防錯；快取透明邊界，ZIP 離線可用。",
     "BMFont Gen v3.30：修正 v3.29 全數字相同 glyph 幾何導致 Cocos 3.8 滾分畫面不更新；固定前進寬度與右邊界，同時保留字形差異。",
     "BMFont Gen v3.29：新增 Cocos 透明等寬數字格，修正末位 1 造成的 Label 寬度微跳；防止重複字元與 NUM_X-1 誤判。"
+  ],
+  "kind": "網頁工具",
+  "documentation": "使用指南.md",
+  "preservePaths": [
+    "user-data",
+    "outputs",
+    "presets",
+    "config.json",
+    "settings.json"
   ]
 }

@@ -52,3 +52,16 @@ context.state.glyphs=[glyph('8',20)];context.state.config.exportScale=0;assert.s
 context.state.config.exportScale=1;context.state.glyphs[0].customX='invalid';assert.strictEqual(context.packAndDraw(),false);assert.match(context.state.packError,/偏移無效/);
 for(const match of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) new vm.Script(match[1]);
 console.log('BMFont regression: aliases, Unicode, cached trim, fixed-cell scales, oversized/invalid input passed');
+// 1.4.0: batch prefixes such as jp_num_01_0.png resolve without manual typing.
+{
+    const api = vm.runInNewContext(section('function guessCharFromFileName(', 'function getDuplicateCharCodes(') + ';({suggestImportChar,commonNamePrefix})');
+    const names = ['jp_num_01_0.png','jp_num_01_9.png','jp_num_01_$.png','jp_num_01_,.png','jp_num_01_..png','jp_num_01_K.png','jp_num_01_x2.png'].map(name => ({name}));
+    const prefix = api.commonNamePrefix(names);
+    assert.strictEqual(prefix, 'jp_num_01_');
+    assert.deepStrictEqual(names.map(f => api.suggestImportChar(f, prefix).char), ['0','9','$',',','.','K','x']);
+    assert.strictEqual(api.commonNamePrefix([{name:'0.png'},{name:'1.png'}]), '', 'plain names have no prefix');
+    assert.strictEqual(api.commonNamePrefix([{name:'num_1.png'},{name:'num_12.png'}]), 'num_');
+    assert.strictEqual(api.suggestImportChar({name:'gold_K.png'}).char, 'K', 'single file falls back to the last segment');
+    assert.strictEqual(api.suggestImportChar({name:'Font_Win.png'}).char, '', 'whole words still need manual input');
+    console.log('BMFont 1.4.0 prefix recognition passed');
+}

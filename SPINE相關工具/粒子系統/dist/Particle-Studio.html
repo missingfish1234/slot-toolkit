@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0b1119">
-  <title>粒子工作室 · Particle Studio 1.25</title>
+  <title>粒子工作室 · Particle Studio 1.26</title>
   <style data-bundle="styles.css">
 :root {
   color-scheme: dark;
@@ -166,6 +166,10 @@ h3 { color: #c6d6e0; font-size: 12px; font-weight: 650; letter-spacing: .03em; }
 .file-actions { display: flex; align-items: center; gap: 7px; margin-left: auto; flex: none; }
 .quiet-button { background: transparent; border-color: transparent; color: #c2d1dd; }
 .quiet-button:hover:not(:disabled) { background: #1e2d38; border-color: #30424d; }
+.reset-project-button { color: var(--accent); border-color: #386459; white-space: nowrap; }
+.help-dialog.new-project-dialog { width: min(520px, calc(100vw - 28px)); }
+.new-project-dialog .dialog-content { line-height: 1.8; }
+.new-project-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 0 20px 20px; }
 .primary-button { color: #0b3026; background: var(--accent); border-color: var(--accent); font-weight: 700; box-shadow: 0 3px 15px #81e8c61c; }
 .primary-button:hover:not(:disabled) { background: var(--accent-bright); border-color: var(--accent-bright); box-shadow: 0 4px 22px #81e8c636; }
 .secondary-button { color: #b3efd9; background: #1a332e; border-color: #3c6559; }
@@ -606,12 +610,14 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   .inspector-section { padding-inline: 10px; }
   .field-row { gap: 8px; }
 }
-@media (max-width: 1000px) and (min-width: 821px) {
+@media (max-width: 1400px) and (min-width: 821px) {
   .app-header { flex-wrap: wrap; min-height: 92px; gap: 7px 14px; padding-block: 8px; }
   .brand { order: 1; }
   .project-heading { order: 2; max-width: 280px; margin-left: auto; }
   .file-actions { order: 3; width: 100%; margin: 0; justify-content: flex-end; }
   .file-actions .quiet-button:first-child { margin-right: auto; }
+}
+@media (max-width: 1000px) and (min-width: 821px) {
   .file-actions button { height: 28px; }
   .file-actions .help-button { width: 25px; height: 25px; }
   .workspace { grid-template-columns: 172px minmax(0,1fr) 284px; gap: 9px; padding-inline: 9px; }
@@ -913,6 +919,11 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 .emitter-item .emitter-tags { padding-right: 46px; min-width: 0; }
 .emitter-item .emitter-type { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
+/* v1.26 · random multi-image particles */
+.random-texture-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.random-texture-strip[hidden] { display: none; }
+.random-texture-strip img { width: 34px; height: 34px; object-fit: contain; padding: 3px; background: repeating-conic-gradient(#1a2733 0 25%, #121c26 0 50%) 0 0/10px 10px; border: 1px solid var(--line); border-radius: 7px; }
+
 </style>
 </head>
 <body>
@@ -920,11 +931,12 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     <header class="app-header">
       <div class="brand" aria-label="粒子工作室 Particle Studio">
         <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 36 36"><ellipse class="brand-orbit" cx="18" cy="18" rx="15" ry="9" transform="rotate(-38 18 18)"/><path class="brand-spark" d="m18 6 3.1 8.9L30 18l-8.9 3.1L18 30l-3.1-8.9L6 18l8.9-3.1Z"/><circle class="brand-particle" cx="29" cy="8" r="3"/><circle class="brand-particle-small" cx="7" cy="26" r="1.8"/></svg></span>
-        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.25</span></span></div>
+        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.26</span></span></div>
         <label class="version-control"><span id="spineTargetMode">輸出版本</span><select id="spineVersion" aria-label="Spine 輸出版本" title="選擇 Spine JSON 輸出版本"><option value="3.8.99">SPINE 3.8</option><option value="4.0.56" selected>SPINE 4.0</option><option value="4.2.43">SPINE 4.2</option></select></label>
       </div>
       <div class="project-heading"><span class="project-caption"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h5l2 2h7v10H3Z"/></svg>目前專案</span><label class="sr-only" for="projectName">專案名稱</label><input id="projectName" type="text" value="金色光塵" maxlength="80" spellcheck="false" aria-label="專案名稱"></div>
       <nav class="file-actions" aria-label="專案操作">
+        <button id="newProject" type="button" class="quiet-button reset-project-button" title="清空目前專案並將介面回到初始值" aria-haspopup="dialog"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M4 8a6 6 0 1 1 0 5 M4 3v5h5"/></svg><span>RESET／新專案</span></button>
         <button id="loadProject" type="button" class="quiet-button"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M2.5 6h5l1.5-2h8.5v12h-15Z"/></svg><span>開啟</span></button>
         <input id="projectFile" type="file" accept=".json,application/json" hidden>
         <button id="saveProject" type="button" class="quiet-button"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M4 3h10l3 3v11H3V3Z M6 3v5h7V3 M6 17v-6h8v6"/></svg><span>儲存專案</span></button>
@@ -1037,11 +1049,11 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 
           <section id="panelLook" class="inspector-tab-panel" data-panel="look" role="tabpanel" aria-labelledby="tabLook" hidden>
             <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" rx="2"/><circle cx="7" cy="7" r="1"/><path d="m4 15 5-5 3 3 2-2 3 4"/></svg><span>粒子貼圖</span></h3>
-              <div class="texture-card"><img id="textureThumbnail" class="texture-thumbnail" alt="目前粒子貼圖" hidden><div class="texture-details"><span id="textureInfo">使用內建柔光貼圖</span><div class="texture-actions"><button id="textureButton" type="button" class="text-button">載入圖片</button><button id="sequenceTextureButton" type="button" class="text-button">載入連續圖</button><button id="removeTexture" type="button" class="text-button muted" title="清除單張貼圖與連續圖，回到內建柔光；可復原">重設</button></div></div></div>
-              <input id="textureFile" type="file" accept="image/png,image/jpeg,image/webp" hidden><input id="sequenceTextureFile" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" multiple hidden>
-              <label id="textureModeField" class="field full-field" hidden><span>貼圖模式</span><select id="textureMode"><option value="single">單張圖片</option><option value="sequence">連續圖動畫</option></select></label>
-              <div id="sequenceTextureControls" class="sequence-texture-controls" hidden><div class="field-row"><label class="field sequence-fps-field"><span>連續圖 FPS <small>張／秒</small></span><input id="sequenceFps" type="number" min="1" max="120" step="1" value="12" aria-label="連續圖 FPS"></label><label class="field"><span>播放方式</span><select id="sequenceMode"><option value="loop">循環播放</option><option value="once">播放一次，停末張</option></select></label></div><p id="sequenceTextureInfo" class="field-hint sequence-texture-info" role="status"></p><p class="field-hint">每顆粒子出生後從第一張播放；FPS 控制貼圖速度，可與專案幀率不同。</p></div>
-              <p class="field-hint">建議使用透明 PNG；連續圖可一次選取多張，依檔名數字排序，素材會一起儲存與輸出。</p><label class="field full-field"><span>混合方式</span><select data-field="blend"><option value="additive">加色 · 發光</option><option value="normal">一般 · 透明疊加</option></select></label>
+              <div class="texture-card"><img id="textureThumbnail" class="texture-thumbnail" alt="目前粒子貼圖" hidden><div class="texture-details"><span id="textureInfo">使用內建柔光貼圖</span><div class="texture-actions"><button id="textureButton" type="button" class="text-button">載入圖片</button><button id="sequenceTextureButton" type="button" class="text-button" title="多張圖片依檔名順序逐張播放">載入連續圖</button><button id="randomTextureButton" type="button" class="text-button" title="多張圖片，每顆粒子出生時隨機挑一張">載入隨機圖</button><button id="removeTexture" type="button" class="text-button muted" title="清除單張貼圖、連續圖與隨機圖，回到內建柔光；可復原">重設</button></div></div></div>
+              <input id="textureFile" type="file" accept="image/png,image/jpeg,image/webp" hidden><input id="sequenceTextureFile" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" multiple hidden><input id="randomTextureFile" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" multiple hidden>
+              <label id="textureModeField" class="field full-field" hidden><span>貼圖模式</span><select id="textureMode"><option value="single">單張圖片</option><option value="sequence">連續圖動畫 · 依序播放</option><option value="random">多圖隨機 · 每顆隨機一張</option></select></label>
+              <div id="sequenceTextureControls" class="sequence-texture-controls" hidden><div id="randomTextureStrip" class="random-texture-strip" hidden></div><div id="sequencePlaybackRow" class="field-row"><label class="field sequence-fps-field"><span>連續圖 FPS <small>張／秒</small></span><input id="sequenceFps" type="number" min="1" max="120" step="1" value="12" aria-label="連續圖 FPS"></label><label class="field"><span>播放方式</span><select id="sequenceMode"><option value="loop">循環播放</option><option value="once">播放一次，停末張</option></select></label></div><p id="sequenceTextureInfo" class="field-hint sequence-texture-info" role="status"></p><p id="sequencePlaybackHint" class="field-hint">每顆粒子出生後從第一張播放；FPS 控制貼圖速度，可與專案幀率不同。</p></div>
+              <p class="field-hint">建議使用透明 PNG。連續圖依檔名順序逐張播放；隨機圖讓每顆粒子隨機挑一張。素材會一起儲存與輸出。</p><label class="field full-field"><span>混合方式</span><select data-field="blend"><option value="additive">加色 · 發光</option><option value="normal">一般 · 透明疊加</option></select></label>
             </div>
             <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 8V3h5 M12 3h5v5 M17 12v5h-5 M8 17H3v-5"/><path d="M7 9a3 3 0 0 1 5-2 M13 11a3 3 0 0 1-5 2"/></svg><span>尺寸與旋轉</span></h3><div class="field-row"><label class="field"><span>粒子尺寸 <small>px</small></span><input data-field="size" type="number" min="1" max="1000" step="1" value="24"></label><label class="field"><span>尺寸隨機 <small>± px</small></span><input data-field="sizeRandom" type="number" min="0" max="1000" step="1" value="8"></label></div><label class="field full-field"><span>起始旋轉 <small>°</small></span><input data-field="rotation" type="number" min="-36000" max="36000" step="1" value="0"></label><div class="field-row"><label class="field"><span>旋轉速度 <small>°/秒</small></span><input data-field="spin" type="number" min="-3600" max="3600" step="1" value="0"></label><label class="field"><span>旋轉隨機 <small>± °/秒</small></span><input data-field="spinRandom" type="number" min="0" max="3600" step="1" value="30"></label></div><label class="checkbox-label standalone-check"><input data-field="alignDirection" type="checkbox">貼圖朝向移動方向</label></div>
             <div class="inspector-section">
@@ -1138,10 +1150,15 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     </main>
 
     <div id="message" class="app-message" role="alert" hidden></div>
-    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.25</span></span></footer>
+    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.26</span></span></footer>
   </div>
 
   <dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle"><div class="dialog-header"><div><span class="section-eyebrow">PARTICLE STUDIO</span><h2 id="helpTitle">從粒子到 Spine 動畫</h2></div><button id="closeHelp" type="button" class="icon-button" aria-label="關閉操作說明">×</button></div><div class="dialog-content"><p>這是獨立開發的本機粒子編輯器。介面與模擬程式都存放在本機，操作時不需要連線。</p><ol class="help-steps"><li><strong>建立效果</strong><p>按左側「新增效果」開啟效果庫，雙擊內建或自己的效果加成圖層；也可以直接把 PNG、連續圖或專案檔拖進視窗。</p></li><li><strong>安排時間</strong><p>時間軸下方的「圖層時間」可拖曳每層的開始時間，拖右端調整發射長度。S 單獨顯示、H 預覽隱藏，不影響輸出。</p></li><li><strong>輸出</strong><p>直接按「輸出 Spine」，參數有修改時會自動重新烘焙。要一次產生多個版本或配色，用「批次輸出」。</p></li><li><strong>匯入對應版本 Spine</strong><p>解開輸出套件，保留 JSON 與 images 資料夾的位置。在 Spine 選擇「檔案 → 匯入資料（Import Data）」載入 JSON，確認 Images 路徑指向素材資料夾。</p></li></ol><div class="help-shortcuts"><strong>快捷鍵</strong><dl><dt>Space</dt><dd>播放／暫停</dd><dt>← →</dt><dd>逐幀</dd><dt>Ctrl＋Z／Y</dt><dd>復原／重做</dd><dt>Ctrl＋S／O</dt><dd>儲存／開啟專案</dd><dt>Ctrl＋B</dt><dd>更新烘焙</dd><dt>Ctrl＋E</dt><dd>輸出 Spine</dd><dt>Ctrl＋D</dt><dd>複製圖層</dd><dt>Ctrl＋C／V</dt><dd>複製／貼上圖層（可跨專案）</dd><dt>Delete</dt><dd>刪除圖層</dd><dt>[ ]</dt><dd>上／下一個圖層</dd><dt>S／H</dt><dd>單獨顯示／預覽隱藏</dd><dt>F</dt><dd>畫面對焦目前發射器</dd><dt>0</dt><dd>縮放回 100%</dd><dt>滾輪</dt><dd>以游標為中心縮放（5%–800%）</dd></dl></div><div class="help-callout"><strong>記得儲存編輯專案</strong><p>「儲存專案」包含發射器參數與粒子貼圖，可用「開啟」接續編輯。Spine 輸出是動畫交付資料。Atlas 圖集可在 Spine 匯出時產生。</p></div></div><div class="dialog-footer">Particle Studio · Spine 3.8 / 4.0 / 4.2</div></dialog>
+  <dialog id="newProjectDialog" class="help-dialog new-project-dialog" aria-labelledby="newProjectTitle" aria-describedby="newProjectDescription">
+    <div class="dialog-header"><div><span class="section-eyebrow">NEW PROJECT</span><h2 id="newProjectTitle">重設並建立新專案</h2></div></div>
+    <div class="dialog-content"><p id="newProjectDescription">粒子圖層、圖片、背景、Spine 掛接、時間軸與介面設定都會回到初始值。</p><p>目前尚未儲存的修改會被清除。已儲存的專案檔與「我的效果」會保留。</p></div>
+    <div class="new-project-actions"><button id="resetProjectCancel" type="button" class="quiet-button" autofocus>取消</button><button id="resetProjectSave" type="button" class="secondary-button">儲存後新建</button><button id="resetProjectConfirm" type="button" class="primary-button">直接新建</button></div>
+  </dialog>
   <dialog id="effectLibraryDialog" class="help-dialog effect-library-dialog"></dialog>
   <dialog id="bakeCheckDialog" class="help-dialog bake-check-dialog" aria-labelledby="bakeCheckTitle">
     <div class="dialog-header"><div><span class="section-eyebrow">BAKE QUALITY</span><h2 id="bakeCheckTitle">烘焙品質與成本</h2></div><button id="bakeCheckClose" type="button" class="icon-button" aria-label="關閉烘焙檢查">×</button></div>
@@ -2165,7 +2182,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     return {
       enabled: boolean(raw, 'enabled', true, label + '連續圖啟用'),
       fps: number(raw, 'fps', 12, 1, 120, true, label + '連續圖 FPS'),
-      mode: enumValue(raw, 'mode', 'loop', ['loop', 'once'], label + '連續圖播放模式'),
+      mode: enumValue(raw, 'mode', 'loop', ['loop', 'once', 'random'], label + '連續圖播放模式'),
       frames: raw.frames.map((frame, index) => {
         const normalized = image(frame, label + '連續圖第 ' + (index + 1) + ' 張');
         if (!normalized) fail(label + '連續圖不能包含空白素材。');
@@ -2231,7 +2248,9 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 
   // Attachment events use the same microsecond grid as births and deaths.
   // A boundary rounded down by half a microsecond still selects its new frame.
-  function sequenceFrame(sequence, age) {
+  // 'random' gives each particle one image for its whole life (chosen at bake).
+  function sequenceFrame(sequence, age, particle) {
+    if (sequence.mode === 'random') return particle && particle.randomFrame !== undefined ? particle.randomFrame : 0;
     const frame = Math.floor((Math.max(0, age) + 0.0000005 + EPS) * sequence.fps);
     return sequence.mode === 'once' ? Math.min(sequence.frames.length - 1, frame) : frame % sequence.frames.length;
   }
@@ -2597,6 +2616,9 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       if (e.path && e.path.enabled) lifecycle.path = PathMath.compile(e.path);
       const sequence = activeSequence(e);
       if (sequence) lifecycle.sequenceMaxDimension = Math.max(...sequence.frames.map(frame => Math.max(frame.width, frame.height)));
+      // A separate stream: switching to random images never reshuffles motion.
+      const frameRand = sequence && sequence.mode === 'random' && sequence.frames.length > 1
+        ? random(e.randomSeed === undefined ? (project.seed ^ seedHash(e.id + ':random-frame')) >>> 0 : (e.randomSeed ^ seedHash('random-frame')) >>> 0) : null;
       let index = 0, clipped = false;
       for (let sourceIndex = 0; sourceIndex < e.count; sourceIndex++) {
         // Use the same microsecond grid as JSON keys so birth/death attachment events
@@ -2631,6 +2653,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
           sx = -Math.sin(e.angle * DEG) * distance; sy = Math.cos(e.angle * DEG) * distance;
         }
         const angle = emissionAngle(e, sx, sy, angleDraw, sampledNormal);
+        const randomFrame = frameRand ? Math.min(sequence.frames.length - 1, Math.floor(frameRand() * sequence.frames.length)) : undefined;
         const delay = Math.min(e.startDelay || 0, project.duration);
         const birth = round(delay + sourceIndex / e.count * Math.min(e.emissionDuration, project.duration - delay));
         clipped = clipped || (birth + life > project.duration);
@@ -2642,7 +2665,8 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
           particles.push({emitterId: e.id, index: index++, sourceIndex, cycleIndex,
             birth, life, size, spin, sx, sy, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
             ax: e.wind, ay: -e.gravity,
-            direction: angle / DEG, emitter: e, lifecycle, startColor: rgb(e.colorStart), endColor: rgb(e.colorEnd)});
+            direction: angle / DEG, emitter: e, lifecycle, startColor: rgb(e.colorStart), endColor: rgb(e.colorEnd),
+            ...(randomFrame === undefined ? {} : {randomFrame})});
         }
         if (particles.length > MAX_POOL) fail('循環粒子池超過 ' + MAX_POOL + ' 個。請減少粒子數、縮短壽命，或增加動畫長度。');
       }
@@ -2876,7 +2900,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     const sizeU = curveProgress(e.sizeCurve, evaluatedAge, particle.life), alphaU = curveProgress(e.alphaCurve, evaluatedAge, particle.life);
     const scaleCurve = particle.lifecycle.sizeLinear ? evalCurve(e.sizeCurve, sizeU) : particle.lifecycle.size.sample(sizeU);
     const sequence = activeSequence(e);
-    const frameIndex = sequence ? sequenceFrame(sequence, evaluatedAge) : undefined;
+    const frameIndex = sequence ? sequenceFrame(sequence, evaluatedAge, particle) : undefined;
     const frameImage = sequence ? sequence.frames[frameIndex] : e.image;
     const maxDimension = sequence ? particle.lifecycle.sequenceMaxDimension : e.image ? Math.max(e.image.width, e.image.height) : 64;
     const scale = particle.size / maxDimension * scaleCurve;
@@ -2920,7 +2944,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   // animation cycles. Frame boundaries follow age, never the export FPS grid.
   function sequenceBoundaryRange(baked, particle) {
     const sequence = activeSequence(particle.emitter);
-    if (!sequence || sequence.frames.length < 2) return {first: 1, last: 0};
+    if (!sequence || sequence.frames.length < 2 || sequence.mode === 'random') return {first: 1, last: 0};
     const low = Math.max(0, baked.loop ? particle.cycleIndex * baked.duration : -particle.birth);
     const high = Math.min(particle.life, baked.loop ? (particle.cycleIndex + 1) * baked.duration : baked.duration - particle.birth);
     const first = Math.max(1, Math.ceil(low * sequence.fps - EPS));
@@ -6049,7 +6073,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         ui.effectLibrarySelectedName.textContent = choice.name;
         const e = choice.emitter;
         ui.effectLibrarySelectedInfo.textContent = (shapes[e.shape] || e.shape) + ' · ' + e.count + ' 顆 · 壽命 ' + e.life + ' 秒' +
-          (e.path && e.path.enabled ? ' · 路徑移動' : '') + (e.sequence && e.sequence.enabled ? ' · ' + e.sequence.frames.length + ' 張連續圖 · ' + e.sequence.fps + ' FPS' : e.image ? ' · 自訂 PNG' : '') +
+          (e.path && e.path.enabled ? ' · 路徑移動' : '') + (e.sequence && e.sequence.enabled ? (e.sequence.mode === 'random' ? ' · ' + e.sequence.frames.length + ' 張隨機圖' : ' · ' + e.sequence.frames.length + ' 張連續圖 · ' + e.sequence.fps + ' FPS') : e.image ? ' · 自訂 PNG' : '') +
           (e.randomSeed !== undefined ? ' · 種子 ' + e.randomSeed : '') + '。套用後仍可編輯。';
       }
       ui.effectLibraryCount.textContent = '已儲存 ' + templates.length + ' / ' + Library.MAX_ITEMS + ' 組';
@@ -6073,7 +6097,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         } else { const symbol = doc.createElement('span'); symbol.textContent = {point: '✦', direction: '↗', line: '━', circle: '●', ring: '◯', box: '▧', outline: '⬡'}[e.shape] || '✦'; art.append(symbol); }
         const info = doc.createElement('span'); info.className = 'effect-library-item-info';
         const name = doc.createElement('strong'), description = doc.createElement('span'); name.textContent = template.name;
-        description.textContent = (shapes[e.shape] || e.shape) + ' · ' + e.count + ' 顆' + (e.path && e.path.enabled ? ' · 路徑' : '') + (e.sequence && e.sequence.enabled ? ' · 連續圖 ' + e.sequence.fps + ' FPS' : '');
+        description.textContent = (shapes[e.shape] || e.shape) + ' · ' + e.count + ' 顆' + (e.path && e.path.enabled ? ' · 路徑' : '') + (e.sequence && e.sequence.enabled ? (e.sequence.mode === 'random' ? ' · 隨機圖 ' + e.sequence.frames.length + ' 張' : ' · 連續圖 ' + e.sequence.fps + ' FPS') : '');
         info.append(name, description); button.append(art, info);
         button.addEventListener('click', () => {
           if (busy) return;
@@ -8548,20 +8572,35 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       if (owner !== lastOwner || selected !== lastEmitter) { request++; lastOwner = owner; lastEmitter = selected; }
       const sequence = selected.sequence, hasSequence = !!(sequence && sequence.frames && sequence.frames.length);
       const active = hasSequence && sequence.enabled !== false;
+      const randomMode = active && sequence.mode === 'random';
       const image = active ? sequence.frames[0] : selected.image || options.defaultImage;
       $('textureThumbnail').src = image.dataUrl; $('textureThumbnail').hidden = false;
-      $('textureThumbnail').alt = active ? '連續圖第一張' : '目前粒子貼圖';
-      $('textureInfo').textContent = active ? '連續圖 · ' + sequence.frames.length + ' 張 · ' + image.width + ' × ' + image.height + ' px' :
+      $('textureThumbnail').alt = randomMode ? '隨機圖片第一張' : active ? '連續圖第一張' : '目前粒子貼圖';
+      $('textureInfo').textContent = randomMode ? '隨機圖片 · ' + sequence.frames.length + ' 張' :
+        active ? '連續圖 · ' + sequence.frames.length + ' 張 · ' + image.width + ' × ' + image.height + ' px' :
         (selected.image ? selected.image.name : '內建柔光') + ' · ' + image.width + ' × ' + image.height + ' px';
       $('textureModeField').hidden = !hasSequence;
-      $('textureMode').value = active ? 'sequence' : 'single';
+      $('textureMode').value = randomMode ? 'random' : active ? 'sequence' : 'single';
       $('sequenceTextureControls').hidden = !active;
+      const playback = $('sequencePlaybackRow'), strip = $('randomTextureStrip');
+      if (playback) playback.hidden = randomMode;
+      if ($('sequencePlaybackHint')) $('sequencePlaybackHint').textContent = randomMode
+        ? '每顆粒子出生時從這些圖片隨機挑一張，整個生命都維持同一張；挑選結果跟著發射器種子，按「換一組」可重新分配。'
+        : '每顆粒子出生後從第一張播放；FPS 控制貼圖速度，可與專案幀率不同。';
+      if (strip) {
+        strip.hidden = !randomMode; strip.replaceChildren();
+        if (randomMode) sequence.frames.forEach(frame => {
+          const thumb = doc.createElement('img'); thumb.src = frame.dataUrl; thumb.alt = frame.name; thumb.title = frame.name + ' · ' + frame.width + ' × ' + frame.height + ' px';
+          strip.append(thumb);
+        });
+      }
       if (hasSequence) {
         if (doc.activeElement !== $('sequenceFps')) $('sequenceFps').value = sequence.fps;
-        $('sequenceMode').value = sequence.mode;
-        $('sequenceTextureInfo').textContent = sequence.frames.length + ' 張 · 每輪 ' +
-          Number((sequence.frames.length / sequence.fps).toFixed(3)) + ' 秒 · ' + sequence.frames[0].name +
-          (sequence.frames.length > 1 ? ' → ' + sequence.frames[sequence.frames.length - 1].name : '');
+        if (sequence.mode !== 'random') $('sequenceMode').value = sequence.mode;
+        $('sequenceTextureInfo').textContent = randomMode
+          ? sequence.frames.length + ' 張隨機挑選 · 大小依最大的一張等比例縮放'
+          : sequence.frames.length + ' 張 · 每輪 ' + Number((sequence.frames.length / sequence.fps).toFixed(3)) + ' 秒 · ' + sequence.frames[0].name +
+            (sequence.frames.length > 1 ? ' → ' + sequence.frames[sequence.frames.length - 1].name : '');
         if (options.prepareImages) options.prepareImages(sequence.frames);
       }
     }
@@ -8576,7 +8615,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       if (keys.length === 1 && keys[0] === 'sequence' && previous && next && next.frames === previous.frames) {
         if (typeof next.enabled !== 'boolean') throw new Error('連續圖啟用狀態必須是布林值。');
         if (!Number.isInteger(next.fps) || next.fps < 1 || next.fps > 120) throw new Error('連續圖 FPS 必須是 1–120 的整數。');
-        if (!['loop', 'once'].includes(next.mode)) throw new Error('連續圖播放方式不正確。');
+        if (!['loop', 'once', 'random'].includes(next.mode)) throw new Error('連續圖播放方式不正確。');
         if (next.enabled === previous.enabled && next.fps === previous.fps && next.mode === previous.mode) return false;
         normalizedPatch.sequence = {enabled: next.enabled, fps: next.fps, mode: next.mode, frames: previous.frames};
       } else {
@@ -8592,7 +8631,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       return true;
     }
 
-    function wirePicker(buttonId, inputId, multiple) {
+    function wirePicker(buttonId, inputId, multiple, randomPick) {
       const input = $(inputId);
       $(buttonId).addEventListener('click', () => { pending.set(input, context()); input.click(); });
       input.addEventListener('cancel', () => pending.delete(input));
@@ -8615,8 +8654,10 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
               frames.push(image);
             }
             const previous = current.selected.sequence;
-            apply(current.selected, {sequence: {enabled: true, fps: previous ? previous.fps : 12, mode: previous ? previous.mode : 'loop', frames}});
-            options.notify('已載入 ' + frames.length + ' 張連續圖，依檔名數字排序；可直接調整 FPS。');
+            const priorMode = previous && previous.mode !== 'random' ? previous.mode : 'loop';
+            apply(current.selected, {sequence: {enabled: true, fps: previous ? previous.fps : 12, mode: randomPick ? 'random' : priorMode, frames}});
+            options.notify(randomPick ? '已載入 ' + frames.length + ' 張隨機圖片，每顆粒子會隨機挑一張噴發。'
+              : '已載入 ' + frames.length + ' 張連續圖，依檔名數字排序；可直接調整 FPS。');
           } else {
             const image = await options.loadImage(files[0]);
             if (!validRequest(current)) return;
@@ -8632,6 +8673,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
 
     wirePicker('textureButton', 'textureFile', false);
     wirePicker('sequenceTextureButton', 'sequenceTextureFile', true);
+    if ($('randomTextureButton')) wirePicker('randomTextureButton', 'randomTextureFile', true, true);
     $('removeTexture').addEventListener('click', () => {
       request++;
       try { apply(options.getEmitter(), {image: null, sequence: undefined}); }
@@ -8641,7 +8683,9 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       request++;
       const selected = options.getEmitter();
       if (!selected.sequence) return;
-      try { apply(selected, {sequence: {...selected.sequence, enabled: $('textureMode').value === 'sequence'}}); }
+      const choice = $('textureMode').value, prior = selected.sequence;
+      const mode = choice === 'random' ? 'random' : choice === 'sequence' && prior.mode === 'random' ? ($('sequenceMode').value === 'once' ? 'once' : 'loop') : prior.mode;
+      try { apply(selected, {sequence: {...prior, enabled: choice !== 'single', mode}}); }
       catch (error) { refresh(); options.notify(error.message, true); }
     });
     $('sequenceMode').addEventListener('change', () => {
@@ -9156,7 +9200,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   let integration = null;
   let updateBaseCache = null;
   const builtinImages = {};
-  let project = Core.createProject();
+  let project = createInitialProject();
   let selectedId = project.emitters[0].id;
   let liveBake = null, baked = null, exported = null, bakedPreview = null, liveError = '';
   let liveFlowBake = null, flowBaked = null, phase = 'loop', sequence = false, exitRequested = false;
@@ -9165,11 +9209,20 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   let zoom = 1, panX = 0, panY = 40, stageW = 1, stageH = 1;
   let liveTimer = null, draftTimer = null, messageTimer = null;
   let interaction = null, busy = false, initialized = false;
+  let resettingProject = false, initialInterface = null;
+  let draftWrite = Promise.resolve();
   let history = null, historyRestoring = false, historyGroup = null;
   let priorAssets = null, priorSource = null, emitterLanes = null, batchUi = null;
   // Preview-only visibility; never changes the project, bake or export.
   const previewHidden = new Set(); let soloId = null;
   const MAX_ZOOM = 8;
+
+  function createInitialProject(name = '金色光塵') {
+    const fresh = Core.createProject(); fresh.name = name;
+    Object.assign(fresh.emitters[0], {shape: 'box', width: 180, height: 30, count: 48,
+      emissionDuration: 3, spread: 70, size: 18, speed: 90});
+    return fresh;
+  }
 
   function historyState() { return {project, integration, selectedId}; }
   function effectiveIntegration(session = integration) {
@@ -9578,6 +9631,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     $('exportButton').disabled = busy;
     $('exportButton').title = baked && !dirty ? '輸出目前烘焙結果（Ctrl＋E）' : '自動更新烘焙後輸出（Ctrl＋E）';
     $('bakeButton').disabled = busy;
+    $('newProject').disabled = busy || resettingProject;
     $('modeBaked').disabled = !baked;
     updateHistoryStatus();
     $('modeLive').classList.toggle('active', mode === 'live');
@@ -9921,16 +9975,22 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     if (updateInspector) renderInspector();
     queueDraft();
   }
+  function saveDraftSnapshot(raw) {
+    const pending = draftWrite.catch(() => {}).then(() => Storage.saveDraft(raw));
+    draftWrite = pending;
+    return pending;
+  }
   function queueDraft() {
     recordHistory();
     if (!initialized) return;
     clearTimeout(draftTimer);
     draftTimer = setTimeout(async () => {
+      const owner = project;
       try {
         const raw = JSON.parse(Storage.serialize(project, baked ? baked.project : null, viewState(), integration));
-        await Storage.saveDraft(raw);
-        $('appStatus').textContent = '本機草稿已保存';
-      } catch (error) { $('appStatus').textContent = error.message || '請儲存專案檔'; }
+        await saveDraftSnapshot(raw);
+        if (owner === project) $('appStatus').textContent = '本機草稿已保存';
+      } catch (error) { if (owner === project) $('appStatus').textContent = error.message || '請儲存專案檔'; }
     }, 700);
   }
   function imageFor(image) {
@@ -10280,8 +10340,8 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
   function saveProject() {
-    try { download(Storage.serialize(project, baked ? baked.project : null, viewState(), integration), safeName() + '.particle.json', 'application/json'); queueDraft(); notify('已開始下載專案檔，包含參數、素材與烘焙快照。'); }
-    catch (error) { notify(error.message, true); }
+    try { download(Storage.serialize(project, baked ? baked.project : null, viewState(), integration), safeName() + '.particle.json', 'application/json'); queueDraft(); notify('已開始下載專案檔，包含參數、素材與烘焙快照。'); return true; }
+    catch (error) { notify(error.message, true); return false; }
   }
   async function bakeNow() {
     if (busy) return; busy = true; updateBakeStatus();
@@ -10418,7 +10478,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       let stem = integration.fileName.replace(/\.json$/i, '').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/^[. ]+|[. ]+$/g, '').slice(0, 64) || 'spine';
       if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(stem)) stem = 'spine_' + stem;
       const name = stem + '_particles';
-      const text = 'Particle Studio v1.25 · 既有 Spine ' + result.json.skeleton.spine + (integration.update && integration.update.mode === 'replace' ? ' 效果更新包\n\n' : ' 追加包\n\n') +
+      const text = 'Particle Studio v1.26 · 既有 Spine ' + result.json.skeleton.spine + (integration.update && integration.update.mode === 'replace' ? ' 效果更新包\n\n' : ' 追加包\n\n') +
         '1. 保留原 .spine 工程及其全部素材。此包不包含原角色的圖片或音效。\n' +
         '2. 把 new_images/ 裡的「' + result.manifest.imageDirectory + '」資料夾，複製進原工程的 Images 根目錄。\n' +
         '   原 JSON Images 設定：' + result.manifest.originalImagesPath + '\n' +
@@ -10544,6 +10604,63 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     renderGlobals(); renderEmitters(); renderInspector(); updateBakeStatus();
     historyGroup = null;
     if (history) history.reset(historyState());
+  }
+  function captureInterfaceDefaults() {
+    initialInterface = {
+      fields: Array.from(document.querySelectorAll('input:not([type="file"]),select,textarea')).map(node => ({
+        node, value: node.value, checked: node.checked,
+        options: node.tagName === 'SELECT' ? Array.from(node.options, option => option.cloneNode(true)) : null
+      })),
+      details: Array.from(document.querySelectorAll('details')).map(node => ({node, open: node.open}))
+    };
+  }
+  function restoreInterfaceDefaults() {
+    if (initialInterface) {
+      for (const {node, value, checked, options} of initialInterface.fields) {
+        if (options) node.replaceChildren(...options.map(option => option.cloneNode(true)));
+        node.value = value;
+        if (node.type === 'checkbox' || node.type === 'radio') node.checked = checked;
+      }
+      for (const {node, open} of initialInterface.details) node.open = open;
+    }
+    document.querySelectorAll('input[type="file"]').forEach(input => { input.value = ''; });
+    document.querySelectorAll('[data-panel] .inspector-section').forEach(section => setSectionCollapsed(section, false, false));
+    try { localStorage.removeItem(SECTION_KEY); } catch (_) { /* optional layout preference */ }
+    setTab('basic'); inspectorScrollPositions.clear();
+    document.querySelectorAll('.inspector-scroll,.emitter-list,.timeline-panel').forEach(node => { node.scrollTop = 0; node.scrollLeft = 0; });
+  }
+  async function resetProject() {
+    if (busy || resettingProject) return false;
+    resettingProject = true; updateBakeStatus();
+    try {
+      historyEnd();
+      if (pathEditor) pathEditor.close();
+      if (bonePicker) bonePicker.cancel();
+      if (libraryUi) libraryUi.close();
+      if (textureUi) textureUi.invalidate();
+      document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
+      clearTimeout(liveTimer); clearTimeout(draftTimer); clearTimeout(messageTimer);
+      liveTimer = draftTimer = messageTimer = null;
+      projectRequest++;
+      interaction = null; pathGizmoCache.clear(); updateBaseCache = null;
+      priorAssets = priorSource = null;
+      await adopt({project: createInitialProject('未命名專案'), bakedProject: null, integration: null,
+        view: {time: 0, mode: 'live', zoom: 1, panX: 0, panY: 40, previewAttached: true, showBones: true, skinName: '', phase: 'loop'}});
+      playing = true; previousTime = 0;
+      restoreInterfaceDefaults();
+      renderGlobals(); renderEmitters(); renderInspector(); updateBakeStatus(); updatePlayButton(); syncTimeline(); draw();
+      try {
+        await saveDraftSnapshot(JSON.parse(Storage.serialize(project, null, viewState(), null)));
+        $('appStatus').textContent = '新專案已建立 · 初始設定已保存';
+        notify('已重設介面並建立新專案，可直接開始編輯。');
+      } catch (error) {
+        $('appStatus').textContent = '新專案已建立 · 請手動儲存';
+        notify('新專案已建立，但本機草稿保存失敗。請按「儲存專案」保存。', true);
+      }
+      return true;
+    } catch (error) {
+      notify('無法建立新專案：' + error.message, true); return false;
+    } finally { resettingProject = false; updateBakeStatus(); }
   }
   function wireNumberScrub() {
     let gesture = null, suppressClick = null;
@@ -10772,6 +10889,10 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     });
     [['moveEmitterUp', -1], ['moveEmitterDown', 1]].forEach(([id, delta]) => { $(id).addEventListener('click', () => { const index = project.emitters.findIndex(e => e.id === selectedId), next = index + delta; if (next < 0 || next >= project.emitters.length) return; const item = project.emitters.splice(index, 1)[0]; project.emitters.splice(next, 0, item); changed(); renderEmitters(); }); });
     $('saveProject').addEventListener('click', saveProject); $('bakeButton').addEventListener('click', bakeNow); $('exportButton').addEventListener('click', exportZip);
+    $('newProject').addEventListener('click', () => { if (!busy && !resettingProject) $('newProjectDialog').showModal(); });
+    $('resetProjectCancel').addEventListener('click', () => $('newProjectDialog').close());
+    $('resetProjectConfirm').addEventListener('click', resetProject);
+    $('resetProjectSave').addEventListener('click', () => { if (!busy && !resettingProject && saveProject()) resetProject(); });
     $('spineVersion').addEventListener('change', () => {
       if (integration && integration.settings.enabled !== false) { updateBakeStatus(); return; }
       try { project.spineVersion = Core.spineProfile($('spineVersion').value).version; updateBakeStatus(); queueDraft(); notify('輸出版本已切換至 Spine ' + project.spineVersion + '。'); }
@@ -10956,7 +11077,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     wireBonePicker(); wireNumberScrub(); wireShortcuts(); wireDropZone(); wireSectionCollapse();
     batchUi = window.ParticleBatchExport.mount({run: runBatchExport, notify, getVersion: () => effectiveSpineVersion(),
       blockedReason: () => integration && integration.settings.enabled !== false ? '目前掛接既有骨架，版本跟隨原骨架；請用「輸出追加包」，或先移除掛接再批次輸出。' : busy ? '正在烘焙，請稍候。' : ''});
-    window.addEventListener('pagehide', () => { try { Storage.saveDraft(JSON.parse(Storage.serialize(project, baked ? baked.project : null, viewState(), integration))).catch(() => {}); } catch (_) {} });
+    window.addEventListener('pagehide', () => { try { saveDraftSnapshot(JSON.parse(Storage.serialize(project, baked ? baked.project : null, viewState(), integration))).catch(() => {}); } catch (_) {} });
   }
 
 
@@ -11074,9 +11195,11 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   const numericOrder = (a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
   async function routeJsonFile(file) {
     if (file.size > 48 * 1024 * 1024) throw new Error('檔案超過 48 MB：' + file.name);
-    let data; try { data = JSON.parse(await file.text()); } catch (_) { throw new Error('「' + file.name + '」不是有效的 JSON。'); }
+    const owner = project, request = projectRequest, text = await file.text();
+    if (owner !== project || request !== projectRequest) return '';
+    let data; try { data = JSON.parse(text); } catch (_) { throw new Error('「' + file.name + '」不是有效的 JSON。'); }
     if (data && data.format === 'particle-studio') return feedInput('projectFile', [file]) && '專案';
-    if (data && data.format === 'particle-studio-fx-library') { await libraryUi.open(); return feedInput('effectLibraryFile', [file]) && '效果庫'; }
+    if (data && data.format === 'particle-studio-fx-library') { await libraryUi.open(); if (owner !== project || request !== projectRequest) return ''; return feedInput('effectLibraryFile', [file]) && '效果庫'; }
     if (data && data.format === 'particle-studio-emitter') {
       emitterClipboard = data; try { localStorage.setItem(CLIPBOARD_KEY, JSON.stringify(data)); } catch (_) {}
       pasteEmitter(); return '發射器';
@@ -11091,7 +11214,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   }
   function wireDropZone() {
     const overlay = document.createElement('div'); overlay.id = 'dropOverlay'; overlay.className = 'drop-overlay'; overlay.hidden = true;
-    overlay.innerHTML = '<div class="drop-panel"><p class="drop-title">放開以載入檔案</p><div class="drop-zones"></div><p class="drop-hint">多張圖片會依檔名數字排序成連續圖。按 Esc 取消。</p></div>';
+    overlay.innerHTML = '<div class="drop-panel"><p class="drop-title">放開以載入檔案</p><div class="drop-zones"></div><p class="drop-hint">多張圖片可做成連續圖（依序播放）或隨機圖片（每顆隨機一張）。按 Esc 取消。</p></div>';
     document.body.append(overlay);
     const zonesHost = overlay.querySelector('.drop-zones');
     let depth = 0, activeZone = null;
@@ -11107,7 +11230,8 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       const target = emitter() ? '「' + emitter().name + '」' : '目前發射器';
       zonesHost.replaceChildren();
       if (images && !others) {
-        zonesHost.append(zone('texture', '粒子貼圖', images > 1 ? images + ' 張 → ' + target + '的連續圖' : '換成' + target + '的貼圖'));
+        zonesHost.append(zone('texture', images > 1 ? '連續圖' : '粒子貼圖', images > 1 ? images + ' 張依檔名順序播放 → ' + target : '換成' + target + '的貼圖'));
+        if (images > 1) zonesHost.append(zone('random', '隨機圖片', images + ' 張 → 每顆粒子隨機挑一張'));
         if (images === 1) {
           zonesHost.append(zone('outline', '物件輪廓', '掃描 PNG 外形，沿輪廓發射'));
           zonesHost.append(zone('background', '參考背景', '只在畫布對照，不會輸出'));
@@ -11136,6 +11260,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       const choice = node ? node.dataset.zone : (zonesHost.querySelector('.drop-zone') || {dataset: {}}).dataset.zone;
       const files = Array.from(event.dataTransfer.files || []); hide();
       if (!files.length || busy) return;
+      const owner = project;
       try {
         const images = files.filter(isImage).sort(numericOrder), rest = files.filter(file => !isImage(file));
         const loaded = [];
@@ -11143,6 +11268,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
           if (choice === 'background') feedInput('backgroundFile', [images[0]]) && loaded.push('參考背景');
           else if (choice === 'outline') { setTab('basic'); feedInput('outlineFile', [images[0]]) && loaded.push('物件輪廓'); }
           else if (choice === 'rig') feedInput('spineImagesFile', images) && loaded.push(images.length + ' 張原骨架圖片');
+          else if (choice === 'random') { setTab('look'); feedInput('randomTextureFile', images) && loaded.push(images.length + ' 張隨機圖片'); }
           else {
             setTab('look');
             if (images.length > 1) feedInput('sequenceTextureFile', images) && loaded.push(images.length + ' 張連續圖');
@@ -11150,18 +11276,19 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
           }
         }
         for (const file of rest) {
+          if (owner !== project) return;
           if (/\.atlas(\.txt)?$/i.test(file.name)) { $('spineMergeButton').click(); feedInput('spineAtlasFile', [file]); loaded.push('Atlas'); }
           else if (/\.json$/i.test(file.name) || file.type === 'application/json') loaded.push(await routeJsonFile(file));
           else throw new Error('不支援的檔案類型：' + file.name);
         }
-        if (loaded.length) $('appStatus').textContent = '拖放載入：' + loaded.filter(Boolean).join('、');
+        if (loaded.some(Boolean) && owner === project) $('appStatus').textContent = '拖放載入：' + loaded.filter(Boolean).join('、');
       } catch (error) { notify(error.message, true); }
     });
   }
 
   async function init() {
-    project.name = '金色光塵'; project.emitters[0].shape = 'box'; project.emitters[0].width = 180; project.emitters[0].height = 30; project.emitters[0].count = 48; project.emitters[0].emissionDuration = 3; project.emitters[0].spread = 70; project.emitters[0].size = 18; project.emitters[0].speed = 90;
     refreshLive(); renderGlobals(); renderEmitters(); renderInspector(); wireEvents(); updateBakeStatus(); updatePlayButton();
+    captureInterfaceDefaults();
     new ResizeObserver(resize).observe($('canvasStage')); new ResizeObserver(drawCurves).observe(document.querySelector('.inspector'));
     resize(); requestAnimationFrame(animate);
     const startingProject = project, startingRevision = revision, startingIntegration = integration;

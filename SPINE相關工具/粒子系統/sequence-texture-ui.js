@@ -43,20 +43,35 @@
       if (owner !== lastOwner || selected !== lastEmitter) { request++; lastOwner = owner; lastEmitter = selected; }
       const sequence = selected.sequence, hasSequence = !!(sequence && sequence.frames && sequence.frames.length);
       const active = hasSequence && sequence.enabled !== false;
+      const randomMode = active && sequence.mode === 'random';
       const image = active ? sequence.frames[0] : selected.image || options.defaultImage;
       $('textureThumbnail').src = image.dataUrl; $('textureThumbnail').hidden = false;
-      $('textureThumbnail').alt = active ? '連續圖第一張' : '目前粒子貼圖';
-      $('textureInfo').textContent = active ? '連續圖 · ' + sequence.frames.length + ' 張 · ' + image.width + ' × ' + image.height + ' px' :
+      $('textureThumbnail').alt = randomMode ? '隨機圖片第一張' : active ? '連續圖第一張' : '目前粒子貼圖';
+      $('textureInfo').textContent = randomMode ? '隨機圖片 · ' + sequence.frames.length + ' 張' :
+        active ? '連續圖 · ' + sequence.frames.length + ' 張 · ' + image.width + ' × ' + image.height + ' px' :
         (selected.image ? selected.image.name : '內建柔光') + ' · ' + image.width + ' × ' + image.height + ' px';
       $('textureModeField').hidden = !hasSequence;
-      $('textureMode').value = active ? 'sequence' : 'single';
+      $('textureMode').value = randomMode ? 'random' : active ? 'sequence' : 'single';
       $('sequenceTextureControls').hidden = !active;
+      const playback = $('sequencePlaybackRow'), strip = $('randomTextureStrip');
+      if (playback) playback.hidden = randomMode;
+      if ($('sequencePlaybackHint')) $('sequencePlaybackHint').textContent = randomMode
+        ? '每顆粒子出生時從這些圖片隨機挑一張，整個生命都維持同一張；挑選結果跟著發射器種子，按「換一組」可重新分配。'
+        : '每顆粒子出生後從第一張播放；FPS 控制貼圖速度，可與專案幀率不同。';
+      if (strip) {
+        strip.hidden = !randomMode; strip.replaceChildren();
+        if (randomMode) sequence.frames.forEach(frame => {
+          const thumb = doc.createElement('img'); thumb.src = frame.dataUrl; thumb.alt = frame.name; thumb.title = frame.name + ' · ' + frame.width + ' × ' + frame.height + ' px';
+          strip.append(thumb);
+        });
+      }
       if (hasSequence) {
         if (doc.activeElement !== $('sequenceFps')) $('sequenceFps').value = sequence.fps;
-        $('sequenceMode').value = sequence.mode;
-        $('sequenceTextureInfo').textContent = sequence.frames.length + ' 張 · 每輪 ' +
-          Number((sequence.frames.length / sequence.fps).toFixed(3)) + ' 秒 · ' + sequence.frames[0].name +
-          (sequence.frames.length > 1 ? ' → ' + sequence.frames[sequence.frames.length - 1].name : '');
+        if (sequence.mode !== 'random') $('sequenceMode').value = sequence.mode;
+        $('sequenceTextureInfo').textContent = randomMode
+          ? sequence.frames.length + ' 張隨機挑選 · 大小依最大的一張等比例縮放'
+          : sequence.frames.length + ' 張 · 每輪 ' + Number((sequence.frames.length / sequence.fps).toFixed(3)) + ' 秒 · ' + sequence.frames[0].name +
+            (sequence.frames.length > 1 ? ' → ' + sequence.frames[sequence.frames.length - 1].name : '');
         if (options.prepareImages) options.prepareImages(sequence.frames);
       }
     }
@@ -71,7 +86,7 @@
       if (keys.length === 1 && keys[0] === 'sequence' && previous && next && next.frames === previous.frames) {
         if (typeof next.enabled !== 'boolean') throw new Error('連續圖啟用狀態必須是布林值。');
         if (!Number.isInteger(next.fps) || next.fps < 1 || next.fps > 120) throw new Error('連續圖 FPS 必須是 1–120 的整數。');
-        if (!['loop', 'once'].includes(next.mode)) throw new Error('連續圖播放方式不正確。');
+        if (!['loop', 'once', 'random'].includes(next.mode)) throw new Error('連續圖播放方式不正確。');
         if (next.enabled === previous.enabled && next.fps === previous.fps && next.mode === previous.mode) return false;
         normalizedPatch.sequence = {enabled: next.enabled, fps: next.fps, mode: next.mode, frames: previous.frames};
       } else {
@@ -87,7 +102,7 @@
       return true;
     }
 
-    function wirePicker(buttonId, inputId, multiple) {
+    function wirePicker(buttonId, inputId, multiple, randomPick) {
       const input = $(inputId);
       $(buttonId).addEventListener('click', () => { pending.set(input, context()); input.click(); });
       input.addEventListener('cancel', () => pending.delete(input));
@@ -110,8 +125,10 @@
               frames.push(image);
             }
             const previous = current.selected.sequence;
-            apply(current.selected, {sequence: {enabled: true, fps: previous ? previous.fps : 12, mode: previous ? previous.mode : 'loop', frames}});
-            options.notify('已載入 ' + frames.length + ' 張連續圖，依檔名數字排序；可直接調整 FPS。');
+            const priorMode = previous && previous.mode !== 'random' ? previous.mode : 'loop';
+            apply(current.selected, {sequence: {enabled: true, fps: previous ? previous.fps : 12, mode: randomPick ? 'random' : priorMode, frames}});
+            options.notify(randomPick ? '已載入 ' + frames.length + ' 張隨機圖片，每顆粒子會隨機挑一張噴發。'
+              : '已載入 ' + frames.length + ' 張連續圖，依檔名數字排序；可直接調整 FPS。');
           } else {
             const image = await options.loadImage(files[0]);
             if (!validRequest(current)) return;
@@ -127,6 +144,7 @@
 
     wirePicker('textureButton', 'textureFile', false);
     wirePicker('sequenceTextureButton', 'sequenceTextureFile', true);
+    if ($('randomTextureButton')) wirePicker('randomTextureButton', 'randomTextureFile', true, true);
     $('removeTexture').addEventListener('click', () => {
       request++;
       try { apply(options.getEmitter(), {image: null, sequence: undefined}); }
@@ -136,7 +154,9 @@
       request++;
       const selected = options.getEmitter();
       if (!selected.sequence) return;
-      try { apply(selected, {sequence: {...selected.sequence, enabled: $('textureMode').value === 'sequence'}}); }
+      const choice = $('textureMode').value, prior = selected.sequence;
+      const mode = choice === 'random' ? 'random' : choice === 'sequence' && prior.mode === 'random' ? ($('sequenceMode').value === 'once' ? 'once' : 'loop') : prior.mode;
+      try { apply(selected, {sequence: {...prior, enabled: choice !== 'single', mode}}); }
       catch (error) { refresh(); options.notify(error.message, true); }
     });
     $('sequenceMode').addEventListener('change', () => {

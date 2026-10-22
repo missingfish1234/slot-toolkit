@@ -157,6 +157,10 @@ h3 { color: #c6d6e0; font-size: 12px; font-weight: 650; letter-spacing: .03em; }
 .file-actions { display: flex; align-items: center; gap: 7px; margin-left: auto; flex: none; }
 .quiet-button { background: transparent; border-color: transparent; color: #c2d1dd; }
 .quiet-button:hover:not(:disabled) { background: #1e2d38; border-color: #30424d; }
+.reset-project-button { color: var(--accent); border-color: #386459; white-space: nowrap; }
+.help-dialog.new-project-dialog { width: min(520px, calc(100vw - 28px)); }
+.new-project-dialog .dialog-content { line-height: 1.8; }
+.new-project-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 0 20px 20px; }
 .primary-button { color: #0b3026; background: var(--accent); border-color: var(--accent); font-weight: 700; box-shadow: 0 3px 15px #81e8c61c; }
 .primary-button:hover:not(:disabled) { background: var(--accent-bright); border-color: var(--accent-bright); box-shadow: 0 4px 22px #81e8c636; }
 .secondary-button { color: #b3efd9; background: #1a332e; border-color: #3c6559; }
@@ -597,12 +601,14 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   .inspector-section { padding-inline: 10px; }
   .field-row { gap: 8px; }
 }
-@media (max-width: 1000px) and (min-width: 821px) {
+@media (max-width: 1400px) and (min-width: 821px) {
   .app-header { flex-wrap: wrap; min-height: 92px; gap: 7px 14px; padding-block: 8px; }
   .brand { order: 1; }
   .project-heading { order: 2; max-width: 280px; margin-left: auto; }
   .file-actions { order: 3; width: 100%; margin: 0; justify-content: flex-end; }
   .file-actions .quiet-button:first-child { margin-right: auto; }
+}
+@media (max-width: 1000px) and (min-width: 821px) {
   .file-actions button { height: 28px; }
   .file-actions .help-button { width: 25px; height: 25px; }
   .workspace { grid-template-columns: 172px minmax(0,1fr) 284px; gap: 9px; padding-inline: 9px; }
@@ -903,3 +909,8 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 .help-shortcuts dd { margin: 0; color: #c1d1dc; }
 .emitter-item .emitter-tags { padding-right: 46px; min-width: 0; }
 .emitter-item .emitter-type { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* v1.26 · random multi-image particles */
+.random-texture-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.random-texture-strip[hidden] { display: none; }
+.random-texture-strip img { width: 34px; height: 34px; object-fit: contain; padding: 3px; background: repeating-conic-gradient(#1a2733 0 25%, #121c26 0 50%) 0 0/10px 10px; border: 1px solid var(--line); border-radius: 7px; }

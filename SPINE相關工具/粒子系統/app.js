@@ -36,7 +36,7 @@
   let integration = null;
   let updateBaseCache = null;
   const builtinImages = {};
-  let project = Core.createProject();
+  let project = createInitialProject();
   let selectedId = project.emitters[0].id;
   let liveBake = null, baked = null, exported = null, bakedPreview = null, liveError = '';
   let liveFlowBake = null, flowBaked = null, phase = 'loop', sequence = false, exitRequested = false;
@@ -45,11 +45,20 @@
   let zoom = 1, panX = 0, panY = 40, stageW = 1, stageH = 1;
   let liveTimer = null, draftTimer = null, messageTimer = null;
   let interaction = null, busy = false, initialized = false;
+  let resettingProject = false, initialInterface = null;
+  let draftWrite = Promise.resolve();
   let history = null, historyRestoring = false, historyGroup = null;
   let priorAssets = null, priorSource = null, emitterLanes = null, batchUi = null;
   // Preview-only visibility; never changes the project, bake or export.
   const previewHidden = new Set(); let soloId = null;
   const MAX_ZOOM = 8;
+
+  function createInitialProject(name = '金色光塵') {
+    const fresh = Core.createProject(); fresh.name = name;
+    Object.assign(fresh.emitters[0], {shape: 'box', width: 180, height: 30, count: 48,
+      emissionDuration: 3, spread: 70, size: 18, speed: 90});
+    return fresh;
+  }
 
   function historyState() { return {project, integration, selectedId}; }
   function effectiveIntegration(session = integration) {
@@ -458,6 +467,7 @@
     $('exportButton').disabled = busy;
     $('exportButton').title = baked && !dirty ? '輸出目前烘焙結果（Ctrl＋E）' : '自動更新烘焙後輸出（Ctrl＋E）';
     $('bakeButton').disabled = busy;
+    $('newProject').disabled = busy || resettingProject;
     $('modeBaked').disabled = !baked;
     updateHistoryStatus();
     $('modeLive').classList.toggle('active', mode === 'live');
@@ -801,16 +811,22 @@
     if (updateInspector) renderInspector();
     queueDraft();
   }
+  function saveDraftSnapshot(raw) {
+    const pending = draftWrite.catch(() => {}).then(() => Storage.saveDraft(raw));
+    draftWrite = pending;
+    return pending;
+  }
   function queueDraft() {
     recordHistory();
     if (!initialized) return;
     clearTimeout(draftTimer);
     draftTimer = setTimeout(async () => {
+      const owner = project;
       try {
         const raw = JSON.parse(Storage.serialize(project, baked ? baked.project : null, viewState(), integration));
-        await Storage.saveDraft(raw);
-        $('appStatus').textContent = '本機草稿已保存';
-      } catch (error) { $('appStatus').textContent = error.message || '請儲存專案檔'; }
+        await saveDraftSnapshot(raw);
+        if (owner === project) $('appStatus').textContent = '本機草稿已保存';
+      } catch (error) { if (owner === project) $('appStatus').textContent = error.message || '請儲存專案檔'; }
     }, 700);
   }
   function imageFor(image) {
@@ -1160,8 +1176,8 @@
     setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
   function saveProject() {
-    try { download(Storage.serialize(project, baked ? baked.project : null, viewState(), integration), safeName() + '.particle.json', 'application/json'); queueDraft(); notify('已開始下載專案檔，包含參數、素材與烘焙快照。'); }
-    catch (error) { notify(error.message, true); }
+    try { download(Storage.serialize(project, baked ? baked.project : null, viewState(), integration), safeName() + '.particle.json', 'application/json'); queueDraft(); notify('已開始下載專案檔，包含參數、素材與烘焙快照。'); return true; }
+    catch (error) { notify(error.message, true); return false; }
   }
   async function bakeNow() {
     if (busy) return; busy = true; updateBakeStatus();
@@ -1298,7 +1314,7 @@
       let stem = integration.fileName.replace(/\.json$/i, '').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/^[. ]+|[. ]+$/g, '').slice(0, 64) || 'spine';
       if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(stem)) stem = 'spine_' + stem;
       const name = stem + '_particles';
-      const text = 'Particle Studio v1.25 · 既有 Spine ' + result.json.skeleton.spine + (integration.update && integration.update.mode === 'replace' ? ' 效果更新包\n\n' : ' 追加包\n\n') +
+      const text = 'Particle Studio v1.26 · 既有 Spine ' + result.json.skeleton.spine + (integration.update && integration.update.mode === 'replace' ? ' 效果更新包\n\n' : ' 追加包\n\n') +
         '1. 保留原 .spine 工程及其全部素材。此包不包含原角色的圖片或音效。\n' +
         '2. 把 new_images/ 裡的「' + result.manifest.imageDirectory + '」資料夾，複製進原工程的 Images 根目錄。\n' +
         '   原 JSON Images 設定：' + result.manifest.originalImagesPath + '\n' +
@@ -1424,6 +1440,63 @@
     renderGlobals(); renderEmitters(); renderInspector(); updateBakeStatus();
     historyGroup = null;
     if (history) history.reset(historyState());
+  }
+  function captureInterfaceDefaults() {
+    initialInterface = {
+      fields: Array.from(document.querySelectorAll('input:not([type="file"]),select,textarea')).map(node => ({
+        node, value: node.value, checked: node.checked,
+        options: node.tagName === 'SELECT' ? Array.from(node.options, option => option.cloneNode(true)) : null
+      })),
+      details: Array.from(document.querySelectorAll('details')).map(node => ({node, open: node.open}))
+    };
+  }
+  function restoreInterfaceDefaults() {
+    if (initialInterface) {
+      for (const {node, value, checked, options} of initialInterface.fields) {
+        if (options) node.replaceChildren(...options.map(option => option.cloneNode(true)));
+        node.value = value;
+        if (node.type === 'checkbox' || node.type === 'radio') node.checked = checked;
+      }
+      for (const {node, open} of initialInterface.details) node.open = open;
+    }
+    document.querySelectorAll('input[type="file"]').forEach(input => { input.value = ''; });
+    document.querySelectorAll('[data-panel] .inspector-section').forEach(section => setSectionCollapsed(section, false, false));
+    try { localStorage.removeItem(SECTION_KEY); } catch (_) { /* optional layout preference */ }
+    setTab('basic'); inspectorScrollPositions.clear();
+    document.querySelectorAll('.inspector-scroll,.emitter-list,.timeline-panel').forEach(node => { node.scrollTop = 0; node.scrollLeft = 0; });
+  }
+  async function resetProject() {
+    if (busy || resettingProject) return false;
+    resettingProject = true; updateBakeStatus();
+    try {
+      historyEnd();
+      if (pathEditor) pathEditor.close();
+      if (bonePicker) bonePicker.cancel();
+      if (libraryUi) libraryUi.close();
+      if (textureUi) textureUi.invalidate();
+      document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
+      clearTimeout(liveTimer); clearTimeout(draftTimer); clearTimeout(messageTimer);
+      liveTimer = draftTimer = messageTimer = null;
+      projectRequest++;
+      interaction = null; pathGizmoCache.clear(); updateBaseCache = null;
+      priorAssets = priorSource = null;
+      await adopt({project: createInitialProject('未命名專案'), bakedProject: null, integration: null,
+        view: {time: 0, mode: 'live', zoom: 1, panX: 0, panY: 40, previewAttached: true, showBones: true, skinName: '', phase: 'loop'}});
+      playing = true; previousTime = 0;
+      restoreInterfaceDefaults();
+      renderGlobals(); renderEmitters(); renderInspector(); updateBakeStatus(); updatePlayButton(); syncTimeline(); draw();
+      try {
+        await saveDraftSnapshot(JSON.parse(Storage.serialize(project, null, viewState(), null)));
+        $('appStatus').textContent = '新專案已建立 · 初始設定已保存';
+        notify('已重設介面並建立新專案，可直接開始編輯。');
+      } catch (error) {
+        $('appStatus').textContent = '新專案已建立 · 請手動儲存';
+        notify('新專案已建立，但本機草稿保存失敗。請按「儲存專案」保存。', true);
+      }
+      return true;
+    } catch (error) {
+      notify('無法建立新專案：' + error.message, true); return false;
+    } finally { resettingProject = false; updateBakeStatus(); }
   }
   function wireNumberScrub() {
     let gesture = null, suppressClick = null;
@@ -1652,6 +1725,10 @@
     });
     [['moveEmitterUp', -1], ['moveEmitterDown', 1]].forEach(([id, delta]) => { $(id).addEventListener('click', () => { const index = project.emitters.findIndex(e => e.id === selectedId), next = index + delta; if (next < 0 || next >= project.emitters.length) return; const item = project.emitters.splice(index, 1)[0]; project.emitters.splice(next, 0, item); changed(); renderEmitters(); }); });
     $('saveProject').addEventListener('click', saveProject); $('bakeButton').addEventListener('click', bakeNow); $('exportButton').addEventListener('click', exportZip);
+    $('newProject').addEventListener('click', () => { if (!busy && !resettingProject) $('newProjectDialog').showModal(); });
+    $('resetProjectCancel').addEventListener('click', () => $('newProjectDialog').close());
+    $('resetProjectConfirm').addEventListener('click', resetProject);
+    $('resetProjectSave').addEventListener('click', () => { if (!busy && !resettingProject && saveProject()) resetProject(); });
     $('spineVersion').addEventListener('change', () => {
       if (integration && integration.settings.enabled !== false) { updateBakeStatus(); return; }
       try { project.spineVersion = Core.spineProfile($('spineVersion').value).version; updateBakeStatus(); queueDraft(); notify('輸出版本已切換至 Spine ' + project.spineVersion + '。'); }
@@ -1836,7 +1913,7 @@
     wireBonePicker(); wireNumberScrub(); wireShortcuts(); wireDropZone(); wireSectionCollapse();
     batchUi = window.ParticleBatchExport.mount({run: runBatchExport, notify, getVersion: () => effectiveSpineVersion(),
       blockedReason: () => integration && integration.settings.enabled !== false ? '目前掛接既有骨架，版本跟隨原骨架；請用「輸出追加包」，或先移除掛接再批次輸出。' : busy ? '正在烘焙，請稍候。' : ''});
-    window.addEventListener('pagehide', () => { try { Storage.saveDraft(JSON.parse(Storage.serialize(project, baked ? baked.project : null, viewState(), integration))).catch(() => {}); } catch (_) {} });
+    window.addEventListener('pagehide', () => { try { saveDraftSnapshot(JSON.parse(Storage.serialize(project, baked ? baked.project : null, viewState(), integration))).catch(() => {}); } catch (_) {} });
   }
 
 
@@ -1954,9 +2031,11 @@
   const numericOrder = (a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
   async function routeJsonFile(file) {
     if (file.size > 48 * 1024 * 1024) throw new Error('檔案超過 48 MB：' + file.name);
-    let data; try { data = JSON.parse(await file.text()); } catch (_) { throw new Error('「' + file.name + '」不是有效的 JSON。'); }
+    const owner = project, request = projectRequest, text = await file.text();
+    if (owner !== project || request !== projectRequest) return '';
+    let data; try { data = JSON.parse(text); } catch (_) { throw new Error('「' + file.name + '」不是有效的 JSON。'); }
     if (data && data.format === 'particle-studio') return feedInput('projectFile', [file]) && '專案';
-    if (data && data.format === 'particle-studio-fx-library') { await libraryUi.open(); return feedInput('effectLibraryFile', [file]) && '效果庫'; }
+    if (data && data.format === 'particle-studio-fx-library') { await libraryUi.open(); if (owner !== project || request !== projectRequest) return ''; return feedInput('effectLibraryFile', [file]) && '效果庫'; }
     if (data && data.format === 'particle-studio-emitter') {
       emitterClipboard = data; try { localStorage.setItem(CLIPBOARD_KEY, JSON.stringify(data)); } catch (_) {}
       pasteEmitter(); return '發射器';
@@ -1971,7 +2050,7 @@
   }
   function wireDropZone() {
     const overlay = document.createElement('div'); overlay.id = 'dropOverlay'; overlay.className = 'drop-overlay'; overlay.hidden = true;
-    overlay.innerHTML = '<div class="drop-panel"><p class="drop-title">放開以載入檔案</p><div class="drop-zones"></div><p class="drop-hint">多張圖片會依檔名數字排序成連續圖。按 Esc 取消。</p></div>';
+    overlay.innerHTML = '<div class="drop-panel"><p class="drop-title">放開以載入檔案</p><div class="drop-zones"></div><p class="drop-hint">多張圖片可做成連續圖（依序播放）或隨機圖片（每顆隨機一張）。按 Esc 取消。</p></div>';
     document.body.append(overlay);
     const zonesHost = overlay.querySelector('.drop-zones');
     let depth = 0, activeZone = null;
@@ -1987,7 +2066,8 @@
       const target = emitter() ? '「' + emitter().name + '」' : '目前發射器';
       zonesHost.replaceChildren();
       if (images && !others) {
-        zonesHost.append(zone('texture', '粒子貼圖', images > 1 ? images + ' 張 → ' + target + '的連續圖' : '換成' + target + '的貼圖'));
+        zonesHost.append(zone('texture', images > 1 ? '連續圖' : '粒子貼圖', images > 1 ? images + ' 張依檔名順序播放 → ' + target : '換成' + target + '的貼圖'));
+        if (images > 1) zonesHost.append(zone('random', '隨機圖片', images + ' 張 → 每顆粒子隨機挑一張'));
         if (images === 1) {
           zonesHost.append(zone('outline', '物件輪廓', '掃描 PNG 外形，沿輪廓發射'));
           zonesHost.append(zone('background', '參考背景', '只在畫布對照，不會輸出'));
@@ -2016,6 +2096,7 @@
       const choice = node ? node.dataset.zone : (zonesHost.querySelector('.drop-zone') || {dataset: {}}).dataset.zone;
       const files = Array.from(event.dataTransfer.files || []); hide();
       if (!files.length || busy) return;
+      const owner = project;
       try {
         const images = files.filter(isImage).sort(numericOrder), rest = files.filter(file => !isImage(file));
         const loaded = [];
@@ -2023,6 +2104,7 @@
           if (choice === 'background') feedInput('backgroundFile', [images[0]]) && loaded.push('參考背景');
           else if (choice === 'outline') { setTab('basic'); feedInput('outlineFile', [images[0]]) && loaded.push('物件輪廓'); }
           else if (choice === 'rig') feedInput('spineImagesFile', images) && loaded.push(images.length + ' 張原骨架圖片');
+          else if (choice === 'random') { setTab('look'); feedInput('randomTextureFile', images) && loaded.push(images.length + ' 張隨機圖片'); }
           else {
             setTab('look');
             if (images.length > 1) feedInput('sequenceTextureFile', images) && loaded.push(images.length + ' 張連續圖');
@@ -2030,18 +2112,19 @@
           }
         }
         for (const file of rest) {
+          if (owner !== project) return;
           if (/\.atlas(\.txt)?$/i.test(file.name)) { $('spineMergeButton').click(); feedInput('spineAtlasFile', [file]); loaded.push('Atlas'); }
           else if (/\.json$/i.test(file.name) || file.type === 'application/json') loaded.push(await routeJsonFile(file));
           else throw new Error('不支援的檔案類型：' + file.name);
         }
-        if (loaded.length) $('appStatus').textContent = '拖放載入：' + loaded.filter(Boolean).join('、');
+        if (loaded.some(Boolean) && owner === project) $('appStatus').textContent = '拖放載入：' + loaded.filter(Boolean).join('、');
       } catch (error) { notify(error.message, true); }
     });
   }
 
   async function init() {
-    project.name = '金色光塵'; project.emitters[0].shape = 'box'; project.emitters[0].width = 180; project.emitters[0].height = 30; project.emitters[0].count = 48; project.emitters[0].emissionDuration = 3; project.emitters[0].spread = 70; project.emitters[0].size = 18; project.emitters[0].speed = 90;
     refreshLive(); renderGlobals(); renderEmitters(); renderInspector(); wireEvents(); updateBakeStatus(); updatePlayButton();
+    captureInterfaceDefaults();
     new ResizeObserver(resize).observe($('canvasStage')); new ResizeObserver(drawCurves).observe(document.querySelector('.inspector'));
     resize(); requestAnimationFrame(animate);
     const startingProject = project, startingRevision = revision, startingIntegration = integration;
