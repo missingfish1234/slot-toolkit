@@ -1,0 +1,542 @@
+{
+  "format": "particle-studio-project",
+  "schemaVersion": 1,
+  "project": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "沿路徑 · 矩形與橢圓",
+    "fps": 30,
+    "spineVersion": "4.0.56",
+    "duration": 3,
+    "loop": true,
+    "flow": {
+      "enabled": true,
+      "in": {
+        "name": "in",
+        "duration": 1
+      },
+      "loop": {
+        "name": "loop",
+        "duration": 3
+      },
+      "out": {
+        "name": "out",
+        "duration": 1
+      }
+    },
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "emitter1",
+        "name": "矩形光串",
+        "enabled": true,
+        "x": 0,
+        "y": 0,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 36,
+        "emissionDuration": 3,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 80,
+        "speedRandom": 20,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 11,
+        "sizeRandom": 2,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#a2fff0",
+        "colorEnd": "#4dbaad",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.5
+          },
+          {
+            "t": 0.2,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.12,
+            "v": 1
+          },
+          {
+            "t": 0.8,
+            "v": 0.8
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": null,
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": -220,
+              "y": -120
+            },
+            {
+              "x": 220,
+              "y": -120
+            },
+            {
+              "x": 220,
+              "y": 120
+            },
+            {
+              "x": -220,
+              "y": 120
+            }
+          ],
+          "closed": true,
+          "smooth": 0,
+          "reverse": false,
+          "mode": "lifetime",
+          "offsets": false
+        }
+      },
+      {
+        "id": "circlePath",
+        "name": "橢圓 · 反向",
+        "enabled": true,
+        "x": 0,
+        "y": 0,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 22,
+        "emissionDuration": 3,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 80,
+        "speedRandom": 20,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 8,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#ffd1a7",
+        "colorEnd": "#ff9852",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.5
+          },
+          {
+            "t": 0.2,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.12,
+            "v": 1
+          },
+          {
+            "t": 0.8,
+            "v": 0.8
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": null,
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": 160,
+              "y": 0,
+              "in": {
+                "x": 0,
+                "y": -44.18277998646349
+              },
+              "out": {
+                "x": 0,
+                "y": 44.18277998646349
+              },
+              "curve": "bezier"
+            },
+            {
+              "x": 0,
+              "y": 80,
+              "in": {
+                "x": 88.36555997292697,
+                "y": 0
+              },
+              "out": {
+                "x": -88.36555997292697,
+                "y": 0
+              },
+              "curve": "bezier"
+            },
+            {
+              "x": -160,
+              "y": 0,
+              "in": {
+                "x": 0,
+                "y": 44.18277998646349
+              },
+              "out": {
+                "x": 0,
+                "y": -44.18277998646349
+              },
+              "curve": "bezier"
+            },
+            {
+              "x": 0,
+              "y": -80,
+              "in": {
+                "x": -88.36555997292697,
+                "y": 0
+              },
+              "out": {
+                "x": 88.36555997292697,
+                "y": 0
+              },
+              "curve": "bezier"
+            }
+          ],
+          "closed": true,
+          "smooth": 0,
+          "reverse": true,
+          "mode": "lifetime",
+          "offsets": false
+        }
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    }
+  },
+  "bakedProject": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "沿路徑 · 矩形與橢圓",
+    "fps": 30,
+    "spineVersion": "4.0.56",
+    "duration": 3,
+    "loop": true,
+    "flow": {
+      "enabled": true,
+      "in": {
+        "name": "in",
+        "duration": 1
+      },
+      "loop": {
+        "name": "loop",
+        "duration": 3
+      },
+      "out": {
+        "name": "out",
+        "duration": 1
+      }
+    },
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "emitter1",
+        "name": "矩形光串",
+        "enabled": true,
+        "x": 0,
+        "y": 0,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 36,
+        "emissionDuration": 3,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 80,
+        "speedRandom": 20,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 11,
+        "sizeRandom": 2,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#a2fff0",
+        "colorEnd": "#4dbaad",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.5
+          },
+          {
+            "t": 0.2,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.12,
+            "v": 1
+          },
+          {
+            "t": 0.8,
+            "v": 0.8
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": null,
+        "emitFrom": "area",
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": -220,
+              "y": -120
+            },
+            {
+              "x": 220,
+              "y": -120
+            },
+            {
+              "x": 220,
+              "y": 120
+            },
+            {
+              "x": -220,
+              "y": 120
+            }
+          ],
+          "closed": true,
+          "smooth": 0,
+          "reverse": false,
+          "mode": "lifetime",
+          "offsets": false
+        }
+      },
+      {
+        "id": "circlePath",
+        "name": "橢圓 · 反向",
+        "enabled": true,
+        "x": 0,
+        "y": 0,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 22,
+        "emissionDuration": 3,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 80,
+        "speedRandom": 20,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 8,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#ffd1a7",
+        "colorEnd": "#ff9852",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.5
+          },
+          {
+            "t": 0.2,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.12,
+            "v": 1
+          },
+          {
+            "t": 0.8,
+            "v": 0.8
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": null,
+        "emitFrom": "area",
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": 160,
+              "y": 0,
+              "curve": "bezier",
+              "in": {
+                "x": 0,
+                "y": -44.18277998646349
+              },
+              "out": {
+                "x": 0,
+                "y": 44.18277998646349
+              }
+            },
+            {
+              "x": 0,
+              "y": 80,
+              "curve": "bezier",
+              "in": {
+                "x": 88.36555997292697,
+                "y": 0
+              },
+              "out": {
+                "x": -88.36555997292697,
+                "y": 0
+              }
+            },
+            {
+              "x": -160,
+              "y": 0,
+              "curve": "bezier",
+              "in": {
+                "x": 0,
+                "y": 44.18277998646349
+              },
+              "out": {
+                "x": 0,
+                "y": -44.18277998646349
+              }
+            },
+            {
+              "x": 0,
+              "y": -80,
+              "curve": "bezier",
+              "in": {
+                "x": -88.36555997292697,
+                "y": 0
+              },
+              "out": {
+                "x": 88.36555997292697,
+                "y": 0
+              }
+            }
+          ],
+          "closed": true,
+          "smooth": 0,
+          "reverse": true,
+          "mode": "lifetime",
+          "offsets": false
+        }
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    }
+  },
+  "view": {
+    "time": 0.8,
+    "mode": "baked",
+    "zoom": 1,
+    "panX": 0,
+    "panY": 0,
+    "phase": "loop"
+  }
+}

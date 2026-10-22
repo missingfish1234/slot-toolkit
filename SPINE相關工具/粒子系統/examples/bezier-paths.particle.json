@@ -1,0 +1,1430 @@
+{
+  "format": "particle-studio-project",
+  "schemaVersion": 1,
+  "project": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "少量節點 · 貝茲移動路徑",
+    "fps": 30,
+    "spineVersion": "4.0.56",
+    "duration": 3,
+    "loop": true,
+    "flow": {
+      "enabled": true,
+      "in": {
+        "name": "in",
+        "duration": 1
+      },
+      "loop": {
+        "name": "loop",
+        "duration": 3
+      },
+      "out": {
+        "name": "out",
+        "duration": 1
+      }
+    },
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "bezier_ellipse",
+        "name": "橢圓 · 4 個節點",
+        "enabled": true,
+        "x": -190,
+        "y": 110,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 16,
+        "emissionDuration": 3,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 8,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": true,
+        "blend": "additive",
+        "colorStart": "#ffd56a",
+        "colorEnd": "#ff975c",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.75
+          },
+          {
+            "t": 0.16,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0.75
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.08,
+            "v": 1
+          },
+          {
+            "t": 0.88,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "particle.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 64,
+          "dataUrl": "data:image/png;base64,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"
+        },
+        "emitFrom": "area",
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": 110,
+              "y": 0,
+              "curve": "bezier",
+              "in": {
+                "x": 0,
+                "y": -38.65993248815555
+              },
+              "out": {
+                "x": 0,
+                "y": 38.65993248815555
+              }
+            },
+            {
+              "x": 0,
+              "y": 70,
+              "curve": "bezier",
+              "in": {
+                "x": 60.75132248138729,
+                "y": 0
+              },
+              "out": {
+                "x": -60.75132248138729,
+                "y": 0
+              }
+            },
+            {
+              "x": -110,
+              "y": 0,
+              "curve": "bezier",
+              "in": {
+                "x": 0,
+                "y": 38.65993248815555
+              },
+              "out": {
+                "x": 0,
+                "y": -38.65993248815555
+              }
+            },
+            {
+              "x": 0,
+              "y": -70,
+              "curve": "bezier",
+              "in": {
+                "x": -60.75132248138729,
+                "y": 0
+              },
+              "out": {
+                "x": 60.75132248138729,
+                "y": 0
+              }
+            }
+          ],
+          "closed": true,
+          "smooth": 0,
+          "reverse": false,
+          "mode": "lifetime",
+          "offsets": false
+        }
+      },
+      {
+        "id": "bezier_figure8",
+        "name": "8 字型 · 8 個節點",
+        "enabled": true,
+        "x": 190,
+        "y": 110,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 16,
+        "emissionDuration": 3,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 8,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": true,
+        "blend": "additive",
+        "colorStart": "#8de6ff",
+        "colorEnd": "#48a3ff",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.75
+          },
+          {
+            "t": 0.16,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0.75
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.08,
+            "v": 1
+          },
+          {
+            "t": 0.88,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "particle.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 64,
+          "dataUrl": "data:image/png;base64,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"
+        },
+        "emitFrom": "area",
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": 0,
+              "y": 0,
+              "curve": "bezier",
+              "in": {
+                "x": -28.79793265790644,
+                "y": -36.65191429188092
+              },
+              "out": {
+                "x": 28.79793265790644,
+                "y": 36.65191429188092
+              }
+            },
+            {
+              "x": 77.78174593052022,
+              "y": 70,
+              "curve": "bezier",
+              "in": {
+                "x": -20.363213466559177,
+                "y": -2.244282476008755e-15
+              },
+              "out": {
+                "x": 20.363213466559177,
+                "y": 2.244282476008755e-15
+              }
+            },
+            {
+              "x": 110,
+              "y": 8.572527594031473e-15,
+              "curve": "bezier",
+              "in": {
+                "x": -1.7633648025783075e-15,
+                "y": 36.65191429188092
+              },
+              "out": {
+                "x": 1.7633648025783075e-15,
+                "y": -36.65191429188092
+              }
+            },
+            {
+              "x": 77.78174593052023,
+              "y": -70,
+              "curve": "bezier",
+              "in": {
+                "x": 20.363213466559177,
+                "y": 6.732847428026264e-15
+              },
+              "out": {
+                "x": -20.363213466559177,
+                "y": -6.732847428026264e-15
+              }
+            },
+            {
+              "x": 1.3471114790620885e-14,
+              "y": -1.7145055188062946e-14,
+              "curve": "bezier",
+              "in": {
+                "x": 28.79793265790644,
+                "y": -36.65191429188092
+              },
+              "out": {
+                "x": -28.79793265790644,
+                "y": 36.65191429188092
+              }
+            },
+            {
+              "x": -77.78174593052022,
+              "y": 70,
+              "curve": "bezier",
+              "in": {
+                "x": 20.363213466559184,
+                "y": -1.1221412380043775e-14
+              },
+              "out": {
+                "x": -20.363213466559184,
+                "y": 1.1221412380043775e-14
+              }
+            },
+            {
+              "x": -110,
+              "y": 2.5717582782094416e-14,
+              "curve": "bezier",
+              "in": {
+                "x": 5.2900944077349215e-15,
+                "y": 36.65191429188092
+              },
+              "out": {
+                "x": -5.2900944077349215e-15,
+                "y": -36.65191429188092
+              }
+            },
+            {
+              "x": -77.78174593052024,
+              "y": -70,
+              "curve": "bezier",
+              "in": {
+                "x": -20.36321346655917,
+                "y": 1.5709977332061284e-14
+              },
+              "out": {
+                "x": 20.36321346655917,
+                "y": -1.5709977332061284e-14
+              }
+            }
+          ],
+          "closed": true,
+          "smooth": 0,
+          "reverse": false,
+          "mode": "lifetime",
+          "offsets": false
+        }
+      },
+      {
+        "id": "bezier_s",
+        "name": "S 型 · 5 個節點",
+        "enabled": true,
+        "x": -190,
+        "y": -110,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 16,
+        "emissionDuration": 3,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 8,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": true,
+        "blend": "additive",
+        "colorStart": "#9dffd9",
+        "colorEnd": "#44c6ac",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.75
+          },
+          {
+            "t": 0.16,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0.75
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.08,
+            "v": 1
+          },
+          {
+            "t": 0.88,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "particle.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 64,
+          "dataUrl": "data:image/png;base64,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"
+        },
+        "emitFrom": "area",
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": -110,
+              "y": 0,
+              "curve": "bezier",
+              "out": {
+                "x": 18.333333333333332,
+                "y": 36.65191429188092
+              }
+            },
+            {
+              "x": -55,
+              "y": 70,
+              "curve": "bezier",
+              "in": {
+                "x": -18.333333333333332,
+                "y": -2.244282476008755e-15
+              },
+              "out": {
+                "x": 18.333333333333332,
+                "y": 2.244282476008755e-15
+              }
+            },
+            {
+              "x": 0,
+              "y": 8.572527594031473e-15,
+              "curve": "bezier",
+              "in": {
+                "x": -18.333333333333332,
+                "y": 36.65191429188092
+              },
+              "out": {
+                "x": 18.333333333333332,
+                "y": -36.65191429188092
+              }
+            },
+            {
+              "x": 55,
+              "y": -70,
+              "curve": "bezier",
+              "in": {
+                "x": -18.333333333333332,
+                "y": 6.732847428026264e-15
+              },
+              "out": {
+                "x": 18.333333333333332,
+                "y": -6.732847428026264e-15
+              }
+            },
+            {
+              "x": 110,
+              "y": -1.7145055188062946e-14,
+              "curve": "bezier",
+              "in": {
+                "x": -18.333333333333332,
+                "y": -36.65191429188092
+              }
+            }
+          ],
+          "closed": false,
+          "smooth": 0,
+          "reverse": false,
+          "mode": "lifetime",
+          "offsets": false
+        }
+      },
+      {
+        "id": "bezier_spiral",
+        "name": "螺旋 · 9 個節點",
+        "enabled": true,
+        "x": 190,
+        "y": -110,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 16,
+        "emissionDuration": 3,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 8,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": true,
+        "blend": "additive",
+        "colorStart": "#e0adff",
+        "colorEnd": "#aa66ef",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.75
+          },
+          {
+            "t": 0.16,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0.75
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.08,
+            "v": 1
+          },
+          {
+            "t": 0.88,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "particle.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 64,
+          "dataUrl": "data:image/png;base64,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"
+        },
+        "emitFrom": "area",
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": 5,
+              "y": 0,
+              "curve": "bezier",
+              "out": {
+                "x": 3.9583333333333335,
+                "y": 1.832595714594046
+              }
+            },
+            {
+              "x": 1.0332957367805794e-15,
+              "y": 11.8125,
+              "curve": "bezier",
+              "in": {
+                "x": 8.835729338221293,
+                "y": -2.7708333333333335
+              },
+              "out": {
+                "x": -8.835729338221293,
+                "y": 2.7708333333333335
+              }
+            },
+            {
+              "x": -28.749999999999996,
+              "y": 2.4646016832840484e-15,
+              "curve": "bezier",
+              "in": {
+                "x": 3.9583333333333353,
+                "y": 10.537425358915764
+              },
+              "out": {
+                "x": -3.9583333333333353,
+                "y": -10.537425358915764
+              }
+            },
+            {
+              "x": -7.462691432304183e-15,
+              "y": -28.437499999999996,
+              "curve": "bezier",
+              "in": {
+                "x": -21.27120025868089,
+                "y": 2.7708333333333357
+              },
+              "out": {
+                "x": 21.27120025868089,
+                "y": -2.7708333333333357
+              }
+            },
+            {
+              "x": 52.5,
+              "y": -9.001153973733048e-15,
+              "curve": "bezier",
+              "in": {
+                "x": -3.9583333333333397,
+                "y": -19.242255003237485
+              },
+              "out": {
+                "x": 3.9583333333333397,
+                "y": 19.242255003237485
+              }
+            },
+            {
+              "x": 1.9709159423777718e-14,
+              "y": 45.0625,
+              "curve": "bezier",
+              "in": {
+                "x": 33.70667117914049,
+                "y": -2.7708333333333406
+              },
+              "out": {
+                "x": -33.70667117914049,
+                "y": 2.7708333333333406
+              }
+            },
+            {
+              "x": -76.25,
+              "y": 1.960965687134699e-14,
+              "curve": "bezier",
+              "in": {
+                "x": 3.958333333333348,
+                "y": 27.947084647559198
+              },
+              "out": {
+                "x": -3.958333333333348,
+                "y": -27.947084647559198
+              }
+            },
+            {
+              "x": -3.777269971120117e-14,
+              "y": -61.6875,
+              "curve": "bezier",
+              "in": {
+                "x": -46.142142099600086,
+                "y": 2.770833333333347
+              },
+              "out": {
+                "x": 46.142142099600086,
+                "y": -2.770833333333347
+              }
+            },
+            {
+              "x": 100,
+              "y": -3.429011037612589e-14,
+              "curve": "bezier",
+              "in": {
+                "x": -3.958333333333359,
+                "y": -36.65191429188092
+              }
+            }
+          ],
+          "closed": false,
+          "smooth": 0,
+          "reverse": false,
+          "mode": "lifetime",
+          "offsets": false
+        }
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    },
+    "bakeQuality": "standard"
+  },
+  "bakedProject": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "少量節點 · 貝茲移動路徑",
+    "fps": 30,
+    "spineVersion": "4.0.56",
+    "duration": 3,
+    "loop": true,
+    "flow": {
+      "enabled": true,
+      "in": {
+        "name": "in",
+        "duration": 1
+      },
+      "loop": {
+        "name": "loop",
+        "duration": 3
+      },
+      "out": {
+        "name": "out",
+        "duration": 1
+      }
+    },
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "bezier_ellipse",
+        "name": "橢圓 · 4 個節點",
+        "enabled": true,
+        "x": -190,
+        "y": 110,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 16,
+        "emissionDuration": 3,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 8,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": true,
+        "blend": "additive",
+        "colorStart": "#ffd56a",
+        "colorEnd": "#ff975c",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.75
+          },
+          {
+            "t": 0.16,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0.75
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.08,
+            "v": 1
+          },
+          {
+            "t": 0.88,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "particle.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 64,
+          "dataUrl": "data:image/png;base64,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"
+        },
+        "emitFrom": "area",
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": 110,
+              "y": 0,
+              "curve": "bezier",
+              "in": {
+                "x": 0,
+                "y": -38.65993248815555
+              },
+              "out": {
+                "x": 0,
+                "y": 38.65993248815555
+              }
+            },
+            {
+              "x": 0,
+              "y": 70,
+              "curve": "bezier",
+              "in": {
+                "x": 60.75132248138729,
+                "y": 0
+              },
+              "out": {
+                "x": -60.75132248138729,
+                "y": 0
+              }
+            },
+            {
+              "x": -110,
+              "y": 0,
+              "curve": "bezier",
+              "in": {
+                "x": 0,
+                "y": 38.65993248815555
+              },
+              "out": {
+                "x": 0,
+                "y": -38.65993248815555
+              }
+            },
+            {
+              "x": 0,
+              "y": -70,
+              "curve": "bezier",
+              "in": {
+                "x": -60.75132248138729,
+                "y": 0
+              },
+              "out": {
+                "x": 60.75132248138729,
+                "y": 0
+              }
+            }
+          ],
+          "closed": true,
+          "smooth": 0,
+          "reverse": false,
+          "mode": "lifetime",
+          "offsets": false
+        }
+      },
+      {
+        "id": "bezier_figure8",
+        "name": "8 字型 · 8 個節點",
+        "enabled": true,
+        "x": 190,
+        "y": 110,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 16,
+        "emissionDuration": 3,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 8,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": true,
+        "blend": "additive",
+        "colorStart": "#8de6ff",
+        "colorEnd": "#48a3ff",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.75
+          },
+          {
+            "t": 0.16,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0.75
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.08,
+            "v": 1
+          },
+          {
+            "t": 0.88,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "particle.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 64,
+          "dataUrl": "data:image/png;base64,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"
+        },
+        "emitFrom": "area",
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": 0,
+              "y": 0,
+              "curve": "bezier",
+              "in": {
+                "x": -28.79793265790644,
+                "y": -36.65191429188092
+              },
+              "out": {
+                "x": 28.79793265790644,
+                "y": 36.65191429188092
+              }
+            },
+            {
+              "x": 77.78174593052022,
+              "y": 70,
+              "curve": "bezier",
+              "in": {
+                "x": -20.363213466559177,
+                "y": -2.244282476008755e-15
+              },
+              "out": {
+                "x": 20.363213466559177,
+                "y": 2.244282476008755e-15
+              }
+            },
+            {
+              "x": 110,
+              "y": 8.572527594031473e-15,
+              "curve": "bezier",
+              "in": {
+                "x": -1.7633648025783075e-15,
+                "y": 36.65191429188092
+              },
+              "out": {
+                "x": 1.7633648025783075e-15,
+                "y": -36.65191429188092
+              }
+            },
+            {
+              "x": 77.78174593052023,
+              "y": -70,
+              "curve": "bezier",
+              "in": {
+                "x": 20.363213466559177,
+                "y": 6.732847428026264e-15
+              },
+              "out": {
+                "x": -20.363213466559177,
+                "y": -6.732847428026264e-15
+              }
+            },
+            {
+              "x": 1.3471114790620885e-14,
+              "y": -1.7145055188062946e-14,
+              "curve": "bezier",
+              "in": {
+                "x": 28.79793265790644,
+                "y": -36.65191429188092
+              },
+              "out": {
+                "x": -28.79793265790644,
+                "y": 36.65191429188092
+              }
+            },
+            {
+              "x": -77.78174593052022,
+              "y": 70,
+              "curve": "bezier",
+              "in": {
+                "x": 20.363213466559184,
+                "y": -1.1221412380043775e-14
+              },
+              "out": {
+                "x": -20.363213466559184,
+                "y": 1.1221412380043775e-14
+              }
+            },
+            {
+              "x": -110,
+              "y": 2.5717582782094416e-14,
+              "curve": "bezier",
+              "in": {
+                "x": 5.2900944077349215e-15,
+                "y": 36.65191429188092
+              },
+              "out": {
+                "x": -5.2900944077349215e-15,
+                "y": -36.65191429188092
+              }
+            },
+            {
+              "x": -77.78174593052024,
+              "y": -70,
+              "curve": "bezier",
+              "in": {
+                "x": -20.36321346655917,
+                "y": 1.5709977332061284e-14
+              },
+              "out": {
+                "x": 20.36321346655917,
+                "y": -1.5709977332061284e-14
+              }
+            }
+          ],
+          "closed": true,
+          "smooth": 0,
+          "reverse": false,
+          "mode": "lifetime",
+          "offsets": false
+        }
+      },
+      {
+        "id": "bezier_s",
+        "name": "S 型 · 5 個節點",
+        "enabled": true,
+        "x": -190,
+        "y": -110,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 16,
+        "emissionDuration": 3,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 8,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": true,
+        "blend": "additive",
+        "colorStart": "#9dffd9",
+        "colorEnd": "#44c6ac",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.75
+          },
+          {
+            "t": 0.16,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0.75
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.08,
+            "v": 1
+          },
+          {
+            "t": 0.88,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "particle.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 64,
+          "dataUrl": "data:image/png;base64,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"
+        },
+        "emitFrom": "area",
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": -110,
+              "y": 0,
+              "curve": "bezier",
+              "out": {
+                "x": 18.333333333333332,
+                "y": 36.65191429188092
+              }
+            },
+            {
+              "x": -55,
+              "y": 70,
+              "curve": "bezier",
+              "in": {
+                "x": -18.333333333333332,
+                "y": -2.244282476008755e-15
+              },
+              "out": {
+                "x": 18.333333333333332,
+                "y": 2.244282476008755e-15
+              }
+            },
+            {
+              "x": 0,
+              "y": 8.572527594031473e-15,
+              "curve": "bezier",
+              "in": {
+                "x": -18.333333333333332,
+                "y": 36.65191429188092
+              },
+              "out": {
+                "x": 18.333333333333332,
+                "y": -36.65191429188092
+              }
+            },
+            {
+              "x": 55,
+              "y": -70,
+              "curve": "bezier",
+              "in": {
+                "x": -18.333333333333332,
+                "y": 6.732847428026264e-15
+              },
+              "out": {
+                "x": 18.333333333333332,
+                "y": -6.732847428026264e-15
+              }
+            },
+            {
+              "x": 110,
+              "y": -1.7145055188062946e-14,
+              "curve": "bezier",
+              "in": {
+                "x": -18.333333333333332,
+                "y": -36.65191429188092
+              }
+            }
+          ],
+          "closed": false,
+          "smooth": 0,
+          "reverse": false,
+          "mode": "lifetime",
+          "offsets": false
+        }
+      },
+      {
+        "id": "bezier_spiral",
+        "name": "螺旋 · 9 個節點",
+        "enabled": true,
+        "x": 190,
+        "y": -110,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 16,
+        "emissionDuration": 3,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 8,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": true,
+        "blend": "additive",
+        "colorStart": "#e0adff",
+        "colorEnd": "#aa66ef",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.75
+          },
+          {
+            "t": 0.16,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0.75
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.08,
+            "v": 1
+          },
+          {
+            "t": 0.88,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "particle.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 64,
+          "dataUrl": "data:image/png;base64,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"
+        },
+        "emitFrom": "area",
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": 5,
+              "y": 0,
+              "curve": "bezier",
+              "out": {
+                "x": 3.9583333333333335,
+                "y": 1.832595714594046
+              }
+            },
+            {
+              "x": 1.0332957367805794e-15,
+              "y": 11.8125,
+              "curve": "bezier",
+              "in": {
+                "x": 8.835729338221293,
+                "y": -2.7708333333333335
+              },
+              "out": {
+                "x": -8.835729338221293,
+                "y": 2.7708333333333335
+              }
+            },
+            {
+              "x": -28.749999999999996,
+              "y": 2.4646016832840484e-15,
+              "curve": "bezier",
+              "in": {
+                "x": 3.9583333333333353,
+                "y": 10.537425358915764
+              },
+              "out": {
+                "x": -3.9583333333333353,
+                "y": -10.537425358915764
+              }
+            },
+            {
+              "x": -7.462691432304183e-15,
+              "y": -28.437499999999996,
+              "curve": "bezier",
+              "in": {
+                "x": -21.27120025868089,
+                "y": 2.7708333333333357
+              },
+              "out": {
+                "x": 21.27120025868089,
+                "y": -2.7708333333333357
+              }
+            },
+            {
+              "x": 52.5,
+              "y": -9.001153973733048e-15,
+              "curve": "bezier",
+              "in": {
+                "x": -3.9583333333333397,
+                "y": -19.242255003237485
+              },
+              "out": {
+                "x": 3.9583333333333397,
+                "y": 19.242255003237485
+              }
+            },
+            {
+              "x": 1.9709159423777718e-14,
+              "y": 45.0625,
+              "curve": "bezier",
+              "in": {
+                "x": 33.70667117914049,
+                "y": -2.7708333333333406
+              },
+              "out": {
+                "x": -33.70667117914049,
+                "y": 2.7708333333333406
+              }
+            },
+            {
+              "x": -76.25,
+              "y": 1.960965687134699e-14,
+              "curve": "bezier",
+              "in": {
+                "x": 3.958333333333348,
+                "y": 27.947084647559198
+              },
+              "out": {
+                "x": -3.958333333333348,
+                "y": -27.947084647559198
+              }
+            },
+            {
+              "x": -3.777269971120117e-14,
+              "y": -61.6875,
+              "curve": "bezier",
+              "in": {
+                "x": -46.142142099600086,
+                "y": 2.770833333333347
+              },
+              "out": {
+                "x": 46.142142099600086,
+                "y": -2.770833333333347
+              }
+            },
+            {
+              "x": 100,
+              "y": -3.429011037612589e-14,
+              "curve": "bezier",
+              "in": {
+                "x": -3.958333333333359,
+                "y": -36.65191429188092
+              }
+            }
+          ],
+          "closed": false,
+          "smooth": 0,
+          "reverse": false,
+          "mode": "lifetime",
+          "offsets": false
+        }
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    },
+    "bakeQuality": "standard"
+  },
+  "view": {
+    "time": 0.8,
+    "mode": "baked",
+    "zoom": 0.8,
+    "panX": 0,
+    "panY": 0,
+    "phase": "loop"
+  }
+}

@@ -1,0 +1,635 @@
+{
+  "format": "particle-studio-project",
+  "schemaVersion": 1,
+  "project": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "沿路徑轉向 · 箭頭示範",
+    "fps": 30,
+    "spineVersion": "4.0.56",
+    "duration": 4,
+    "loop": true,
+    "flow": {
+      "enabled": false,
+      "in": {
+        "name": "in",
+        "duration": 1
+      },
+      "loop": {
+        "name": "loop",
+        "duration": 3
+      },
+      "out": {
+        "name": "out",
+        "duration": 1
+      }
+    },
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "facing_ellipse",
+        "name": "橢圓 · 沿路徑轉向",
+        "enabled": true,
+        "x": -185,
+        "y": 0,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 8,
+        "emissionDuration": 4,
+        "life": 4,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 28,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": true,
+        "blend": "normal",
+        "colorStart": "#8af3cf",
+        "colorEnd": "#8af3cf",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 1
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.025,
+            "v": 1
+          },
+          {
+            "t": 0.975,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "path-arrow.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 32,
+          "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAgCAYAAACinX6EAAAAjUlEQVR4nO3WyQ2AQBADQUIjc0IzrxEPENpThu2pCMYtcWxbSukLJB2SdvcdNrowQ+iOFeIhACvESwBGiIIAa4eoCLBmiIYA80J0HOM0LoR7Saf+EO4Fg7SHcF8+WH0I98WTlIdwXzoJNgD2EcC+BLGfwX//GmOHB+zwgB0esMMDdnjADg/Y4QE7PCWvE7QWFHmnfHWwAAAAAElFTkSuQmCC"
+        },
+        "emitFrom": "area",
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": 130,
+              "y": 0,
+              "curve": "bezier",
+              "in": {
+                "x": 0,
+                "y": -49.70562748477142
+              },
+              "out": {
+                "x": 0,
+                "y": 49.70562748477142
+              }
+            },
+            {
+              "x": 0,
+              "y": 90,
+              "curve": "bezier",
+              "in": {
+                "x": 71.79701747800317,
+                "y": 0
+              },
+              "out": {
+                "x": -71.79701747800317,
+                "y": 0
+              }
+            },
+            {
+              "x": -130,
+              "y": 0,
+              "curve": "bezier",
+              "in": {
+                "x": 0,
+                "y": 49.70562748477142
+              },
+              "out": {
+                "x": 0,
+                "y": -49.70562748477142
+              }
+            },
+            {
+              "x": 0,
+              "y": -90,
+              "curve": "bezier",
+              "in": {
+                "x": -71.79701747800317,
+                "y": 0
+              },
+              "out": {
+                "x": 71.79701747800317,
+                "y": 0
+              }
+            }
+          ],
+          "closed": true,
+          "smooth": 0,
+          "reverse": false,
+          "mode": "lifetime",
+          "offsets": false
+        }
+      },
+      {
+        "id": "facing_reverse",
+        "name": "S 型 · 反向轉向",
+        "enabled": true,
+        "x": 185,
+        "y": 0,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 6,
+        "emissionDuration": 4,
+        "life": 4,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 28,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": true,
+        "blend": "normal",
+        "colorStart": "#ffcb72",
+        "colorEnd": "#ffcb72",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 1
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.025,
+            "v": 1
+          },
+          {
+            "t": 0.975,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "path-arrow.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 32,
+          "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAgCAYAAACinX6EAAAAjUlEQVR4nO3WyQ2AQBADQUIjc0IzrxEPENpThu2pCMYtcWxbSukLJB2SdvcdNrowQ+iOFeIhACvESwBGiIIAa4eoCLBmiIYA80J0HOM0LoR7Saf+EO4Fg7SHcF8+WH0I98WTlIdwXzoJNgD2EcC+BLGfwX//GmOHB+zwgB0esMMDdnjADg/Y4QE7PCWvE7QWFHmnfHWwAAAAAElFTkSuQmCC"
+        },
+        "emitFrom": "area",
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": -130,
+              "y": 0,
+              "curve": "bezier",
+              "out": {
+                "x": 21.666666666666668,
+                "y": 39.269908169872416
+              }
+            },
+            {
+              "x": -65,
+              "y": 75,
+              "curve": "bezier",
+              "in": {
+                "x": -21.666666666666668,
+                "y": -2.404588367152237e-15
+              },
+              "out": {
+                "x": 21.666666666666668,
+                "y": 2.404588367152237e-15
+              }
+            },
+            {
+              "x": 0,
+              "y": 9.184850993605149e-15,
+              "curve": "bezier",
+              "in": {
+                "x": -21.666666666666668,
+                "y": 39.269908169872416
+              },
+              "out": {
+                "x": 21.666666666666668,
+                "y": -39.269908169872416
+              }
+            },
+            {
+              "x": 65,
+              "y": -75,
+              "curve": "bezier",
+              "in": {
+                "x": -21.666666666666668,
+                "y": 7.213765101456711e-15
+              },
+              "out": {
+                "x": 21.666666666666668,
+                "y": -7.213765101456711e-15
+              }
+            },
+            {
+              "x": 130,
+              "y": -1.8369701987210297e-14,
+              "curve": "bezier",
+              "in": {
+                "x": -21.666666666666668,
+                "y": -39.269908169872416
+              }
+            }
+          ],
+          "closed": false,
+          "smooth": 0,
+          "reverse": true,
+          "mode": "lifetime",
+          "offsets": false
+        }
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    },
+    "bakeQuality": "standard"
+  },
+  "bakedProject": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "沿路徑轉向 · 箭頭示範",
+    "fps": 30,
+    "spineVersion": "4.0.56",
+    "duration": 4,
+    "loop": true,
+    "flow": {
+      "enabled": false,
+      "in": {
+        "name": "in",
+        "duration": 1
+      },
+      "loop": {
+        "name": "loop",
+        "duration": 3
+      },
+      "out": {
+        "name": "out",
+        "duration": 1
+      }
+    },
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "facing_ellipse",
+        "name": "橢圓 · 沿路徑轉向",
+        "enabled": true,
+        "x": -185,
+        "y": 0,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 8,
+        "emissionDuration": 4,
+        "life": 4,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 28,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": true,
+        "blend": "normal",
+        "colorStart": "#8af3cf",
+        "colorEnd": "#8af3cf",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 1
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.025,
+            "v": 1
+          },
+          {
+            "t": 0.975,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "path-arrow.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 32,
+          "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAgCAYAAACinX6EAAAAjUlEQVR4nO3WyQ2AQBADQUIjc0IzrxEPENpThu2pCMYtcWxbSukLJB2SdvcdNrowQ+iOFeIhACvESwBGiIIAa4eoCLBmiIYA80J0HOM0LoR7Saf+EO4Fg7SHcF8+WH0I98WTlIdwXzoJNgD2EcC+BLGfwX//GmOHB+zwgB0esMMDdnjADg/Y4QE7PCWvE7QWFHmnfHWwAAAAAElFTkSuQmCC"
+        },
+        "emitFrom": "area",
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": 130,
+              "y": 0,
+              "curve": "bezier",
+              "in": {
+                "x": 0,
+                "y": -49.70562748477142
+              },
+              "out": {
+                "x": 0,
+                "y": 49.70562748477142
+              }
+            },
+            {
+              "x": 0,
+              "y": 90,
+              "curve": "bezier",
+              "in": {
+                "x": 71.79701747800317,
+                "y": 0
+              },
+              "out": {
+                "x": -71.79701747800317,
+                "y": 0
+              }
+            },
+            {
+              "x": -130,
+              "y": 0,
+              "curve": "bezier",
+              "in": {
+                "x": 0,
+                "y": 49.70562748477142
+              },
+              "out": {
+                "x": 0,
+                "y": -49.70562748477142
+              }
+            },
+            {
+              "x": 0,
+              "y": -90,
+              "curve": "bezier",
+              "in": {
+                "x": -71.79701747800317,
+                "y": 0
+              },
+              "out": {
+                "x": 71.79701747800317,
+                "y": 0
+              }
+            }
+          ],
+          "closed": true,
+          "smooth": 0,
+          "reverse": false,
+          "mode": "lifetime",
+          "offsets": false
+        }
+      },
+      {
+        "id": "facing_reverse",
+        "name": "S 型 · 反向轉向",
+        "enabled": true,
+        "x": 185,
+        "y": 0,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 6,
+        "emissionDuration": 4,
+        "life": 4,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 28,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": true,
+        "blend": "normal",
+        "colorStart": "#ffcb72",
+        "colorEnd": "#ffcb72",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 1
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.025,
+            "v": 1
+          },
+          {
+            "t": 0.975,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "path-arrow.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 32,
+          "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAgCAYAAACinX6EAAAAjUlEQVR4nO3WyQ2AQBADQUIjc0IzrxEPENpThu2pCMYtcWxbSukLJB2SdvcdNrowQ+iOFeIhACvESwBGiIIAa4eoCLBmiIYA80J0HOM0LoR7Saf+EO4Fg7SHcF8+WH0I98WTlIdwXzoJNgD2EcC+BLGfwX//GmOHB+zwgB0esMMDdnjADg/Y4QE7PCWvE7QWFHmnfHWwAAAAAElFTkSuQmCC"
+        },
+        "emitFrom": "area",
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": -130,
+              "y": 0,
+              "curve": "bezier",
+              "out": {
+                "x": 21.666666666666668,
+                "y": 39.269908169872416
+              }
+            },
+            {
+              "x": -65,
+              "y": 75,
+              "curve": "bezier",
+              "in": {
+                "x": -21.666666666666668,
+                "y": -2.404588367152237e-15
+              },
+              "out": {
+                "x": 21.666666666666668,
+                "y": 2.404588367152237e-15
+              }
+            },
+            {
+              "x": 0,
+              "y": 9.184850993605149e-15,
+              "curve": "bezier",
+              "in": {
+                "x": -21.666666666666668,
+                "y": 39.269908169872416
+              },
+              "out": {
+                "x": 21.666666666666668,
+                "y": -39.269908169872416
+              }
+            },
+            {
+              "x": 65,
+              "y": -75,
+              "curve": "bezier",
+              "in": {
+                "x": -21.666666666666668,
+                "y": 7.213765101456711e-15
+              },
+              "out": {
+                "x": 21.666666666666668,
+                "y": -7.213765101456711e-15
+              }
+            },
+            {
+              "x": 130,
+              "y": -1.8369701987210297e-14,
+              "curve": "bezier",
+              "in": {
+                "x": -21.666666666666668,
+                "y": -39.269908169872416
+              }
+            }
+          ],
+          "closed": false,
+          "smooth": 0,
+          "reverse": true,
+          "mode": "lifetime",
+          "offsets": false
+        }
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    },
+    "bakeQuality": "standard"
+  },
+  "view": {
+    "time": 1.13,
+    "mode": "live",
+    "zoom": 1,
+    "panX": 0,
+    "panY": 0
+  }
+}

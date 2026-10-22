@@ -1,0 +1,1219 @@
+{
+  "format": "particle-studio-project",
+  "schemaVersion": 1,
+  "project": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "分軸縮放 · 拉伸與壓扁",
+    "fps": 30,
+    "spineVersion": "4.0.56",
+    "duration": 3,
+    "loop": true,
+    "flow": {
+      "enabled": false,
+      "in": {
+        "name": "in",
+        "duration": 1
+      },
+      "loop": {
+        "name": "loop",
+        "duration": 3
+      },
+      "out": {
+        "name": "out",
+        "duration": 1
+      }
+    },
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "squash_bar",
+        "name": "綠色 · X 拉長／Y 壓扁",
+        "enabled": true,
+        "x": -210,
+        "y": 0,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 1,
+        "emissionDuration": 0,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 80,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "normal",
+        "colorStart": "#8af3cf",
+        "colorEnd": "#8af3cf",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.5
+          },
+          {
+            "t": 0.35,
+            "v": 1.1
+          },
+          {
+            "t": 1,
+            "v": 0.5
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.025,
+            "v": 1
+          },
+          {
+            "t": 0.975,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "size-bar.png",
+          "mime": "image/png",
+          "width": 80,
+          "height": 36,
+          "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAAAkCAYAAAAeor16AAAAT0lEQVR4nO3QQQGAIAAAMfqXxgriwQe3CBsDAABemJcTGAmMBEYCI4GRwEjUIQIjgZHASGAkMBIYLQf+NXZblECBnwiMBEYCo+OBAABc4QEag74//2OAvAAAAABJRU5ErkJggg=="
+        },
+        "emitFrom": "area",
+        "separateSizeAxes": true,
+        "sizeCurveX": [
+          {
+            "t": 0,
+            "v": 0.55,
+            "curve": "bezier",
+            "out": {
+              "x": 0.25,
+              "y": 0.55
+            }
+          },
+          {
+            "t": 0.24,
+            "v": 1.8,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 1.8
+            },
+            "out": {
+              "x": 0.3,
+              "y": 1.8
+            }
+          },
+          {
+            "t": 0.64,
+            "v": 0.42,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 0.42
+            },
+            "out": {
+              "x": 0.3,
+              "y": 0.42
+            }
+          },
+          {
+            "t": 1,
+            "v": 1,
+            "in": {
+              "x": 0.7,
+              "y": 1
+            }
+          }
+        ],
+        "sizeCurveY": [
+          {
+            "t": 0,
+            "v": 1.5,
+            "curve": "bezier",
+            "out": {
+              "x": 0.3,
+              "y": 1.5
+            }
+          },
+          {
+            "t": 0.32,
+            "v": 0.5,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 0.5
+            },
+            "out": {
+              "x": 0.3,
+              "y": 0.5
+            }
+          },
+          {
+            "t": 0.7,
+            "v": 1.75,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 1.75
+            },
+            "out": {
+              "x": 0.3,
+              "y": 1.75
+            }
+          },
+          {
+            "t": 1,
+            "v": 1,
+            "in": {
+              "x": 0.7,
+              "y": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "stretch_bar",
+        "name": "金色 · 旋轉後沿各自軸變形",
+        "enabled": true,
+        "x": 0,
+        "y": 0,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 1,
+        "emissionDuration": 0,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 80,
+        "sizeRandom": 0,
+        "rotation": 35,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "normal",
+        "colorStart": "#ffcb72",
+        "colorEnd": "#ffcb72",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.5
+          },
+          {
+            "t": 0.35,
+            "v": 1.1
+          },
+          {
+            "t": 1,
+            "v": 0.5
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.025,
+            "v": 1
+          },
+          {
+            "t": 0.975,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "size-bar.png",
+          "mime": "image/png",
+          "width": 80,
+          "height": 36,
+          "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAAAkCAYAAAAeor16AAAAT0lEQVR4nO3QQQGAIAAAMfqXxgriwQe3CBsDAABemJcTGAmMBEYCI4GRwEjUIQIjgZHASGAkMBIYLQf+NXZblECBnwiMBEYCo+OBAABc4QEag74//2OAvAAAAABJRU5ErkJggg=="
+        },
+        "emitFrom": "area",
+        "separateSizeAxes": true,
+        "sizeCurveX": [
+          {
+            "t": 0,
+            "v": 1.5,
+            "curve": "bezier",
+            "out": {
+              "x": 0.3,
+              "y": 1.5
+            }
+          },
+          {
+            "t": 0.32,
+            "v": 0.5,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 0.5
+            },
+            "out": {
+              "x": 0.3,
+              "y": 0.5
+            }
+          },
+          {
+            "t": 0.7,
+            "v": 1.75,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 1.75
+            },
+            "out": {
+              "x": 0.3,
+              "y": 1.75
+            }
+          },
+          {
+            "t": 1,
+            "v": 1,
+            "in": {
+              "x": 0.7,
+              "y": 1
+            }
+          }
+        ],
+        "sizeCurveY": [
+          {
+            "t": 0,
+            "v": 0.55,
+            "curve": "bezier",
+            "out": {
+              "x": 0.25,
+              "y": 0.55
+            }
+          },
+          {
+            "t": 0.24,
+            "v": 1.8,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 1.8
+            },
+            "out": {
+              "x": 0.3,
+              "y": 1.8
+            }
+          },
+          {
+            "t": 0.64,
+            "v": 0.42,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 0.42
+            },
+            "out": {
+              "x": 0.3,
+              "y": 0.42
+            }
+          },
+          {
+            "t": 1,
+            "v": 1,
+            "in": {
+              "x": 0.7,
+              "y": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "facing_arrow",
+        "name": "紫色 · 沿路徑轉向＋分軸變形",
+        "enabled": true,
+        "x": 210,
+        "y": 0,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 3,
+        "emissionDuration": 2.8,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 47,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": true,
+        "blend": "normal",
+        "colorStart": "#c6a0ff",
+        "colorEnd": "#c6a0ff",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.5
+          },
+          {
+            "t": 0.35,
+            "v": 1.1
+          },
+          {
+            "t": 1,
+            "v": 0.5
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.025,
+            "v": 1
+          },
+          {
+            "t": 0.975,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "size-arrow.png",
+          "mime": "image/png",
+          "width": 80,
+          "height": 36,
+          "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAAAkCAYAAAAeor16AAAAjUlEQVR4nO3SQQ6AIBQDUe5/aVzowhg08FsEwswJmpemRETkL98avWXJcqHRm5aqBAhkQ1+AYFZUCwjkS62AQD6KAoJ55QDcGtIJ+Dtkj/GzBaApAE0BaAxAUwCaAtAYgIF4YLBmOADPwnA7A8pouwJa4WYKODHQxIATA04MNDHgxIATA00MODHgiGo6AL1XoTKo97ijAAAAAElFTkSuQmCC"
+        },
+        "emitFrom": "area",
+        "separateSizeAxes": true,
+        "sizeCurveX": [
+          {
+            "t": 0,
+            "v": 0.55,
+            "curve": "bezier",
+            "out": {
+              "x": 0.25,
+              "y": 0.55
+            }
+          },
+          {
+            "t": 0.24,
+            "v": 1.8,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 1.8
+            },
+            "out": {
+              "x": 0.3,
+              "y": 1.8
+            }
+          },
+          {
+            "t": 0.64,
+            "v": 0.42,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 0.42
+            },
+            "out": {
+              "x": 0.3,
+              "y": 0.42
+            }
+          },
+          {
+            "t": 1,
+            "v": 1,
+            "in": {
+              "x": 0.7,
+              "y": 1
+            }
+          }
+        ],
+        "sizeCurveY": [
+          {
+            "t": 0,
+            "v": 1.5,
+            "curve": "bezier",
+            "out": {
+              "x": 0.3,
+              "y": 1.5
+            }
+          },
+          {
+            "t": 0.32,
+            "v": 0.5,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 0.5
+            },
+            "out": {
+              "x": 0.3,
+              "y": 0.5
+            }
+          },
+          {
+            "t": 0.7,
+            "v": 1.75,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 1.75
+            },
+            "out": {
+              "x": 0.3,
+              "y": 1.75
+            }
+          },
+          {
+            "t": 1,
+            "v": 1,
+            "in": {
+              "x": 0.7,
+              "y": 1
+            }
+          }
+        ],
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": 77.5,
+              "y": 0,
+              "curve": "bezier",
+              "in": {
+                "x": 0,
+                "y": -33.137084989847615
+              },
+              "out": {
+                "x": 0,
+                "y": 33.137084989847615
+              }
+            },
+            {
+              "x": 0,
+              "y": 60,
+              "curve": "bezier",
+              "in": {
+                "x": 42.8020681118865,
+                "y": 0
+              },
+              "out": {
+                "x": -42.8020681118865,
+                "y": 0
+              }
+            },
+            {
+              "x": -77.5,
+              "y": 0,
+              "curve": "bezier",
+              "in": {
+                "x": 0,
+                "y": 33.137084989847615
+              },
+              "out": {
+                "x": 0,
+                "y": -33.137084989847615
+              }
+            },
+            {
+              "x": 0,
+              "y": -60,
+              "curve": "bezier",
+              "in": {
+                "x": -42.8020681118865,
+                "y": 0
+              },
+              "out": {
+                "x": 42.8020681118865,
+                "y": 0
+              }
+            }
+          ],
+          "closed": true,
+          "smooth": 0,
+          "reverse": false,
+          "mode": "lifetime",
+          "offsets": false
+        }
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    },
+    "bakeQuality": "fine"
+  },
+  "bakedProject": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "分軸縮放 · 拉伸與壓扁",
+    "fps": 30,
+    "spineVersion": "4.0.56",
+    "duration": 3,
+    "loop": true,
+    "flow": {
+      "enabled": false,
+      "in": {
+        "name": "in",
+        "duration": 1
+      },
+      "loop": {
+        "name": "loop",
+        "duration": 3
+      },
+      "out": {
+        "name": "out",
+        "duration": 1
+      }
+    },
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "squash_bar",
+        "name": "綠色 · X 拉長／Y 壓扁",
+        "enabled": true,
+        "x": -210,
+        "y": 0,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 1,
+        "emissionDuration": 0,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 80,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "normal",
+        "colorStart": "#8af3cf",
+        "colorEnd": "#8af3cf",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.5
+          },
+          {
+            "t": 0.35,
+            "v": 1.1
+          },
+          {
+            "t": 1,
+            "v": 0.5
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.025,
+            "v": 1
+          },
+          {
+            "t": 0.975,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "size-bar.png",
+          "mime": "image/png",
+          "width": 80,
+          "height": 36,
+          "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAAAkCAYAAAAeor16AAAAT0lEQVR4nO3QQQGAIAAAMfqXxgriwQe3CBsDAABemJcTGAmMBEYCI4GRwEjUIQIjgZHASGAkMBIYLQf+NXZblECBnwiMBEYCo+OBAABc4QEag74//2OAvAAAAABJRU5ErkJggg=="
+        },
+        "emitFrom": "area",
+        "separateSizeAxes": true,
+        "sizeCurveX": [
+          {
+            "t": 0,
+            "v": 0.55,
+            "curve": "bezier",
+            "out": {
+              "x": 0.25,
+              "y": 0.55
+            }
+          },
+          {
+            "t": 0.24,
+            "v": 1.8,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 1.8
+            },
+            "out": {
+              "x": 0.3,
+              "y": 1.8
+            }
+          },
+          {
+            "t": 0.64,
+            "v": 0.42,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 0.42
+            },
+            "out": {
+              "x": 0.3,
+              "y": 0.42
+            }
+          },
+          {
+            "t": 1,
+            "v": 1,
+            "in": {
+              "x": 0.7,
+              "y": 1
+            }
+          }
+        ],
+        "sizeCurveY": [
+          {
+            "t": 0,
+            "v": 1.5,
+            "curve": "bezier",
+            "out": {
+              "x": 0.3,
+              "y": 1.5
+            }
+          },
+          {
+            "t": 0.32,
+            "v": 0.5,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 0.5
+            },
+            "out": {
+              "x": 0.3,
+              "y": 0.5
+            }
+          },
+          {
+            "t": 0.7,
+            "v": 1.75,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 1.75
+            },
+            "out": {
+              "x": 0.3,
+              "y": 1.75
+            }
+          },
+          {
+            "t": 1,
+            "v": 1,
+            "in": {
+              "x": 0.7,
+              "y": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "stretch_bar",
+        "name": "金色 · 旋轉後沿各自軸變形",
+        "enabled": true,
+        "x": 0,
+        "y": 0,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 1,
+        "emissionDuration": 0,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 80,
+        "sizeRandom": 0,
+        "rotation": 35,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "normal",
+        "colorStart": "#ffcb72",
+        "colorEnd": "#ffcb72",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.5
+          },
+          {
+            "t": 0.35,
+            "v": 1.1
+          },
+          {
+            "t": 1,
+            "v": 0.5
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.025,
+            "v": 1
+          },
+          {
+            "t": 0.975,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "size-bar.png",
+          "mime": "image/png",
+          "width": 80,
+          "height": 36,
+          "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAAAkCAYAAAAeor16AAAAT0lEQVR4nO3QQQGAIAAAMfqXxgriwQe3CBsDAABemJcTGAmMBEYCI4GRwEjUIQIjgZHASGAkMBIYLQf+NXZblECBnwiMBEYCo+OBAABc4QEag74//2OAvAAAAABJRU5ErkJggg=="
+        },
+        "emitFrom": "area",
+        "separateSizeAxes": true,
+        "sizeCurveX": [
+          {
+            "t": 0,
+            "v": 1.5,
+            "curve": "bezier",
+            "out": {
+              "x": 0.3,
+              "y": 1.5
+            }
+          },
+          {
+            "t": 0.32,
+            "v": 0.5,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 0.5
+            },
+            "out": {
+              "x": 0.3,
+              "y": 0.5
+            }
+          },
+          {
+            "t": 0.7,
+            "v": 1.75,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 1.75
+            },
+            "out": {
+              "x": 0.3,
+              "y": 1.75
+            }
+          },
+          {
+            "t": 1,
+            "v": 1,
+            "in": {
+              "x": 0.7,
+              "y": 1
+            }
+          }
+        ],
+        "sizeCurveY": [
+          {
+            "t": 0,
+            "v": 0.55,
+            "curve": "bezier",
+            "out": {
+              "x": 0.25,
+              "y": 0.55
+            }
+          },
+          {
+            "t": 0.24,
+            "v": 1.8,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 1.8
+            },
+            "out": {
+              "x": 0.3,
+              "y": 1.8
+            }
+          },
+          {
+            "t": 0.64,
+            "v": 0.42,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 0.42
+            },
+            "out": {
+              "x": 0.3,
+              "y": 0.42
+            }
+          },
+          {
+            "t": 1,
+            "v": 1,
+            "in": {
+              "x": 0.7,
+              "y": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "facing_arrow",
+        "name": "紫色 · 沿路徑轉向＋分軸變形",
+        "enabled": true,
+        "x": 210,
+        "y": 0,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 3,
+        "emissionDuration": 2.8,
+        "life": 3,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 47,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": true,
+        "blend": "normal",
+        "colorStart": "#c6a0ff",
+        "colorEnd": "#c6a0ff",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.5
+          },
+          {
+            "t": 0.35,
+            "v": 1.1
+          },
+          {
+            "t": 1,
+            "v": 0.5
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.025,
+            "v": 1
+          },
+          {
+            "t": 0.975,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "size-arrow.png",
+          "mime": "image/png",
+          "width": 80,
+          "height": 36,
+          "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAAAkCAYAAAAeor16AAAAjUlEQVR4nO3SQQ6AIBQDUe5/aVzowhg08FsEwswJmpemRETkL98avWXJcqHRm5aqBAhkQ1+AYFZUCwjkS62AQD6KAoJ55QDcGtIJ+Dtkj/GzBaApAE0BaAxAUwCaAtAYgIF4YLBmOADPwnA7A8pouwJa4WYKODHQxIATA04MNDHgxIATA00MODHgiGo6AL1XoTKo97ijAAAAAElFTkSuQmCC"
+        },
+        "emitFrom": "area",
+        "separateSizeAxes": true,
+        "sizeCurveX": [
+          {
+            "t": 0,
+            "v": 0.55,
+            "curve": "bezier",
+            "out": {
+              "x": 0.25,
+              "y": 0.55
+            }
+          },
+          {
+            "t": 0.24,
+            "v": 1.8,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 1.8
+            },
+            "out": {
+              "x": 0.3,
+              "y": 1.8
+            }
+          },
+          {
+            "t": 0.64,
+            "v": 0.42,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 0.42
+            },
+            "out": {
+              "x": 0.3,
+              "y": 0.42
+            }
+          },
+          {
+            "t": 1,
+            "v": 1,
+            "in": {
+              "x": 0.7,
+              "y": 1
+            }
+          }
+        ],
+        "sizeCurveY": [
+          {
+            "t": 0,
+            "v": 1.5,
+            "curve": "bezier",
+            "out": {
+              "x": 0.3,
+              "y": 1.5
+            }
+          },
+          {
+            "t": 0.32,
+            "v": 0.5,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 0.5
+            },
+            "out": {
+              "x": 0.3,
+              "y": 0.5
+            }
+          },
+          {
+            "t": 0.7,
+            "v": 1.75,
+            "curve": "bezier",
+            "in": {
+              "x": 0.7,
+              "y": 1.75
+            },
+            "out": {
+              "x": 0.3,
+              "y": 1.75
+            }
+          },
+          {
+            "t": 1,
+            "v": 1,
+            "in": {
+              "x": 0.7,
+              "y": 1
+            }
+          }
+        ],
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": 77.5,
+              "y": 0,
+              "curve": "bezier",
+              "in": {
+                "x": 0,
+                "y": -33.137084989847615
+              },
+              "out": {
+                "x": 0,
+                "y": 33.137084989847615
+              }
+            },
+            {
+              "x": 0,
+              "y": 60,
+              "curve": "bezier",
+              "in": {
+                "x": 42.8020681118865,
+                "y": 0
+              },
+              "out": {
+                "x": -42.8020681118865,
+                "y": 0
+              }
+            },
+            {
+              "x": -77.5,
+              "y": 0,
+              "curve": "bezier",
+              "in": {
+                "x": 0,
+                "y": 33.137084989847615
+              },
+              "out": {
+                "x": 0,
+                "y": -33.137084989847615
+              }
+            },
+            {
+              "x": 0,
+              "y": -60,
+              "curve": "bezier",
+              "in": {
+                "x": -42.8020681118865,
+                "y": 0
+              },
+              "out": {
+                "x": 42.8020681118865,
+                "y": 0
+              }
+            }
+          ],
+          "closed": true,
+          "smooth": 0,
+          "reverse": false,
+          "mode": "lifetime",
+          "offsets": false
+        }
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    },
+    "bakeQuality": "fine"
+  },
+  "view": {
+    "time": 0.9,
+    "mode": "live",
+    "zoom": 1.1,
+    "panX": 0,
+    "panY": 0
+  }
+}

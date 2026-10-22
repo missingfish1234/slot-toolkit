@@ -1,10 +1,11 @@
 (function (root, factory) {
   'use strict';
   const Merge = typeof module === 'object' && module.exports ? require('./spine-merge.js') : root.ParticleSpineMerge;
-  var api = factory(root, Merge);
+  const EffectUpdate = typeof module === 'object' && module.exports ? require('./effect-update.js') : root.ParticleEffectUpdate;
+  var api = factory(root, Merge, EffectUpdate);
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.ParticleStorage = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (root, Merge) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (root, Merge, EffectUpdate) {
   'use strict';
 
   const FORMAT = 'particle-studio-project';
@@ -48,17 +49,22 @@
     const flow = current.flow && current.flow.enabled ? current.flow : null;
     const phase = ['in', 'loop', 'out'].includes(source.phase) ? source.phase : 'loop';
     let duration = finite(flow && flow[phase] ? flow[phase].duration : current.duration, 3);
+    let base = integration && integration.json;
+    if (integration && integration.update) {
+      const checked = EffectUpdate.inspectReceipt(integration.update.receipt, base);
+      if (integration.update.mode === 'replace') base = EffectUpdate.remove(base, checked.receipt).json;
+    }
     if (source.previewAttached !== false && integration && integration.settings.enabled !== false) {
       const target = flow ? (integration.settings.flowTargets || {})[phase] : integration.settings;
       if (target) {
-        const original = Merge.inspect(integration.json).animations.find(a => a.name === target.animationName);
+        const original = Merge.inspect(base).animations.find(a => a.name === target.animationName);
         duration = Math.max(original ? original.duration : 0, finite(target.startTime, 0) + duration);
       }
     }
     const result = {
       time: clamp(finite(source.time, 0), 0, Math.max(0, duration)),
       mode,
-      zoom: clamp(finite(source.zoom, 1), 0.25, 2),
+      zoom: clamp(finite(source.zoom, 1), 0.05, 8),
       panX: finite(source.panX, 0),
       panY: finite(source.panY, 0)
     };

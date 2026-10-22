@@ -106,14 +106,18 @@
         }
         particles.sort((a, b) => emitterOrder.indexOf(a.emitterId) - emitterOrder.indexOf(b.emitterId));
       }
-      const order = rig.slotOrder(at), after = settings.drawOrder === 'after' ? settings.afterSlot : settings.drawOrder === 'front' ? order[order.length - 1] : null;
-      const clips = after ? rig.clipsAfterSlot(after, at) : [];
-      particles.forEach(item => { item.clipPolygons = clips; });
-      if (settings.drawOrder === 'back') return particles.concat(original);
-      if (settings.drawOrder !== 'after') return original.concat(particles);
+      const order = rig.slotOrder(at), layerForParticle = item => Merge.layerForEmitter(settings, 'em_' + item.emitterId);
+      const clipsByAnchor = new Map();
+      particles.forEach(item => {
+        const layer = layerForParticle(item), after = layer.drawOrder === 'after' ? layer.afterSlot : layer.drawOrder === 'front' ? order[order.length - 1] : null;
+        if (!clipsByAnchor.has(after)) clipsByAnchor.set(after, after === null || after === undefined ? [] : rig.clipsAfterSlot(after, at));
+        item.clipPolygons = clipsByAnchor.get(after);
+      });
       const grouped = new Map(); original.forEach(item => { if (!grouped.has(item.slotName)) grouped.set(item.slotName, []); grouped.get(item.slotName).push(item); });
       const result = [];
-      order.forEach(name => { result.push(...(grouped.get(name) || [])); if (name === settings.afterSlot) result.push(...particles); });
+      Merge.placeSlots(order, particles, layerForParticle).forEach(item => {
+        if (typeof item === 'string') result.push(...(grouped.get(item) || [])); else result.push(item);
+      });
       return result;
     }
     return {timeline, metadata: rig.metadata, rig, sample, localTime, emitterFrame,

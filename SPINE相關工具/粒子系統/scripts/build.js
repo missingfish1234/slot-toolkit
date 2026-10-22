@@ -5,8 +5,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const workspace = path.resolve(__dirname, '..');
-const scripts = ['curve-math.js', 'core.js', 'zip.js', 'spine-merge.js', 'storage.js', 'preview.js', 'scrub.js', 'curve-editor.js', 'gradient-editor.js', 'spine-attachment-ui.js', 'flow-playback.js',
-  'spine-runtimes.js', 'spine-runtime-preview.js', 'spine-canvas-renderer.js', 'attachment-preview.js', 'spine-assets-ui.js', 'app.js'];
+const scripts = ['curve-math.js', 'path-math.js', 'contour-math.js', 'core.js', 'look-presets.js', 'effect-library.js', 'zip.js', 'spine-merge.js', 'effect-update.js', 'storage.js', 'preview.js', 'scrub.js', 'curve-editor.js', 'gradient-editor.js', 'look-presets-ui.js', 'effect-library-ui.js', 'timeline-view.js', 'path-editor.js', 'spine-attachment-ui.js', 'flow-playback.js',
+  'spine-runtimes.js', 'spine-runtime-preview.js', 'spine-canvas-renderer.js', 'attachment-preview.js', 'spine-assets-ui.js', 'history.js', 'bone-picker.js', 'sequence-texture-ui.js', 'emission-guides.js', 'emitter-lanes.js', 'batch-export.js', 'app.js'];
 const output = path.join(workspace, 'dist', 'Particle-Studio.html');
 
 function attribute(tag, name) {

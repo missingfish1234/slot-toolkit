@@ -15,12 +15,15 @@
     const specs = [
       {prefix: 'alpha', key: 'alphaCurve', max: 1, reset: 'resetAlpha', remove: 'deleteAlphaPoint'},
       {prefix: 'size', key: 'sizeCurve', max: 4, reset: 'resetSize', remove: 'deleteSizePoint'},
+      {prefix: 'sizeX', key: 'sizeCurveX', max: 4, reset: 'resetSizeX', remove: 'deleteSizeXPoint', axis: true},
+      {prefix: 'sizeY', key: 'sizeCurveY', max: 4, reset: 'resetSizeY', remove: 'deleteSizeYPoint', axis: true},
       {prefix: 'speed', key: 'speedCurve', max: 4, reset: 'resetSpeed', remove: 'deleteSpeedPoint'}
     ].map(spec => ({...spec, selected: 0, canvas: $(spec.prefix + 'CurveCanvas'),
       time: $(spec.prefix + 'CurveTime'), value: $(spec.prefix + 'CurveValue'),
       interpolation: $(spec.prefix + 'Interpolation'), deleteButton: $(spec.remove)}));
     function points(spec, e = getEmitter()) {
       if (e[spec.key]) return e[spec.key];
+      if (spec.axis && e.sizeCurve) return e.sizeCurve;
       if (spec.key === 'speedCurve' && e.inactiveSpeedCurve) return e.inactiveSpeedCurve;
       if (!fallback.has(e)) fallback.set(e, [{t: 0, v: 1}, {t: 1, v: 1}]);
       return fallback.get(e);
@@ -56,16 +59,37 @@
       list[segment].out = {x: 1 / 3, y: list[segment].v};
       list[segment + 1].in = {x: 2 / 3, y: list[segment + 1].v};
     }
+    function bezierSegment(list, segment) {
+      if (segment < 0 || segment >= list.length - 1) return;
+      const left = list[segment], right = list[segment + 1];
+      left.curve = 'bezier';
+      if (!left.out) left.out = {x: 1 / 3, y: left.v};
+      if (!right.in) right.in = {x: 2 / 3, y: right.v};
+    }
+    function balanceHandles(spec, list, index, dt, dv) {
+      const before = list[index - 1], p = list[index], after = list[index + 1];
+      const leftDuration = p.t - before.t, rightDuration = after.t - p.t;
+      const leftPeer = handle(before, p, 'out'), rightPeer = handle(p, after, 'in');
+      // Handles store segment-relative X. Mirror in lifetime time/value coordinates,
+      // then shorten the whole vector together to respect both adjacent segments.
+      const timeLimit = Math.max(0, Math.min((1 - leftPeer.x) * leftDuration, rightPeer.x * rightDuration));
+      const valueLimit = Math.min(p.v, spec.max - p.v);
+      dt = Math.max(0, dt);
+      let scale = 1;
+      if (dt > 0) scale = Math.min(scale, timeLimit / dt);
+      if (dv !== 0) scale = Math.min(scale, valueLimit / Math.abs(dv));
+      dt *= scale; dv *= scale;
+      p.in = {x: clamp(1 - dt / leftDuration, leftPeer.x, 1), y: clamp(p.v - dv, 0, spec.max)};
+      p.out = {x: clamp(dt / rightDuration, 0, rightPeer.x), y: clamp(p.v + dv, 0, spec.max)};
+    }
     function handles(spec, g, list) {
       const result = [];
-      [spec.selected - 1, spec.selected].forEach(segment => {
+      [{segment: spec.selected - 1, kind: 'in'}, {segment: spec.selected, kind: 'out'}].forEach(({segment, kind}) => {
         if (segment < 0 || segment >= list.length - 1 || list[segment].curve !== 'bezier') return;
         const left = list[segment], right = list[segment + 1];
-        ['out', 'in'].forEach(kind => {
-          const h = handle(left, right, kind);
-          result.push({segment, kind, ...xy(spec, g, left.t + h.x * (right.t - left.t), h.y),
-            anchor: xy(spec, g, kind === 'out' ? left.t : right.t, kind === 'out' ? left.v : right.v)});
-        });
+        const h = handle(left, right, kind);
+        result.push({segment, kind, index: spec.selected, ...xy(spec, g, left.t + h.x * (right.t - left.t), h.y),
+          anchor: xy(spec, g, list[spec.selected].t, list[spec.selected].v)});
       });
       return result;
     }
@@ -78,7 +102,7 @@
       [0, .5, 1].forEach(t => { c.moveTo(g.left + t * g.width, g.top); c.lineTo(g.left + t * g.width, g.top + g.height); });
       [0, .5, 1].forEach(v => { c.moveTo(g.left, g.top + v * g.height); c.lineTo(g.left + g.width, g.top + v * g.height); }); c.stroke();
       c.fillStyle = '#7f8c9f'; c.font = '10px sans-serif'; c.fillText(String(spec.max), 4, g.top + 4); c.fillText('0', 12, g.top + g.height);
-      c.strokeStyle = getEmitter()[spec.key] ? '#edc98c' : '#687991'; c.lineWidth = 2; c.beginPath();
+      c.strokeStyle = getEmitter()[spec.key] || spec.axis ? '#edc98c' : '#687991'; c.lineWidth = 2; c.beginPath();
       const start = xy(spec, g, list[0].t, list[0].v); c.moveTo(start.x, start.y);
       for (let i = 1; i < list.length; i++) {
         const left = list[i - 1], right = list[i], end = xy(spec, g, right.t, right.v);
@@ -110,7 +134,16 @@
       spec.time.step = bounds.every(onGrid) && onGrid(p.t) ? '0.1' : 'any';
       if (doc.activeElement !== spec.time) spec.time.value = String(spec.time.step === 'any' ? p.t * 100 : round(p.t * 100));
       if (doc.activeElement !== spec.value) spec.value.value = String(round(p.v));
-      spec.interpolation.value = list[segment].curve || 'linear';
+      const mode = list[segment].curve || 'linear';
+      const mixed = spec.selected > 0 && spec.selected < list.length - 1 && (list[spec.selected - 1].curve || 'linear') !== mode;
+      if (mixed && !spec.mixedOption) {
+        spec.mixedOption = doc.createElement('option');
+        spec.mixedOption.value = 'mixed'; spec.mixedOption.textContent = '兩側不同'; spec.mixedOption.disabled = true;
+        spec.interpolation.append(spec.mixedOption);
+      } else if (!mixed && spec.mixedOption) {
+        spec.mixedOption.remove(); spec.mixedOption = null;
+      }
+      spec.interpolation.value = mixed ? 'mixed' : mode;
       spec.deleteButton.disabled = spec.time.disabled;
     }
     function refresh() {
@@ -118,6 +151,10 @@
       if (e !== currentEmitter) { currentEmitter = e; specs.forEach(s => { s.selected = 0; }); }
       $('enableSpeedCurve').checked = !!e.speedCurve;
       $('legacyMotionField').querySelector('select').disabled = !!e.speedCurve;
+      $('separateSizeAxes').checked = !!e.separateSizeAxes;
+      $('uniformSizeCurveFields').hidden = !!e.separateSizeAxes;
+      $('separateSizeCurveFields').hidden = !e.separateSizeAxes;
+      $('sizeAxesHint').textContent = e.separateSizeAxes ? 'X 調整寬度，Y 調整高度。關閉後恢復統一倍率，分軸曲線會保留。' : 'X、Y 共用下方的尺寸倍率曲線；開啟後可分別調整寬度與高度。';
       specs.forEach(spec => { updateFields(spec); draw(spec); });
     }
     function change() { onChange(); refresh(); }
@@ -144,24 +181,42 @@
       let dragging = null;
       const position = event => {
         const r = spec.canvas.getBoundingClientRect(), g = geometry(spec);
+        const rawT = (event.clientX - r.left - g.left) / g.width;
+        const rawV = (1 - (event.clientY - r.top - g.top) / g.height) * spec.max;
         return {g, x: event.clientX - r.left, y: event.clientY - r.top,
-          t: clamp((event.clientX - r.left - g.left) / g.width, 0, 1),
-          v: clamp((1 - (event.clientY - r.top - g.top) / g.height) * spec.max, 0, spec.max)};
+          rawT, rawV, t: clamp(rawT, 0, 1), v: clamp(rawV, 0, spec.max)};
       };
+      function finishDrag(restore = false) {
+        if (!dragging) return;
+        const previous = dragging; dragging = null;
+        if (restore && previous.emitter === getEmitter()) {
+          if (previous.hadOwn) previous.emitter[spec.key] = previous.before;
+          else delete previous.emitter[spec.key];
+          change();
+        }
+        if (spec.canvas.hasPointerCapture && spec.canvas.hasPointerCapture(previous.pointerId)) spec.canvas.releasePointerCapture(previous.pointerId);
+      }
       spec.canvas.addEventListener('contextmenu', event => event.preventDefault());
       spec.canvas.addEventListener('pointerdown', event => {
         if (event.button !== 0 && event.button !== 2) return;
-        event.preventDefault(); spec.canvas.focus(); const pos = position(event), list = points(spec);
+        event.preventDefault(); spec.canvas.focus({preventScroll: true}); const pos = position(event), list = points(spec), e = getEmitter();
+        const before = clone(e[spec.key] || null);
+        const hadOwn = Object.prototype.hasOwnProperty.call(e, spec.key);
         let nearest = -1, distance = 9;
         list.forEach((p, i) => { const q = xy(spec, pos.g, p.t, p.v), d = Math.hypot(q.x - pos.x, q.y - pos.y); if (d < distance) { nearest = i; distance = d; } });
         if (event.button === 2) { if (nearest >= 0) { spec.selected = nearest; remove(spec); } return; }
+        let nearestHandle = null;
+        handles(spec, pos.g, list).forEach(h => {
+          const d = Math.hypot(h.x - pos.x, h.y - pos.y);
+          if (d < distance) { nearestHandle = h; nearest = -1; distance = d; }
+        });
         if (nearest >= 0) {
           spec.selected = nearest; dragging = {kind: 'point', index: nearest};
-          if (!getEmitter()[spec.key]) { editable(spec); change(); }
+          if (!e[spec.key] && !spec.axis) { editable(spec); change(); }
         }
         else {
-          const h = handles(spec, pos.g, list).find(item => Math.hypot(item.x - pos.x, item.y - pos.y) < 9);
-          if (h) dragging = {kind: 'handle', segment: h.segment, handle: h.kind};
+          const h = nearestHandle;
+          if (h) dragging = {kind: 'handle', segment: h.segment, handle: h.kind, index: h.index};
           else if (list.length < 32 && pos.t > .003 && pos.t < .997 && !list.some(p => Math.abs(p.t - pos.t) < .003)) {
             const next = editable(spec), index = next.findIndex(p => p.t > pos.t), left = next[index - 1];
             next.splice(index, 0, {t: round(pos.t), v: round(pos.v), curve: left.curve || 'linear'});
@@ -169,35 +224,57 @@
             spec.selected = index; dragging = {kind: 'point', index}; change();
           }
         }
-        if (dragging) spec.canvas.setPointerCapture(event.pointerId);
+        if (dragging) {
+          Object.assign(dragging, {emitter: e, before, hadOwn, pointerId: event.pointerId});
+          spec.canvas.setPointerCapture(event.pointerId);
+        }
         refresh();
       });
       spec.canvas.addEventListener('pointermove', event => {
-        if (!dragging) return; const pos = position(event), list = editable(spec);
+        if (!dragging || event.pointerId !== dragging.pointerId) return;
+        if (dragging.emitter !== getEmitter()) { finishDrag(); return; }
+        const pos = position(event), list = editable(spec);
         if (dragging.kind === 'point') {
           spec.selected = dragging.index; setValue(spec, 'v', pos.v); setValue(spec, 't', pos.t * 100);
         } else {
-          const left = list[dragging.segment], right = list[dragging.segment + 1], kind = dragging.handle;
-          const other = handle(left, right, kind === 'out' ? 'in' : 'out');
-          const x = clamp((pos.t - left.t) / (right.t - left.t), kind === 'out' ? 0 : other.x, kind === 'out' ? other.x : 1);
-          (kind === 'out' ? left : right)[kind] = {x, y: round(pos.v)}; left.curve = 'bezier'; change();
+          const index = dragging.index, kind = dragging.handle, p = list[index];
+          if (!event.ctrlKey && index > 0 && index < list.length - 1) {
+            bezierSegment(list, index - 1); bezierSegment(list, index);
+            balanceHandles(spec, list, index, kind === 'out' ? pos.rawT - p.t : p.t - pos.rawT,
+              kind === 'out' ? pos.rawV - p.v : p.v - pos.rawV);
+          } else {
+            const left = list[dragging.segment], right = list[dragging.segment + 1];
+            const other = handle(left, right, kind === 'out' ? 'in' : 'out');
+            const x = clamp((pos.t - left.t) / (right.t - left.t), kind === 'out' ? 0 : other.x, kind === 'out' ? other.x : 1);
+            (kind === 'out' ? left : right)[kind] = {x, y: round(pos.v)}; left.curve = 'bezier';
+          }
+          change();
         }
       });
-      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => spec.canvas.addEventListener(type, () => { dragging = null; }));
+      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => spec.canvas.addEventListener(type, event => {
+        if (dragging && event.pointerId === dragging.pointerId) finishDrag(type === 'pointercancel');
+      }));
       spec.canvas.addEventListener('keydown', event => {
         const p = selected(spec);
-        if (event.key === 'Delete' || event.key === 'Backspace') remove(spec);
+        if (event.key === 'Escape' && dragging) finishDrag(true);
+        else if (event.key === 'Delete' || event.key === 'Backspace') remove(spec);
         else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') setValue(spec, 'v', p.v + (event.key === 'ArrowUp' ? 1 : -1) * spec.max * .02);
         else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') setValue(spec, 't', p.t * 100 + (event.key === 'ArrowRight' ? 1 : -1));
         else return;
         event.preventDefault();
       });
       spec.interpolation.addEventListener('change', () => {
+        const mode = spec.interpolation.value;
+        if (!['linear', 'bezier', 'stepped'].includes(mode)) { refresh(); return; }
         const list = editable(spec), segment = Math.min(spec.selected, list.length - 2);
-        list[segment].curve = spec.interpolation.value;
+        list[segment].curve = mode;
         if (list[segment].curve === 'bezier') {
-          if (!list[segment].out) list[segment].out = {x: 1 / 3, y: list[segment].v};
-          if (!list[segment + 1].in) list[segment + 1].in = {x: 2 / 3, y: list[segment + 1].v};
+          bezierSegment(list, segment);
+          if (spec.selected > 0 && spec.selected < list.length - 1) {
+            bezierSegment(list, spec.selected - 1);
+            const p = list[spec.selected];
+            balanceHandles(spec, list, spec.selected, Math.min(p.t - list[spec.selected - 1].t, list[spec.selected + 1].t - p.t) / 3, 0);
+          }
         }
         change();
       });
@@ -210,22 +287,32 @@
       spec.deleteButton.addEventListener('click', () => remove(spec));
       $(spec.reset).addEventListener('click', () => {
         if (spec.key === 'speedCurve') { fallback.delete(getEmitter()); getEmitter().inactiveSpeedCurve = null; }
-        getEmitter()[spec.key] = spec.key === 'speedCurve' ? null : clone(Core.createEmitter('temporary')[spec.key]);
+        getEmitter()[spec.key] = spec.key === 'speedCurve' ? null : clone(Core.createEmitter('temporary')[spec.axis ? 'sizeCurve' : spec.key]);
         spec.selected = 0; change();
       });
     });
     $('enableSpeedCurve').addEventListener('change', () => {
       const e = getEmitter();
-      if ($('enableSpeedCurve').checked) { e.speedCurve = clone(points(specs[2], e)); e.inactiveSpeedCurve = null; }
+      if ($('enableSpeedCurve').checked) { e.speedCurve = clone(points(specs.find(spec => spec.key === 'speedCurve'), e)); e.inactiveSpeedCurve = null; }
       else { if (e.speedCurve) e.inactiveSpeedCurve = clone(e.speedCurve); e.speedCurve = null; }
+      change();
+    });
+    $('separateSizeAxes').addEventListener('change', () => {
+      const e = getEmitter(), enabled = $('separateSizeAxes').checked;
+      if (!!e.separateSizeAxes === enabled) return;
+      if (enabled) {
+        for (const spec of specs.filter(spec => spec.axis)) if (!e[spec.key]) e[spec.key] = clone(points(spec, e));
+      }
+      e.separateSizeAxes = enabled;
       change();
     });
     function bindingFor(input) {
       const spec = specs.find(s => s.time === input || s.value === input); if (!spec) return null;
       const e = getEmitter(), kind = spec.time === input ? 't' : 'v', before = clone(e[spec.key] || null), index = spec.selected;
+      const hadOwn = Object.prototype.hasOwnProperty.call(e, spec.key);
       return {source: {get value() { const p = points(spec, e)[index]; return kind === 't' ? p.t * 100 : p.v; },
         set value(value) { spec.selected = index; setValue(spec, kind, value, e); }}, key: 'value',
-        restore() { e[spec.key] = before; spec.selected = index; refresh(); }};
+        restore() { if (hadOwn) e[spec.key] = before; else delete e[spec.key]; spec.selected = index; refresh(); }};
     }
     refresh(); return {refresh, bindingFor};
   }

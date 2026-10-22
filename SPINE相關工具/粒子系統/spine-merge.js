@@ -149,7 +149,7 @@
     if (value === undefined || value === '') return 'particle_fx';
     if (typeof value !== 'string') fail('粒子前綴必須是文字。');
     const result = value.trim();
-    if (!/^[A-Za-z0-9_-]{1,48}$/.test(result) || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(result)) fail('粒子前綴限 1～48 個英文字母、數字、底線或連字號，且不可使用系統保留檔名。');
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(result) || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(result)) fail('粒子前綴限 1～64 個英文字母、數字、底線或連字號，且不可使用系統保留檔名。');
     return result;
   }
   function optionsFor(json, options, durationFallback) {
@@ -169,6 +169,16 @@
     if (!['front', 'back', 'after'].includes(drawOrder)) fail('粒子圖層位置必須是 front、back 或 after。');
     const afterSlot = typeof settings.afterSlot === 'string' ? settings.afterSlot : '';
     if (drawOrder === 'after' && !slotNames.has(afterSlot)) fail('找不到要放在其後的插槽：' + afterSlot);
+    const emitterLayers = {};
+    if (settings.emitterLayers !== undefined && !object(settings.emitterLayers)) fail('發射器圖層設定格式無效。');
+    Object.keys(settings.emitterLayers || {}).forEach(key => {
+      name(key, '發射器骨骼'); const layer = settings.emitterLayers[key];
+      if (!object(layer) || !own(layer, 'drawOrder') || !['front', 'back', 'after'].includes(layer.drawOrder)) fail('發射器圖層位置必須是 front、back 或 after。');
+      if (layer.afterSlot !== undefined && typeof layer.afterSlot !== 'string') fail('發射器圖層插槽名稱必須是文字。');
+      const afterSlot = layer.drawOrder === 'after' ? name(layer.afterSlot, '發射器圖層插槽') : '';
+      if (layer.drawOrder === 'after' && !slotNames.has(afterSlot)) fail('找不到發射器圖層要放在其後的插槽：' + afterSlot);
+      put(emitterLayers, key, {drawOrder: layer.drawOrder, afterSlot});
+    });
     const startTime = time(settings.startTime, 0, '粒子開始時間');
     if (startTime > 600) fail('粒子開始時間不可超過 600 秒。');
     if (settings.enabled !== undefined && typeof settings.enabled !== 'boolean') fail('Spine 追加啟用設定必須為布林值。');
@@ -176,6 +186,7 @@
     if (!['existing', 'new'].includes(animationMode)) fail('Spine 追加動畫模式必須為 existing 或 new。');
     const result = {enabled: settings.enabled === undefined ? true : settings.enabled, parentBone, emitterParents, animationName, animationMode, startTime,
       duration: time(settings.duration, durationFallback, '粒子長度', true), drawOrder, afterSlot, prefix: prefixName(settings.prefix)};
+    if (Object.keys(emitterLayers).length) result.emitterLayers = emitterLayers;
     if (settings.flowTargets !== undefined) result.flowTargets = normalizeFlowTargets(settings.flowTargets, info);
     return result;
   }
@@ -201,6 +212,12 @@
     if (settings.duration === undefined) delete settings.duration;
     const result = {fileName: typeof session.fileName === 'string' && session.fileName.trim() ? session.fileName.split(/[\\/]/).pop().slice(0, 255) : 'skeleton.json', json, settings};
     if (session.assets !== undefined && session.assets !== null) result.assets = normalizeAssets(session.assets);
+    if (session.update !== undefined && session.update !== null) {
+      if (!object(session.update) || !['append', 'replace'].includes(session.update.mode) || !object(session.update.receipt)) fail('效果更新狀態必須包含追加／取代模式與更新記錄。');
+      const receipt = copyAfterCheck(session.update.receipt);
+      if (utf8Length(JSON.stringify(receipt)) > 8 * 1024 * 1024) fail('效果更新記錄超過 8 MiB。');
+      result.update = {mode: session.update.mode, receipt};
+    }
     return result;
   }
   function utf8Length(value) {
@@ -274,10 +291,24 @@
     for (let i = order.length - 1; i >= 0; i--) if (order[i] === null) order[i] = unchanged.pop();
     return order.map(i => setup[i]);
   }
-  function insertBlock(order, extra, settings) {
-    const result = order.slice();
-    const at = settings.drawOrder === 'back' ? 0 : settings.drawOrder === 'front' ? result.length : result.indexOf(settings.afterSlot) + 1;
-    result.splice(at, 0, ...extra); return result;
+  function layerForEmitter(settings, emitterBone) {
+    return get(settings.emitterLayers, emitterBone, settings);
+  }
+  // Group by insertion boundary, then emit in original source order. This keeps
+  // front and "after the last slot" stable even when their settings differ.
+  // Extras may be slot names (export) or particle records (live preview).
+  function placeSlots(order, extra, layerForSlot) {
+    const positions = new Map(order.map((key, index) => [key, index + 1]));
+    const buckets = Array.from({length: order.length + 1}, () => []);
+    extra.forEach(slot => {
+      const settings = layerForSlot(slot);
+      const at = settings.drawOrder === 'back' ? 0 : settings.drawOrder === 'front' ? order.length : positions.get(settings.afterSlot);
+      if (at === undefined || !['front', 'back', 'after'].includes(settings.drawOrder)) fail('發射器圖層位置或指定插槽無效。');
+      buckets[at].push(slot);
+    });
+    const result = buckets[0].slice();
+    order.forEach((slot, index) => { result.push(slot, ...buckets[index + 1]); });
+    return result;
   }
   function encodeOrder(setup, order, originalOffsets) {
     const positions = new Map(order.map((key, index) => [key, index]));
@@ -296,12 +327,15 @@
     if (typeof value !== 'string' || !value || value.length > 1024 || value.includes('\\') || value.startsWith('/') || /[:\u0000-\u001f]/.test(value) || value.split('/').some(part => !part || part === '.' || part === '..')) fail('粒子圖片路徑必須是安全的相對路徑。');
     return value;
   }
+  // Image folders share the filesystem's case and Unicode identity even though
+  // Spine bone and slot names retain their original case-sensitive identity.
+  const resourcePathKey = value => value.replace(/\\/g, '/').normalize('NFC').toLowerCase();
   function resourcePaths(json) {
     const paths = new Set();
     (json.skins || []).forEach(skin => Object.keys(skin.attachments || {}).forEach(slot => {
       Object.keys(skin.attachments[slot]).forEach(key => {
         const attachment = skin.attachments[slot][key];
-        if (object(attachment)) paths.add(typeof attachment.path === 'string' ? attachment.path : typeof attachment.name === 'string' ? attachment.name : key);
+        if (object(attachment)) paths.add(resourcePathKey(typeof attachment.path === 'string' ? attachment.path : typeof attachment.name === 'string' ? attachment.name : key));
       });
     }));
     return paths;
@@ -310,11 +344,12 @@
     const bones = new Set(base.bones.map(item => item.name)), slots = new Set((base.slots || []).map(item => item.name)), paths = resourcePaths(base);
     function collides(namespace) {
       if (source.bones.some(item => bones.has(namespace + '__' + item.name)) || (source.slots || []).some(item => slots.has(namespace + '__' + item.name))) return true;
-      for (const path of paths) if (path === namespace || path.startsWith(namespace + '/')) return true;
-      return images.some(image => paths.has(namespace + '/' + image.name.replace(/\.[^/.]+$/, '')));
+      const directory = resourcePathKey(namespace);
+      for (const path of paths) if (path === directory || path.startsWith(directory + '/')) return true;
+      return images.some(image => paths.has(resourcePathKey(namespace + '/' + image.name.replace(/\.[^/.]+$/, ''))));
     }
     let result = requested, suffix = 2;
-    while (collides(result)) { if (suffix > 100000) fail('無法產生唯一的粒子前綴。'); result = requested + '_' + suffix++; }
+    while (collides(result)) { if (suffix > 100000) fail('無法產生唯一的粒子前綴。'); result = requested + '_' + suffix++; if (result.length > 64) fail('粒子前綴名稱過長且已被使用，請縮短新群組名稱。'); }
     return result;
   }
   function shiftedKeys(keys, settings, label, profile) {
@@ -408,13 +443,16 @@
     Object.keys(settings.emitterParents).forEach(key => {
       if (!sourceBones.has(key) || sourceBones.get(key).parent !== roots[0].name) fail('發射器掛接設定指定不存在的發射器骨骼：' + key);
     });
+    Object.keys(settings.emitterLayers || {}).forEach(key => {
+      if (!sourceBones.has(key) || sourceBones.get(key).parent !== roots[0].name) fail('發射器圖層設定指定不存在的發射器骨骼：' + key);
+    });
     const images = exported.images.map(image => {
       if (!object(image)) fail('粒子圖片格式無效。');
       imagePath(image.name); return copy(image);
     });
     if (new Set(images.map(image => image.name)).size !== images.length) fail('粒子圖片名稱重複。');
     const namespace = allocateNamespace(baseJson, source, images, settings.prefix), result = copy(baseJson);
-    const boneMap = {}, slotMap = {}, attachmentMap = {};
+    const boneMap = {}, slotMap = {}, attachmentMap = {}, assetPathMap = {};
     source.bones.forEach(bone => put(boneMap, bone.name, namespace + '__' + bone.name));
     (source.slots || []).forEach(slot => put(slotMap, slot.name, namespace + '__' + slot.name));
     source.bones.forEach(bone => {
@@ -429,7 +467,14 @@
       return added;
     });
     const originalOrder = (baseJson.slots || []).map(slot => slot.name), extraOrder = extraSlots.map(slot => slot.name);
-    const newOrder = insertBlock(originalOrder, extraOrder, settings), slotObjects = new Map([...(result.slots || []), ...extraSlots].map(slot => [slot.name, slot]));
+    const emitterBySlot = new Map();
+    (source.slots || []).forEach(slot => {
+      let bone = sourceBones.get(slot.bone);
+      while (bone && own(bone, 'parent') && bone.parent !== roots[0].name) bone = sourceBones.get(bone.parent);
+      emitterBySlot.set(slotMap[slot.name], bone && bone.name);
+    });
+    const layerForSlot = slot => layerForEmitter(settings, emitterBySlot.get(slot));
+    const newOrder = placeSlots(originalOrder, extraOrder, layerForSlot), slotObjects = new Map([...(result.slots || []), ...extraSlots].map(slot => [slot.name, slot]));
     result.slots = newOrder.map(key => slotObjects.get(key));
     if (!result.skins) result.skins = [];
     let defaultSkin = result.skins.find(skin => skin.name === 'default');
@@ -450,6 +495,12 @@
         attachment.path = namespace + '/' + path;
         if (typeof attachment.name === 'string') attachment.name = mapped;
         put(defaultSkin.attachments[targetSlot], mapped, attachment); put(attachmentMap[slot], key, mapped);
+        // Keep image identity separate from the stable particle attachment alias.
+        // One compact entry per emitter is sufficient for all of its particle lanes.
+        const emitter = emitterBySlot.get(targetSlot);
+        if (!own(assetPathMap, emitter)) put(assetPathMap, emitter, {});
+        if (own(assetPathMap[emitter], key) && assetPathMap[emitter][key] !== attachment.path) fail('同一發射器的粒子附件使用不同圖片路徑。');
+        put(assetPathMap[emitter], key, attachment.path);
       });
     }));
     images.forEach(image => { image.name = namespace + '/' + image.name; });
@@ -460,7 +511,7 @@
       ['drawOrder', 'draworder'].forEach(property => {
         if (!own(result.animations[key], property)) return;
         result.animations[key][property].forEach(frame => {
-          const old = decodeOrder(originalOrder, frame.offsets), order = insertBlock(old, extraOrder, settings);
+          const old = decodeOrder(originalOrder, frame.offsets), order = placeSlots(old, extraOrder, layerForSlot);
           const offsets = encodeOrder(newOrder, order, frame.offsets);
           if (offsets.length || own(frame, 'offsets')) frame.offsets = offsets;
         });
@@ -495,10 +546,11 @@
     const hasClipping = (baseJson.skins || []).some(skin => Object.keys(skin.attachments || {}).some(slot =>
       Object.keys(skin.attachments[slot]).some(key => skin.attachments[slot][key] && skin.attachments[slot][key].type === 'clipping')));
     if (hasClipping) warnings.push('原專案包含 clipping；請在 Spine 確認粒子圖層是否位於裁切範圍內。');
-    const manifest = {namespace, boneMap, slotMap, attachmentMap, imageDirectory: namespace, parentBone: settings.parentBone,
+    const manifest = {namespace, boneMap, slotMap, attachmentMap, assetPathMap, imageDirectory: namespace, parentBone: settings.parentBone,
       emitterParents: copy(settings.emitterParents), animationName: settings.animationName, startTime: settings.startTime,
       endTime: roundedTime(settings.startTime + settings.duration), drawOrder: settings.drawOrder, afterSlot: settings.afterSlot,
       sourceVersion: sourceInfo.version, targetVersion: baseInfo.version, originalImagesPath: baseInfo.imagesPath};
+    if (settings.emitterLayers) manifest.emitterLayers = copy(settings.emitterLayers);
     const stats = {addedBones: source.bones.length, addedSlots: extraSlots.length, addedImages: images.length,
       boneCount: result.bones.length, slotCount: result.slots.length, animationName: settings.animationName,
       animationCreated: segmentStats[0].animationCreated, startTime: settings.startTime, endTime: manifest.endTime, namespace};
@@ -546,5 +598,5 @@
   }
   function merge(baseJson, exported, options) { return mergeBundle(baseJson, exported, options, false); }
   function mergeFlow(baseJson, exported, options) { return mergeBundle(baseJson, exported, options, true); }
-  return {inspect, normalizeSession, normalizeAssets, merge, mergeFlow};
+  return {inspect, normalizeSession, normalizeAssets, layerForEmitter, placeSlots, decodeOrder, encodeOrder, merge, mergeFlow};
 });

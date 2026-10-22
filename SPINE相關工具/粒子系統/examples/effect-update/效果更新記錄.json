@@ -1,0 +1,309 @@
+{
+  "format": "particle-studio-effect-update",
+  "version": 2,
+  "manifest": {
+    "namespace": "preview_flow",
+    "boneMap": {
+      "root": "preview_flow__root",
+      "em_handFX": "preview_flow__em_handFX",
+      "em_ikFX": "preview_flow__em_ikFX",
+      "em_modeFX": "preview_flow__em_modeFX",
+      "em_modeFX_p0": "preview_flow__em_modeFX_p0",
+      "em_ikFX_p0": "preview_flow__em_ikFX_p0",
+      "em_handFX_p0": "preview_flow__em_handFX_p0",
+      "em_handFX_p1": "preview_flow__em_handFX_p1"
+    },
+    "slotMap": {
+      "em_modeFX_p0_slot": "preview_flow__em_modeFX_p0_slot",
+      "em_ikFX_p0_slot": "preview_flow__em_ikFX_p0_slot",
+      "em_handFX_p0_slot": "preview_flow__em_handFX_p0_slot",
+      "em_handFX_p1_slot": "preview_flow__em_handFX_p1_slot"
+    },
+    "attachmentMap": {
+      "em_modeFX_p0_slot": {
+        "particle": "preview_flow__particle"
+      },
+      "em_ikFX_p0_slot": {
+        "particle": "preview_flow__particle"
+      },
+      "em_handFX_p0_slot": {
+        "particle": "preview_flow__particle"
+      },
+      "em_handFX_p1_slot": {
+        "particle": "preview_flow__particle"
+      }
+    },
+    "assetPathMap": {
+      "em_modeFX": {
+        "particle": "preview_flow/emitter_modeFX/particle"
+      },
+      "em_ikFX": {
+        "particle": "preview_flow/emitter_ikFX/particle"
+      },
+      "em_handFX": {
+        "particle": "preview_flow/emitter_handFX/particle"
+      }
+    },
+    "imageDirectory": "preview_flow",
+    "parentBone": "hand",
+    "emitterParents": {
+      "em_ikFX": "lower",
+      "em_modeFX": "noScale"
+    },
+    "drawOrder": "after",
+    "afterSlot": "handSlot",
+    "sourceVersion": "4.0.56",
+    "targetVersion": "4.0.56",
+    "originalImagesPath": "./images/",
+    "phases": {
+      "in": {
+        "sourceAnimationName": "fxIn",
+        "animationName": "existingIn",
+        "animationMode": "existing",
+        "startTime": 0.4,
+        "duration": 0.6,
+        "endTime": 1,
+        "loop": false
+      },
+      "loop": {
+        "sourceAnimationName": "fxLoop",
+        "animationName": "existingLoop",
+        "animationMode": "existing",
+        "startTime": 0,
+        "duration": 1.2,
+        "endTime": 1.2,
+        "loop": true
+      },
+      "out": {
+        "sourceAnimationName": "fxOut",
+        "animationName": "existingOut",
+        "animationMode": "existing",
+        "startTime": 0.3,
+        "duration": 0.7,
+        "endTime": 1,
+        "loop": false
+      }
+    },
+    "transition": "loop-boundary"
+  },
+  "ownership": {
+    "bones": [
+      {
+        "name": "preview_flow__root",
+        "parent": "hand"
+      },
+      {
+        "name": "preview_flow__em_handFX",
+        "parent": "preview_flow__root"
+      },
+      {
+        "name": "preview_flow__em_ikFX",
+        "parent": "lower"
+      },
+      {
+        "name": "preview_flow__em_modeFX",
+        "parent": "noScale"
+      },
+      {
+        "name": "preview_flow__em_modeFX_p0",
+        "parent": "preview_flow__em_modeFX"
+      },
+      {
+        "name": "preview_flow__em_ikFX_p0",
+        "parent": "preview_flow__em_ikFX"
+      },
+      {
+        "name": "preview_flow__em_handFX_p0",
+        "parent": "preview_flow__em_handFX"
+      },
+      {
+        "name": "preview_flow__em_handFX_p1",
+        "parent": "preview_flow__em_handFX"
+      }
+    ],
+    "slots": [
+      {
+        "name": "preview_flow__em_modeFX_p0_slot",
+        "bone": "preview_flow__em_modeFX_p0"
+      },
+      {
+        "name": "preview_flow__em_ikFX_p0_slot",
+        "bone": "preview_flow__em_ikFX_p0"
+      },
+      {
+        "name": "preview_flow__em_handFX_p0_slot",
+        "bone": "preview_flow__em_handFX_p0"
+      },
+      {
+        "name": "preview_flow__em_handFX_p1_slot",
+        "bone": "preview_flow__em_handFX_p1"
+      }
+    ],
+    "animations": [
+      {
+        "name": "existingIn",
+        "created": false,
+        "hadBones": true,
+        "hadSlots": true
+      },
+      {
+        "name": "existingLoop",
+        "created": false,
+        "hadBones": true,
+        "hadSlots": true
+      },
+      {
+        "name": "existingOut",
+        "created": false,
+        "hadBones": true,
+        "hadSlots": true
+      }
+    ],
+    "defaultSkinCreated": false,
+    "defaultAttachmentsCreated": false,
+    "hadSkins": true,
+    "hadSlots": true,
+    "hadAnimations": true
+  },
+  "baseline": {
+    "slotOrder": [
+      "back",
+      "handSlot",
+      "meshSlot",
+      "front"
+    ],
+    "drawOrders": {
+      "main": {
+        "drawOrder": [
+          {
+            "time": 1,
+            "offsets": [
+              {
+                "slot": "back",
+                "offset": 3
+              }
+            ]
+          },
+          {
+            "time": 2,
+            "offsets": [
+              {
+                "slot": "front",
+                "offset": -3
+              }
+            ]
+          },
+          {
+            "time": 3
+          }
+        ]
+      },
+      "existingIn": {
+        "drawOrder": [
+          {
+            "time": 0.5,
+            "offsets": [
+              {
+                "slot": "back",
+                "offset": 3
+              }
+            ]
+          },
+          {
+            "time": 1,
+            "offsets": [
+              {
+                "slot": "front",
+                "offset": -3
+              }
+            ]
+          },
+          {
+            "time": 1.5
+          }
+        ]
+      },
+      "existingLoop": {
+        "drawOrder": [
+          {
+            "time": 0.3,
+            "offsets": [
+              {
+                "slot": "back",
+                "offset": 3
+              }
+            ]
+          },
+          {
+            "time": 0.6,
+            "offsets": [
+              {
+                "slot": "front",
+                "offset": -3
+              }
+            ]
+          },
+          {
+            "time": 0.8999999999999999
+          }
+        ]
+      },
+      "existingOut": {
+        "drawOrder": [
+          {
+            "time": 0.75,
+            "offsets": [
+              {
+                "slot": "back",
+                "offset": 3
+              }
+            ]
+          },
+          {
+            "time": 1.5,
+            "offsets": [
+              {
+                "slot": "front",
+                "offset": -3
+              }
+            ]
+          },
+          {
+            "time": 2.25
+          }
+        ]
+      }
+    }
+  },
+  "settings": {
+    "enabled": true,
+    "parentBone": "hand",
+    "emitterParents": {
+      "em_ikFX": "lower",
+      "em_modeFX": "noScale"
+    },
+    "animationName": "particle_fx",
+    "animationMode": "new",
+    "startTime": 0,
+    "drawOrder": "after",
+    "afterSlot": "handSlot",
+    "prefix": "preview_flow",
+    "flowTargets": {
+      "in": {
+        "animationName": "existingIn",
+        "animationMode": "existing",
+        "startTime": 0.4
+      },
+      "loop": {
+        "animationName": "existingLoop",
+        "animationMode": "existing",
+        "startTime": 0
+      },
+      "out": {
+        "animationName": "existingOut",
+        "animationMode": "existing",
+        "startTime": 0.3
+      }
+    }
+  }
+}

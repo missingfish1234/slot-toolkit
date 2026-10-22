@@ -1,0 +1,554 @@
+{
+  "format": "particle-studio-project",
+  "schemaVersion": 1,
+  "project": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "隨機種子 · 同物件三層變化",
+    "fps": 30,
+    "spineVersion": "4.0.56",
+    "duration": 2.4,
+    "loop": true,
+    "flow": {
+      "enabled": true,
+      "in": {
+        "name": "in",
+        "duration": 1
+      },
+      "loop": {
+        "name": "loop",
+        "duration": 2.4
+      },
+      "out": {
+        "name": "out",
+        "duration": 2
+      }
+    },
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "seed_back",
+        "name": "第 1 層 · 種子 137",
+        "enabled": true,
+        "x": 0,
+        "y": -35,
+        "shape": "ring",
+        "width": 250,
+        "height": 140,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 12,
+        "emissionDuration": 2.4,
+        "life": 1.8,
+        "lifeRandom": 0.5,
+        "speed": 32,
+        "speedRandom": 24,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 20,
+        "sizeRandom": 11,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 30,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#fff5cf",
+        "colorEnd": "#ffb445",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.4
+          },
+          {
+            "t": 0.3,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0.2
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.14,
+            "v": 0.9
+          },
+          {
+            "t": 0.72,
+            "v": 0.7
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "particle.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 64,
+          "dataUrl": "data:image/png;base64,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"
+        },
+        "randomSeed": 137,
+        "emitFrom": "area"
+      },
+      {
+        "id": "seed_middle",
+        "name": "第 2 層 · 種子 2718",
+        "enabled": true,
+        "x": 0,
+        "y": -35,
+        "shape": "ring",
+        "width": 250,
+        "height": 140,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 12,
+        "emissionDuration": 2.4,
+        "life": 1.8,
+        "lifeRandom": 0.5,
+        "speed": 32,
+        "speedRandom": 24,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 20,
+        "sizeRandom": 11,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 30,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#fff5cf",
+        "colorEnd": "#ffb445",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.4
+          },
+          {
+            "t": 0.3,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0.2
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.14,
+            "v": 0.9
+          },
+          {
+            "t": 0.72,
+            "v": 0.7
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "particle.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 64,
+          "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAfBSURBVHhe7Zo3q61FFIavOeecc84RFXPCiIoKBgwohkYUES1EBRtRRBALERsLwUYQBAs7C2srO1v/gT/gkQfmhcV84ex9zr4X3Nvihe+uWbPWvCvNnHPPLmDXJmMg2DQMBHsIe02g19vtGAh2A3qSy6K3t1IMBCtCT2LvDvtMoNfr7fR+doyBYIcYI10J7rsgxoKyWwIxEGwTU6RDaL+G/QsO6FDXot8HpA9Gf46lMRAsiT7jlXglLMEDGw7aAtGrQUkwaiBWUhEDwRLYinhIS+rghkOAQ7eAOtFPQBKMuUD051sIA8GC6MmPEa+EDwMObzgCOHICrkXPPTUgU4HYURAGggUQ4pX8FPFK+CjgaOAY4NgJuKaOujUgU4GoQUgg+vPOYiDYAlNZT6lX4iEdwscDJwAnNpzUIXJ11E1AEowaiLTGVDX0557EQDCDMfI165W4WZTAcY2QBE8GTgVOA06fgGvqqOse92pDW9qsgajVsO0gDAQTWIS85ZqMe2izGdKSOxM4CzgbOAc4t4My19RR1z0Jhra0mYrQ10qCMBCMoA68Sj4l77DyQMm6WQvxMxohyZ0HXABcBFzccElD/u2aOuq6x73aSCC0nWrQp77TEjUICw/GgWCGvJGtmQ/5lHyyfkrLnoc3syF9KXA5cAVwJXAVcHWD38pcU0fdBEMb2tKmtlMNaYkEoVbCwrfDQDASgH7ap+xD3rJ0aNmzZsryNXvnt6xe1shJ9DrgeuAG4MYOylxTR133uFcb2tKmtvWhL33qO0FIO/S3w7YDkOiNkU/Pm4WQd4Al6xe2LErimkZMkjcDtwK3A3cAdzb4rcw1ddR1j3u1oS1tphr0lSCkHepMqEGYrYKBoAtAX/r2WiVvKVby9q6laxmbRUnc1IhJ8m7gXuA+4IEOylxTR133uFcb2tKmtvVRg5B2SBDqPNiyCgaCEfI1+/aa15CT2GFkP1qSIW+5elAzZ0nf0sjcA9wPPAQ8AjwGPA480eC3MtfUUdc97tWGtrSpbX0kCPr2DJ7FM3m2zIOFWmEgGAlAsp/ST987kR1K9qWlmcxf20rYDN7VMvtwI/gk8DTwLPAc8HyD38pcU0dd97hXG9rSprZTCfrUt2fwLJkHaYWFqmAgmOn9ZD+l77XkZHY42Z/JvAe9rWXQ0n60kXoGeAF4CXgFeA14vcFvZa6po6573KsNbWlT26kEferbM3iWtMJUFYzOgp58AjCX/b70ndAOKfvUUjVbHvjBlsmnWpZfbmTfAN4C3gbeafBbmWvqqOse92pDW9rUtj70pU99962wVBX05GsAxrJvnyX7PlAsQ3vSSe2wsl8tWbPmwS3pF4FXGzmJvge8D3wIfNTgtzLX1FHXPe7Vhra0qW196Euf+vYMniVVMDULFgrAWPnXyZ/eT/Z9qHhXW5ZObIeWfWvpmj0JWN5vAu8CHwAfA58AnwGfN/itzDV11HWPe7WhLW1qWx/60qe+PUOqILOg3gizbTAWgLHyz6PHEvPqSe87jJL9lL7Dy/61hM2iRMysmZbkF8BXwNfANw1+K3NNHXXd415taEub2k4rpAo8Q2aBZ0sb5HE02wZbBSAPn5S/Dw9LzenrVZTedziZGa8vy9UhZh9bymZTQp8CXzbC3wHfAz80+K3MNXXUdY97taEtbWpbH/rSZ2aBZ/FMns0zpg3yMFo6AGP974Tty99p7NPV15sPGO9wM+Ukd5jZz5a0WZXYt43sj8DPwC8NfitzTR113eNebWhLm9rWh770qW/P0LfB1G2wdAD6/nfS+gLzx1ZLzx9eUv6+4nzIOLS8zsycZWxfW9pmV4I/Ab8CvwG/N/itzDV11HWPe7WhLW1qWx/6Sht4Bs/imTybZ5yaA7MBmBuA9fpL/2f6ey35jndAWaI+aLzTvdac7GbS/rbEzbJEJf0H8GeD38pcU0dd97hXG9rSprb1oS996ju3QeZAfx3ODsK5ANS3fz8Ac/35Y2z632vKJ62vOqe3pev15oR3yJlZS91sS/gv4O8Gv5W5po667nGvNrSlTW3rQ1+ZA54h12E/COvPBisPgL/IyAD0JzoP5bveiW3P+sBxkHnNWdIOO/vdTJt1if/T4Lcy19RR1z3u1Ya2tKltfehLnxmEnuX/AOzpAKx9C2zcEEwQNvYaHAvAxj6ENv4pnABs5A9DU4NwI34crlUwNgfW/hciNQB9G/TX4Vr/Sqxvg/42WOtfiiYIc1Ww1r8W7wMwVgVr/x8jfRBSBfVGWOv/GksAxmZBWmHt/3M0QRhrhfo4Wtv/Hk8Axloh82Dt/0CiD4KRrfMgQUg7OIzW6k9kgr4VaiXUmbCWfyQVLBIEr6G0hJny0GbNnk0w/pN/JheMBSGDMS1RA5GKkMB//g8lgwShvx1qNdRAWK4JhllMQMbgmjoh7d5KvGa9n/ZLkxcDwYLob4daDWOBcFhJpAZkDCEs3DNFfCzrS5MXA8ES6IMwFQjLVQI1IHMIYZFSHyO+Y/JiIFgScT4XiBqMBGQO0QvprYhvm7wYCLaJGoQ+EAlGDUiCUlHXop/9lfiOs14xEOwQfUXUYNSAbIW6pye9EuLBQLAi1MPWYIwFZYzsGOmVEg8Ggt2AnsSy6O2tFAPBHkJPco+QHcNAsGkYCDYN/wKSE6B4oXMFggAAAABJRU5ErkJggg=="
+        },
+        "randomSeed": 2718,
+        "emitFrom": "area"
+      },
+      {
+        "id": "seed_front",
+        "name": "第 3 層 · 種子 9142",
+        "enabled": true,
+        "x": 0,
+        "y": -35,
+        "shape": "ring",
+        "width": 250,
+        "height": 140,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 12,
+        "emissionDuration": 2.4,
+        "life": 1.8,
+        "lifeRandom": 0.5,
+        "speed": 32,
+        "speedRandom": 24,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 20,
+        "sizeRandom": 11,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 30,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#fff5cf",
+        "colorEnd": "#ffb445",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.4
+          },
+          {
+            "t": 0.3,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0.2
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.14,
+            "v": 0.9
+          },
+          {
+            "t": 0.72,
+            "v": 0.7
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "particle.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 64,
+          "dataUrl": "data:image/png;base64,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"
+        },
+        "randomSeed": 9142,
+        "emitFrom": "area"
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    }
+  },
+  "bakedProject": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "隨機種子 · 同物件三層變化",
+    "fps": 30,
+    "spineVersion": "4.0.56",
+    "duration": 2.4,
+    "loop": true,
+    "flow": {
+      "enabled": true,
+      "in": {
+        "name": "in",
+        "duration": 1
+      },
+      "loop": {
+        "name": "loop",
+        "duration": 2.4
+      },
+      "out": {
+        "name": "out",
+        "duration": 2
+      }
+    },
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "seed_back",
+        "name": "第 1 層 · 種子 137",
+        "enabled": true,
+        "x": 0,
+        "y": -35,
+        "shape": "ring",
+        "width": 250,
+        "height": 140,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 12,
+        "emissionDuration": 2.4,
+        "life": 1.8,
+        "lifeRandom": 0.5,
+        "speed": 32,
+        "speedRandom": 24,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 20,
+        "sizeRandom": 11,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 30,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#fff5cf",
+        "colorEnd": "#ffb445",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.4
+          },
+          {
+            "t": 0.3,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0.2
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.14,
+            "v": 0.9
+          },
+          {
+            "t": 0.72,
+            "v": 0.7
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "particle.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 64,
+          "dataUrl": "data:image/png;base64,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"
+        },
+        "randomSeed": 137,
+        "emitFrom": "area"
+      },
+      {
+        "id": "seed_middle",
+        "name": "第 2 層 · 種子 2718",
+        "enabled": true,
+        "x": 0,
+        "y": -35,
+        "shape": "ring",
+        "width": 250,
+        "height": 140,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 12,
+        "emissionDuration": 2.4,
+        "life": 1.8,
+        "lifeRandom": 0.5,
+        "speed": 32,
+        "speedRandom": 24,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 20,
+        "sizeRandom": 11,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 30,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#fff5cf",
+        "colorEnd": "#ffb445",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.4
+          },
+          {
+            "t": 0.3,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0.2
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.14,
+            "v": 0.9
+          },
+          {
+            "t": 0.72,
+            "v": 0.7
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "particle.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 64,
+          "dataUrl": "data:image/png;base64,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"
+        },
+        "randomSeed": 2718,
+        "emitFrom": "area"
+      },
+      {
+        "id": "seed_front",
+        "name": "第 3 層 · 種子 9142",
+        "enabled": true,
+        "x": 0,
+        "y": -35,
+        "shape": "ring",
+        "width": 250,
+        "height": 140,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 12,
+        "emissionDuration": 2.4,
+        "life": 1.8,
+        "lifeRandom": 0.5,
+        "speed": 32,
+        "speedRandom": 24,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 20,
+        "sizeRandom": 11,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 30,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#fff5cf",
+        "colorEnd": "#ffb445",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.4
+          },
+          {
+            "t": 0.3,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0.2
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.14,
+            "v": 0.9
+          },
+          {
+            "t": 0.72,
+            "v": 0.7
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "particle.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 64,
+          "dataUrl": "data:image/png;base64,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"
+        },
+        "randomSeed": 9142,
+        "emitFrom": "area"
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    }
+  },
+  "view": {
+    "time": 0.81,
+    "mode": "live",
+    "zoom": 1.6,
+    "panX": 0,
+    "panY": 0,
+    "phase": "loop"
+  }
+}

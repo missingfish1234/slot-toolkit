@@ -1,18 +1,24 @@
 (function (root, factory) {
   'use strict';
   const curveMath = typeof module === 'object' && module.exports ? require('./curve-math.js') : root.ParticleCurveMath;
-  var api = factory(curveMath);
+  const pathMath = typeof module === 'object' && module.exports ? require('./path-math.js') : root.ParticlePathMath;
+  const contourMath = typeof module === 'object' && module.exports ? require('./contour-math.js') : root.ParticleContourMath;
+  var api = factory(curveMath, pathMath, contourMath);
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.ParticleCore = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (CurveMath) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (CurveMath, PathMath, ContourMath) {
   'use strict';
   if (!CurveMath) throw new Error('粒子曲線模組尚未載入，請先載入 curve-math.js。');
+  if (!PathMath) throw new Error('粒子路徑模組尚未載入，請先載入 path-math.js。');
+  if (!ContourMath) throw new Error('粒子輪廓模組尚未載入，請先載入 contour-math.js。');
 
   const TAU = Math.PI * 2;
   const DEG = Math.PI / 180;
   const EPS = 1e-9;
   const RESET_EPS = 0.0001;
   const MAX_POOL = 1200;
+  const MAX_EXPORT_SAMPLES = 2000000;
+  const BAKE_QUALITIES = Object.freeze(['fine', 'standard', 'compact']);
   const clone = value => JSON.parse(JSON.stringify(value));
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
   const mod = (value, divisor) => ((value % divisor) + divisor) % divisor;
@@ -38,6 +44,37 @@
       Object.freeze(value);
     }
     return value;
+  }
+
+  // Authoring and particle simulation are identical at every quality level.
+  // These budgets apply only to local exported channels; parent transforms
+  // can magnify their screen-space error.
+  const QUALITY_PROFILES = freezeDeep({
+    fine: {name: 'fine', label: '精細', tolerances: {position: 0.05, rotation: 0.1, scale: 0.0005, alpha: 0.001, color: 1 / 255},
+      refinement: {position: 0.02, rotation: 0.04, scale: 0.0002, alpha: 0.0004, color: 1 / 1020}},
+    standard: {name: 'standard', label: '標準', tolerances: {position: 0.2, rotation: 0.25, scale: 0.002, alpha: 0.004, color: 1 / 255},
+      refinement: {position: 0.08, rotation: 0.1}},
+    compact: {name: 'compact', label: '精簡', tolerances: {position: 0.5, rotation: 0.5, scale: 0.004, alpha: 0.008, color: 1 / 255},
+      refinement: {position: 0.2, rotation: 0.2, scale: 0.0016, alpha: 0.0032, color: 1 / 1020}}
+  });
+  function qualityProfile(projectOrName) {
+    if (Array.isArray(projectOrName)) fail('烘焙品質僅支援精細、標準、精簡。');
+    const requested = typeof projectOrName === 'object' && projectOrName !== null ? projectOrName.bakeQuality : projectOrName;
+    const name = requested === undefined ? 'standard' : requested;
+    if (!BAKE_QUALITIES.includes(name)) fail('烘焙品質僅支援精細、標準、精簡。');
+    return QUALITY_PROFILES[name];
+  }
+
+  function needsRefinement(baked, particle) {
+    return !!particle.lifecycle.path || particle.emitter.alignDirection ||
+      (particle.emitter.separateSizeAxes && activeSizeCurves(particle.emitter).some(points => points.slice(0, -1).some(point => point.curve === 'bezier'))) ||
+      (baked.project.bakeQuality !== undefined && baked.project.bakeQuality !== 'standard');
+  }
+
+  function qualityStats(project) {
+    if (project.bakeQuality === undefined) return {};
+    const profile = qualityProfile(project);
+    return {quality: profile.name, qualityLabel: profile.label};
   }
 
   function createEmitter(id, name, preset) {
@@ -209,6 +246,93 @@
     return {name: text(raw, 'name', 'image.png', 160, label + '檔名'), mime: 'image/png', width, height, dataUrl: data};
   }
 
+  function normalizeSequence(raw, label) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) fail(label + '連續圖設定格式不正確。');
+    if (!Array.isArray(raw.frames) || raw.frames.length < 1 || raw.frames.length > 120) fail(label + '連續圖必須包含 1 到 120 張 PNG。');
+    return {
+      enabled: boolean(raw, 'enabled', true, label + '連續圖啟用'),
+      fps: number(raw, 'fps', 12, 1, 120, true, label + '連續圖 FPS'),
+      mode: enumValue(raw, 'mode', 'loop', ['loop', 'once'], label + '連續圖播放模式'),
+      frames: raw.frames.map((frame, index) => {
+        const normalized = image(frame, label + '連續圖第 ' + (index + 1) + ' 張');
+        if (!normalized) fail(label + '連續圖不能包含空白素材。');
+        return normalized;
+      })
+    };
+  }
+
+  function activeSequence(emitter) { return emitter.sequence && emitter.sequence.enabled ? emitter.sequence : null; }
+  function sequenceSuffix(index) { return 'f' + String(index + 1).padStart(4, '0'); }
+  function sequenceAttachment(index) { return 'particle_' + sequenceSuffix(index); }
+
+  function pngFileName(name) {
+    // Embedded assets are PNGs even when imported from JPEG/WebP. Keep legal
+    // authored basenames, including Unicode, spaces and the case of .PNG.
+    let base = String(name || '').split(/[\\/]/).pop().replace(/[<>:"|?*\u0000-\u001f\u007f-\u009f]/g, '_').replace(/[ .]+$/, '');
+    if (/\.(?:jpe?g|webp)$/i.test(base)) base = base.replace(/\.[^.]+$/, '.png');
+    else if (!/\.png$/i.test(base)) base += '.png';
+    if (!base || base === '.png') base = 'image.png';
+    if (/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(base)) base = '_' + base;
+    return base;
+  }
+  const fileKey = value => value.normalize('NFC').toLowerCase();
+  function planImages(project) {
+    const references = [], byEmitter = new Map(), folders = new Map(), folderKeys = new Set();
+    const enabled = project.emitters.filter(e => e.enabled);
+    // IDs may differ only by case. Allocate Windows-safe folders in sorted ID
+    // order so changing visual layer order cannot rename their image paths.
+    enabled.map(e => e.id).sort().forEach(id => {
+      const prefix = 'emitter_' + id; let folder = prefix, serial = 2;
+      while (folderKeys.has(fileKey(folder))) folder = prefix + '__' + serial++;
+      folders.set(id, folder); folderKeys.add(fileKey(folder));
+    });
+    enabled.slice().reverse().forEach(e => {
+      const sequence = activeSequence(e), frames = sequence ? sequence.frames : [e.image];
+      const entries = frames.map((image, index) => ({emitterId: e.id, frame: sequence ? index : null, image,
+        basename: image ? pngFileName(image.name) : 'particle.png'}));
+      references.push(...entries); byEmitter.set(e.id, entries);
+    });
+    const counts = new Map(), withinEmitter = new Map();
+    const builtinUsed = references.some(ref => !ref.image);
+    references.forEach(ref => {
+      if (!ref.image) return;
+      const key = fileKey(ref.basename), local = JSON.stringify([ref.emitterId, key]);
+      counts.set(key, (counts.get(key) || 0) + 1);
+      withinEmitter.set(local, (withinEmitter.get(local) || 0) + 1);
+    });
+    const images = []; let builtin = null;
+    references.forEach(ref => {
+      if (!ref.image) {
+        if (!builtin) { builtin = {name: 'particle.png', width: 64, height: 64, dataUrl: null}; images.push(builtin); }
+        ref.asset = builtin; return;
+      }
+      const key = fileKey(ref.basename), local = JSON.stringify([ref.emitterId, key]);
+      const collision = counts.get(key) > 1 || builtinUsed && key === 'particle.png';
+      const directory = collision ? folders.get(ref.emitterId) + '/' +
+        (withinEmitter.get(local) > 1 ? sequenceSuffix(ref.frame) + '/' : '') : '';
+      ref.asset = {name: directory + ref.basename, width: ref.image.width, height: ref.image.height, dataUrl: ref.image.dataUrl};
+      images.push(ref.asset);
+    });
+    return {images, byEmitter};
+  }
+
+  // Attachment events use the same microsecond grid as births and deaths.
+  // A boundary rounded down by half a microsecond still selects its new frame.
+  function sequenceFrame(sequence, age) {
+    const frame = Math.floor((Math.max(0, age) + 0.0000005 + EPS) * sequence.fps);
+    return sequence.mode === 'once' ? Math.min(sequence.frames.length - 1, frame) : frame % sequence.frames.length;
+  }
+
+  // Preview rasters may be reduced for storage; source pixels still define
+  // their size in the same coordinates used by emitters and Spine bones.
+  function backgroundSize(background) {
+    if (!background || !background.image) return null;
+    return {
+      width: (background.sourceWidth ?? background.image.width) * background.scale,
+      height: (background.sourceHeight ?? background.image.height) * background.scale
+    };
+  }
+
   function normalizeProject(raw) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) fail('專案格式不正確。');
     if (raw.format !== 'particle-studio' || raw.schemaVersion !== 1) fail('這不是 Particle Studio 第 1 版專案，請載入 .particle.json 專案檔。');
@@ -220,6 +344,7 @@
     result.flow = normalizeFlow(raw.flow, result.duration);
     result.seed = number(raw, 'seed', 42, 0, 0xffffffff, true, '隨機種子');
     result.loop = boolean(raw, 'loop', true, '循環設定');
+    if (raw.bakeQuality !== undefined) result.bakeQuality = qualityProfile(raw).name;
     if (!Array.isArray(raw.emitters) || raw.emitters.length < 1 || raw.emitters.length > 8) fail('專案必須包含 1 到 8 個發射器。');
     const ids = new Set();
     result.emitters = raw.emitters.map((source, emitterIndex) => {
@@ -229,11 +354,22 @@
       ids.add(id);
       const e = createEmitter(id, text(source, 'name', '發射器 ' + (emitterIndex + 1), 80, '發射器名稱'));
       e.enabled = boolean(source, 'enabled', true, '發射器啟用');
+      // Keep old files and snapshots on their exact ID-split project streams.
+      if (source.randomSeed !== undefined) e.randomSeed = number(source, 'randomSeed', undefined, 0, 0xffffffff, true, '發射器獨立隨機種子');
       e.alignDirection = boolean(source, 'alignDirection', false, '方向對齊');
-      e.shape = enumValue(source, 'shape', e.shape, ['point', 'direction', 'line', 'circle', 'ring', 'box'], '發射形狀');
+      e.shape = enumValue(source, 'shape', e.shape, ['point', 'direction', 'line', 'circle', 'ring', 'box', 'outline'], '發射形狀');
+      // Preserve legacy project snapshots until a direction mode is authored.
+      if (source.directionMode !== undefined) e.directionMode = enumValue(source, 'directionMode', 'fixed', ['fixed', 'random', 'radial', 'normal'], '發射方向模式');
+      // Optional per-layer start time; absent keeps legacy samples and JSON bytes.
+      if (source.startDelay !== undefined) {
+        e.startDelay = round(number(source, 'startDelay', 0, 0, 30, false, '發射器「' + e.name + '」的開始時間'));
+        if (!e.startDelay) delete e.startDelay;
+      }
+      if (source.directionSpread !== undefined) e.directionSpread = number(source, 'directionSpread', 0, 0, 360, false, '形狀方向散射角');
       // Keep this optional in createEmitter so legacy callers that change only
       // shape still derive the matching historical emission location.
       e.emitFrom = enumValue(source, 'emitFrom', e.shape === 'ring' ? 'edge' : 'area', ['area', 'edge'], '發射位置');
+      if (e.shape === 'outline') e.emitFrom = 'edge';
       e.blend = enumValue(source, 'blend', e.blend, ['additive', 'normal'], '混合模式');
       e.motionCurve = enumValue(source, 'motionCurve', e.motionCurve, ['linear', 'easeOut', 'easeIn', 'easeInOut'], '運動曲線');
       const ranges = {
@@ -261,11 +397,28 @@
       e.colorStart = color(source.colorStart === undefined ? e.colorStart : source.colorStart, '起始色');
       e.colorEnd = color(source.colorEnd === undefined ? e.colorEnd : source.colorEnd, '結束色');
       e.sizeCurve = curve(source.sizeCurve, e.sizeCurve, 4, '尺寸曲線');
+      if (source.separateSizeAxes !== undefined) e.separateSizeAxes = boolean(source, 'separateSizeAxes', false, '分別調整 X / Y 尺寸');
+      if (source.sizeCurveX !== undefined) e.sizeCurveX = curve(source.sizeCurveX, null, 4, 'X 軸尺寸曲線');
+      if (source.sizeCurveY !== undefined) e.sizeCurveY = curve(source.sizeCurveY, null, 4, 'Y 軸尺寸曲線');
       e.alphaCurve = curve(source.alphaCurve, e.alphaCurve, 1, '透明度曲線');
       e.speedCurve = source.speedCurve === undefined || source.speedCurve === null ? null : curve(source.speedCurve, null, 4, '速度曲線');
       e.inactiveSpeedCurve = source.inactiveSpeedCurve === undefined || source.inactiveSpeedCurve === null ? null : curve(source.inactiveSpeedCurve, null, 4, '停用的速度曲線');
       e.colorGradient = colorGradient(source.colorGradient);
+      // Missing fields remain missing in legacy projects and baked snapshots.
+      // Disabled paths retain their authored geometry for a later edit.
+      if (source.path !== undefined) {
+        e.path = PathMath.normalize(source.path);
+        if (e.path && e.path.enabled) PathMath.compile(e.path);
+      }
+      if (source.outline !== undefined) {
+        e.outline = ContourMath.normalize(source.outline);
+        if (e.outline && e.outline.image) {
+          e.outline.image = image(e.outline.image, '輪廓參考 PNG');
+          if (e.outline.image.width !== e.outline.width || e.outline.image.height !== e.outline.height) fail('輪廓參考 PNG 尺寸與掃描輪廓不一致，請重新掃描。');
+        }
+      }
       e.image = image(source.image, '發射器「' + e.name + '」');
+      if (source.sequence !== undefined) e.sequence = normalizeSequence(source.sequence, '發射器「' + e.name + '」');
       return e;
     });
     const bg = raw.background === undefined ? result.background : raw.background;
@@ -276,7 +429,22 @@
       y: number(bg, 'y', 0, -4000, 4000, false, '背景 Y'),
       scale: number(bg, 'scale', 1, 0.01, 20, false, '背景縮放')
     };
-    const totalImages = result.emitters.reduce((sum, e) => sum + (e.image ? e.image.dataUrl.length : 0), 0) + (result.background.image ? result.background.image.dataUrl.length : 0);
+    // Keep legacy objects unchanged until the original image is reloaded.
+    // The stored PNG dimensions remain validated against its actual IHDR.
+    if (result.background.image && (bg.sourceWidth !== undefined || bg.sourceHeight !== undefined)) {
+      const sourceWidth = number(bg, 'sourceWidth', undefined, 1, 32768, true, '背景來源寬度');
+      const sourceHeight = number(bg, 'sourceHeight', undefined, 1, 32768, true, '背景來源高度');
+      const bitmap = result.background.image;
+      if (sourceWidth < bitmap.width || sourceHeight < bitmap.height) fail('背景來源尺寸不能小於已保存的 PNG 尺寸。');
+      const ratio = Math.min(bitmap.width / sourceWidth, bitmap.height / sourceHeight);
+      if (Math.abs(Math.max(1, Math.round(sourceWidth * ratio)) - bitmap.width) > 1 ||
+          Math.abs(Math.max(1, Math.round(sourceHeight * ratio)) - bitmap.height) > 1) fail('背景來源比例與已保存的 PNG 不一致，請重新載入原圖。');
+      result.background.sourceWidth = sourceWidth;
+      result.background.sourceHeight = sourceHeight;
+    }
+    const totalImages = result.emitters.reduce((sum, e) => sum + (e.image ? e.image.dataUrl.length : 0) +
+      (e.sequence ? e.sequence.frames.reduce((bytes, frame) => bytes + frame.dataUrl.length, 0) : 0) +
+      (e.outline && e.outline.image ? e.outline.image.dataUrl.length : 0), 0) + (result.background.image ? result.background.image.dataUrl.length : 0);
     if (totalImages > 16 * 1024 * 1024) fail('內嵌素材總量超過 16 MiB，請縮小圖片後重試。');
     return result;
   }
@@ -285,6 +453,11 @@
     let hash = 2166136261;
     for (let i = 0; i < value.length; i++) hash = Math.imul(hash ^ value.charCodeAt(i), 16777619);
     return hash >>> 0;
+  }
+  function emitterSeed(project, emitter) {
+    if (!project || !emitter || typeof emitter.id !== 'string') fail('請先選取有效的發射器，再設定隨機種子。');
+    if (emitter.randomSeed !== undefined) return number(emitter, 'randomSeed', undefined, 0, 0xffffffff, true, '發射器獨立隨機種子');
+    return (number(project, 'seed', 42, 0, 0xffffffff, true, '專案隨機種子') ^ seedHash(emitter.id)) >>> 0;
   }
 
   function random(seed) {
@@ -421,10 +594,60 @@
   function boxEdgePoint(e, edgeRatio, positionRatio) {
     const width = e.width, height = e.height;
     const distance = edgeRatio * 2 * (width + height);
-    if (distance < width) return {x: (positionRatio - 0.5) * width, y: -height / 2};
-    if (distance < width + height) return {x: width / 2, y: (positionRatio - 0.5) * height};
-    if (distance < 2 * width + height) return {x: (positionRatio - 0.5) * width, y: height / 2};
-    return {x: -width / 2, y: (positionRatio - 0.5) * height};
+    if (distance < width) return {x: (positionRatio - 0.5) * width, y: -height / 2, nx: 0, ny: -1};
+    if (distance < width + height) return {x: width / 2, y: (positionRatio - 0.5) * height, nx: 1, ny: 0};
+    if (distance < 2 * width + height) return {x: (positionRatio - 0.5) * width, y: height / 2, nx: 0, ny: 1};
+    return {x: -width / 2, y: (positionRatio - 0.5) * height, nx: -1, ny: 0};
+  }
+
+  function shapeNormal(e, sx, sy, sampledNormal) {
+    const fallback = {x: Math.cos(e.angle * DEG), y: Math.sin(e.angle * DEG)};
+    if (e.shape === 'point' || (e.shape === 'box' || e.shape === 'circle' || e.shape === 'ring') && e.width === 0 && e.height === 0) return fallback;
+    if (sampledNormal) return {x: sampledNormal.nx, y: sampledNormal.ny};
+    if (e.shape === 'circle' || e.shape === 'ring') {
+      // A noncircular ellipse's outward normal is its implicit gradient,
+      // which differs from the ray pointing away from its center.
+      return {x: e.width ? sx / ((e.width / 2) ** 2) : 0, y: e.height ? sy / ((e.height / 2) ** 2) : 0};
+    }
+    if (e.shape === 'box') {
+      // Interior births use the closest face by actual pixel distance.
+      // Ties use the X face, and a point on an axis uses the fixed angle's sign.
+      const dx = e.width / 2 - Math.abs(sx), dy = e.height / 2 - Math.abs(sy);
+      return dx <= dy ? {x: Math.sign(sx) || (fallback.x < 0 ? -1 : 1), y: 0}
+        : {x: 0, y: Math.sign(sy) || (fallback.y < 0 ? -1 : 1)};
+    }
+    if (e.shape === 'line') return {x: -Math.sin(e.lineRotation * DEG), y: Math.cos(e.lineRotation * DEG)};
+    // The legacy direction strip is perpendicular to its fixed emission axis.
+    return fallback;
+  }
+
+  function emissionAngle(e, sx, sy, angleDraw, sampledNormal) {
+    const mode = e.directionMode || 'fixed';
+    if (mode === 'fixed') return (e.angle + (angleDraw * 2 - 1) * (e.spread / 2)) * DEG;
+    if (mode === 'random') return angleDraw * TAU;
+    const normal = mode === 'radial' ? {x: sx, y: sy} : shapeNormal(e, sx, sy, sampledNormal);
+    const base = Math.hypot(normal.x, normal.y) > EPS ? Math.atan2(normal.y, normal.x) / DEG : e.angle;
+    // Shape modes start with exact outward motion even if the previously
+    // authored fixed direction used a 360-degree spread.
+    const jitter = (angleDraw * 2 - 1) * ((e.directionSpread || 0) / 2);
+    return (base + jitter) * DEG;
+  }
+
+  // Authored curves remain available when a mode is switched off, but only
+  // the visible dimensions contribute timeline events and sampling cost.
+  function activeSizeCurves(e) {
+    return e.separateSizeAxes ? Array.from(new Set([e.sizeCurveX || e.sizeCurve, e.sizeCurveY || e.sizeCurve])) : [e.sizeCurve];
+  }
+
+  function scalarCurves(particle) {
+    const e = particle.emitter;
+    return activeSizeCurves(e).concat([e.alphaCurve], e.speedCurve ? [e.speedCurve] : []);
+  }
+
+  function compiledScalarCurves(particle) {
+    const life = particle.lifecycle;
+    const sizes = particle.emitter.separateSizeAxes ? Array.from(new Set([life.sizeX, life.sizeY])) : [life.size];
+    return sizes.concat([life.alpha, life.speed]);
   }
 
   function bake(raw) {
@@ -434,13 +657,16 @@
     const warnings = [];
     project.emitters.forEach(e => {
       if (!e.enabled) return;
-      const rand = random((project.seed ^ seedHash(e.id)) >>> 0);
+      const rand = random(emitterSeed(project, e));
       const signed = amplitude => (rand() * 2 - 1) * amplitude;
       const sampleRing = e.shape === 'ring' ? (e.emitFrom === 'area' ? ringAreaSampler(e) : ringSampler(e)) : null;
+      if (e.shape === 'outline' && !e.outline) fail('發射器「' + e.name + '」尚未載入 PNG 輪廓，請先掃描透明 PNG。');
+      const sampleOutline = e.shape === 'outline' ? ContourMath.compile(e.outline, e.width, e.height) : null;
       // Ring historically consumes one shape draw. Its new area radius uses
       // a separate stream so switching location never reshuffles life or motion.
       const ringRadiusRand = e.shape === 'ring' && e.emitFrom === 'area'
-        ? random((project.seed ^ seedHash(e.id + ':ring-area-radius')) >>> 0) : null;
+        ? random(e.randomSeed === undefined ? (project.seed ^ seedHash(e.id + ':ring-area-radius')) >>> 0 :
+          (e.randomSeed ^ seedHash('ring-area-radius')) >>> 0) : null;
       const lifecycle = {
         size: CurveMath.compile(e.sizeCurve, 4), alpha: CurveMath.compile(e.alphaCurve, 1),
         speed: e.speedCurve ? CurveMath.compile(e.speedCurve, 4) : null,
@@ -448,6 +674,16 @@
         alphaLinear: e.alphaCurve.every(point => !point.curve || point.curve === 'linear'),
         gradient: e.colorGradient ? e.colorGradient.map(point => ({t: point.t, color: rgb(point.color)})) : null
       };
+      if (e.separateSizeAxes) {
+        ['X', 'Y'].forEach(axis => {
+          const points = e['sizeCurve' + axis];
+          lifecycle['size' + axis] = points ? CurveMath.compile(points, 4) : lifecycle.size;
+          lifecycle['size' + axis + 'Linear'] = points ? points.every(point => !point.curve || point.curve === 'linear') : lifecycle.sizeLinear;
+        });
+      }
+      if (e.path && e.path.enabled) lifecycle.path = PathMath.compile(e.path);
+      const sequence = activeSequence(e);
+      if (sequence) lifecycle.sequenceMaxDimension = Math.max(...sequence.frames.map(frame => Math.max(frame.width, frame.height)));
       let index = 0, clipped = false;
       for (let sourceIndex = 0; sourceIndex < e.count; sourceIndex++) {
         // Use the same microsecond grid as JSON keys so birth/death attachment events
@@ -455,12 +691,17 @@
         const life = round(clamp(e.life + signed(e.lifeRandom), 0.05, 16));
         const speed = Math.max(0, e.speed + signed(e.speedRandom));
         const size = Math.max(0.1, e.size + signed(e.sizeRandom));
-        const angle = (e.angle + signed(e.spread / 2)) * DEG;
+        // Reuse the historical fourth draw for every direction mode. Changing
+        // direction never reshuffles birthplace, lifetime, size or spin.
+        const angleDraw = rand();
         const spin = e.spin + signed(e.spinRandom);
-        let sx = 0, sy = 0;
-        if (e.shape === 'box') {
+        let sx = 0, sy = 0, sampledNormal;
+        if (sampleOutline) {
+          const point = e.directionMode === 'normal' ? sampleOutline.sampleNormal(rand()) : sampleOutline.sample(rand());
+          sx = point.x; sy = point.y; if (e.directionMode === 'normal') sampledNormal = point;
+        } else if (e.shape === 'box') {
           if (e.emitFrom === 'edge') {
-            const point = boxEdgePoint(e, rand(), rand()); sx = point.x; sy = point.y;
+            const point = boxEdgePoint(e, rand(), rand()); sx = point.x; sy = point.y; sampledNormal = point;
           } else { sx = signed(e.width / 2); sy = signed(e.height / 2); }
         }
         else if (e.shape === 'ring') {
@@ -476,7 +717,9 @@
           const distance = signed(e.width / 2);
           sx = -Math.sin(e.angle * DEG) * distance; sy = Math.cos(e.angle * DEG) * distance;
         }
-        const birth = round(sourceIndex / e.count * Math.min(e.emissionDuration, project.duration));
+        const angle = emissionAngle(e, sx, sy, angleDraw, sampledNormal);
+        const delay = Math.min(e.startDelay || 0, project.duration);
+        const birth = round(delay + sourceIndex / e.count * Math.min(e.emissionDuration, project.duration - delay));
         clipped = clipped || (birth + life > project.duration);
         const cycles = project.loop ? Math.max(1, Math.ceil((life - EPS) / project.duration)) : 1;
         maxPoolCycles = Math.max(maxPoolCycles, cycles);
@@ -490,7 +733,9 @@
         }
         if (particles.length > MAX_POOL) fail('循環粒子池超過 ' + MAX_POOL + ' 個。請減少粒子數、縮短壽命，或增加動畫長度。');
       }
-      if (e.emissionDuration > project.duration) warnings.push('「' + e.name + '」發射時間超過動畫長度；本次烘焙採用 ' + project.duration + ' 秒。');
+      if (e.startDelay && e.startDelay >= project.duration) warnings.push('「' + e.name + '」開始時間超過動畫長度，粒子會在最後一刻同時出生；請縮短開始時間或加長動畫。');
+      else if (e.startDelay && e.startDelay + e.emissionDuration > project.duration) warnings.push('「' + e.name + '」開始時間＋發射時間超過動畫長度；本次發射壓縮在 ' + round(project.duration - e.startDelay) + ' 秒內。');
+      else if (e.emissionDuration > project.duration) warnings.push('「' + e.name + '」發射時間超過動畫長度；本次烘焙採用 ' + project.duration + ' 秒。');
       if (!project.loop && clipped) warnings.push('「' + e.name + '」部分粒子會在動畫結尾截斷。');
       if (e.alphaCurve[e.alphaCurve.length - 1].v !== 0) warnings.push('「' + e.name + '」透明度曲線尾值不為 0；粒子壽命結束時會立即隱藏。');
     });
@@ -498,9 +743,9 @@
     if (longLived) warnings.push('壽命超過循環週期的粒子使用分段粒子池；循環畫面連續，部分骨骼在交接點交換角色。動畫混合與中斷尚未驗證。');
     const enabledEmitters = project.emitters.filter(e => e.enabled).length;
     return freezeDeep({project, particles, duration: project.duration, fps: project.fps, loop: project.loop,
-      stats: {particles: particles.length, generatedParticles, bones: particles.length + enabledEmitters + 1,
+      stats: Object.assign({particles: particles.length, generatedParticles, bones: particles.length + enabledEmitters + 1,
         slots: particles.length, enabledEmitters, poolCycles: maxPoolCycles, fps: project.fps,
-        duration: project.duration, warnings}});
+        duration: project.duration, warnings}, qualityStats(project))});
   }
 
   function particleAge(baked, particle, time) {
@@ -529,7 +774,177 @@
     return freezeDeep({project, phases, stats});
   }
 
-  function stateAt(baked, particle, time) {
+  function pathProgress(particle, age) {
+    const e = particle.emitter, path = particle.lifecycle.path, curve = particle.lifecycle.speed;
+    const u = clamp(age / particle.life, 0, 1);
+    const progress = curve ? curve.integral(curveProgress(e.speedCurve, age, particle.life)) : ease(u, e.motionCurve);
+    if (e.path.mode === 'lifetime') {
+      const total = curve ? curve.integral(1) : 1;
+      return total > EPS ? progress / total : 0;
+    }
+    return Math.hypot(particle.vx, particle.vy) * particle.life * progress / path.totalLength;
+  }
+
+  // Count repeated path events arithmetically. Never enumerate revolutions
+  // or run the 42-pass time solver merely to show the delivery estimate.
+  function pathEventCost(baked, particle) {
+    const path = particle.lifecycle.path;
+    if (!path) return {events: 0, corners: 0, rejected: false};
+    const lowAge = Math.max(0, baked.loop ? particle.cycleIndex * baked.duration : -particle.birth);
+    const highAge = Math.min(particle.life, baked.loop ? (particle.cycleIndex + 1) * baked.duration : baked.duration - particle.birth);
+    if (highAge < lowAge) return {events: 0, corners: 0, rejected: false};
+    const first = pathProgress(particle, lowAge), last = pathProgress(particle, highAge);
+    if (last - first < EPS) return {events: 0, corners: 0, rejected: false};
+    const startCycle = path.closed ? Math.max(0, Math.floor(first)) : 0;
+    const endCycle = path.closed ? Math.floor(last) : 0;
+    const rejected = (endCycle - startCycle + 1) * (path.sampleFractions.length - 1) > MAX_EXPORT_SAMPLES;
+    const cornerSet = new Set(path.corners);
+    let events = 0, corners = 0;
+    for (let index = 1; index < path.sampleFractions.length; index++) {
+      const fraction = path.sampleFractions[index];
+      const from = Math.max(startCycle, Math.ceil(first - EPS - fraction));
+      const to = Math.min(endCycle, Math.floor(last + EPS - fraction));
+      const count = Math.max(0, to - from + 1);
+      events += count;
+      if (particle.emitter.alignDirection && cornerSet.has(fraction)) corners += count;
+    }
+    return {events, corners, rejected};
+  }
+
+  function timelineCost(baked, particle) {
+    const grid = Math.ceil(baked.duration * baked.fps) + 1;
+    if (baked.flowPhase && baked.flowPhase.kind === 'in') {
+      const basis = timelineCost(baked.flowPhase.basis, particle);
+      const repeats = Math.ceil(baked.duration / baked.flowPhase.basis.duration) + 2;
+      return {lower: grid, upper: grid + basis.upper * repeats, guards: basis.guards * repeats,
+        rejected: basis.rejected};
+    }
+    const e = particle.emitter, path = pathEventCost(baked, particle);
+    const curves = scalarCurves(particle);
+    // Birth/death, scalar step pre-keys, authored curve markers and compiled
+    // Bezier samples may coincide or fall outside this phase. Counting all of
+    // them gives an upper bound without allocating their timestamps.
+    const markers = 4 + curves.reduce((sum, points) => sum + points.length * 2, 0) +
+      (e.colorGradient ? e.colorGradient.length : 0) +
+      compiledScalarCurves(particle).reduce((sum, curve) => sum + (curve ? curve.sampleTimes.length : 0), 0);
+    const direction = directionEvents(particle).length;
+    const sequence = sequenceBoundaryRange(baked, particle);
+    const sequenceEvents = Math.max(0, sequence.last - sequence.first + 1);
+    const upper = grid + markers + path.events + path.corners + direction + sequenceEvents;
+    const directionVariation = e.alignDirection ? (particle.lifecycle.path ? (path.events + 2) * 180 :
+      360 * (particle.lifecycle.speed ? particle.lifecycle.speed.sampleTimes.length + 2 : 2)) : 0;
+    const guards = Math.ceil((Math.abs(particle.spin) * baked.duration + directionVariation) / 120);
+    return {lower: Math.max(grid, sequenceEvents - 1), upper, guards, rejected: path.rejected};
+  }
+
+  function estimateCost(raw) {
+    const normalized = normalizeProject(raw);
+    const baked = normalized.flow.enabled ? bakeFlow(normalized) : bake(normalized);
+    const phaseSources = normalized.flow.enabled ? baked.phases : {effect: baked};
+    const phases = {}, quality = qualityProfile(normalized), profile = spineProfile(normalized.spineVersion);
+    let lower = 0, upper = 0, guards = 0, rejected = false, adaptivePossible = false;
+    for (const [name, phase] of Object.entries(phaseSources)) {
+      let phaseLower = 0, phaseUpper = 0;
+      for (const particle of phase.particles) {
+        const cost = timelineCost(phase, particle);
+        phaseLower += cost.lower; phaseUpper += cost.upper; guards += cost.guards;
+        rejected = rejected || cost.rejected;
+        adaptivePossible = adaptivePossible || needsRefinement(phase, particle);
+      }
+      // An empty effect exports two root keys and never evaluates particles.
+      phases[name] = {duration: phase.duration, baseSamplesLowerBound: phaseLower, baseSamplesUpperBound: phaseUpper};
+      lower += phaseLower; upper += phaseUpper;
+    }
+    const imageCount = planImages(normalized).images.length;
+    const warnings = baked.stats.warnings.slice();
+    const sampleLimitEnforced = normalized.flow.enabled || normalized.bakeQuality !== undefined || adaptivePossible || normalized.emitters.some(e => activeSequence(e) || e.separateSizeAxes);
+    const definitelyOverLimit = rejected || (sampleLimitEnforced && lower > MAX_EXPORT_SAMPLES);
+    const budgetRisk = definitelyOverLimit || upper > MAX_EXPORT_SAMPLES;
+    if (adaptivePossible) warnings.push('取樣估算未含曲線補採樣；實際 KEY 數及檔案大小需試烘焙後確認。');
+    if (budgetRisk) warnings.push(definitelyOverLimit ? '已超過匯出的 200 萬取樣安全限制，請先降低速度、減少粒子數或調整動畫長度。' :
+      '補採樣前估算上限超過 200 萬；時間重疊可能減少實際取樣，請降低成本後試烘焙。');
+    return freezeDeep({particles: baked.stats.particles, generatedParticles: baked.stats.generatedParticles,
+      bones: baked.stats.bones, slots: baked.stats.slots, enabledEmitters: baked.stats.enabledEmitters,
+      poolCycles: baked.stats.poolCycles, imageCount, flow: normalized.flow.enabled,
+      quality: quality.name, qualityLabel: quality.label, sampleLimit: MAX_EXPORT_SAMPLES, sampleLimitEnforced,
+      baseSamplesLowerBound: lower, baseSamplesUpperBound: upper, estimatedSamples: upper,
+      estimatedDenseKeyframes: upper ? upper * 5 + (profile.family === '3.8' ? guards : 0) : Object.keys(phases).length * 2,
+      estimateIncludesRefinement: false, adaptivePossible, budgetRisk, definitelyOverLimit, phases, warnings});
+  }
+
+  // Geometry knots prevent low-FPS samples from cutting across a curved path
+  // or skipping several revolutions. Only the lane's visible age window is
+  // enumerated; tiny paths at extreme speeds fail before allocating huge lists.
+  function pathEvents(baked, particle) {
+    const path = particle.lifecycle.path;
+    if (!path) return [];
+    const lowAge = Math.max(0, baked.loop ? particle.cycleIndex * baked.duration : -particle.birth);
+    const highAge = Math.min(particle.life, baked.loop ? (particle.cycleIndex + 1) * baked.duration : baked.duration - particle.birth);
+    if (highAge < lowAge) return [];
+    const first = pathProgress(particle, lowAge), last = pathProgress(particle, highAge);
+    if (last - first < EPS) return [];
+    const startCycle = path.closed ? Math.max(0, Math.floor(first)) : 0;
+    const endCycle = path.closed ? Math.floor(last) : 0;
+    const perCycle = path.sampleFractions.length - 1;
+    if ((endCycle - startCycle + 1) * perCycle > MAX_EXPORT_SAMPLES) fail('路徑匯出取樣超過 200 萬，請降低速度、加大路徑，或減少粒子數。');
+    const result = [], cornerSet = new Set(path.corners);
+    function atProgress(progress) {
+      let low = lowAge, high = highAge;
+      for (let i = 0; i < 42; i++) { const middle = (low + high) / 2; if (pathProgress(particle, middle) < progress) low = middle; else high = middle; }
+      return (low + high) / 2;
+    }
+    for (let cycle = startCycle; cycle <= endCycle; cycle++) {
+      for (let index = 1; index < path.sampleFractions.length; index++) {
+        const fraction = path.sampleFractions[index], progress = cycle + fraction;
+        if (progress < first - EPS || progress > last + EPS || (!path.closed && progress > 1)) continue;
+        const age = atProgress(progress), corner = particle.emitter.alignDirection && cornerSet.has(fraction);
+        result.push({age, corner, angle: corner ? path.sample(progress + 1e-10).angle : undefined});
+      }
+    }
+    return result;
+  }
+
+  // An aligned physical particle can turn very quickly near its minimum
+  // velocity. Preserve that time even if it falls between the FPS grid; a
+  // genuine stop/reversal is an angle discontinuity, not a long interpolation.
+  function directionEvents(particle) {
+    if (!particle.emitter.alignDirection || particle.lifecycle.path) return [];
+    const accel2 = particle.ax * particle.ax + particle.ay * particle.ay;
+    if (accel2 < EPS) return [];
+    const result = [], e = particle.emitter, curve = particle.lifecycle.speed;
+    const length = Math.hypot(particle.vx, particle.vy);
+    function zero(age) {
+      result.push({age: Math.max(0, age - RESET_EPS), rotationStepped: true}, {age, rotationStepped: true},
+        {age: Math.min(particle.life, age + 0.000001), rotationStepped: false});
+    }
+    if (!curve) {
+      const clock = -(particle.vx * particle.ax + particle.vy * particle.ay) / accel2;
+      if (clock > 0 && clock < particle.life) {
+        let low = 0, high = particle.life;
+        for (let i = 0; i < 42; i++) { const middle = (low + high) / 2; if (ease(middle / particle.life, e.motionCurve) * particle.life < clock) low = middle; else high = middle; }
+        const age = (low + high) / 2;
+        const velocity = Math.hypot(particle.vx + particle.ax * clock, particle.vy + particle.ay * clock);
+        if (velocity < 1e-8 * Math.max(1, length)) zero(age); else result.push({age});
+      } else if (length < EPS) zero(0);
+      return result;
+    }
+    const det = particle.vx * particle.ay - particle.vy * particle.ax;
+    if (length < EPS) { zero(0); return result; }
+    if (Math.abs(det) > 1e-8 * Math.max(1, length * Math.sqrt(accel2))) return result;
+    const acceleration = (particle.vx * particle.ax + particle.vy * particle.ay) / length;
+    const scalar = age => length * curve.sample(curveProgress(e.speedCurve, age, particle.life)) + acceleration * age;
+    const ages = Array.from(new Set([0, particle.life, ...curve.sampleTimes.map(u => u * particle.life)])).sort((a, b) => a - b);
+    for (let i = 1; i < ages.length; i++) {
+      let low = ages[i - 1], high = ages[i], a = scalar(low), b = scalar(high);
+      if (Math.abs(a) < EPS) zero(low);
+      if (a * b >= 0) continue;
+      for (let pass = 0; pass < 42; pass++) { const middle = (low + high) / 2, value = scalar(middle); if (a * value > 0) { low = middle; a = value; } else high = middle; }
+      zero((low + high) / 2);
+    }
+    return result;
+  }
+
+  function stateAt(baked, particle, time, pathAngle) {
     const e = particle.emitter;
     const flow = baked.flowPhase;
     const age = flow && flow.kind === 'in' ? particleAge(flow.basis, particle, mod(time + flow.offset, flow.basis.duration)) : particleAge(baked, particle, time);
@@ -543,26 +958,43 @@
     // their physical age clock; null keeps legacy eased-position behavior intact.
     const forceTime = speedCurve ? evaluatedAge : travel;
     const speedMultiplier = speedCurve ? speedCurve.sample(speedU) : 1;
+    const path = particle.lifecycle.path;
+    const pathPosition = path ? path.sample(pathProgress(particle, evaluatedAge)) : null;
     const sizeU = curveProgress(e.sizeCurve, evaluatedAge, particle.life), alphaU = curveProgress(e.alphaCurve, evaluatedAge, particle.life);
     const scaleCurve = particle.lifecycle.sizeLinear ? evalCurve(e.sizeCurve, sizeU) : particle.lifecycle.size.sample(sizeU);
-    const maxDimension = e.image ? Math.max(e.image.width, e.image.height) : 64;
+    const sequence = activeSequence(e);
+    const frameIndex = sequence ? sequenceFrame(sequence, evaluatedAge) : undefined;
+    const frameImage = sequence ? sequence.frames[frameIndex] : e.image;
+    const maxDimension = sequence ? particle.lifecycle.sequenceMaxDimension : e.image ? Math.max(e.image.width, e.image.height) : 64;
     const scale = particle.size / maxDimension * scaleCurve;
-    const width = (e.image ? e.image.width : 64) * scale;
-    const height = (e.image ? e.image.height : 64) * scale;
+    function axisScale(axis) {
+      if (!e.separateSizeAxes) return scale;
+      const points = e['sizeCurve' + axis] || e.sizeCurve;
+      const progress = curveProgress(points, evaluatedAge, particle.life);
+      const multiplier = particle.lifecycle['size' + axis + 'Linear'] ? evalCurve(points, progress) : particle.lifecycle['size' + axis].sample(progress);
+      return particle.size / maxDimension * multiplier;
+    }
+    const scaleX = axisScale('X'), scaleY = axisScale('Y');
+    const width = (frameImage ? frameImage.width : 64) * scaleX;
+    const height = (frameImage ? frameImage.height : 64) * scaleY;
     let rotation = e.rotation + particle.spin * evaluatedAge;
-    if (e.alignDirection) {
+    if (e.alignDirection && pathPosition) rotation += pathAngle === undefined ? pathPosition.angle : pathAngle;
+    else if (e.alignDirection) {
       const vx = particle.vx * speedMultiplier + particle.ax * forceTime, vy = particle.vy * speedMultiplier + particle.ay * forceTime;
       const angle = Math.abs(vx) + Math.abs(vy) < EPS ? particle.direction : Math.atan2(vy, vx) / DEG;
       rotation += particle.direction + mod(angle - particle.direction + 180, 360) - 180;
     }
-    return {emitterId: particle.emitterId, index: particle.index,
-      x: e.x + particle.sx + particle.vx * travel + particle.ax * forceTime * forceTime / 2,
-      y: e.y + particle.sy + particle.vy * travel + particle.ay * forceTime * forceTime / 2,
+    const state = {emitterId: particle.emitterId, index: particle.index,
+      x: pathPosition ? e.x + pathPosition.x + (e.path.offsets ? particle.sx + particle.ax * evaluatedAge * evaluatedAge / 2 : 0) : e.x + particle.sx + particle.vx * travel + particle.ax * forceTime * forceTime / 2,
+      y: pathPosition ? e.y + pathPosition.y + (e.path.offsets ? particle.sy + particle.ay * evaluatedAge * evaluatedAge / 2 : 0) : e.y + particle.sy + particle.vy * travel + particle.ay * forceTime * forceTime / 2,
       scale, width, height, rotation,
       color: particle.lifecycle.gradient ? evalGradient(particle.lifecycle.gradient, curveProgress(e.colorGradient, evaluatedAge, particle.life)) : particle.startColor.map((channel, i) => channel + (particle.endColor[i] - channel) * u),
       alpha: alive ? (particle.lifecycle.alphaLinear ? evalCurve(e.alphaCurve, alphaU) : particle.lifecycle.alpha.sample(alphaU)) *
-        (flow && flow.kind === 'in' ? clamp(time / baked.duration, 0, 1) : flow && flow.kind === 'out' ? clamp(1 - time / baked.duration, 0, 1) : 1) : 0, blend: e.blend, image: e.image,
+        (flow && flow.kind === 'in' ? clamp(time / baked.duration, 0, 1) : flow && flow.kind === 'out' ? clamp(1 - time / baked.duration, 0, 1) : 1) : 0, blend: e.blend, image: frameImage,
       alive};
+    if (sequence) state.sequenceFrame = frameIndex;
+    if (e.separateSizeAxes) { state.scaleX = scaleX; state.scaleY = scaleY; }
+    return state;
   }
 
   function sample(baked, time) {
@@ -571,27 +1003,43 @@
     return baked.particles.map(particle => stateAt(baked, particle, t));
   }
 
-  function sampledTimeline(baked, particle) {
+  // Each lane represents a bounded age interval, even if it spans several
+  // animation cycles. Frame boundaries follow age, never the export FPS grid.
+  function sequenceBoundaryRange(baked, particle) {
+    const sequence = activeSequence(particle.emitter);
+    if (!sequence || sequence.frames.length < 2) return {first: 1, last: 0};
+    const low = Math.max(0, baked.loop ? particle.cycleIndex * baked.duration : -particle.birth);
+    const high = Math.min(particle.life, baked.loop ? (particle.cycleIndex + 1) * baked.duration : baked.duration - particle.birth);
+    const first = Math.max(1, Math.ceil(low * sequence.fps - EPS));
+    let last = Math.floor(high * sequence.fps + EPS);
+    if (last / sequence.fps >= particle.life - EPS) last--;
+    if (sequence.mode === 'once') last = Math.min(last, sequence.frames.length - 1);
+    return {first, last};
+  }
+
+  function sampledTimeline(baked, particle, metadataOnly, sampleBudget) {
     const duration = baked.duration;
     const times = new Map();
-    function add(time, mandatory, stepped) {
+    function add(time, mandatory, stepped, rotationStepped, pathAngle) {
       if (time < -EPS || time > duration + EPS) return;
       const t = round(clamp(time, 0, duration));
       const current = times.get(t) || {time: t, mandatory: false, stepped: false};
       current.mandatory = current.mandatory || !!mandatory;
       current.stepped = current.stepped || !!stepped;
+      if (rotationStepped) current.rotationStepped = true;
+      if (pathAngle !== undefined) current.pathAngle = pathAngle;
       times.set(t, current);
     }
     add(0, true); add(duration, true);
     for (let frame = 1; frame < Math.ceil(duration * baked.fps); frame++) add(frame / baked.fps, false);
     if (baked.flowPhase && baked.flowPhase.kind === 'in') {
-      const basis = baked.flowPhase.basis, basisKeys = sampledTimeline(basis, particle);
+      const basis = baked.flowPhase.basis, basisKeys = sampledTimeline(basis, particle, true);
       const cycles = Math.ceil(duration / basis.duration) + 1;
+      if ((particle.lifecycle.path || particle.emitter.alignDirection || activeSequence(particle.emitter) || particle.emitter.separateSizeAxes) && basisKeys.length * (cycles + 1) > MAX_EXPORT_SAMPLES) fail('進場動畫取樣超過 200 萬，請縮短 In、降低速度，或加長 Loop。');
       for (let cycle = -cycles; cycle <= 0; cycle++) {
-        basisKeys.forEach(key => add(duration + cycle * basis.duration + key.time, key.mandatory, key.stepped));
+        basisKeys.forEach(key => add(duration + cycle * basis.duration + key.time, key.mandatory, key.stepped, key.rotationStepped, key.pathAngle));
       }
-      return Array.from(times.values()).sort((a, b) => a.time - b.time).map(key => ({time: key.time, mandatory: key.mandatory, stepped: key.stepped,
-        state: stateAt(baked, particle, key.time)}));
+      return finish();
     }
     function event(phase, reset, mandatory) {
       let time = particle.birth + phase;
@@ -607,8 +1055,7 @@
       const age = t * particle.life - (baked.loop ? particle.cycleIndex * duration : 0);
       if (!baked.loop || (age >= 0 && age <= duration)) event(age, reset, mandatory);
     }
-    const scalarCurves = [particle.emitter.sizeCurve, particle.emitter.alphaCurve];
-    if (particle.emitter.speedCurve) scalarCurves.push(particle.emitter.speedCurve);
+    const curves = scalarCurves(particle);
     if (baked.loop) {
       event(0, true);
       const death = particle.life - particle.cycleIndex * duration;
@@ -616,15 +1063,78 @@
     } else {
       event(0, true); event(particle.life, true);
     }
-    scalarCurves.forEach(points => points.forEach((point, index) => lifetimeEvent(point.t, index > 0 && points[index - 1].curve === 'stepped')));
+    curves.forEach(points => points.forEach((point, index) => lifetimeEvent(point.t, index > 0 && points[index - 1].curve === 'stepped')));
     if (particle.emitter.colorGradient) particle.emitter.colorGradient.forEach(point => lifetimeEvent(point.t, false));
-    [particle.lifecycle.size, particle.lifecycle.alpha, particle.lifecycle.speed].forEach(compiled => {
+    compiledScalarCurves(particle).forEach(compiled => {
       if (compiled) compiled.sampleTimes.forEach(t => lifetimeEvent(t, false, false));
     });
-    return Array.from(times.values()).sort((a, b) => a.time - b.time).map(key => ({
-      time: key.time, mandatory: key.mandatory, stepped: key.stepped,
-      state: stateAt(baked, particle, key.time)
-    }));
+    const sequence = activeSequence(particle.emitter), sequenceRange = sequenceBoundaryRange(baked, particle);
+    for (let frame = sequenceRange.first; frame <= sequenceRange.last; frame++) {
+      const phase = frame / sequence.fps - (baked.loop ? particle.cycleIndex * duration : 0);
+      event(phase, false, false);
+    }
+    let previousPathAge = -Infinity;
+    pathEvents(baked, particle).forEach(key => {
+      const phase = key.age - (baked.loop ? particle.cycleIndex * duration : 0);
+      let at = particle.birth + phase;
+      if (baked.loop) at = mod(at, duration);
+      const resetsLane = baked.loop && key.age >= (particle.cycleIndex + 1) * duration - EPS;
+      add(at, true, false, false, resetsLane ? undefined : key.angle);
+      if (key.corner) {
+        const delta = Math.min(RESET_EPS, (key.age - previousPathAge) / 3);
+        const before = at <= EPS && baked.loop ? duration - delta : at - delta;
+        add(before, true, false, true);
+      }
+      previousPathAge = key.age;
+    });
+    directionEvents(particle).forEach(key => {
+      const phase = key.age - (baked.loop ? particle.cycleIndex * duration : 0);
+      if (baked.loop && (phase < -EPS || phase > duration + EPS)) return;
+      let at = particle.birth + phase;
+      if (baked.loop) at = mod(at, duration);
+      add(at, true, false, key.rotationStepped);
+    });
+    return finish();
+
+    function finish() {
+      const metadata = Array.from(times.values()).sort((a, b) => a.time - b.time);
+      if (metadataOnly) return metadata;
+      if (sampleBudget) {
+        sampleBudget.used += metadata.length;
+        if (sampleBudget.used > MAX_EXPORT_SAMPLES) fail('動畫匯出取樣超過 200 萬，請降低速度、減少粒子數，或縮短動畫。');
+      }
+      const keys = metadata.map(key => ({...key, state: stateAt(baked, particle, key.time, key.pathAngle)}));
+      if (!needsRefinement(baked, particle)) return keys;
+      const refinement = qualityProfile(baked.project).refinement;
+      // New axis curves need a scale bound even under standard quality. Their
+      // Bezier X handles can concentrate most of the change between FPS keys.
+      const scaleRefinement = refinement.scale === undefined && particle.emitter.separateSizeAxes ?
+        qualityProfile(baked.project).tolerances.scale / 2 : refinement.scale;
+      const refined = [keys[0]];
+      function append(first, last, depth) {
+        if (first.stepped || depth >= 12 || last.time - first.time <= 0.000002) { refined.push(last); return; }
+        const middleTime = round((first.time + last.time) / 2);
+        if (middleTime <= first.time || middleTime >= last.time) { refined.push(last); return; }
+        const middle = {time: middleTime, mandatory: false, stepped: false, state: stateAt(baked, particle, middleTime)};
+        const u = (middleTime - first.time) / (last.time - first.time);
+        const expected = channel => first.state[channel] + (last.state[channel] - first.state[channel]) * u;
+        const positionError = Math.max(Math.abs(middle.state.x - expected('x')), Math.abs(middle.state.y - expected('y')));
+        const rotationError = first.rotationStepped ? 0 : Math.abs(middle.state.rotation - expected('rotation'));
+        const scaleError = scaleRefinement === undefined ? 0 : particle.emitter.separateSizeAxes ?
+          Math.max(Math.abs(middle.state.scaleX - expected('scaleX')), Math.abs(middle.state.scaleY - expected('scaleY'))) : Math.abs(middle.state.scale - expected('scale'));
+        const alphaError = refinement.alpha === undefined ? 0 : Math.abs(middle.state.alpha - expected('alpha'));
+        const colorError = refinement.color === undefined ? 0 : Math.max(...middle.state.color.map((value, index) =>
+          Math.abs(value - (first.state.color[index] + (last.state.color[index] - first.state.color[index]) * u))));
+        if (positionError <= refinement.position && rotationError <= refinement.rotation &&
+            (scaleRefinement === undefined || scaleError <= scaleRefinement) &&
+            (refinement.alpha === undefined || alphaError <= refinement.alpha) &&
+            (refinement.color === undefined || colorError <= refinement.color)) { refined.push(last); return; }
+        if (sampleBudget && ++sampleBudget.used > MAX_EXPORT_SAMPLES) fail('動畫曲線補採樣超過 200 萬，請降低速度、減少粒子數，或減少曲線轉折。');
+        append(first, middle, depth + 1); append(middle, last, depth + 1);
+      }
+      for (let i = 1; i < keys.length; i++) append(keys[i - 1], keys[i], 0);
+      return refined;
+    }
   }
 
   // Error-bounded piecewise linear reduction. Event/stepped boundaries are never removed.
@@ -661,35 +1171,57 @@
     return state.color.concat(state.alpha).map(value => Math.round(clamp(value, 0, 1) * 255).toString(16).padStart(2, '0')).join('');
   }
 
-  function exportSpine(baked, targetVersion) {
+  function exportSpine(baked, targetVersion, sampleBudget) {
+    const needsAdaptive = baked.particles.some(particle => needsRefinement(baked, particle));
+    const needsBudget = needsAdaptive || baked.project.bakeQuality !== undefined || baked.particles.some(particle => activeSequence(particle.emitter) || particle.emitter.separateSizeAxes);
+    if (needsBudget && !sampleBudget) {
+      let floor = 0;
+      for (const particle of baked.particles) {
+        const cost = timelineCost(baked, particle);
+        floor += cost.lower;
+        if (cost.rejected || floor > MAX_EXPORT_SAMPLES) fail('動畫匯出取樣成本超過 200 萬，請降低速度、減少粒子數，或縮短動畫。');
+      }
+    }
+    if (needsAdaptive && !sampleBudget) {
+      let estimated = 0;
+      for (const particle of baked.particles) {
+        estimated += sampledTimeline(baked, particle, true).length;
+        if (estimated > MAX_EXPORT_SAMPLES) fail('動畫匯出取樣成本超過 200 萬，請降低速度、減少粒子數，或縮短動畫。');
+      }
+      sampleBudget = {used: 0};
+    }
+    if (needsBudget && !sampleBudget) sampleBudget = {used: 0};
     const profile = spineProfile(targetVersion === undefined ? baked.project.spineVersion : targetVersion);
+    const tolerance = qualityProfile(baked.project).tolerances;
     const json = {
       skeleton: {spine: profile.version, images: './images/', fps: baked.fps},
       bones: [{name: 'root'}], slots: [], skins: [{name: 'default', attachments: {}}],
       animations: {effect: {bones: {}, slots: {}}}
     };
-    const images = [], attachments = json.skins[0].attachments;
+    const imagePlan = planImages(baked.project), images = imagePlan.images, attachments = json.skins[0].attachments;
     let keyframes = 0, denseKeyframes = 0;
     const enabled = baked.project.emitters.filter(e => e.enabled);
     enabled.forEach(e => json.bones.push({name: 'em_' + e.id, parent: 'root', x: e.x, y: e.y}));
     // The first emitter in the editor is the front layer; Spine draws the final slot last.
     enabled.slice().reverse().forEach(e => {
-      const imageName = e.image ? 'emitter_' + e.id + '.png' : 'particle.png';
-      const path = imageName.slice(0, -4);
-      if (!images.some(item => item.name === imageName)) images.push({name: imageName,
-        width: e.image ? e.image.width : 64, height: e.image ? e.image.height : 64,
-        dataUrl: e.image ? e.image.dataUrl : null});
+      const sequence = activeSequence(e);
+      const assets = imagePlan.byEmitter.get(e.id).map(ref => ref.asset);
+      const path = assets[0].name.slice(0, -4);
       baked.particles.filter(particle => particle.emitterId === e.id).forEach(particle => {
         const boneName = 'em_' + e.id + '_p' + particle.index, slotName = boneName + '_slot';
         const initial = stateAt(baked, particle, 0);
         json.bones.push({name: boneName, parent: 'em_' + e.id});
         json.slots.push({name: slotName, bone: boneName, color: rgba(initial),
-          attachment: initial.alive ? 'particle' : undefined, blend: e.blend});
-        attachments[slotName] = {particle: {type: 'region', path, width: e.image ? e.image.width : 64, height: e.image ? e.image.height : 64}};
-        const dense = sampledTimeline(baked, particle);
+          attachment: initial.alive ? sequence ? sequenceAttachment(initial.sequenceFrame) : 'particle' : undefined, blend: e.blend});
+        if (sequence) {
+          attachments[slotName] = {};
+          sequence.frames.forEach((frame, index) => { attachments[slotName][sequenceAttachment(index)] = {type: 'region',
+            path: assets[index].name.slice(0, -4), width: frame.width, height: frame.height}; });
+        } else attachments[slotName] = {particle: {type: 'region', path, width: e.image ? e.image.width : 64, height: e.image ? e.image.height : 64}};
+        const dense = sampledTimeline(baked, particle, false, sampleBudget);
         denseKeyframes += dense.length * 4;
-        const translate = reduceTimeline(dense, s => [s.x, s.y], [0.2, 0.2]).map(key => keyframe(key, {x: key.state.x - e.x, y: key.state.y - e.y}));
-        let rotationKeys = reduceTimeline(dense, s => [s.rotation], [0.25]);
+        const translate = reduceTimeline(dense, s => [s.x, s.y], [tolerance.position, tolerance.position]).map(key => keyframe(key, {x: key.state.x - e.x, y: key.state.y - e.y}));
+        let rotationKeys = reduceTimeline(dense, s => [s.rotation], [tolerance.rotation]);
         if (profile.family === '3.8') {
           // 3.8 interpolates the shortest angle between keys. Keep each visible
           // rotation segment below 180 degrees so whole turns cannot disappear.
@@ -697,7 +1229,7 @@
           rotationKeys.forEach((key, index) => {
             guarded.push(key);
             const next = rotationKeys[index + 1];
-            if (!next || key.stepped) return;
+            if (!next || key.stepped || key.rotationStepped) return;
             const segments = Math.ceil(Math.abs(next.state.rotation - key.state.rotation) / 120);
             for (let step = 1; step < segments; step++) {
               const at = round(key.time + (next.time - key.time) * step / segments);
@@ -708,15 +1240,17 @@
           });
           rotationKeys = guarded;
         }
-        const rotate = rotationKeys.map(key => keyframe(key, {[profile.rotationKey]: key.state.rotation}));
-        const scale = reduceTimeline(dense, s => [s.scale], [0.002]).map(key => keyframe(key, {x: key.state.scale, y: key.state.scale}));
-        const colors = reduceTimeline(dense, s => s.color.concat(s.alpha), [1 / 255, 1 / 255, 1 / 255, 0.004]).map(key => keyframe(key, {color: rgba(key.state)}));
+        const rotate = rotationKeys.map(key => keyframe({...key, stepped: key.stepped || key.rotationStepped}, {[profile.rotationKey]: key.state.rotation}));
+        const scale = e.separateSizeAxes ? reduceTimeline(dense, s => [s.scaleX, s.scaleY], [tolerance.scale, tolerance.scale]).map(key => keyframe(key, {x: key.state.scaleX, y: key.state.scaleY})) :
+          reduceTimeline(dense, s => [s.scale], [tolerance.scale]).map(key => keyframe(key, {x: key.state.scale, y: key.state.scale}));
+        const colors = reduceTimeline(dense, s => s.color.concat(s.alpha), [tolerance.color, tolerance.color, tolerance.color, tolerance.alpha]).map(key => keyframe(key, {color: rgba(key.state)}));
         const switches = [];
         let previous;
         dense.forEach(key => {
           const visible = key.state.alive;
-          if (previous === undefined || previous !== visible || key.time === baked.duration) {
-            switches.push(keyframe({time: key.time}, {name: visible ? 'particle' : null})); previous = visible;
+          const name = visible ? sequence ? sequenceAttachment(key.state.sequenceFrame) : 'particle' : null;
+          if (previous === undefined || previous !== name || key.time === baked.duration) {
+            switches.push(keyframe({time: key.time}, {name})); previous = name;
           }
         });
         json.animations.effect.bones[boneName] = {translate, rotate, scale};
@@ -732,7 +1266,7 @@
     const stats = Object.assign({}, baked.stats, {keyframes, denseKeyframes,
       keyReduction: denseKeyframes ? round(1 - keyframes / denseKeyframes) : 0,
       jsonBytes: 0, imageCount: images.length, resetEpsilon: RESET_EPS,
-      reductionTolerance: {position: 0.2, rotation: 0.25, scale: 0.002, alpha: 0.004, color: 1 / 255}});
+      reductionTolerance: {...tolerance}});
     stats.jsonBytes = typeof TextEncoder === 'function' ? new TextEncoder().encode(JSON.stringify(json)).length : JSON.stringify(json).length;
     return {json, images, stats};
   }
@@ -745,10 +1279,17 @@
       if (!phase || phase.duration !== flow[kind].duration || phase.loop !== (kind === 'loop')) fail('三段動畫烘焙資料與專案設定不一致，請重新烘焙。');
       descriptors[kind] = {animationName: flow[kind].name, duration: phase.duration, loop: phase.loop};
     });
+    let floor = 0;
+    for (const phase of Object.values(flowBaked.phases)) for (const particle of phase.particles) {
+      const cost = timelineCost(phase, particle);
+      floor += cost.lower;
+      if (cost.rejected || floor > MAX_EXPORT_SAMPLES) fail('三段動畫匯出取樣成本估算超過 200 萬，可能使介面暫停。請減少粒子數、縮短 In，或增加 Loop 長度，再重新匯出。');
+    }
     // Count timestamp metadata without evaluating positions, curves, or tiled
     // In states. The estimate is deliberately conservative where tiled Loop
     // timestamps overlap the In FPS grid; it is not an exact output-key count.
     function timelineCount(phase, particle) {
+      if (particle.lifecycle.path || particle.emitter.alignDirection || activeSequence(particle.emitter)) return sampledTimeline(phase, particle, true).length;
       const period = phase.duration, times = new Set();
       function add(at) { if (at >= -EPS && at <= period + EPS) times.add(round(clamp(at, 0, period))); }
       add(0); add(period);
@@ -768,11 +1309,10 @@
         const death = particle.life - particle.cycleIndex * period;
         if (death >= 0 && death <= period) event(death, true);
       } else event(particle.life, true);
-      const curves = [particle.emitter.sizeCurve, particle.emitter.alphaCurve];
-      if (particle.emitter.speedCurve) curves.push(particle.emitter.speedCurve);
+      const curves = scalarCurves(particle);
       curves.forEach(points => points.forEach((point, index) => lifetimeEvent(point.t, index > 0 && points[index - 1].curve === 'stepped')));
       if (particle.emitter.colorGradient) particle.emitter.colorGradient.forEach(point => lifetimeEvent(point.t, false));
-      [particle.lifecycle.size, particle.lifecycle.alpha, particle.lifecycle.speed].forEach(compiled => {
+      compiledScalarCurves(particle).forEach(compiled => {
         if (compiled) compiled.sampleTimes.forEach(t => lifetimeEvent(t, false));
       });
       return times.size;
@@ -786,7 +1326,8 @@
       estimatedSamples += inGrid + loopKeys * repeats + loopKeys + timelineCount(outPhase, outPhase.particles[index]);
       if (estimatedSamples > sampleLimit) fail('三段動畫匯出取樣成本估算超過 200 萬，可能使介面暫停。請減少粒子數、縮短 In，或增加 Loop 長度，再重新匯出。');
     }
-    ['in', 'loop', 'out'].forEach(kind => { exported[kind] = exportSpine(flowBaked.phases[kind], targetVersion); });
+    const sampleBudget = loopPhase.particles.some(particle => needsRefinement(loopPhase, particle) || activeSequence(particle.emitter) || particle.emitter.separateSizeAxes) || flowBaked.project.bakeQuality !== undefined ? {used: 0} : undefined;
+    ['in', 'loop', 'out'].forEach(kind => { exported[kind] = exportSpine(flowBaked.phases[kind], targetVersion, sampleBudget); });
     const json = Object.assign({}, exported.loop.json, {animations: Object.create(null)});
     json.slots.forEach(slot => { slot.attachment = null; slot.color = 'ffffff00'; });
     ['in', 'loop', 'out'].forEach(kind => { Object.defineProperty(json.animations, flow[kind].name, {
@@ -800,5 +1341,5 @@
     return {json, images: exported.loop.images, stats, manifest: {phases: descriptors, transition: 'loop-boundary'}};
   }
 
-  return {createProject, createEmitter, normalizeProject, normalizeFlow, bake, bakeFlow, sample, exportSpine, exportFlow, spineProfile, SPINE_TARGETS};
+  return {createProject, createEmitter, normalizeProject, normalizeFlow, backgroundSize, emitterSeed, bake, bakeFlow, sample, exportSpine, exportFlow, spineProfile, qualityProfile, estimateCost, BAKE_QUALITIES, SPINE_TARGETS};
 });

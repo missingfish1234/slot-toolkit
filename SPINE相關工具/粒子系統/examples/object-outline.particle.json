@@ -1,0 +1,762 @@
+{
+  "format": "particle-studio-project",
+  "schemaVersion": 1,
+  "project": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "物件輪廓 · 五角星與內孔",
+    "fps": 30,
+    "spineVersion": "4.0.56",
+    "duration": 2,
+    "loop": true,
+    "flow": {
+      "enabled": false,
+      "in": {
+        "name": "in",
+        "duration": 1
+      },
+      "loop": {
+        "name": "loop",
+        "duration": 3
+      },
+      "out": {
+        "name": "out",
+        "duration": 1
+      }
+    },
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "emitter1",
+        "name": "PNG 邊界發射",
+        "enabled": true,
+        "x": 0,
+        "y": 0,
+        "shape": "outline",
+        "width": 320,
+        "height": 320,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 120,
+        "emissionDuration": 2,
+        "life": 2,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 9,
+        "sizeRandom": 2,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#abfff0",
+        "colorEnd": "#64ddc2",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.5
+          },
+          {
+            "t": 0.2,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.12,
+            "v": 1
+          },
+          {
+            "t": 0.8,
+            "v": 0.8
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": null,
+        "emitFrom": "edge",
+        "outline": {
+          "width": 160,
+          "height": 160,
+          "contours": [
+            [
+              {
+                "x": -1,
+                "y": 69
+              },
+              {
+                "x": 1,
+                "y": 69
+              },
+              {
+                "x": 2,
+                "y": 65
+              },
+              {
+                "x": 4,
+                "y": 64
+              },
+              {
+                "x": 21,
+                "y": 30
+              },
+              {
+                "x": 66,
+                "y": 22
+              },
+              {
+                "x": 66,
+                "y": 20
+              },
+              {
+                "x": 35,
+                "y": -11
+              },
+              {
+                "x": 41,
+                "y": -56
+              },
+              {
+                "x": 35,
+                "y": -53
+              },
+              {
+                "x": 32,
+                "y": -53
+              },
+              {
+                "x": 1,
+                "y": -37
+              },
+              {
+                "x": -9,
+                "y": -42
+              },
+              {
+                "x": -12,
+                "y": -42
+              },
+              {
+                "x": -32,
+                "y": -53
+              },
+              {
+                "x": -35,
+                "y": -53
+              },
+              {
+                "x": -41,
+                "y": -56
+              },
+              {
+                "x": -35,
+                "y": -11
+              },
+              {
+                "x": -66,
+                "y": 20
+              },
+              {
+                "x": -66,
+                "y": 22
+              },
+              {
+                "x": -21,
+                "y": 30
+              },
+              {
+                "x": -17,
+                "y": 40
+              },
+              {
+                "x": -15,
+                "y": 41
+              }
+            ],
+            [
+              {
+                "x": -3,
+                "y": 13
+              },
+              {
+                "x": -4,
+                "y": 13
+              },
+              {
+                "x": -4,
+                "y": 12
+              },
+              {
+                "x": -6,
+                "y": 12
+              },
+              {
+                "x": -6,
+                "y": 11
+              },
+              {
+                "x": -8,
+                "y": 11
+              },
+              {
+                "x": -8,
+                "y": 10
+              },
+              {
+                "x": -11,
+                "y": 8
+              },
+              {
+                "x": -11,
+                "y": 6
+              },
+              {
+                "x": -12,
+                "y": 6
+              },
+              {
+                "x": -12,
+                "y": 4
+              },
+              {
+                "x": -13,
+                "y": 4
+              },
+              {
+                "x": -13,
+                "y": -4
+              },
+              {
+                "x": -12,
+                "y": -4
+              },
+              {
+                "x": -11,
+                "y": -8
+              },
+              {
+                "x": -10,
+                "y": -8
+              },
+              {
+                "x": -8,
+                "y": -11
+              },
+              {
+                "x": -6,
+                "y": -11
+              },
+              {
+                "x": -6,
+                "y": -12
+              },
+              {
+                "x": -4,
+                "y": -12
+              },
+              {
+                "x": -4,
+                "y": -13
+              },
+              {
+                "x": 4,
+                "y": -13
+              },
+              {
+                "x": 4,
+                "y": -12
+              },
+              {
+                "x": 8,
+                "y": -11
+              },
+              {
+                "x": 8,
+                "y": -10
+              },
+              {
+                "x": 11,
+                "y": -8
+              },
+              {
+                "x": 11,
+                "y": -6
+              },
+              {
+                "x": 12,
+                "y": -6
+              },
+              {
+                "x": 12,
+                "y": -4
+              },
+              {
+                "x": 13,
+                "y": -4
+              },
+              {
+                "x": 13,
+                "y": 4
+              },
+              {
+                "x": 12,
+                "y": 4
+              },
+              {
+                "x": 11,
+                "y": 8
+              },
+              {
+                "x": 10,
+                "y": 8
+              },
+              {
+                "x": 8,
+                "y": 11
+              },
+              {
+                "x": 6,
+                "y": 11
+              },
+              {
+                "x": 6,
+                "y": 12
+              },
+              {
+                "x": 4,
+                "y": 12
+              },
+              {
+                "x": 4,
+                "y": 13
+              }
+            ]
+          ],
+          "threshold": 24,
+          "includeHoles": true,
+          "showImage": true,
+          "sourceName": "outline-object.png",
+          "opaque": false,
+          "image": {
+            "name": "outline-object.png",
+            "mime": "image/png",
+            "width": 160,
+            "height": 160,
+            "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAYAAACLz2ctAAADQElEQVR4nO3Sy20dQRBDUeXjaLx0/oHYMIQGJEH2+83M7SLvAbjvLvLtTZIkSZIkSZIkSZL28uPnr99/Q79DpRygMGt8jlAIByjM1/E5Ql3mX+NzhLqEAxTm1vgcoU7lAIW5d3yOUKdwgMI8Oj5HqEM5QGGeHZ8j1CEcoDCvjs8R6iUOUJijxucI9bCjx+cI9RAHKMxZ43OEuosDFObs8TlC/ZcDFOaq8TlCfcsBCnP1+ByhPnGAwlDjc4TCx+cIy9HDc4DF6NE5wnL04BxgMXpsjrAcPTQHWIwemSMsRw/MARajx+UIy9HDcoCF6DE5xiL0WBxlCXoAu4buJRJd6vTQ/Y1BF9UWum8UfXxTNEr6qKZklPShTNkw6QOYveIADZrLB+gIzQoyPkdo8PEt9BFM8fgW+himeHwLfRRTPL6FPo4pHt9CH8kUj2+hj0WVQL/P8X1AH40sgH5v/fgW+nj08en30//fAn1E+vj0P+j/b4E+Jn18+j/0/7dAH5U+Pv0v+v9boI/rAIvHt9BHJgug/1c/voU+tgMsHt9CH50qgf6n4/uAPn77AK/689boEloHeNV/t0cX4QC1RSn+tVxLKS3/HKmhmIY/jpZeTvr/IqSWlPqvSIlFJf4pWlJhSX+pklJayj8qTS9v+vs1uMSp79Y3ppU57b26w9WlPlPshDfqSUS595a889t0ELLknUP3UoEueffQ/cSjC949dD/x6IJ3D91PPLrg3UP3E48uePfQ/cSjC949dD/x6IJ3D91PNLrcKaF7ikUXOyV0T7HoYqeE7ikWXeyU0D3FooudErqnWHSxU0L3FIsudkronmLRxU4J3VMkutRpofuKQxc6LXRfcehCp4XuKw5d6LTQfcWhC50Wuq84dKHTQvcVhy50Wui+4tCFTgvdVxS6zFsl0+9whCeji7y3WPpdDvAkdJGPFkq/0wEebGqRU9+tL6YXOP399ZJKS/pLjcSyEv8UKb2k9P+N11JMyz/HaSuk7b/bay2i9d/baS+g/f84D//OO0A8+Gfe42Ie+nve5QIe+DZvdCIP+hjvdTAP+RzvdhAP+BrvJ0mSJEmSJEmSJEmSJEmSJEmSJEmSJOkIfwCqW4NvUi/cLQAAAABJRU5ErkJggg=="
+          }
+        }
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    }
+  },
+  "bakedProject": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "物件輪廓 · 五角星與內孔",
+    "fps": 30,
+    "spineVersion": "4.0.56",
+    "duration": 2,
+    "loop": true,
+    "flow": {
+      "enabled": false,
+      "in": {
+        "name": "in",
+        "duration": 1
+      },
+      "loop": {
+        "name": "loop",
+        "duration": 3
+      },
+      "out": {
+        "name": "out",
+        "duration": 1
+      }
+    },
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "emitter1",
+        "name": "PNG 邊界發射",
+        "enabled": true,
+        "x": 0,
+        "y": 0,
+        "shape": "outline",
+        "width": 320,
+        "height": 320,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 120,
+        "emissionDuration": 2,
+        "life": 2,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 9,
+        "sizeRandom": 2,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#abfff0",
+        "colorEnd": "#64ddc2",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 0.5
+          },
+          {
+            "t": 0.2,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.12,
+            "v": 1
+          },
+          {
+            "t": 0.8,
+            "v": 0.8
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": null,
+        "emitFrom": "edge",
+        "outline": {
+          "width": 160,
+          "height": 160,
+          "contours": [
+            [
+              {
+                "x": -1,
+                "y": 69
+              },
+              {
+                "x": 1,
+                "y": 69
+              },
+              {
+                "x": 2,
+                "y": 65
+              },
+              {
+                "x": 4,
+                "y": 64
+              },
+              {
+                "x": 21,
+                "y": 30
+              },
+              {
+                "x": 66,
+                "y": 22
+              },
+              {
+                "x": 66,
+                "y": 20
+              },
+              {
+                "x": 35,
+                "y": -11
+              },
+              {
+                "x": 41,
+                "y": -56
+              },
+              {
+                "x": 35,
+                "y": -53
+              },
+              {
+                "x": 32,
+                "y": -53
+              },
+              {
+                "x": 1,
+                "y": -37
+              },
+              {
+                "x": -9,
+                "y": -42
+              },
+              {
+                "x": -12,
+                "y": -42
+              },
+              {
+                "x": -32,
+                "y": -53
+              },
+              {
+                "x": -35,
+                "y": -53
+              },
+              {
+                "x": -41,
+                "y": -56
+              },
+              {
+                "x": -35,
+                "y": -11
+              },
+              {
+                "x": -66,
+                "y": 20
+              },
+              {
+                "x": -66,
+                "y": 22
+              },
+              {
+                "x": -21,
+                "y": 30
+              },
+              {
+                "x": -17,
+                "y": 40
+              },
+              {
+                "x": -15,
+                "y": 41
+              }
+            ],
+            [
+              {
+                "x": -3,
+                "y": 13
+              },
+              {
+                "x": -4,
+                "y": 13
+              },
+              {
+                "x": -4,
+                "y": 12
+              },
+              {
+                "x": -6,
+                "y": 12
+              },
+              {
+                "x": -6,
+                "y": 11
+              },
+              {
+                "x": -8,
+                "y": 11
+              },
+              {
+                "x": -8,
+                "y": 10
+              },
+              {
+                "x": -11,
+                "y": 8
+              },
+              {
+                "x": -11,
+                "y": 6
+              },
+              {
+                "x": -12,
+                "y": 6
+              },
+              {
+                "x": -12,
+                "y": 4
+              },
+              {
+                "x": -13,
+                "y": 4
+              },
+              {
+                "x": -13,
+                "y": -4
+              },
+              {
+                "x": -12,
+                "y": -4
+              },
+              {
+                "x": -11,
+                "y": -8
+              },
+              {
+                "x": -10,
+                "y": -8
+              },
+              {
+                "x": -8,
+                "y": -11
+              },
+              {
+                "x": -6,
+                "y": -11
+              },
+              {
+                "x": -6,
+                "y": -12
+              },
+              {
+                "x": -4,
+                "y": -12
+              },
+              {
+                "x": -4,
+                "y": -13
+              },
+              {
+                "x": 4,
+                "y": -13
+              },
+              {
+                "x": 4,
+                "y": -12
+              },
+              {
+                "x": 8,
+                "y": -11
+              },
+              {
+                "x": 8,
+                "y": -10
+              },
+              {
+                "x": 11,
+                "y": -8
+              },
+              {
+                "x": 11,
+                "y": -6
+              },
+              {
+                "x": 12,
+                "y": -6
+              },
+              {
+                "x": 12,
+                "y": -4
+              },
+              {
+                "x": 13,
+                "y": -4
+              },
+              {
+                "x": 13,
+                "y": 4
+              },
+              {
+                "x": 12,
+                "y": 4
+              },
+              {
+                "x": 11,
+                "y": 8
+              },
+              {
+                "x": 10,
+                "y": 8
+              },
+              {
+                "x": 8,
+                "y": 11
+              },
+              {
+                "x": 6,
+                "y": 11
+              },
+              {
+                "x": 6,
+                "y": 12
+              },
+              {
+                "x": 4,
+                "y": 12
+              },
+              {
+                "x": 4,
+                "y": 13
+              }
+            ]
+          ],
+          "threshold": 24,
+          "includeHoles": true,
+          "showImage": true,
+          "sourceName": "outline-object.png",
+          "image": {
+            "name": "outline-object.png",
+            "mime": "image/png",
+            "width": 160,
+            "height": 160,
+            "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAYAAACLz2ctAAADQElEQVR4nO3Sy20dQRBDUeXjaLx0/oHYMIQGJEH2+83M7SLvAbjvLvLtTZIkSZIkSZIkSZL28uPnr99/Q79DpRygMGt8jlAIByjM1/E5Ql3mX+NzhLqEAxTm1vgcoU7lAIW5d3yOUKdwgMI8Oj5HqEM5QGGeHZ8j1CEcoDCvjs8R6iUOUJijxucI9bCjx+cI9RAHKMxZ43OEuosDFObs8TlC/ZcDFOaq8TlCfcsBCnP1+ByhPnGAwlDjc4TCx+cIy9HDc4DF6NE5wnL04BxgMXpsjrAcPTQHWIwemSMsRw/MARajx+UIy9HDcoCF6DE5xiL0WBxlCXoAu4buJRJd6vTQ/Y1BF9UWum8UfXxTNEr6qKZklPShTNkw6QOYveIADZrLB+gIzQoyPkdo8PEt9BFM8fgW+himeHwLfRRTPL6FPo4pHt9CH8kUj2+hj0WVQL/P8X1AH40sgH5v/fgW+nj08en30//fAn1E+vj0P+j/b4E+Jn18+j/0/7dAH5U+Pv0v+v9boI/rAIvHt9BHJgug/1c/voU+tgMsHt9CH50qgf6n4/uAPn77AK/689boEloHeNV/t0cX4QC1RSn+tVxLKS3/HKmhmIY/jpZeTvr/IqSWlPqvSIlFJf4pWlJhSX+pklJayj8qTS9v+vs1uMSp79Y3ppU57b26w9WlPlPshDfqSUS595a889t0ELLknUP3UoEueffQ/cSjC949dD/x6IJ3D91PPLrg3UP3E48uePfQ/cSjC949dD/x6IJ3D91PNLrcKaF7ikUXOyV0T7HoYqeE7ikWXeyU0D3FooudErqnWHSxU0L3FIsudkronmLRxU4J3VMkutRpofuKQxc6LXRfcehCp4XuKw5d6LTQfcWhC50Wuq84dKHTQvcVhy50Wui+4tCFTgvdVxS6zFsl0+9whCeji7y3WPpdDvAkdJGPFkq/0wEebGqRU9+tL6YXOP399ZJKS/pLjcSyEv8UKb2k9P+N11JMyz/HaSuk7b/bay2i9d/baS+g/f84D//OO0A8+Gfe42Ie+nve5QIe+DZvdCIP+hjvdTAP+RzvdhAP+BrvJ0mSJEmSJEmSJEmSJEmSJEmSJEmSJOkIfwCqW4NvUi/cLQAAAABJRU5ErkJggg=="
+          }
+        }
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    }
+  },
+  "view": {
+    "time": 0.8,
+    "mode": "baked",
+    "zoom": 1,
+    "panX": 0,
+    "panY": 0
+  }
+}
