@@ -15,7 +15,7 @@
     "離線網頁工具"
   ],
   "updatedAt": "2026-10-22",
-  "size": "",
+  "size": "2.6 MB（下載）",
   "changelog": [
     "v1.26.0：新增 RESET／新專案，可先儲存再重設整體介面並立即保存新草稿；支援多圖隨機粒子，每顆粒子出生時隨機挑一張圖片。",
     "v1.25.0：輸出自動烘焙、拖放載入、快捷鍵、圖層單獨顯示、每層開始時間、效果庫合併、批次輸出、參數區塊收合。",
@@ -32,5 +32,7 @@
     "presets",
     "config.json",
     "settings.json"
-  ]
+  ],
+  "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/38c11292cf68ed1981af04f312239d71e141c6e5/releases/tool-spine-particle-studio-1.26.0.zip",
+  "sha256": "955e589b9c037bf6726826ceb3c2dd1cb619fd8bcfa97e75015c8e1afef97bd2"
 }

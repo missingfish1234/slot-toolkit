@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-22 14:28:14",
+  "updatedAt": "2026-10-22 19:36:36",
   "tools": [
     {
       "id": "cocos-creator-38-rolling-score-tester",
@@ -503,8 +503,8 @@
       "id": "spine-particle-studio",
       "name": "SPINE 粒子系統（Particle Studio）",
       "category": "SPINE相關工具",
-      "description": "離線編排粒子效果，輸出 Spine 3.8／4.0／4.2 動畫與圖片；支援 In／Loop／Out、既有骨架掛接、每層開始時間與批次輸出多版本／配色。",
-      "version": "1.25.0",
+      "description": "離線編排粒子效果，輸出 Spine 3.8／4.0／4.2 動畫與圖片；支援 RESET 新專案、多圖隨機粒子、既有骨架掛接與批次輸出。",
+      "version": "1.26.0",
       "path": "SPINE相關工具/粒子系統",
       "entry": "dist/Particle-Studio.html",
       "icon": "",
@@ -518,14 +518,15 @@
       "updatedAt": "2026-10-22",
       "size": "2.6 MB（下載）",
       "changelog": [
+        "v1.26.0：新增 RESET／新專案，可先儲存再重設整體介面並立即保存新草稿；支援多圖隨機粒子，每顆粒子出生時隨機挑一張圖片。",
         "v1.25.0：輸出自動烘焙、拖放載入、快捷鍵、圖層單獨顯示、每層開始時間、效果庫合併、批次輸出、參數區塊收合。",
         "v1.24.0：尺寸曲線可分別調整 X／Y。",
         "v1.23.0：沿路徑方向轉向。",
         "v1.22.0：輸出保留圖片原檔名。",
         "v1.9.0：加入工具包與管理器，可離線啟動粒子工作室。"
       ],
-      "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/2b906828a076e3d012d3bc57d3165cbe63c137aa/releases/tool-spine-particle-studio-1.25.0.zip",
-      "sha256": "0b2a8452345075f0327ab0cf37fa9475342ccd765c28dc0a660227f77ccd2b1c",
+      "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/38c11292cf68ed1981af04f312239d71e141c6e5/releases/tool-spine-particle-studio-1.26.0.zip",
+      "sha256": "955e589b9c037bf6726826ceb3c2dd1cb619fd8bcfa97e75015c8e1afef97bd2",
       "kind": "網頁工具",
       "preservePaths": [
         "user-data",
@@ -698,8 +699,8 @@
       "id": "65785b57571672475de55177-65785b57530557165de55177",
       "name": "數字包圖工具",
       "category": "數字圖片工具",
-      "description": "離線 PNG 字形打包 BMFont（PNG＋FNT），支援標點／Unicode 檔名、Cocos 固定數字格、透明邊界快取與 4096px 圖集防錯。",
-      "version": "1.3.1",
+      "description": "離線 PNG 字形打包 BMFont（PNG＋FNT），支援前綴檔名自動辨識、拖放資料夾、自動保存、含圖專案檔、復原、多比例批次輸出與 Cocos 固定數字格。",
+      "version": "1.4.0",
       "path": "數字圖片工具/數字包圖工具",
       "entry": "makefont.html",
       "icon": "",
@@ -707,15 +708,19 @@
         "數字圖片工具",
         "數字包圖工具"
       ],
-      "updatedAt": "2026-09-05",
-      "size": "674.9 KB（下載）",
+      "updatedAt": "2026-10-22",
+      "size": "77.5 KB（下載）",
       "changelog": [
+        "1.4.0：前綴檔名自動辨識與配對批次操作；全視窗拖放資料夾；自動保存、含圖專案檔、復原／重做與快捷鍵；多比例批次輸出、缺字檢查、檔名提醒、非阻擋提示；用途預設、多組比對預覽與小螢幕版面。",
+        "1.3.4：JSZip 3.10.1 內嵌於 makefont.html，恢復單檔離線分享與 ZIP 匯出，更新缺件提示及操作說明。",
+        "1.3.3：修正 Cocos 垂直置中：依 info.size 與數字可見邊界補償 yoffset，保留標點基線與手動偏移；同步預覽，新增透明留白及引擎頂點位置回歸。",
+        "1.3.2：新增匯入前圖片／字元配對確認，修正英文後綴誤判；未知檔名手動指定，本批重複阻擋匯入，取代既有字形須明確勾選。",
         "1.3.1：修正 dot/comma 字碼往返、Unicode 命名、超限圖集防錯；快取透明邊界，ZIP 離線可用。",
         "BMFont Gen v3.30：修正 v3.29 全數字相同 glyph 幾何導致 Cocos 3.8 滾分畫面不更新；固定前進寬度與右邊界，同時保留字形差異。",
         "BMFont Gen v3.29：新增 Cocos 透明等寬數字格，修正末位 1 造成的 Label 寬度微跳；防止重複字元與 NUM_X-1 誤判。"
       ],
-      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.1/tool-65785b57571672475de55177-65785b57530557165de55177-1.3.1.zip",
-      "sha256": "7253750949411cb701232eea54054b76f642e8c7f0873647347dabfb71eb3225",
+      "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/38c11292cf68ed1981af04f312239d71e141c6e5/releases/tool-65785b57571672475de55177-65785b57530557165de55177-1.4.0.zip",
+      "sha256": "8a13a111dca1350c2c053814a76683f51709abaa23c47e2782f762d5c6146187",
       "kind": "網頁工具",
       "preservePaths": [
         "user-data",
@@ -723,7 +728,8 @@
         "presets",
         "config.json",
         "settings.json"
-      ]
+      ],
+      "documentation": "使用指南.md"
     },
     {
       "id": "6e2c8a665de55177-59278f4976e46e2c8a665de55177",
