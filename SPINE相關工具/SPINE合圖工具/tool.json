@@ -2,19 +2,28 @@
   "id": "spine76f895dc5de55177-spine540857165de55177",
   "name": "SPINE合圖工具",
   "category": "SPINE相關工具",
-  "description": "合併多份 Spine Atlas 與 PNG，保留角色 Region 資料。",
-  "version": "1.0.1",
+  "description": "離線合併 Spine Atlas 與 PNG；支援無損像素處理、MaxRects 排圖、相同像素共用、邊緣外擴、多頁輸出與原檔名別名。",
+  "version": "1.1.0",
   "path": "SPINE相關工具/SPINE合圖工具",
-  "entry": "spine_atlas_merge.html",
+  "entry": "spine_atlas_merge_v1.1.html",
   "icon": "",
   "tags": [
     "SPINE相關工具",
     "SPINE合圖工具"
   ],
-  "updatedAt": "2026-09-05",
-  "size": "35.8 KB",
+  "updatedAt": "2026-10-29",
+  "size": "",
   "changelog": [
+    "1.1.0：直接 PNG 編解碼保留 PMA／低 alpha；MaxRects、不同名相同像素共用、Extrude、多頁輸出、資料夾拖放與設定記憶，支援覆蓋確認。",
     "支援 compact／舊 Atlas、完整 metadata 去重、同名檔衝突及尺寸／頁面模式檢查。"
   ],
-  "documentation": "README_更新與安裝.md"
+  "documentation": "README_更新與安裝.md",
+  "kind": "網頁工具",
+  "preservePaths": [
+    "user-data",
+    "outputs",
+    "presets",
+    "config.json",
+    "settings.json"
+  ]
 }

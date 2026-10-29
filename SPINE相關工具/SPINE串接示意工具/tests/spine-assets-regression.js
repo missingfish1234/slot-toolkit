@@ -2,7 +2,9 @@
 const assert = require('assert/strict'), fs = require('fs'), path = require('path'), vm = require('vm');
 const tool = path.resolve(__dirname, '..');
 const standalone = fs.readFileSync(path.join(tool, 'SpinePlayTest.html'), 'utf8');
-const atlas = fs.readFileSync(path.join(tool, '..', 'SPINE合圖工具', 'spine_atlas_merge.html'), 'utf8');
+const atlasTool = path.join(tool, '..', 'SPINE合圖工具');
+const atlasEntry = JSON.parse(fs.readFileSync(path.join(atlasTool, 'tool.json'), 'utf8')).entry;
+const atlas = fs.readFileSync(path.join(atlasTool, atlasEntry), 'utf8');
 for (const html of [standalone, atlas]) for (const match of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) if (match[1].trim()) new vm.Script(match[1]);
 let receivedAtlas;
 const spineScope = { PIXI: { spine: {
@@ -24,10 +26,11 @@ const legacy=scope.parseAtlas('page.png\nsize: 128,128\nr\nxy: 16,20\nsize: 32,4
 assert.equal(JSON.stringify(legacy.size),'[32,40]');
 assert.throws(()=>scope.parseAtlas('p.png\nr\nbounds: 0,0,0,0\n','bad.atlas'),/尺寸/);
 assert.throws(()=>scope.parseAtlas('p.png\nr\nsize: 2,3\nrotate: 270\n','bad.atlas'),/旋轉/);
-scope.$=()=>({checked:true}); scope.cropRegionToCanvas=()=>({width:1,height:1,getContext:()=>({getImageData:()=>({data:Uint8Array.from([1,2,3,4])})})}); scope.canvasHash=()=> 'same';
-vm.runInContext(atlas.slice(atlas.indexOf('  function prepareUniqueRegions('),atlas.indexOf('  function packShelfAtWidth(')),scope);
+scope.$=()=>({checked:true}); scope.cropRegion=()=>({w:1,h:1,data:Uint8Array.from([1,2,3,4])});
+vm.runInContext(atlas.slice(atlas.indexOf('  function hashImage('),atlas.indexOf('  // ---------------- MaxRects 包圖')),scope);
 const a={...legacy,index:-1,atlasFileName:'a'}, b={...legacy,index:-1,atlasFileName:'b'};
-scope.state={parsedAtlases:[{regions:[a]},{regions:[b]}]}; assert.equal(scope.prepareUniqueRegions().unique.length,1);
-b.offset=[99,4]; assert.throws(()=>scope.prepareUniqueRegions(),/資料不同/);
-b.index=2; assert.equal(scope.prepareUniqueRegions().unique.length,2);
+scope.state={parsedAtlases:[{regions:[a]},{regions:[b]}]}; assert.equal(scope.prepareSlots().slots.length,1);
+b.offset=[99,4]; assert.throws(()=>scope.prepareSlots(),/資料不同/);
+b.index=2; const shared=scope.prepareSlots(); assert.equal(shared.slots.length,1); assert.equal(shared.slots[0].regions.length,2);
+assert.equal(shared.slots[0].regions[1].offset[0],99);
 console.log('Spine assets: JS syntax, atlas restoration/missing input, compact/legacy parsing, invalid bounds/rotation, complete-metadata dedup: PASS');

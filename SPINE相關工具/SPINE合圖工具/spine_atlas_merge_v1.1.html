@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Spine Atlas 合併工具 v1.1</title>
+<style>
+:root{
+  --bg:#10131a;--panel:#171b25;--panel2:#202636;--line:#30384c;
+  --text:#edf2ff;--muted:#aab4cf;--good:#4ee38b;--warn:#ffca5f;
+  --bad:#ff6b7a;--accent:#7cc7ff;--accent2:#a98bff;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;min-height:100vh;background:
+  radial-gradient(circle at 20% 0%,rgba(124,199,255,.18),transparent 32%),
+  radial-gradient(circle at 85% 15%,rgba(169,139,255,.16),transparent 34%),
+  var(--bg);color:var(--text);
+  font-family:"Microsoft JhengHei","PingFang TC",system-ui,sans-serif;
+}
+header,main{max-width:1180px;margin:0 auto}
+header{padding:28px 28px 12px}
+h1{margin:0 0 8px;font-size:30px}
+.subtitle{margin:0;color:var(--muted);line-height:1.65;font-size:15px}
+main{padding:16px 28px 40px;display:grid;grid-template-columns:1.05fr .95fr;gap:18px}
+@media(max-width:920px){main{grid-template-columns:1fr}}
+.card{
+  background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.015)),var(--panel);
+  border:1px solid rgba(255,255,255,.08);border-radius:20px;overflow:hidden;
+  box-shadow:0 18px 40px rgba(0,0,0,.35)
+}
+.card-header{
+  padding:18px 20px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;gap:12px
+}
+.card-title{font-size:18px;font-weight:800}.card-body{padding:18px 20px 20px}
+.dropzone{
+  border:2px dashed rgba(124,199,255,.5);border-radius:18px;min-height:230px;
+  display:grid;place-items:center;padding:22px;background:rgba(124,199,255,.055);
+  transition:.18s;cursor:pointer;text-align:center
+}
+.dropzone.dragover{transform:translateY(-2px);border-color:var(--accent);background:rgba(124,199,255,.14)}
+.drop-icon{font-size:48px;margin-bottom:12px}.drop-title{font-size:20px;font-weight:800;margin-bottom:8px}
+.drop-desc{color:var(--muted);line-height:1.65;font-size:14px}
+input[type=file]{display:none}
+.settings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}
+@media(max-width:560px){.settings{grid-template-columns:1fr}}
+label.field{display:grid;gap:6px;color:var(--muted);font-size:13px}
+input[type=text],input[type=number],select{
+  width:100%;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+  border-radius:12px;padding:11px 12px;outline:none;font-size:14px
+}
+.check-row{
+  display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(255,255,255,.035);
+  border:1px solid var(--line);border-radius:12px;color:var(--muted);font-size:13px
+}
+.buttons{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+button{
+  border:0;border-radius:13px;padding:11px 16px;font-weight:800;color:#07111d;cursor:pointer;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 10px 24px rgba(124,199,255,.2)
+}
+button.secondary{color:var(--text);background:#2a3144;box-shadow:none;border:1px solid var(--line)}
+button:disabled{opacity:.45;cursor:not-allowed}.hint,.section-note{margin-top:14px;color:var(--muted);font-size:13px;line-height:1.6}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.stat{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px;padding:12px}
+.stat b{display:block;font-size:22px;margin-bottom:4px}.stat span{color:var(--muted);font-size:12px}
+.list{display:grid;gap:9px;max-height:310px;overflow:auto;padding-right:4px}
+.file-item{border:1px solid var(--line);background:rgba(255,255,255,.035);border-radius:13px;padding:10px 12px;display:grid;gap:4px}
+.file-name{font-weight:800;word-break:break-all}.file-meta{color:var(--muted);font-size:12px}
+.badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800;background:rgba(124,199,255,.13);color:var(--accent);border:1px solid rgba(124,199,255,.24)}
+.badge.good{color:var(--good);background:rgba(78,227,139,.12);border-color:rgba(78,227,139,.24)}
+.badge.warn{color:var(--warn);background:rgba(255,202,95,.12);border-color:rgba(255,202,95,.24)}
+.badge.bad{color:var(--bad);background:rgba(255,107,122,.12);border-color:rgba(255,107,122,.24)}
+.log{white-space:pre-wrap;font-family:Consolas,"Courier New",monospace;background:#0c0f16;border:1px solid var(--line);border-radius:14px;padding:14px;line-height:1.55;color:#d9e4ff;min-height:220px;max-height:360px;overflow:auto;font-size:12px}
+.download-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:14px}
+@media(max-width:560px){.download-grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr}}
+a.download{display:block;text-align:center;text-decoration:none;border-radius:13px;padding:11px 12px;background:#2a3144;border:1px solid var(--line);color:var(--text);font-weight:800}
+canvas{width:100%;max-height:320px;background:
+  linear-gradient(45deg,rgba(255,255,255,.06) 25%,transparent 25%),
+  linear-gradient(-45deg,rgba(255,255,255,.06) 25%,transparent 25%),
+  linear-gradient(45deg,transparent 75%,rgba(255,255,255,.06) 75%),
+  linear-gradient(-45deg,transparent 75%,rgba(255,255,255,.06) 75%);
+  background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0;
+  border:1px solid var(--line);border-radius:14px;margin-top:14px;object-fit:contain
+}
+.good-text{color:var(--good)}.warn-text{color:var(--warn)}
+.page-previews{display:grid;gap:12px;margin-top:14px}
+.page-preview{display:grid;gap:6px}
+.page-preview .file-meta{font-weight:700}
+.page-preview canvas{margin-top:0}
+.err-text{color:var(--bad)}
+.settings .wide{grid-column:1/-1}
+</style>
+</head>
+<body>
+<header>
+  <h1>Spine Atlas 合併工具 v1.1</h1>
+  <p class="subtitle">
+    合併多個 Spine <b>.atlas / .atlas.txt + .png</b>，不修改 .skel / .json。
+    v1.1：<b>無損像素處理</b>（不經 Canvas，PMA／低 alpha 光效不失真）、MaxRects 包圖、相同像素共用、邊緣外擴、多頁輸出。
+    可另外輸出「原 atlas 檔名的別名 atlas」，讓引擎依原檔名自動配對。
+  </p>
+</header>
+
+<main>
+<section class="card">
+  <div class="card-header"><div class="card-title">1. 拖曳檔案或資料夾</div><span id="statusBadge" class="badge">等待檔案</span></div>
+  <div class="card-body">
+    <div id="dropzone" class="dropzone">
+      <div>
+        <div class="drop-icon">📦</div>
+        <div class="drop-title">拖曳 .atlas / .atlas.txt / .png 或整個資料夾到這裡</div>
+        <div class="drop-desc">會遞迴讀取子資料夾，只收 atlas 與 png。也可以點擊選擇檔案。</div>
+      </div>
+    </div>
+    <input id="fileInput" type="file" multiple accept=".atlas,.txt,.png,image/png" />
+
+    <div class="settings">
+      <label class="field wide">輸出名稱<input id="outputName" type="text" value="shared_spine" /></label>
+      <label class="field">最大寬度<input id="maxWidth" type="number" min="256" max="16384" step="128" value="2048" /></label>
+      <label class="field">最大高度<input id="maxHeight" type="number" min="256" max="16384" step="128" value="2048" /></label>
+      <label class="field">Padding 間距（px）<input id="padding" type="number" min="0" max="32" value="2" /></label>
+      <label class="field">邊緣外擴 Extrude（px）<input id="extrude" type="number" min="0" max="8" value="1" /></label>
+      <label class="field wide">輸出尺寸模式
+        <select id="sizeMode">
+          <option value="pot" selected>Power of Two，建議引擎用</option>
+          <option value="square-pot">正方形 + Power of Two，最保守相容</option>
+          <option value="square">正方形，不補 2 次方</option>
+          <option value="tight">緊密尺寸，不補 2 次方</option>
+        </select>
+      </label>
+      <label class="check-row"><input id="allowIdenticalDuplicate" type="checkbox" checked />同名且圖片、資料完全相同的 region 自動去重</label>
+      <label class="check-row"><input id="shareIdenticalPixels" type="checkbox" checked />不同名但像素完全相同的 region 共用同一塊貼圖</label>
+      <label class="check-row"><input id="allowMultiPage" type="checkbox" checked />單頁放不下時自動輸出多頁 PNG</label>
+      <label class="check-row"><input id="exportAliasAtlases" type="checkbox" checked />產生原始 atlas 檔名別名檔，方便引擎自動配對</label>
+      <label class="check-row"><input id="exportMainAtlas" type="checkbox" />另外輸出主 atlas（Unity 想合批時建議用這份）</label>
+    </div>
+
+    <div class="buttons">
+      <button id="mergeBtn" disabled>開始合併</button>
+      <button id="chooseFolderBtn" class="secondary">選擇輸出資料夾</button>
+      <button id="saveToFolderBtn" class="secondary" disabled>存到指定資料夾</button>
+      <button id="clearBtn" class="secondary">清空</button>
+    </div>
+
+    <div id="folderStatus" class="hint">輸出資料夾：尚未選擇。Chrome / Edge 可直接寫入指定資料夾；其他瀏覽器請使用下載按鈕。</div>
+    <div class="hint">設定會自動記住。寫入資料夾前若有同名檔，會先詢問是否覆蓋。</div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-header"><div class="card-title">2. 檔案與統計</div><span id="fileCountBadge" class="badge">0 個檔案</span></div>
+  <div class="card-body">
+    <div class="stats">
+      <div class="stat"><b id="atlasCount">0</b><span>Atlas（成功解析）</span></div>
+      <div class="stat"><b id="pngCount">0</b><span>PNG</span></div>
+      <div class="stat"><b id="regionCount">0</b><span>Regions</span></div>
+    </div>
+    <div id="fileList" class="list"></div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-header"><div class="card-title">3. 檢查與合併紀錄</div><span id="resultBadge" class="badge">尚未合併</span></div>
+  <div class="card-body"><div id="log" class="log">請先拖曳 .atlas / .atlas.txt 與 .png 檔案。</div></div>
+</section>
+
+<section class="card">
+  <div class="card-header"><div class="card-title">4. 預覽與下載</div><span id="previewBadge" class="badge">無輸出</span></div>
+  <div class="card-body">
+    <div class="section-note">已選擇輸出資料夾時，按「開始合併」會自動寫入。下載按鈕是備用方案；alias atlas 只能用「存到指定資料夾」一次輸出。</div>
+    <div id="pagePreviews" class="page-previews"></div>
+    <div id="downloadGrid" class="download-grid"></div>
+  </div>
+</section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+  const state = {
+    files: new Map(),        // name -> File
+    images: new Map(),       // name -> { file, img:{w,h,data}, lossless }
+    parsedAtlases: [],
+    issues: [],              // 阻擋合併的錯誤
+    warnings: [],            // 不阻擋的警告
+    importMessages: [],
+    lastUrls: [],
+    outputDirHandle: null,
+    lastOutput: null,
+    busy: false
+  };
+
+  const $ = id => document.getElementById(id);
+  const dropzone = $("dropzone"), fileInput = $("fileInput"), mergeBtn = $("mergeBtn");
+  const chooseFolderBtn = $("chooseFolderBtn"), saveToFolderBtn = $("saveToFolderBtn"), clearBtn = $("clearBtn");
+  const logEl = $("log");
+  const tick = () => new Promise(r => setTimeout(r, 0));
+
+  function log(msg, mode = "normal") {
+    if (mode === "reset") logEl.textContent = msg;
+    else logEl.textContent += "\n" + msg;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function setBadge(el, text, cls = "") { el.className = "badge" + (cls ? " " + cls : ""); el.textContent = text; }
+  function normalizePath(name) { return String(name || "").replace(/\\/g, "/").split("/").pop(); }
+  function safeName(name) { return String(name || "shared_spine").trim().replace(/[^\w\-\.一-龥]/g, "_") || "shared_spine"; }
+  function isAtlasFileName(name) { const n = normalizePath(name).toLowerCase(); return n.endsWith(".atlas") || n.endsWith(".atlas.txt"); }
+  function isPngFileName(name) { return normalizePath(name).toLowerCase().endsWith(".png"); }
+  function nextPowerOfTwo(v) { let n = 1; while (n < v) n <<= 1; return n; }
+  function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c])); }
+
+  // ---------------- 設定記憶 ----------------
+  const SETTINGS_KEY = "spineAtlasMerge.v1.1.settings";
+  const SETTING_IDS = ["outputName", "maxWidth", "maxHeight", "padding", "extrude", "sizeMode",
+    "allowIdenticalDuplicate", "shareIdenticalPixels", "allowMultiPage", "exportAliasAtlases", "exportMainAtlas"];
+  function loadSettings() {
+    try {
+      const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null");
+      if (!s) return;
+      for (const id of SETTING_IDS) {
+        if (!(id in s)) continue;
+        const el = $(id);
+        if (el.type === "checkbox") el.checked = !!s[id]; else el.value = s[id];
+      }
+    } catch (_) {}
+  }
+  function saveSettings() {
+    try {
+      const s = {};
+      for (const id of SETTING_IDS) { const el = $(id); s[id] = el.type === "checkbox" ? el.checked : el.value; }
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+    } catch (_) {}
+  }
+
+  // ---------------- PNG 無損編解碼（不經 Canvas） ----------------
+  const CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+    return t;
+  })();
+  function crc32(bytes) {
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 255] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+  async function streamThrough(u8, transform) {
+    const stream = new Blob([u8]).stream().pipeThrough(transform);
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+  function paeth(a, b, c) {
+    const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+    return pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+  }
+
+  async function decodePNG(arrayBuffer) {
+    if (typeof DecompressionStream === "undefined") throw new Error("瀏覽器不支援 DecompressionStream");
+    const u8 = new Uint8Array(arrayBuffer);
+    const SIG = [137, 80, 78, 71, 13, 10, 26, 10];
+    for (let i = 0; i < 8; i++) if (u8[i] !== SIG[i]) throw new Error("不是有效的 PNG");
+    const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+    let off = 8, w = 0, h = 0, bd = 0, ct = 0, il = 0, plte = null, trns = null;
+    const idat = []; let idatLen = 0;
+    while (off + 8 <= u8.length) {
+      const len = dv.getUint32(off);
+      const type = String.fromCharCode(u8[off + 4], u8[off + 5], u8[off + 6], u8[off + 7]);
+      const d = off + 8;
+      if (d + len > u8.length) throw new Error("PNG 檔案不完整");
+      if (type === "IHDR") { w = dv.getUint32(d); h = dv.getUint32(d + 4); bd = u8[d + 8]; ct = u8[d + 9]; il = u8[d + 12]; }
+      else if (type === "PLTE") plte = u8.subarray(d, d + len);
+      else if (type === "tRNS") trns = u8.subarray(d, d + len);
+      else if (type === "IDAT") { idat.push(u8.subarray(d, d + len)); idatLen += len; }
+      else if (type === "IEND") break;
+      off = d + len + 4;
+    }
+    if (!w || !h) throw new Error("PNG 缺少 IHDR");
+    if (il) throw new Error("Adam7 交錯格式 PNG");
+    const ch = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 }[ct];
+    if (!ch) throw new Error("不支援的 PNG 色彩類型 " + ct);
+    if (![1, 2, 4, 8, 16].includes(bd) || (bd < 8 && ct !== 0 && ct !== 3) || (bd === 16 && ct === 3)) throw new Error("不支援的位元深度 " + bd);
+    if (ct === 3 && !plte) throw new Error("調色盤 PNG 缺少 PLTE");
+
+    const z = new Uint8Array(idatLen); { let p = 0; for (const c of idat) { z.set(c, p); p += c.length; } }
+    const raw = await streamThrough(z, new DecompressionStream("deflate"));
+    const bitsPP = ch * bd, bpp = Math.max(1, bitsPP >> 3), rowBytes = Math.ceil(w * bitsPP / 8);
+    if (raw.length < (rowBytes + 1) * h) throw new Error("PNG 像素資料長度不足");
+
+    const px = new Uint8Array(rowBytes * h);
+    for (let y = 0; y < h; y++) {
+      const ft = raw[y * (rowBytes + 1)], s = y * (rowBytes + 1) + 1, o = y * rowBytes, po = o - rowBytes;
+      for (let i = 0; i < rowBytes; i++) {
+        const x = raw[s + i];
+        const a = i >= bpp ? px[o + i - bpp] : 0;
+        const b = y ? px[po + i] : 0;
+        const c = (y && i >= bpp) ? px[po + i - bpp] : 0;
+        let v;
+        switch (ft) {
+          case 0: v = x; break;
+          case 1: v = x + a; break;
+          case 2: v = x + b; break;
+          case 3: v = x + ((a + b) >> 1); break;
+          case 4: v = x + paeth(a, b, c); break;
+          default: throw new Error("PNG filter 類型錯誤 " + ft);
+        }
+        px[o + i] = v & 255;
+      }
+    }
+
+    const out = new Uint8Array(w * h * 4);
+    if (bd === 8 && ct === 6) { out.set(px); return { w, h, data: out }; }
+    const maxv = (1 << bd) - 1;
+    const sample = (ro, si) => {
+      if (bd === 8) return px[ro + si];
+      if (bd === 16) return (px[ro + si * 2] << 8) | px[ro + si * 2 + 1];
+      const bit = si * bd; return (px[ro + (bit >> 3)] >> (8 - bd - (bit & 7))) & maxv;
+    };
+    const to8 = v => bd === 16 ? v >> 8 : bd === 8 ? v : Math.round(v * 255 / maxv);
+    const t16 = i => (trns[i] << 8) | trns[i + 1];
+    for (let y = 0; y < h; y++) {
+      const ro = y * rowBytes;
+      for (let x = 0; x < w; x++) {
+        const si = x * ch, q = (y * w + x) * 4;
+        if (ct === 0) {
+          const g = sample(ro, si), g8 = to8(g);
+          out[q] = out[q + 1] = out[q + 2] = g8;
+          out[q + 3] = (trns && trns.length >= 2 && g === t16(0)) ? 0 : 255;
+        } else if (ct === 2) {
+          const r = sample(ro, si), g = sample(ro, si + 1), b = sample(ro, si + 2);
+          out[q] = to8(r); out[q + 1] = to8(g); out[q + 2] = to8(b);
+          out[q + 3] = (trns && trns.length >= 6 && r === t16(0) && g === t16(2) && b === t16(4)) ? 0 : 255;
+        } else if (ct === 3) {
+          const idx = sample(ro, si);
+          if (idx * 3 + 2 < plte.length) { out[q] = plte[idx * 3]; out[q + 1] = plte[idx * 3 + 1]; out[q + 2] = plte[idx * 3 + 2]; }
+          out[q + 3] = trns && idx < trns.length ? trns[idx] : 255;
+        } else if (ct === 4) {
+          const g8 = to8(sample(ro, si));
+          out[q] = out[q + 1] = out[q + 2] = g8; out[q + 3] = to8(sample(ro, si + 1));
+        } else {
+          out[q] = to8(sample(ro, si)); out[q + 1] = to8(sample(ro, si + 1));
+          out[q + 2] = to8(sample(ro, si + 2)); out[q + 3] = to8(sample(ro, si + 3));
+        }
+      }
+    }
+    return { w, h, data: out, note: bd === 16 ? "16-bit 已轉為 8-bit" : "" };
+  }
+
+  async function encodePNG(w, h, rgba) {
+    if (typeof CompressionStream === "undefined") throw new Error("瀏覽器不支援 CompressionStream，請使用新版 Chrome / Edge");
+    const stride = w * 4, raw = new Uint8Array((stride + 1) * h);
+    const cand = [0, 1, 2, 3, 4].map(() => new Uint8Array(stride));
+    for (let y = 0; y < h; y++) {
+      const o = y * stride, po = o - stride;
+      let best = 0, bestSum = Infinity;
+      for (let f = 0; f < 5; f++) {
+        const buf = cand[f]; let sum = 0;
+        for (let i = 0; i < stride; i++) {
+          const x = rgba[o + i];
+          const a = i >= 4 ? rgba[o + i - 4] : 0;
+          const b = y ? rgba[po + i] : 0;
+          let v;
+          if (f === 0) v = x;
+          else if (f === 1) v = x - a;
+          else if (f === 2) v = x - b;
+          else if (f === 3) v = x - ((a + b) >> 1);
+          else v = x - paeth(a, b, (y && i >= 4) ? rgba[po + i - 4] : 0);
+          v &= 255; buf[i] = v; sum += v < 128 ? v : 256 - v;
+          if (sum >= bestSum) break;
+        }
+        if (sum < bestSum) { bestSum = sum; best = f; }
+      }
+      raw[y * (stride + 1)] = best;
+      raw.set(cand[best], y * (stride + 1) + 1);
+    }
+    const z = await streamThrough(raw, new CompressionStream("deflate"));
+    const chunk = (type, data) => {
+      const c = new Uint8Array(12 + data.length), dv = new DataView(c.buffer);
+      dv.setUint32(0, data.length);
+      for (let i = 0; i < 4; i++) c[4 + i] = type.charCodeAt(i);
+      c.set(data, 8);
+      dv.setUint32(8 + data.length, crc32(c.subarray(4, 8 + data.length)));
+      return c;
+    };
+    const ihdr = new Uint8Array(13), hv = new DataView(ihdr.buffer);
+    hv.setUint32(0, w); hv.setUint32(4, h); ihdr[8] = 8; ihdr[9] = 6;
+    return new Blob([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", ihdr), chunk("IDAT", z), chunk("IEND", new Uint8Array(0))], { type: "image/png" });
+  }
+
+  async function decodeViaCanvas(file) {
+    const bmp = await createImageBitmap(file, { premultiplyAlpha: "none", colorSpaceConversion: "none" });
+    const c = document.createElement("canvas"); c.width = bmp.width; c.height = bmp.height;
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(bmp, 0, 0);
+    const d = ctx.getImageData(0, 0, c.width, c.height).data;
+    bmp.close?.();
+    return { w: c.width, h: c.height, data: new Uint8Array(d.buffer.slice(0)) };
+  }
+
+  // ---------------- Atlas 解析 ----------------
+  function parsePair(v) {
+    const p = v.split(",").map(s => parseInt(s.trim(), 10));
+    if (p.length !== 2 || p.some(Number.isNaN)) throw new Error("pair 解析失敗: " + v);
+    return [p[0], p[1]];
+  }
+  function parseQuad(v) {
+    const p = v.split(",").map(s => parseInt(s.trim(), 10));
+    if (p.length !== 4 || p.some(Number.isNaN)) throw new Error("quad 解析失敗: " + v);
+    return [p[0], p[1], p[2], p[3]];
+  }
+  function makeRegion(name, page, atlasFileName) {
+    return { name, page, atlasFileName, rotate: "false", xy: [0, 0], size: [0, 0], orig: null, offset: null, index: -1, splits: null, pads: null, extra: {} };
+  }
+  function parseAtlas(text, atlasFileName) {
+    const lines = text.replace(/^﻿/, "").split(/\r?\n/);
+    const pages = [], regions = [];
+    let currentPage = null, currentRegion = null, mode = null;
+    function commit() {
+      if (!currentRegion) return;
+      if (currentRegion.size.some(v => !Number.isFinite(v) || v <= 0) || currentRegion.xy.some(v => !Number.isFinite(v) || v < 0))
+        throw new Error(`Region 座標／尺寸無效：${currentRegion.name}`);
+      if (!["false", "true", "0", "90"].includes(String(currentRegion.rotate).toLowerCase()))
+        throw new Error(`暫不支援旋轉 ${currentRegion.rotate} 度：${currentRegion.name}，請以 0／90 度重新匯出。`);
+      if (!currentRegion.orig) currentRegion.orig = [...currentRegion.size];
+      if (!currentRegion.offset) currentRegion.offset = [0, 0];
+      regions.push(currentRegion);
+      currentRegion = null;
+    }
+    const isKV = line => /^\s*[^:]+:\s*/.test(line);
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line) { commit(); currentPage = null; mode = null; continue; }
+      if (!currentPage) {
+        currentPage = { name: normalizePath(line), size: null, format: "RGBA8888", filter: "Linear,Linear", repeat: "none", pma: null, atlasFileName };
+        pages.push(currentPage); mode = "page"; continue;
+      }
+      if (mode === "page") {
+        if (isKV(line)) {
+          const i = line.indexOf(":"), key = line.slice(0, i).trim().toLowerCase(), val = line.slice(i + 1).trim();
+          if (key === "size") currentPage.size = parsePair(val);
+          else if (key === "format") currentPage.format = val;
+          else if (key === "filter") currentPage.filter = val;
+          else if (key === "repeat") currentPage.repeat = val;
+          else if (key === "pma") currentPage.pma = val;
+          continue;
+        }
+        mode = "region";
+        currentRegion = makeRegion(line, currentPage, atlasFileName);
+        continue;
+      }
+      if (mode === "region") {
+        if (isKV(line)) {
+          const i = line.indexOf(":"), key = line.slice(0, i).trim().toLowerCase(), val = line.slice(i + 1).trim();
+          if (!currentRegion) throw new Error("Atlas 格式錯誤: " + atlasFileName);
+          if (key === "rotate") currentRegion.rotate = val;
+          else if (key === "xy") currentRegion.xy = parsePair(val);
+          else if (key === "size") currentRegion.size = parsePair(val);
+          else if (key === "bounds") { const q = parseQuad(val); currentRegion.xy = q.slice(0, 2); currentRegion.size = q.slice(2); }
+          else if (key === "offsets") { const q = parseQuad(val); currentRegion.offset = q.slice(0, 2); currentRegion.orig = q.slice(2); }
+          else if (key === "orig") currentRegion.orig = parsePair(val);
+          else if (key === "offset") currentRegion.offset = parsePair(val);
+          else if (key === "index") currentRegion.index = parseInt(val, 10);
+          else if (key === "split" || key === "splits") currentRegion.splits = parseQuad(val);
+          else if (key === "pad" || key === "pads") currentRegion.pads = parseQuad(val);
+          else currentRegion.extra[key] = val;
+          continue;
+        }
+        commit();
+        currentRegion = makeRegion(line, currentPage, atlasFileName);
+      }
+    }
+    commit();
+    return { atlasFileName, pages, regions };
+  }
+
+  // ---------------- 檔案匯入 ----------------
+  async function sameFileBytes(a, b) {
+    if (a.size !== b.size) return false;
+    const x = new Uint8Array(await a.arrayBuffer()), y = new Uint8Array(await b.arrayBuffer());
+    for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return false;
+    return true;
+  }
+
+  async function filesFromDataTransfer(dt) {
+    // webkitGetAsEntry 必須在 drop 事件同步階段取得
+    const entries = [...(dt.items || [])].map(i => i.webkitGetAsEntry ? i.webkitGetAsEntry() : null).filter(Boolean);
+    if (!entries.length) return [...(dt.files || [])];
+    const out = [];
+    async function walk(entry) {
+      if (entry.isFile) out.push(await new Promise((res, rej) => entry.file(res, rej)));
+      else if (entry.isDirectory) {
+        const reader = entry.createReader();
+        while (true) {
+          const batch = await new Promise((res, rej) => reader.readEntries(res, rej));
+          if (!batch.length) break;
+          for (const e of batch) await walk(e);
+        }
+      }
+    }
+    for (const e of entries) await walk(e);
+    return out;
+  }
+
+  async function addFiles(list) {
+    if (state.busy) return;
+    state.busy = true;
+    state.importMessages = [];
+    setBadge($("statusBadge"), "讀取中", "warn");
+    try {
+      const pending = new Map(state.files);
+      let ignored = 0;
+      for (const f of Array.from(list || [])) {
+        const name = normalizePath(f.name);
+        if (!isAtlasFileName(name) && !isPngFileName(name)) { ignored++; continue; }
+        const old = pending.get(name);
+        if (old && old !== f) {
+          if (!(await sameFileBytes(old, f)))
+            throw new Error(`同名檔案內容不同：${name}。請先清除，或將 Atlas 的引用與 PNG 一起改名後再匯入。`);
+          continue; // 內容相同，保留舊檔以沿用解碼快取
+        }
+        pending.set(name, f);
+      }
+      if (ignored) state.importMessages.push(`[略過] ${ignored} 個非 atlas / png 檔案`);
+      state.files = pending;
+    } catch (error) {
+      state.importMessages.push(`[匯入失敗] ${error.message}`);
+    }
+    try { await refreshLoadedFiles(); } finally { state.busy = false; updateUI(); }
+  }
+
+  async function refreshLoadedFiles() {
+    state.issues = []; state.warnings = []; state.parsedAtlases = [];
+    const newImages = new Map();
+    for (const [name, file] of state.files) {
+      if (isAtlasFileName(name)) {
+        try { state.parsedAtlases.push(parseAtlas(await file.text(), name)); }
+        catch (e) { state.issues.push(`[Atlas 解析失敗] ${name}：${e.message}`); }
+      } else if (isPngFileName(name)) {
+        const cached = state.images.get(name);
+        if (cached && cached.file === file) { newImages.set(name, cached); continue; }
+        try {
+          const img = await decodePNG(await file.arrayBuffer());
+          newImages.set(name, { file, img, lossless: true });
+          if (img.note) state.warnings.push(`[注意] ${name}：${img.note}`);
+        } catch (e) {
+          try {
+            const img = await decodeViaCanvas(file);
+            newImages.set(name, { file, img, lossless: false, why: e.message });
+          } catch (e2) { state.issues.push(`[圖片讀取失敗] ${name}：${e2.message}`); }
+        }
+        await tick();
+      }
+    }
+    state.images = newImages;
+    for (const [name, entry] of newImages) {
+      if (!entry.lossless) state.warnings.push(`[非無損讀取] ${name}（${entry.why}）：改用瀏覽器解碼，半透明像素可能有微小誤差。`);
+    }
+    validateInputs();
+  }
+
+  function validateInputs() {
+    const modes = new Map();
+    for (const parsed of state.parsedAtlases) {
+      for (const page of parsed.pages) {
+        const entry = state.images.get(normalizePath(page.name));
+        if (!entry) { state.issues.push(`[缺圖] ${parsed.atlasFileName} 引用的 ${page.name} 沒有放進來`); continue; }
+        if (page.size && (page.size[0] !== entry.img.w || page.size[1] !== entry.img.h))
+          state.issues.push(`[尺寸不符] ${parsed.atlasFileName} 宣告 ${page.name} 為 ${page.size[0]}x${page.size[1]}，實際 PNG 為 ${entry.img.w}x${entry.img.h}（PNG 可能被縮放或替換過）`);
+        const key = JSON.stringify([String(page.pma || "false").toLowerCase(), page.filter, page.repeat, page.format]);
+        if (!modes.has(key)) modes.set(key, []);
+        modes.get(key).push(`${parsed.atlasFileName}/${page.name}`);
+      }
+    }
+    if (modes.size > 1) {
+      state.issues.push("[頁面模式不一致] 來源 Atlas 的 PMA／filter／repeat／format 不同，請先統一匯出設定：\n" +
+        [...modes.entries()].map(([k, v]) => `  ${k} ← ${v.join(", ")}`).join("\n"));
+    }
+  }
+
+  function updateUI() {
+    const entries = [...state.files.entries()];
+    const atlasFiles = entries.filter(([n]) => isAtlasFileName(n)).length;
+    const atlasOk = state.parsedAtlases.length;
+    const pngCount = entries.filter(([n]) => isPngFileName(n)).length;
+    const regionCount = state.parsedAtlases.reduce((s, a) => s + a.regions.length, 0);
+
+    $("atlasCount").textContent = atlasFiles === atlasOk ? atlasOk : `${atlasOk}/${atlasFiles}`;
+    $("pngCount").textContent = pngCount;
+    $("regionCount").textContent = regionCount;
+    $("fileCountBadge").textContent = `${entries.length} 個檔案`;
+
+    const blocked = state.issues.length > 0;
+    mergeBtn.disabled = state.busy || blocked || atlasOk === 0 || pngCount === 0;
+
+    if (blocked) setBadge($("statusBadge"), `${state.issues.length} 個錯誤`, "bad");
+    else if (atlasOk && pngCount) setBadge($("statusBadge"), state.warnings.length ? "可合併（有警告）" : "可合併", state.warnings.length ? "warn" : "good");
+    else if (atlasFiles || pngCount) setBadge($("statusBadge"), "缺少配對檔", "warn");
+    else setBadge($("statusBadge"), "等待檔案");
+
+    const list = $("fileList");
+    list.innerHTML = "";
+    if (!entries.length) {
+      list.innerHTML = '<div class="section-note">尚未加入檔案。</div>';
+      logEl.textContent = ["請先拖曳 .atlas / .atlas.txt 與 .png 檔案。", ...state.importMessages].join("\n");
+      return;
+    }
+    for (const [name, file] of entries.sort((a, b) => a[0].localeCompare(b[0]))) {
+      let meta;
+      if (isAtlasFileName(name)) {
+        const p = state.parsedAtlases.find(a => a.atlasFileName === name);
+        meta = p ? `Atlas / ${p.pages.length} 頁 / ${p.regions.length} regions` : `<span class="err-text">Atlas / 解析失敗</span>`;
+      } else {
+        const img = state.images.get(name);
+        meta = img ? `PNG / ${img.img.w}x${img.img.h}${img.lossless ? "" : ' / <span class="warn-text">非無損讀取</span>'}` : `<span class="err-text">PNG / 讀取失敗</span>`;
+      }
+      const item = document.createElement("div");
+      item.className = "file-item";
+      item.innerHTML = `<div class="file-name">${escapeHtml(name)}</div><div class="file-meta">${meta} / ${(file.size / 1024).toFixed(1)} KB</div>`;
+      list.appendChild(item);
+    }
+
+    const lines = [
+      `已加入檔案：${entries.length}`,
+      `Atlas：${atlasOk} 份解析成功${atlasFiles !== atlasOk ? `，${atlasFiles - atlasOk} 份失敗` : ""}`,
+      `PNG：${pngCount}`,
+      `Regions：${regionCount}`,
+      ...state.importMessages
+    ];
+    if (state.issues.length) lines.push("", "✖ 以下錯誤需先處理，才能合併：", ...state.issues);
+    if (state.warnings.length) lines.push("", "⚠ 警告：", ...state.warnings);
+    if (!state.issues.length) lines.push("", "輸入檢查：OK");
+    logEl.textContent = lines.join("\n");
+  }
+
+  // ---------------- Region 裁切 / 去重 ----------------
+  function cropRegion(region) {
+    const entry = state.images.get(normalizePath(region.page.name));
+    if (!entry) throw new Error(`找不到圖片：${region.page.name}，來源 atlas：${region.atlasFileName}`);
+    const src = entry.img;
+    const rotated = ["true", "90"].includes(String(region.rotate).toLowerCase());
+    const [rw, rh] = region.size;
+    const cropW = rotated ? rh : rw, cropH = rotated ? rw : rh;
+    const [x, y] = region.xy;
+    if (x < 0 || y < 0 || x + cropW > src.w || y + cropH > src.h)
+      throw new Error(`Region 超出圖片範圍：${region.name} / ${region.page.name}（${region.atlasFileName}）`);
+    const out = new Uint8Array(rw * rh * 4);
+    const s32 = new Uint32Array(src.data.buffer, src.data.byteOffset, src.w * src.h);
+    const o32 = new Uint32Array(out.buffer);
+    if (!rotated) {
+      for (let r = 0; r < rh; r++) o32.set(s32.subarray((y + r) * src.w + x, (y + r) * src.w + x + rw), r * rw);
+    } else {
+      // atlas 內為逆時針 90° 存放，這裡順時針轉回：out(ox,oy) = page(x + oy, y + rw - 1 - ox)
+      for (let oy = 0; oy < rh; oy++) {
+        for (let ox = 0; ox < rw; ox++) o32[oy * rw + ox] = s32[(y + rw - 1 - ox) * src.w + (x + oy)];
+      }
+    }
+    return { w: rw, h: rh, data: out };
+  }
+
+  function hashImage(img) {
+    const u = new Uint32Array(img.data.buffer, img.data.byteOffset, img.data.length >> 2);
+    let h = 0x811c9dc5;
+    h = Math.imul(h ^ img.w, 16777619); h = Math.imul(h ^ img.h, 16777619);
+    for (let i = 0; i < u.length; i++) h = Math.imul(h ^ u[i], 16777619);
+    return `${img.w}x${img.h}_${(h >>> 0).toString(16)}`;
+  }
+  function sameImage(a, b) {
+    if (a.w !== b.w || a.h !== b.h) return false;
+    const x = new Uint32Array(a.data.buffer), y = new Uint32Array(b.data.buffer);
+    for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return false;
+    return true;
+  }
+  function regionMetadataKey(r) {
+    return JSON.stringify([r.orig, r.offset, r.index, r.splits, r.pads, Object.entries(r.extra || {}).sort(([a], [b]) => a.localeCompare(b))]);
+  }
+
+  function prepareSlots() {
+    const allowDup = $("allowIdenticalDuplicate").checked;
+    const share = $("shareIdenticalPixels").checked;
+    const byName = new Map();     // name+index -> { region, img, hash }
+    const byHash = new Map();     // hash -> [slot]
+    const slots = [];             // { img, regions:[] }
+    const skipped = [], shared = [], conflicts = [];
+    let total = 0;
+
+    for (const parsed of state.parsedAtlases) {
+      for (const region of parsed.regions) {
+        total++;
+        const img = cropRegion(region);
+        const hash = hashImage(img);
+        const key = JSON.stringify([region.name, region.index]);
+        const old = byName.get(key);
+        if (old) {
+          if (allowDup && old.hash === hash && regionMetadataKey(old.region) === regionMetadataKey(region) && sameImage(old.img, img)) {
+            skipped.push({ name: region.name, from: region.atlasFileName, sameAs: old.region.atlasFileName });
+          } else {
+            conflicts.push({ name: region.name, a: old.region.atlasFileName, b: region.atlasFileName });
+          }
+          continue;
+        }
+        byName.set(key, { region, img, hash });
+
+        if (share) {
+          const found = (byHash.get(hash) || []).find(s => sameImage(s.img, img));
+          if (found) {
+            found.regions.push(region);
+            shared.push({ name: region.name, from: region.atlasFileName, sameAs: found.regions[0].name });
+            continue;
+          }
+        }
+        const slot = { img, regions: [region] };
+        slots.push(slot);
+        if (!byHash.has(hash)) byHash.set(hash, []);
+        byHash.get(hash).push(slot);
+      }
+    }
+    if (conflicts.length) {
+      throw new Error("發現同名同 index 的 region，但像素或原尺寸／偏移等資料不同，已停止合併。\n" +
+        conflicts.map(c => `- ${c.name}: ${c.a} / ${c.b}`).join("\n"));
+    }
+    return { slots, skipped, shared, total };
+  }
+
+  // ---------------- MaxRects 包圖 ----------------
+  function binFind(free, w, h, heur) {
+    let best = null, s1 = Infinity, s2 = Infinity;
+    for (const r of free) {
+      if (w > r.w || h > r.h) continue;
+      const dw = r.w - w, dh = r.h - h;
+      let a, b;
+      if (heur === "bl") { a = r.y + h; b = r.x; }                       // Bottom-Left：最緊湊的上緣
+      else if (heur === "baf") { a = r.w * r.h - w * h; b = Math.min(dw, dh); } // Best Area Fit
+      else { a = Math.min(dw, dh); b = Math.max(dw, dh); }               // Best Short Side Fit
+      if (a < s1 || (a === s1 && b < s2)) { best = r; s1 = a; s2 = b; }
+    }
+    return best ? { x: best.x, y: best.y } : null;
+  }
+  function binPlace(free, n) {
+    const out = [];
+    for (const f of free) {
+      if (n.x >= f.x + f.w || n.x + n.w <= f.x || n.y >= f.y + f.h || n.y + n.h <= f.y) { out.push(f); continue; }
+      if (n.x > f.x) out.push({ x: f.x, y: f.y, w: n.x - f.x, h: f.h });
+      if (n.x + n.w < f.x + f.w) out.push({ x: n.x + n.w, y: f.y, w: f.x + f.w - n.x - n.w, h: f.h });
+      if (n.y > f.y) out.push({ x: f.x, y: f.y, w: f.w, h: n.y - f.y });
+      if (n.y + n.h < f.y + f.h) out.push({ x: f.x, y: n.y + n.h, w: f.w, h: f.y + f.h - n.y - n.h });
+    }
+    const kept = [];
+    for (let i = 0; i < out.length; i++) {
+      const a = out[i]; let drop = false;
+      for (let j = 0; j < out.length && !drop; j++) {
+        if (i === j) continue;
+        const b = out[j];
+        if (a.x >= b.x && a.y >= b.y && a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h) {
+          const same = a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
+          drop = same ? i > j : true;
+        }
+      }
+      if (!drop) kept.push(a);
+    }
+    return kept;
+  }
+  // 每個 item 佔位 = padding + extrude + 內容 + extrude；整頁右下再留一個 padding
+  function packInto(items, W, H, pad, ext, failFast, heur = "bssf") {
+    let free = [{ x: 0, y: 0, w: W - pad, h: H - pad }];
+    const placed = [], leftover = [];
+    let usedW = 0, usedH = 0;
+    for (const it of items) {
+      const fw = it.w + 2 * ext + pad, fh = it.h + 2 * ext + pad;
+      const pos = binFind(free, fw, fh, heur);
+      if (!pos) { if (failFast) return null; leftover.push(it); continue; }
+      free = binPlace(free, { x: pos.x, y: pos.y, w: fw, h: fh });
+      placed.push({ item: it, x: pos.x + pad + ext, y: pos.y + pad + ext });
+      usedW = Math.max(usedW, pos.x + fw + pad);
+      usedH = Math.max(usedH, pos.y + fh + pad);
+    }
+    return { placed, leftover, usedW, usedH };
+  }
+  function finalDims(mode, usedW, usedH) {
+    if (mode === "pot") return [nextPowerOfTwo(usedW), nextPowerOfTwo(usedH)];
+    if (mode === "square-pot") { const s = nextPowerOfTwo(Math.max(usedW, usedH)); return [s, s]; }
+    if (mode === "square") { const s = Math.max(usedW, usedH); return [s, s]; }
+    return [usedW, usedH];
+  }
+  function sizeSteps(max, includeMax) {
+    const out = [];
+    for (let s = 32; s <= max; s <<= 1) out.push(s);
+    if (includeMax && !out.includes(max)) out.push(max);
+    return out;
+  }
+  function limits(o) {
+    const square = o.mode === "square" || o.mode === "square-pot";
+    const pot = o.mode === "pot" || o.mode === "square-pot";
+    let lw = o.maxW, lh = o.maxH;
+    if (square) lw = lh = Math.min(o.maxW, o.maxH);
+    if (pot) { lw = 1 << Math.floor(Math.log2(lw)); lh = 1 << Math.floor(Math.log2(lh)); }
+    return { lw, lh, square, pot };
+  }
+  const HEURISTICS = ["bssf", "bl", "baf"];
+  function findBestSingle(items, o) {
+    const { lw, lh, square, pot } = limits(o);
+    const fws = items.map(i => i.w + 2 * o.ext + o.pad), fhs = items.map(i => i.h + 2 * o.ext + o.pad);
+    const area = fws.reduce((s, v, i) => s + v * fhs[i], 0);
+    const needW = Math.max(...fws) + o.pad, needH = Math.max(...fhs) + o.pad;
+    const better = (a, b) => {
+      if (!b) return true;
+      const A = a.w * a.h, B = b.w * b.h;
+      if (Math.abs(A - B) <= Math.min(A, B) * 0.03) return Math.max(a.w / a.h, a.h / a.w) < Math.max(b.w / b.h, b.h / b.w); // 面積差 3% 內選較接近正方形
+      return A < B;
+    };
+    let best = null;
+    const tryBin = (W, H) => {
+      for (const heur of HEURISTICS) {
+        const r = packInto(items, W, H, o.pad, o.ext, true, heur);
+        if (!r) continue;
+        const [w, h] = finalDims(o.mode, r.usedW, r.usedH);
+        if (w > lw || h > lh) continue;
+        const c = { w, h, placed: r.placed };
+        if (better(c, best)) best = c;
+      }
+    };
+    if (pot) {
+      // 2 次方：由小到大試，第一個放得下的尺寸就是最小解
+      const cands = [];
+      for (const w of sizeSteps(lw, false)) for (const h of sizeSteps(lh, false)) {
+        if (square && w !== h) continue;
+        if (w < needW || h < needH || w * h < area) continue;
+        cands.push({ w, h });
+      }
+      cands.sort((a, b) => a.w * a.h - b.w * b.h || Math.abs(a.w - a.h) - Math.abs(b.w - b.h));
+      for (const c of cands) {
+        if (best && c.w * c.h > best.w * best.h) break;
+        tryBin(c.w, c.h);
+      }
+      return best;
+    }
+    // 非 2 次方：掃描多個寬度（正方形模式掃邊長），每個寬度允許高度到上限，最後裁成實際使用範圍
+    const lo = Math.max(needW, square ? Math.ceil(Math.sqrt(area)) : needW);
+    const steps = items.length > 300 ? 10 : 20;
+    const widths = new Set();
+    for (let i = 0; i <= steps; i++) widths.add(Math.round(lo + (lw - lo) * Math.pow(i / steps, 2)));
+    widths.add(Math.max(lo, Math.ceil(Math.sqrt(area))));
+    for (const w of [...widths].filter(w => w >= lo && w <= lw).sort((a, b) => a - b)) {
+      if (best && w * Math.max(needH, area / w) > best.w * best.h) continue;
+      tryBin(w, square ? Math.min(w, lh) : lh);
+    }
+    return best;
+  }
+  async function packAll(slots, o) {
+    const items = slots.map(s => ({ slot: s, w: s.img.w, h: s.img.h }));
+    items.sort((a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h) || b.w * b.h - a.w * a.h);
+    const { lw, lh } = limits(o);
+    for (const it of items) {
+      if (it.w + 2 * o.ext + 2 * o.pad > lw || it.h + 2 * o.ext + 2 * o.pad > lh)
+        throw new Error(`Region「${it.slot.regions[0].name}」(${it.w}x${it.h}) 加上 padding/extrude 後超過單頁上限 ${lw}x${lh}，請提高最大寬高。`);
+    }
+    const pages = [];
+    let remaining = items;
+    while (remaining.length) {
+      const single = findBestSingle(remaining, o);
+      if (single) { pages.push(single); break; }
+      if (!o.multi) throw new Error(`單頁 ${lw}x${lh} 放不下全部 region。請勾選「自動輸出多頁」、提高最大寬高，或拆批合圖。`);
+      const g = packInto(remaining, lw, lh, o.pad, o.ext, false);
+      if (!g.placed.length) throw new Error("包圖失敗：無法放入任何 region。");
+      pages.push(findBestSingle(g.placed.map(p => p.item), o));
+      remaining = g.leftover;
+      if (pages.length > 64) throw new Error("頁數超過 64，請檢查設定或拆批。");
+      log(`  第 ${pages.length} 頁已排滿，剩餘 ${remaining.length} 塊…`);
+      await tick();
+    }
+    return pages;
+  }
+
+  function composePage(page, ext) {
+    const W = page.w, H = page.h;
+    const data = new Uint8Array(W * H * 4), dst = new Uint32Array(data.buffer);
+    for (const p of page.placed) {
+      const img = p.item.slot.img, w = img.w, h = img.h, src = new Uint32Array(img.data.buffer);
+      if (!ext) {
+        for (let y = 0; y < h; y++) dst.set(src.subarray(y * w, (y + 1) * w), (p.y + y) * W + p.x);
+        continue;
+      }
+      for (let yy = -ext; yy < h + ext; yy++) {
+        const sy = yy < 0 ? 0 : yy >= h ? h - 1 : yy, row = (p.y + yy) * W + p.x, srow = sy * w;
+        for (let xx = -ext; xx < w + ext; xx++) {
+          const sx = xx < 0 ? 0 : xx >= w ? w - 1 : xx;
+          dst[row + xx] = src[srow + sx];
+        }
+      }
+    }
+    return data;
+  }
+
+  // ---------------- 輸出文字 ----------------
+  function regionLines(r, x, y, w, h) {
+    // 依 Spine 3.8 runtime 固定讀取順序：rotate, xy, size, split, pad, orig, offset, index
+    const L = [r.name, "  rotate: false", `  xy: ${x}, ${y}`, `  size: ${w}, ${h}`];
+    if (r.splits) L.push(`  split: ${r.splits.join(", ")}`);
+    if (r.splits && r.pads) L.push(`  pad: ${r.pads.join(", ")}`);
+    L.push(`  orig: ${r.orig[0]}, ${r.orig[1]}`, `  offset: ${r.offset[0]}, ${r.offset[1]}`, `  index: ${Number.isFinite(r.index) ? r.index : -1}`);
+    for (const [k, v] of Object.entries(r.extra || {})) L.push(`  ${k}: ${v}`); // 僅 4.x 來源會有
+    return L;
+  }
+  function buildAtlasText(pageNames, pages) {
+    const first = state.parsedAtlases[0]?.pages?.[0] || {};
+    return pages.map((pg, i) => {
+      const L = [pageNames[i], `size: ${pg.w},${pg.h}`, `format: ${first.format || "RGBA8888"}`, `filter: ${first.filter || "Linear,Linear"}`, `repeat: ${first.repeat || "none"}`];
+      if (first.pma !== null && first.pma !== undefined) L.push(`pma: ${first.pma}`);
+      for (const p of pg.placed) for (const r of p.item.slot.regions) L.push(...regionLines(r, p.x, p.y, p.item.w, p.item.h));
+      return L.join("\n");
+    }).join("\n\n") + "\n";
+  }
+  function buildAliasAtlasFiles(atlasText, mainAtlasName) {
+    if (!$("exportAliasAtlases").checked) return [];
+    const out = [], seen = new Set();
+    for (const parsed of state.parsedAtlases) {
+      const n = normalizePath(parsed.atlasFileName);
+      if (!n || seen.has(n) || n === mainAtlasName) continue;
+      seen.add(n);
+      out.push({ fileName: n, blob: new Blob([atlasText], { type: "text/plain;charset=utf-8" }) });
+    }
+    return out;
+  }
+  function buildAliasReadme(pngNames, aliases, mainAtlasName) {
+    return [
+      "Spine Atlas Alias 說明", "======================", "",
+      "這些 alias atlas 使用原始 atlas 檔名，但內容都指向合併後的共用 PNG。",
+      "用途是讓 Unity / Cocos 等匯入流程可依原本 atlas 檔名自動配對。", "",
+      `共用 PNG：${pngNames.join(", ")}`, "",
+      "產生的 alias atlas：",
+      aliases.length ? aliases.map(a => `- ${a.fileName}`).join("\n") : "無", "",
+      "重要：關於 DrawCall / 合批",
+      "- Unity（spine-unity）會為「每一份」atlas 產生各自的 AtlasAsset 與 Material。",
+      "  使用 alias 時，即使貼圖是同一張，Material 不同仍無法合批。",
+      `- 若目標是降低 DrawCall：請勾選輸出主 atlas（${mainAtlasName}），讓所有 SkeletonDataAsset 的 Atlas Assets 都指向同一個主 AtlasAsset。`,
+      "- alias 適合「只想共用貼圖檔、方便自動配對」的情境。", "",
+      "建議：",
+      "1. 將 alias atlas 放在原本 atlas 會被配對的位置。",
+      "2. 將共用 PNG 放在 atlas 頁面名稱指定的相對位置（通常同資料夾）。",
+      "3. Unity 若已建立 SkeletonDataAsset，需 Reimport 或重新產生一次資源。"
+    ].join("\n");
+  }
+  function buildReport(o) {
+    const lossy = [...state.images.entries()].filter(([, e]) => !e.lossless).map(([n]) => n);
+    return [
+      "Spine Atlas 合併報告（v1.1）", "======================",
+      `輸出名稱：${o.outputName}`,
+      `輸出頁數：${o.pages.length}`,
+      ...o.pages.map((p, i) => `  - ${o.pngNames[i]}：${p.w}x${p.h}，${p.placed.length} 塊貼圖`),
+      `尺寸模式：${o.sizeMode}，上限 ${o.maxW}x${o.maxH}，padding ${o.pad}，extrude ${o.ext}`,
+      `輸入 Atlas：${state.parsedAtlases.map(a => a.atlasFileName).join(", ")}`,
+      `輸入 PNG：${[...state.images.keys()].join(", ")}`,
+      `像素處理：${lossy.length ? "部分非無損（" + lossy.join(", ") + "）" : "全部無損"}`,
+      `來源 Region 總數：${o.total}`,
+      `輸出 Region 數：${o.regionCount}（實際貼圖塊 ${o.slotCount}）`,
+      `同名相同圖去重：${o.skipped.length}`,
+      `不同名相同像素共用：${o.shared.length}`,
+      `主 atlas：${o.exportMainAtlas ? o.atlasFileName : "未輸出"}`,
+      `Alias atlas 數：${o.aliases.length}`, "",
+      "Alias atlas 清單：", o.aliases.length ? o.aliases.map(a => `- ${a.fileName}`).join("\n") : "無", "",
+      "同名去重清單：", o.skipped.length ? o.skipped.map(s => `- ${s.name}: ${s.from} 同 ${s.sameAs}`).join("\n") : "無", "",
+      "像素共用清單：", o.shared.length ? o.shared.map(s => `- ${s.name}（${s.from}）共用 ${s.sameAs}`).join("\n") : "無", "",
+      "注意事項：",
+      "1. 本工具不修改 .skel / .json。",
+      "2. 若執行後貼圖錯誤，優先檢查同名不同圖、PMA、載入路徑、Unity reference 是否未刷新。",
+      "3. Unity 使用 alias 時 Material 各自獨立，無法合批；要合批請共用主 atlas。", "",
+      "Atlas 內容：", o.atlasText
+    ].join("\n");
+  }
+
+  // ---------------- 下載 / 資料夾 ----------------
+  function revokeOldUrls() { for (const u of state.lastUrls) URL.revokeObjectURL(u); state.lastUrls = []; }
+  function resetOutputs() {
+    revokeOldUrls();
+    $("downloadGrid").innerHTML = "";
+    $("pagePreviews").innerHTML = "";
+  }
+  function addDownload(blob, fileName, label) {
+    const url = URL.createObjectURL(blob);
+    state.lastUrls.push(url);
+    const a = document.createElement("a");
+    a.className = "download"; a.href = url; a.download = fileName; a.textContent = label;
+    $("downloadGrid").appendChild(a);
+  }
+
+  async function chooseOutputFolder() {
+    if (!window.showDirectoryPicker) {
+      log("[提示] 目前瀏覽器不支援直接選擇輸出資料夾。請使用 Chrome / Edge，或使用下載按鈕。");
+      $("folderStatus").innerHTML = "輸出資料夾：<span class='warn-text'>目前瀏覽器不支援資料夾寫入，請改用下載按鈕。</span>";
+      return;
+    }
+    try {
+      const h = await window.showDirectoryPicker({ mode: "readwrite" });
+      state.outputDirHandle = h;
+      $("folderStatus").innerHTML = `輸出資料夾：<span class='good-text'>${escapeHtml(h.name)}</span>`;
+      saveToFolderBtn.disabled = !state.lastOutput;
+      log(`[資料夾] 已選擇輸出資料夾：${h.name}`);
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+      log(`[資料夾選擇失敗] ${e.message}`);
+    }
+  }
+  async function writeBlobToDirectory(dir, fileName, blob) {
+    const fh = await dir.getFileHandle(fileName, { create: true });
+    const w = await fh.createWritable();
+    await w.write(blob);
+    await w.close();
+  }
+  async function existingFiles(dir, names) {
+    const out = [];
+    for (const n of names) {
+      try { await dir.getFileHandle(n); out.push(n); } catch (_) {}
+    }
+    return out;
+  }
+  async function saveLastOutputToFolder() {
+    if (!state.lastOutput) { log("[提示] 尚未合併輸出，請先按『開始合併』。"); return; }
+    if (!state.outputDirHandle) { await chooseOutputFolder(); if (!state.outputDirHandle) return; }
+    try {
+      const o = state.lastOutput;
+      const files = [];
+      if (o.exportMainAtlas) files.push({ name: o.atlasFileName, blob: o.atlasBlob });
+      o.pngs.forEach(p => files.push({ name: p.name, blob: p.blob }));
+      files.push({ name: o.reportFileName, blob: o.reportBlob }, { name: o.aliasReadmeFileName, blob: o.aliasReadmeBlob },
+        ...o.aliasAtlasFiles.map(a => ({ name: a.fileName, blob: a.blob })));
+
+      const dir = state.outputDirHandle;
+      if ((await dir.queryPermission?.({ mode: "readwrite" })) === "prompt") await dir.requestPermission?.({ mode: "readwrite" });
+      const exist = await existingFiles(dir, files.map(f => f.name));
+      if (exist.length && !confirm(`輸出資料夾「${dir.name}」已有以下 ${exist.length} 個同名檔案，確定要覆蓋嗎？\n\n${exist.slice(0, 20).join("\n")}${exist.length > 20 ? "\n…" : ""}`)) {
+        log("[取消] 未寫入資料夾（避免覆蓋既有檔案）。");
+        setBadge($("resultBadge"), "合併成功（未存檔）", "warn");
+        return;
+      }
+      for (const f of files) await writeBlobToDirectory(dir, f.name, f.blob);
+      log(`[完成] 已存到指定資料夾：${dir.name}\n` + files.map(f => `- ${f.name}`).join("\n"));
+      setBadge($("resultBadge"), "已存到資料夾", "good");
+    } catch (e) {
+      log(`[寫入資料夾失敗] ${e.message}`);
+      setBadge($("resultBadge"), "寫入失敗", "bad");
+    }
+  }
+
+  function renderPreview(pageNames, pages, datas) {
+    const box = $("pagePreviews");
+    box.innerHTML = "";
+    pages.forEach((pg, i) => {
+      const wrap = document.createElement("div");
+      wrap.className = "page-preview";
+      const label = document.createElement("div");
+      label.className = "file-meta";
+      label.textContent = `${pageNames[i]}　${pg.w}x${pg.h}　${pg.placed.length} 塊`;
+      const full = document.createElement("canvas");
+      full.width = pg.w; full.height = pg.h;
+      full.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(datas[i].buffer), pg.w, pg.h), 0, 0);
+      const prev = document.createElement("canvas");
+      prev.width = Math.min(pg.w, 1024);
+      prev.height = Math.max(1, Math.round(pg.h * (prev.width / pg.w)));
+      prev.getContext("2d").drawImage(full, 0, 0, prev.width, prev.height);
+      wrap.append(label, prev);
+      box.appendChild(wrap);
+    });
+  }
+
+  // ---------------- 合併主流程 ----------------
+  async function merge() {
+    if (state.busy) return;
+    state.busy = true; mergeBtn.disabled = true;
+    saveSettings();
+    resetOutputs();
+    setBadge($("resultBadge"), "合併中", "warn");
+    setBadge($("previewBadge"), "產生中", "warn");
+    try {
+      if (state.issues.length) throw new Error("輸入檢查有錯誤：\n" + state.issues.join("\n"));
+      const outputName = safeName($("outputName").value);
+      const o = {
+        maxW: Math.min(16384, Math.max(256, parseInt($("maxWidth").value, 10) || 2048)),
+        maxH: Math.min(16384, Math.max(256, parseInt($("maxHeight").value, 10) || 2048)),
+        pad: Math.max(0, Math.min(32, parseInt($("padding").value, 10) || 0)),
+        ext: Math.max(0, Math.min(8, parseInt($("extrude").value, 10) || 0)),
+        mode: $("sizeMode").value,
+        multi: $("allowMultiPage").checked
+      };
+
+      log("開始合併…", "reset");
+      await tick();
+      const { slots, skipped, shared, total } = prepareSlots();
+      const regionCount = slots.reduce((s, x) => s + x.regions.length, 0);
+      log(`來源 region：${total}，輸出 region：${regionCount}，實際貼圖塊：${slots.length}`);
+      if (skipped.length) log(`同名相同圖片已去重：${skipped.length}`);
+      if (shared.length) log(`不同名相同像素已共用：${shared.length}`);
+      await tick();
+
+      const pages = await packAll(slots, o);
+      const pngNames = pages.map((_, i) => i === 0 ? `${outputName}.png` : `${outputName}_${i + 1}.png`);
+      log(`包圖結果：${pages.length} 頁　` + pages.map(p => `${p.w}x${p.h}`).join("、"));
+      if (pages.some(p => p.w > 4096 || p.h > 4096)) log("⚠ 有頁面超過 4096，部分手機 GPU 可能不支援。");
+
+      const datas = [], pngs = [];
+      for (let i = 0; i < pages.length; i++) {
+        log(`  編碼 ${pngNames[i]}…`); await tick();
+        const data = composePage(pages[i], o.ext);
+        datas.push(data);
+        pngs.push({ name: pngNames[i], blob: await encodePNG(pages[i].w, pages[i].h, data) });
+      }
+
+      const allTxt = state.parsedAtlases.length > 0 && state.parsedAtlases.every(a => a.atlasFileName.toLowerCase().endsWith(".atlas.txt"));
+      const atlasFileName = `${outputName}${allTxt ? ".atlas.txt" : ".atlas"}`;
+      const exportMainAtlas = $("exportMainAtlas").checked;
+      const reportFileName = `${outputName}_report.txt`;
+      const aliasReadmeFileName = `${outputName}_alias_readme.txt`;
+
+      const atlasText = buildAtlasText(pngNames, pages);
+      const aliasAtlasFiles = buildAliasAtlasFiles(atlasText, atlasFileName);
+      if (!exportMainAtlas && !aliasAtlasFiles.length) log("⚠ 主 atlas 與 alias 都沒有輸出，將沒有任何 atlas 檔可用。");
+      const aliasReadmeText = buildAliasReadme(pngNames, aliasAtlasFiles, atlasFileName);
+      const reportText = buildReport({ outputName, pages, pngNames, sizeMode: o.mode, maxW: o.maxW, maxH: o.maxH, pad: o.pad, ext: o.ext,
+        total, regionCount, slotCount: slots.length, skipped, shared, aliases: aliasAtlasFiles, atlasText, exportMainAtlas, atlasFileName });
+
+      const txt = t => new Blob([t], { type: "text/plain;charset=utf-8" });
+      const atlasBlob = txt(atlasText), reportBlob = txt(reportText), aliasReadmeBlob = txt(aliasReadmeText);
+
+      if (exportMainAtlas) addDownload(atlasBlob, atlasFileName, `下載 ${atlasFileName}`);
+      pngs.forEach(p => addDownload(p.blob, p.name, `下載 ${p.name}`));
+      addDownload(reportBlob, reportFileName, "下載 report.txt");
+      addDownload(aliasReadmeBlob, aliasReadmeFileName, "下載 alias 說明");
+
+      state.lastOutput = { atlasFileName, reportFileName, aliasReadmeFileName, atlasBlob, reportBlob, aliasReadmeBlob, pngs, aliasAtlasFiles, exportMainAtlas, atlasText };
+      window.__lastOutput = state.lastOutput;
+      saveToFolderBtn.disabled = false;
+
+      renderPreview(pngNames, pages, datas);
+      setBadge($("resultBadge"), "合併成功", "good");
+      setBadge($("previewBadge"), pages.map(p => `${p.w}x${p.h}`).join(" + "), "good");
+
+      if (state.outputDirHandle) await saveLastOutputToFolder();
+      else log("尚未選擇輸出資料夾；可按「存到指定資料夾」一次輸出全部（含 alias），或用下方下載按鈕。");
+      if (aliasAtlasFiles.length) log(`已產生 alias atlas：${aliasAtlasFiles.length} 份。`);
+      log("完成。請在引擎內逐一測試 Spine 是否正常。");
+    } catch (e) {
+      log(`[失敗]\n${e.message}`, "reset");
+      setBadge($("resultBadge"), "合併失敗", "bad");
+      setBadge($("previewBadge"), "無輸出", "bad");
+      window.__lastError = e.message;
+    } finally {
+      state.busy = false;
+      mergeBtn.disabled = state.issues.length > 0 || !state.parsedAtlases.length || !state.images.size;
+    }
+  }
+
+  function clearAll() {
+    if (state.busy) return;
+    resetOutputs();
+    state.files.clear(); state.images.clear(); state.parsedAtlases = [];
+    state.issues = []; state.warnings = []; state.importMessages = [];
+    state.lastOutput = null;
+    saveToFolderBtn.disabled = true;
+    fileInput.value = "";
+    setBadge($("resultBadge"), "尚未合併");
+    setBadge($("previewBadge"), "無輸出");
+    updateUI();
+  }
+
+  dropzone.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", e => { addFiles(e.target.files); });
+  ["dragenter", "dragover"].forEach(t => dropzone.addEventListener(t, e => { e.preventDefault(); e.stopPropagation(); dropzone.classList.add("dragover"); }));
+  dropzone.addEventListener("dragleave", e => { e.preventDefault(); e.stopPropagation(); dropzone.classList.remove("dragover"); });
+  dropzone.addEventListener("drop", e => {
+    e.preventDefault(); e.stopPropagation(); dropzone.classList.remove("dragover");
+    filesFromDataTransfer(e.dataTransfer).then(addFiles).catch(err => log(`[拖曳讀取失敗] ${err.message}`));
+  });
+  mergeBtn.addEventListener("click", merge);
+  chooseFolderBtn.addEventListener("click", chooseOutputFolder);
+  saveToFolderBtn.addEventListener("click", saveLastOutputToFolder);
+  clearBtn.addEventListener("click", clearAll);
+  for (const id of SETTING_IDS) $(id).addEventListener("change", saveSettings);
+
+  loadSettings();
+  updateUI();
+})();
+</script>
+</body>
+</html>
