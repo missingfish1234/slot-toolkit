@@ -12,7 +12,7 @@
     "SPINE合圖工具"
   ],
   "updatedAt": "2026-10-29",
-  "size": "",
+  "size": "22.7 KB（下載）",
   "changelog": [
     "1.1.0：直接 PNG 編解碼保留 PMA／低 alpha；MaxRects、不同名相同像素共用、Extrude、多頁輸出、資料夾拖放與設定記憶，支援覆蓋確認。",
     "支援 compact／舊 Atlas、完整 metadata 去重、同名檔衝突及尺寸／頁面模式檢查。"
@@ -25,5 +25,7 @@
     "presets",
     "config.json",
     "settings.json"
-  ]
+  ],
+  "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/b06a828bc7faf812f3f962b1a68f46af065baef9/releases/tool-spine76f895dc5de55177-spine540857165de55177-1.1.0.zip",
+  "sha256": "f669534fff2f4252cf8cfdc07d40dd8d31c5e8f88bcab7e8543252518ce50d67"
 }

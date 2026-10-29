@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-22 19:36:36",
+  "updatedAt": "2026-10-29",
   "tools": [
     {
       "id": "cocos-creator-38-rolling-score-tester",
@@ -474,22 +474,23 @@
       "id": "spine76f895dc5de55177-spine540857165de55177",
       "name": "SPINE合圖工具",
       "category": "SPINE相關工具",
-      "description": "合併多份 Spine Atlas 與 PNG，保留角色 Region 資料。",
-      "version": "1.0.1",
+      "description": "離線合併 Spine Atlas 與 PNG；支援無損像素處理、MaxRects 排圖、相同像素共用、邊緣外擴、多頁輸出與原檔名別名。",
+      "version": "1.1.0",
       "path": "SPINE相關工具/SPINE合圖工具",
-      "entry": "spine_atlas_merge.html",
+      "entry": "spine_atlas_merge_v1.1.html",
       "icon": "",
       "tags": [
         "SPINE相關工具",
         "SPINE合圖工具"
       ],
-      "updatedAt": "2026-09-05",
-      "size": "13.2 KB（下載）",
+      "updatedAt": "2026-10-29",
+      "size": "22.7 KB（下載）",
       "changelog": [
+        "1.1.0：直接 PNG 編解碼保留 PMA／低 alpha；MaxRects、不同名相同像素共用、Extrude、多頁輸出、資料夾拖放與設定記憶，支援覆蓋確認。",
         "支援 compact／舊 Atlas、完整 metadata 去重、同名檔衝突及尺寸／頁面模式檢查。"
       ],
-      "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/v1.2.1/tool-spine76f895dc5de55177-spine540857165de55177-1.0.1.zip",
-      "sha256": "34191b409ade66e09eb49a528a883428c63eccfc4e04aa93f294dd89706d84ce",
+      "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/b06a828bc7faf812f3f962b1a68f46af065baef9/releases/tool-spine76f895dc5de55177-spine540857165de55177-1.1.0.zip",
+      "sha256": "f669534fff2f4252cf8cfdc07d40dd8d31c5e8f88bcab7e8543252518ce50d67",
       "kind": "網頁工具",
       "preservePaths": [
         "user-data",
@@ -497,7 +498,8 @@
         "presets",
         "config.json",
         "settings.json"
-      ]
+      ],
+      "documentation": "README_更新與安裝.md"
     },
     {
       "id": "spine-particle-studio",
