@@ -15,7 +15,7 @@
     "離線網頁工具"
   ],
   "updatedAt": "2026-11-03",
-  "size": "",
+  "size": "2.7 MB（下載）",
   "changelog": [
     "v1.28.0：網格閃電——一張貼圖切網格隨機扭曲成閃電，支援兩端固定／尾端擺動、多條、分岔、粗細與亮度跳動，輸出為 Spine 網格變形。",
     "v1.27.0：強化既有 Spine——開啟／拖入原工程資料夾、點角色加效果（一次設定骨骼、位置、時間、圖層）、時間軸拖曳吸附事件、寫回原工程並自動備份。",
@@ -34,5 +34,7 @@
     "presets",
     "config.json",
     "settings.json"
-  ]
+  ],
+  "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/9205123d6e2d5e780e110a547b06538f94a58d39/releases/tool-spine-particle-studio-1.28.0.zip",
+  "sha256": "b00bf2f33d712568941a37ae13b95e11e20106b908248fa9d253335c18992b8b"
 }
