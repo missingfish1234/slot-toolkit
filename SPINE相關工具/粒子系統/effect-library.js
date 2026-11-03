@@ -9,7 +9,7 @@
   const FORMAT = 'particle-studio-fx-library', MAX_ITEMS = 100, MAX_BYTES = 48 * 1024 * 1024, MAX_ITEM_BYTES = 16 * 1024 * 1024;
   const DATABASE_NAME = 'particle-studio-effects', STORE_NAME = 'library', RECORD_KEY = 'current', FALLBACK_KEY = 'particle-studio-effects-v1';
   const ANCHOR_KEYS = ['id', 'name', 'x', 'y', 'enabled'];
-  const EFFECT_KEYS = new Set(Object.keys(Core.createEmitter()).filter(key => !ANCHOR_KEYS.includes(key)).concat(['directionMode', 'directionSpread', 'emitFrom', 'path', 'outline', 'sequence', 'randomSeed', 'separateSizeAxes', 'sizeCurveX', 'sizeCurveY', 'startDelay']));
+  const EFFECT_KEYS = new Set(Object.keys(Core.createEmitter()).filter(key => !ANCHOR_KEYS.includes(key)).concat(['directionMode', 'directionSpread', 'emitFrom', 'path', 'outline', 'sequence', 'randomSeed', 'separateSizeAxes', 'sizeCurveX', 'sizeCurveY', 'startDelay', 'kind', 'lightning']));
   const clone = value => JSON.parse(JSON.stringify(value));
   const object = value => !!value && typeof value === 'object' && !Array.isArray(value);
   const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);

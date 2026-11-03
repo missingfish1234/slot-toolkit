@@ -237,7 +237,7 @@
           [manifest.namespace + '/particle', manifest.namespace + '/emitter_' + emitterId] :
           [manifest.namespace + '/emitter_' + emitterId + '_' + (original || '').slice('particle_'.length)];
         const identity = JSON.stringify([slot, key]);
-        if (skin.name !== 'default' || !original || foundAttachments.has(identity) || !object(attachment) || !['region', undefined].includes(attachment.type) || !paths.includes(attachment.path) || (attachment.name !== undefined && attachment.name !== key)) fail('粒子附件已變更結構、路徑或新增其他皮膚；請保留原效果並新增一組。');
+        if (skin.name !== 'default' || !original || foundAttachments.has(identity) || !object(attachment) || !['region', 'mesh', undefined].includes(attachment.type) || attachment.type === 'mesh' && Array.isArray(attachment.vertices) && Array.isArray(attachment.uvs) && attachment.vertices.length !== attachment.uvs.length || !paths.includes(attachment.path) || (attachment.name !== undefined && attachment.name !== key)) fail('粒子附件已變更結構、路徑或新增其他皮膚；請保留原效果並新增一組。');
         foundAttachments.add(identity);
         attachments++; foundSlots.add(slot); return;
       }
@@ -252,7 +252,13 @@
         if ((group === 'bones' ? ownedBones : ownedSlots).has(key) && !targetSet.has(animationName)) refFail('其他動畫', animationName);
       }));
       ['deform', 'attachments'].forEach(group => Object.keys(animation[group] || {}).forEach(skin => Object.keys(animation[group][skin] || {}).forEach(slot => {
-        if (ownedSlots.has(slot)) refFail('外部附件動畫', animationName);
+        if (!ownedSlots.has(slot)) return;
+        // Our mesh lightning keeps its deform keys in the effect's own animations.
+        const defaultSkin = (json.skins || []).find(item => item.name === 'default'), meshes = defaultSkin && defaultSkin.attachments && defaultSkin.attachments[slot] || {};
+        const owned = targetSet.has(animationName) && skin === 'default' && Object.keys(animation[group][skin][slot]).every(key =>
+          attachmentSources.get(slot) && attachmentSources.get(slot).has(key) && object(meshes[key]) && meshes[key].type === 'mesh' &&
+          (group === 'deform' || Object.keys(animation[group][skin][slot][key] || {}).every(timeline => timeline === 'deform')));
+        if (!owned) refFail('外部附件動畫', animationName);
       })));
     });
     return {ownedBones, ownedSlots, targetNames, summary: {namespace: manifest.namespace, removedBones: ownedBones.size, removedSlots: ownedSlots.size, removedAttachments: attachments, animations: targetNames.slice(), legacy: receipt.legacy === true}};
@@ -278,6 +284,14 @@
       ['bones', 'slots'].forEach(group => Object.keys(animation[group] || {}).forEach(key => {
         if ((group === 'bones' ? state.ownedBones : state.ownedSlots).has(key)) delete animation[group][key];
       }));
+      ['deform', 'attachments'].forEach(group => {
+        if (!object(animation[group])) return;
+        Object.keys(animation[group]).forEach(skin => {
+          Object.keys(animation[group][skin] || {}).forEach(slot => { if (state.ownedSlots.has(slot)) delete animation[group][skin][slot]; });
+          if (object(animation[group][skin]) && !Object.keys(animation[group][skin]).length) delete animation[group][skin];
+        });
+        if (!Object.keys(animation[group]).length) delete animation[group];
+      });
       ['drawOrder', 'draworder'].forEach(property => {
         if (!own(animation, property)) return;
         animation[property].forEach((frame, index) => {

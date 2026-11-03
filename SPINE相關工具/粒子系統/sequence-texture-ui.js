@@ -147,7 +147,8 @@
     if ($('randomTextureButton')) wirePicker('randomTextureButton', 'randomTextureFile', true, true);
     $('removeTexture').addEventListener('click', () => {
       request++;
-      try { apply(options.getEmitter(), {image: null, sequence: undefined}); }
+      const selected = options.getEmitter(), reset = selected.kind === 'lightning' && options.lightningImage ? JSON.parse(JSON.stringify(options.lightningImage)) : null;
+      try { apply(selected, {image: reset, sequence: undefined}); }
       catch (error) { options.notify(error.message, true); }
     });
     $('textureMode').addEventListener('change', () => {

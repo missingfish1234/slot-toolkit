@@ -38,6 +38,17 @@
       holdsEnd: flow && phase === 'in'};
   }
   function transform(state, parent, fallback) {
+    if (state.type === 'mesh') {
+      // Mesh lightning: map every vertex through the parent bone.
+      const vertices = [];
+      let cx = 0, cy = 0;
+      for (let i = 0; i < state.vertices.length; i += 2) {
+        const value = point(parent, {x: state.vertices[i], y: state.vertices[i + 1]});
+        vertices.push(value.x, value.y); cx += value.x; cy += value.y;
+      }
+      const count = vertices.length / 2 || 1;
+      return {...state, image: state.image || fallback, matrix: {...parent}, x: cx / count, y: cy / count, vertices, isParticle: true};
+    }
     const image = state.image || fallback, angle = state.rotation * Math.PI / 180;
     const width = image ? image.width : 64, height = image ? image.height : 64;
     const local = state.matrix || {a: Math.cos(angle) * state.width / width, b: -Math.sin(angle) * state.height / height,
@@ -98,6 +109,7 @@
             if (!current || !current.enabled || !old) continue;
             const dx = current.x - old.x, dy = current.y - old.y;
             state = {...state, x: state.x + dx, y: state.y + dy};
+            if (state.vertices && state.type === 'mesh') state.vertices = state.vertices.map((value, i) => value + (i % 2 ? dy : dx));
             if (state.matrix) state.matrix = {...state.matrix, x: state.matrix.x + dx, y: state.matrix.y + dy};
           }
           const transformed = transform(state, frame.matrix, options.fallbackImage);

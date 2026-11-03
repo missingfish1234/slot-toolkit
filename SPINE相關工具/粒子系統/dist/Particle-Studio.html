@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0b1119">
-  <title>粒子工作室 · Particle Studio 1.26</title>
+  <meta name="author" content="小魚骨頭">
+  <title>粒子工作室 · Particle Studio 1.28</title>
   <style data-bundle="styles.css">
 :root {
   color-scheme: dark;
@@ -130,6 +131,7 @@ h3 { color: #c6d6e0; font-size: 12px; font-weight: 650; letter-spacing: .03em; }
 .brand-mark .brand-particle-small { fill: #c0ffe8; }
 .brand-caption { display: block; margin-top: 2px; color: var(--muted); font-size: 9px; letter-spacing: .19em; }
 .brand-release { margin-left: 3px; color: var(--accent); font-family: var(--mono); letter-spacing: 0; }
+.brand-author { display: block; margin-top: 3px; color: var(--amber); font-size: 10px; letter-spacing: .04em; white-space: nowrap; }
 .version-badge { padding: 4px 7px; color: #adc6ce; border: 1px solid #30434e; border-radius: 6px; font: 9px/1.5 var(--mono); letter-spacing: .02em; white-space: nowrap; margin-left: 4px; }
 .version-control { display: grid; gap: 3px; margin-left: 4px; flex: none; }
 .version-control > span { color: var(--muted); font-size: 9px; padding-left: 2px; }
@@ -924,6 +926,75 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 .random-texture-strip[hidden] { display: none; }
 .random-texture-strip img { width: 34px; height: 34px; object-fit: contain; padding: 3px; background: repeating-conic-gradient(#1a2733 0 25%, #121c26 0 50%) 0 0/10px 10px; border: 1px solid var(--line); border-radius: 7px; }
 
+/* v1.27 · timeline markers and draggable particle segment */
+.timeline-markers { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.timeline-marker { position: absolute; top: 0; bottom: 0; width: 1px; transform: translateX(-.5px); }
+.timeline-marker.key { background: #d9fff04d; top: 70%; }
+.timeline-marker.event { background: #ffcf6e; width: 2px; z-index: 1; }
+.timeline-marker.event::after { content: attr(data-name); position: absolute; bottom: 1px; left: 3px; padding: 0 3px; border-radius: 3px; font: 9px var(--mono); line-height: 12px; color: #2b1d05; background: #ffcf6ee6; white-space: nowrap; pointer-events: none; }
+.timeline-fx-range.movable { z-index: 4; cursor: grab; box-shadow: inset 0 0 0 1px #8fe3c0aa; }
+.timeline-fx-range.movable.dragging { cursor: grabbing; background: #46997a; }
+.timeline-fx-range.movable::before, .timeline-fx-range.movable::after { content: ''; position: absolute; top: 7px; bottom: 7px; width: 2px; border-left: 1px solid #d9fff0aa; border-right: 1px solid #d9fff0aa; }
+.timeline-fx-range.movable::before { left: 4px; } .timeline-fx-range.movable::after { right: 4px; }
+
+/* v1.27 · attach panel docked over the inspector (non-modal) */
+.help-dialog.spine-merge-dialog.docked { position: fixed; inset: auto; margin: 0; max-height: none; max-width: none; border-radius: 14px; z-index: 30; box-shadow: 0 10px 40px #0008; border-color: #4f7c6c; }
+.spine-merge-dialog.docked .dialog-header { padding: 14px 16px 10px; }
+.spine-merge-dialog.docked .dialog-header h2 { font-size: 17px; }
+.spine-merge-dialog.docked .dialog-content.spine-merge-content { max-height: none; flex: 1 1 auto; padding: 12px 14px; }
+.spine-merge-dialog.docked .spine-merge-footer { padding: 10px 14px; flex-wrap: wrap; gap: 7px; }
+.spine-merge-dialog.docked .spine-merge-footer > button { padding-inline: 10px; font-size: 11px; }
+.spine-merge-dialog.docked .field-row { flex-wrap: wrap; }
+.spine-merge-dialog.docked .spine-bone-picker { grid-template-columns: 1fr; }
+#spineMergeButton.active { color: #0b3026; background: var(--accent); border-color: var(--accent); }
+.spine-folder-card { padding: 12px; margin-bottom: 10px; border: 1px dashed #4f8a74; border-radius: 10px; background: #15302a66; }
+.spine-folder-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.spine-folder-or { color: var(--muted); font-size: 11px; }
+.spine-folder-card .spine-source-info { margin: 8px 0 0; }
+.spine-checklist { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 4px; counter-reset: check; }
+.spine-check { display: grid; grid-template-columns: 22px 64px 1fr; align-items: baseline; gap: 6px; padding: 6px 8px; border-radius: 7px; background: #0f1b25; font-size: 11px; counter-increment: check; }
+.spine-check::before { content: counter(check); display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font: 700 10px var(--mono); color: #0b1119; background: #6c7f8c; align-self: center; }
+.spine-check.ok::before { content: '✓'; background: var(--accent); }
+.spine-check.warn::before { content: '!'; background: var(--amber); }
+.spine-check strong { color: #cfe0e7; font-weight: 600; }
+.spine-check span { color: var(--muted); overflow-wrap: anywhere; }
+.spine-check.warn span { color: var(--amber-strong); }
+.spine-quick-actions { display: grid; gap: 6px; margin-bottom: 12px; padding: 12px; border-radius: 10px; border: 1px solid #6f6038; background: linear-gradient(120deg, #3a301a66, #15302a55); }
+.spine-quick-actions .primary-button { justify-self: start; color: #2b1d05; background: #ffd27a; border-color: #ffd27a; box-shadow: 0 3px 15px #ffd27a26; }
+.spine-quick-actions .field-hint { margin: 0; }
+.spine-manual-details { margin-bottom: 10px; }
+.spine-manual-details > summary { color: var(--muted); }
+.spine-time-actions { margin-top: 8px; }
+.art-pick-button { height: 26px; padding: 0 10px; border-radius: 6px; color: #2b1d05; background: #ffd27a; border: 1px solid #ffd27a; font-size: 11px; font-weight: 700; }
+.art-pick-button.active { background: #fff0c9; box-shadow: 0 0 0 2px #ffd27a66; }
+.art-pick-button:disabled { opacity: .45; }
+.art-picking .emitter-handles { opacity: .3; }
+.art-picking .emitter-handles, .art-picking .emitter-handles * { pointer-events: none; }
+.art-picking #previewCanvas { cursor: crosshair; }
+.art-pick-hint { top: 44px; }
+.art-pick-menu { position: absolute; z-index: 6; width: 290px; padding: 12px; border: 1px solid #8b7547; border-radius: 12px; background: #1d1a14f2; box-shadow: 0 12px 40px #000a; display: grid; gap: 9px; }
+.art-pick-menu[hidden] { display: none; }
+.art-pick-title { margin: 0; color: #ffe0a2; font-size: 11px; overflow-wrap: anywhere; }
+.art-pick-layer { width: 100%; }
+.art-pick-layer button { flex: 1; }
+.art-pick-time { font-size: 11px; color: #e8dcc4; }
+.art-pick-actions { display: grid; gap: 6px; }
+.art-pick-actions .primary-button { color: #2b1d05; background: #ffd27a; border-color: #ffd27a; }
+.choice-dialog { width: min(440px, calc(100vw - 28px)); padding: 18px 20px; }
+.choice-dialog h2 { margin: 0 0 12px; font-size: 16px; }
+.choice-list { display: grid; gap: 8px; }
+.choice-list button { justify-content: flex-start; text-align: left; overflow-wrap: anywhere; height: auto; min-height: 34px; padding: 6px 12px; }
+
+/* v1.28 · mesh lightning */
+.lightning-section .lightning-intro { margin-top: 0; }
+.lightning-mode { width: 100%; margin: 4px 0 10px; }
+.lightning-mode button { flex: 1; }
+.lightning-subhead { margin: 14px 0 6px; font-size: 11px; font-weight: 600; color: #a9d8ff; letter-spacing: .04em; }
+.lightning-end-handle { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; padding: 0; border-radius: 50%; border: 2px solid #0d1b2a; background: #8fd3ff; box-shadow: 0 0 0 2px #8fd3ff66, 0 0 12px #8fd3ffaa; cursor: grab; z-index: 25; pointer-events: auto; }
+.lightning-end-handle:active { cursor: grabbing; }
+.lightning-end-handle[hidden] { display: none; }
+.art-picking .lightning-end-handle, .bone-picking .lightning-end-handle { pointer-events: none; opacity: .3; }
+
 </style>
 </head>
 <body>
@@ -931,7 +1002,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     <header class="app-header">
       <div class="brand" aria-label="粒子工作室 Particle Studio">
         <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 36 36"><ellipse class="brand-orbit" cx="18" cy="18" rx="15" ry="9" transform="rotate(-38 18 18)"/><path class="brand-spark" d="m18 6 3.1 8.9L30 18l-8.9 3.1L18 30l-3.1-8.9L6 18l8.9-3.1Z"/><circle class="brand-particle" cx="29" cy="8" r="3"/><circle class="brand-particle-small" cx="7" cy="26" r="1.8"/></svg></span>
-        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.26</span></span></div>
+        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.28</span></span><span class="brand-author">開發者：小魚骨頭</span></div>
         <label class="version-control"><span id="spineTargetMode">輸出版本</span><select id="spineVersion" aria-label="Spine 輸出版本" title="選擇 Spine JSON 輸出版本"><option value="3.8.99">SPINE 3.8</option><option value="4.0.56" selected>SPINE 4.0</option><option value="4.2.43">SPINE 4.2</option></select></label>
       </div>
       <div class="project-heading"><span class="project-caption"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h5l2 2h7v10H3Z"/></svg>目前專案</span><label class="sr-only" for="projectName">專案名稱</label><input id="projectName" type="text" value="金色光塵" maxlength="80" spellcheck="false" aria-label="專案名稱"></div>
@@ -983,8 +1054,8 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
           <div class="canvas-view-actions"><button id="centerView" type="button" class="icon-button" title="回到畫布中心" aria-label="回到畫布中心"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M7 3H3v4 M13 3h4v4 M3 13v4h4 M17 13v4h-4 M7 10h6 M10 7v6"/></svg></button><label class="zoom-control" for="zoom"><span>縮放</span><input id="zoom" type="range" min="5" max="800" step="1" value="100"><output id="zoomLabel" for="zoom">100%</output></label></div>
         </div>
         <div id="flowPreviewBar" class="flow-preview-bar" hidden><div class="segmented-control" role="group" aria-label="動畫段落預覽"><button id="previewFlowIn" type="button" data-flow-preview="in" aria-pressed="false">IN</button><button id="previewFlowLoop" type="button" data-flow-preview="loop" aria-pressed="true">LOOP</button><button id="previewFlowOut" type="button" data-flow-preview="out" aria-pressed="false">OUT</button></div><span id="flowPreviewStatus" class="flow-preview-status" role="status"></span><div class="flow-preview-actions"><button id="flowPlaySequence" type="button" class="text-button">串接試播</button><button id="flowRequestOut" type="button" class="text-button" disabled>結束 Loop</button></div></div>
-        <div id="attachmentPreviewBar" class="attachment-preview-bar" hidden><div class="segmented-control" role="group" aria-label="預覽座標"><button id="previewAttached" type="button" aria-pressed="true">掛接預覽</button><button id="previewLocal" type="button" aria-pressed="false">粒子單獨</button></div><label class="attachment-bones-toggle"><input id="previewBones" type="checkbox" checked>骨架</label><label id="previewSkinField" hidden>Skin <select id="previewSkin" aria-label="預覽原骨架 Skin"></select></label><button id="previewPickBone" type="button" class="text-button" aria-pressed="false" title="在畫布點選骨骼，掛接目前發射器">畫布選骨骼</button><label class="attachment-bones-toggle"><input id="previewKeepWorld" type="checkbox" checked title="換骨骼時保持發射器紅點的當下畫面位置">保持紅點位置</label><button id="previewFocus" type="button" class="text-button">對焦掛接點</button><button id="previewFxStart" type="button" class="text-button">跳到粒子開始</button><span id="attachmentPreviewStatus" class="attachment-preview-status" role="status"></span></div>
-        <div id="canvasStage" class="canvas-stage"><canvas id="previewCanvas" aria-label="粒子動畫預覽畫布" tabindex="0">此工具需要支援 Canvas 的瀏覽器。</canvas><div id="emitterHandles" class="emitter-handles" role="group" aria-label="畫布發射器控制點"></div><span id="emitterDragHint" class="stage-control-hint"><span class="emitter-handle-dot" aria-hidden="true"></span>紅色控制點：點選切換，拖曳移動位置</span><span id="bonePickHint" class="stage-control-hint bone-pick-hint" role="status" hidden></span><span id="spineTargetChip" class="spine-target-chip" hidden></span><span class="stage-coordinate-note">X →　Y ↑</span><span class="stage-watermark" aria-hidden="true">PARTICLE STUDIO</span></div>
+        <div id="attachmentPreviewBar" class="attachment-preview-bar" hidden><div class="segmented-control" role="group" aria-label="預覽座標"><button id="previewAttached" type="button" aria-pressed="true">掛接預覽</button><button id="previewLocal" type="button" aria-pressed="false">粒子單獨</button></div><label class="attachment-bones-toggle"><input id="previewBones" type="checkbox" checked>骨架</label><label id="previewSkinField" hidden>Skin <select id="previewSkin" aria-label="預覽原骨架 Skin"></select></label><button id="previewArtPick" type="button" class="art-pick-button" aria-pressed="false" title="在角色圖片上點一下，新增效果或移動目前發射器（快捷鍵 A）">點角色加效果</button><button id="previewPickBone" type="button" class="text-button" aria-pressed="false" title="在畫布點選骨骼，掛接目前發射器">畫布選骨骼</button><label class="attachment-bones-toggle"><input id="previewKeepWorld" type="checkbox" checked title="換骨骼時保持發射器紅點的當下畫面位置">保持紅點位置</label><button id="previewFocus" type="button" class="text-button">對焦掛接點</button><button id="previewFxStart" type="button" class="text-button">跳到粒子開始</button><span id="attachmentPreviewStatus" class="attachment-preview-status" role="status"></span></div>
+        <div id="canvasStage" class="canvas-stage"><canvas id="previewCanvas" aria-label="粒子動畫預覽畫布" tabindex="0">此工具需要支援 Canvas 的瀏覽器。</canvas><div id="emitterHandles" class="emitter-handles" role="group" aria-label="畫布發射器控制點"></div><span id="emitterDragHint" class="stage-control-hint"><span class="emitter-handle-dot" aria-hidden="true"></span>紅色控制點：點選切換，拖曳移動位置</span><span id="bonePickHint" class="stage-control-hint bone-pick-hint" role="status" hidden></span><span id="artPickHint" class="stage-control-hint bone-pick-hint art-pick-hint" role="status" hidden></span><div id="artPickMenu" class="art-pick-menu" role="dialog" aria-label="在角色上新增效果" hidden><p id="artPickTitle" class="art-pick-title"></p><div class="segmented-control art-pick-layer" role="group" aria-label="前後圖層"><button id="artPickAbove" type="button" aria-pressed="true">在此圖前面</button><button id="artPickBelow" type="button" aria-pressed="false">在此圖後面</button></div><label class="checkbox-label art-pick-time"><input id="artPickUseTime" type="checkbox" checked><span id="artPickTimeLabel">從播放頭開始</span></label><div class="art-pick-actions"><button id="artPickAdd" type="button" class="primary-button">＋ 在這裡新增效果</button><button id="artPickMove" type="button" class="secondary-button">把目前發射器移到這裡</button><button id="artPickCancel" type="button" class="text-button muted">取消</button></div></div><span id="spineTargetChip" class="spine-target-chip" hidden></span><span class="stage-coordinate-note">X →　Y ↑</span><span class="stage-watermark" aria-hidden="true">PARTICLE STUDIO</span></div>
         <div class="canvas-bottom-bar">
           <div class="background-controls"><label class="color-swatch-label" for="backgroundColor"><input id="backgroundColor" type="color" value="#12151a" title="畫布背景顏色"><span>背景</span></label><button id="backgroundButton" type="button" class="text-button">載入參考圖</button><input id="backgroundFile" type="file" accept="image/png,image/jpeg,image/webp" hidden><button id="backgroundActualSize" type="button" class="text-button" title="按原像素尺寸對齊背景與粒子，並調整視角顯示整張背景" hidden>校正尺寸</button><span id="backgroundInfo" class="background-info" hidden></span><button id="removeBackground" type="button" class="text-button muted" title="移除背景參考圖">移除</button></div><span class="canvas-hint">拖曳空白處移動視角</span>
         </div>
@@ -1010,7 +1081,8 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
               <div class="field-row"><label class="field"><span>X 位置 <small>px</small></span><input data-field="x" type="number" min="-4000" max="4000" step="1" value="0"></label><label class="field"><span>Y 位置 <small>px · 向上為正</small></span><input data-field="y" type="number" min="-4000" max="4000" step="1" value="0"></label></div>
               <p id="numberScrubHint" class="field-hint number-scrub-hint">數值欄位可左右拖曳；Shift 加速、Alt 微調，也可直接輸入。</p>
             </div>
-            <div class="inspector-section">
+            <div id="lightningSection" class="inspector-section lightning-section" hidden><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M11 2 4 11h5l-1 7 7-10h-5l1-6Z"/></svg><span>網格閃電</span></h3><p class="field-hint lightning-intro">貼圖會沿長邊切成網格，每次變化重新扭曲成新的閃電，輸出為 Spine 網格變形。拖畫布上的藍色端點可直接調整長度與方向。</p><div class="segmented-control lightning-mode" role="group" aria-label="閃電兩端"><button type="button" data-lmode-set="fixed">兩端固定</button><button type="button" data-lmode-set="free">尾端擺動</button></div><div class="field-row"><label class="field"><span>長度 <small>px</small></span><input data-lfield="length" type="number" min="10" max="4000" step="1"></label><label class="field"><span>方向 <small>度</small></span><input data-lfield="angle" type="number" min="-3600" max="3600" step="1"></label></div><div class="field-row"><label class="field"><span>粗細 <small>px</small></span><input data-lfield="thickness" type="number" min="1" max="600" step="1"></label><label class="field"><span>顏色</span><input data-field="colorStart" type="color" value="#cfeaff"></label></div><h4 class="lightning-subhead">扭曲與速度</h4><label class="field full-field range-field"><span>扭曲幅度 <small>px</small> <output data-lreadout="amplitude"></output></span><input data-lfield="amplitude" type="range" min="0" max="300" step="1"></label><label class="field full-field range-field"><span>鋸齒程度 <output data-lreadout="roughness"></output></span><input data-lfield="roughness" type="range" min="0" max="1" step="0.05"></label><label class="field full-field range-field"><span>變化速度 <small>次／秒</small> <output data-lreadout="rate"></output></span><input data-lfield="rate" type="range" min="1" max="60" step="1"></label><label class="field full-field range-field"><span>網格段數 <output data-lreadout="segments"></output></span><input data-lfield="segments" type="range" min="4" max="48" step="1"></label><div data-lmode="free"><label class="field full-field range-field"><span>尾端擺動 <small>度</small> <output data-lreadout="tailSwing"></output></span><input data-lfield="tailSwing" type="range" min="0" max="180" step="1"></label><label class="field full-field range-field"><span>長度變化 <output data-lreadout="lengthJitter"></output></span><input data-lfield="lengthJitter" type="range" min="0" max="0.9" step="0.05"></label></div><h4 class="lightning-subhead">多條與分岔</h4><label class="field full-field range-field"><span>同時條數 <small>條</small> <output data-lreadout="bolts"></output></span><input data-lfield="bolts" type="range" min="1" max="4" step="1"></label><div data-lneeds="bolts"><label class="field full-field range-field"><span>多條間距 <small>px</small> <output data-lreadout="boltSpread"></output></span><input data-lfield="boltSpread" type="range" min="0" max="300" step="1"></label><label class="field full-field range-field"><span>多條角度差 <small>度</small> <output data-lreadout="boltAngle"></output></span><input data-lfield="boltAngle" type="range" min="0" max="90" step="1"></label></div><label class="field full-field range-field"><span>分岔數 <small>每條</small> <output data-lreadout="branches"></output></span><input data-lfield="branches" type="range" min="0" max="3" step="1"></label><div data-lneeds="branches"><label class="field full-field range-field"><span>分岔機率 <output data-lreadout="branchChance"></output></span><input data-lfield="branchChance" type="range" min="0" max="1" step="0.05"></label><label class="field full-field range-field"><span>分岔長度 <small>× 主幹</small> <output data-lreadout="branchLength"></output></span><input data-lfield="branchLength" type="range" min="0.1" max="1" step="0.05"></label><label class="field full-field range-field"><span>分岔角度 <small>度</small> <output data-lreadout="branchAngle"></output></span><input data-lfield="branchAngle" type="range" min="0" max="90" step="1"></label></div><h4 class="lightning-subhead">粗細與亮度跳動</h4><label class="field full-field range-field"><span>粗細跳動 <output data-lreadout="widthJitter"></output></span><input data-lfield="widthJitter" type="range" min="0" max="1" step="0.05"></label><label class="field full-field range-field"><span>亮度跳動 <output data-lreadout="alphaJitter"></output></span><input data-lfield="alphaJitter" type="range" min="0" max="1" step="0.05"></label><label class="field full-field range-field"><span>閃斷機率 <output data-lreadout="gap"></output></span><input data-lfield="gap" type="range" min="0" max="0.9" step="0.05"></label><label class="field full-field range-field"><span>尖端收細 <output data-lreadout="taper"></output></span><input data-lfield="taper" type="range" min="0" max="1" step="0.05"></label><p class="field-hint">開始時間與持續時間在「數量與生命」；按「換一組」可重新產生同樣參數的另一組閃電。</p></div>
+            <div data-particle-only class="inspector-section">
               <h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="m10 2 7 4v8l-7 4-7-4V6Z"/><circle cx="10" cy="10" r="2"/></svg><span>發射區域</span></h3>
               <label class="field full-field"><span>形狀</span><select id="emitterShape" data-field="shape"><option value="point">點狀</option><option value="direction">定向</option><option value="line">線形</option><option value="circle">圓形</option><option value="ring">圓環</option><option value="box">矩形</option><option value="outline">物件輪廓 · 掃描 PNG</option></select></label>
               <div id="emissionPathNotice" class="context-note" hidden><p id="emissionPathHint"></p><button id="adjustPath" type="button" class="text-button">調整路徑</button></div>
@@ -1038,7 +1110,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
               <div id="shapeDirectionFields" hidden><label class="field full-field"><span>方向散射 <small>° · 0 為沿選定方向</small></span><input id="directionSpread" data-field="directionSpread" type="number" min="0" max="360" step="1" value="0"></label></div>
               <p id="emissionDirectionHint" class="field-hint">0° 向右，90° 向上；散射角控制左右偏移範圍。</p>
             </div>
-            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg><span>數量與生命</span></h3><label class="field full-field range-field"><span>粒子總數 <output data-readout="count">48</output></span><input data-field="count" type="range" min="1" max="400" step="1" value="48"></label><div class="field-row"><label class="field"><span>開始時間 <small>秒</small></span><input data-field="startDelay" type="number" min="0" max="30" step="0.01" value="0" title="這一層延後多久才開始發射；可在時間軸的「圖層時間」直接拖曳"></label><label class="field"><span>發射時間 <small>秒</small></span><input data-field="emissionDuration" type="number" min="0" max="30" step="0.01" value="3" title="從開始時間起，持續發射多久；0 為瞬間爆發"></label></div><div class="field-row"><label class="field"><span>生命長度 <small>秒</small></span><input data-field="life" type="number" min="0.05" max="10" step="0.05" value="1.5"></label><label class="field"><span>生命隨機 <small>± 秒</small></span><input data-field="lifeRandom" type="number" min="0" max="8" step="0.05" value="0.3"></label></div><p class="field-hint">發射時間為 0 時，所有粒子同時出生。</p></div>
+            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg><span>數量與生命</span></h3><label class="field full-field range-field" data-particle-only><span>粒子總數 <output data-readout="count">48</output></span><input data-field="count" type="range" min="1" max="400" step="1" value="48"></label><div class="field-row"><label class="field"><span>開始時間 <small>秒</small></span><input data-field="startDelay" type="number" min="0" max="30" step="0.01" value="0" title="這一層延後多久才開始發射；可在時間軸的「圖層時間」直接拖曳"></label><label class="field"><span><span id="emissionDurationLabel">發射時間</span> <small>秒</small></span><input data-field="emissionDuration" type="number" min="0" max="30" step="0.01" value="3" title="從開始時間起，持續發射多久；0 為瞬間爆發"></label></div><div class="field-row" data-particle-only><label class="field"><span>生命長度 <small>秒</small></span><input data-field="life" type="number" min="0.05" max="10" step="0.05" value="1.5"></label><label class="field"><span>生命隨機 <small>± 秒</small></span><input data-field="lifeRandom" type="number" min="0" max="8" step="0.05" value="0.3"></label></div><p class="field-hint" data-particle-only>發射時間為 0 時，所有粒子同時出生。</p></div>
             <div class="inspector-section emitter-seed-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" rx="3"/><path d="M6 6h.01 M10 10h.01 M14 14h.01 M6 14h.01 M14 6h.01"/></svg><span>隨機變化</span></h3>
               <label class="field full-field"><span>發射器種子</span><select id="emitterSeedMode"><option value="project">跟隨專案 · 自動分組</option><option value="custom">自訂此發射器</option></select></label>
               <div class="emitter-seed-row"><label class="field"><span>種子數值</span><input id="emitterRandomSeed" type="number" min="0" max="4294967295" step="1" value="0" aria-label="發射器隨機種子"></label><button id="randomizeEmitterSeed" type="button" class="secondary-button" title="只替目前發射器換一組隨機變化">換一組</button></div>
@@ -1049,14 +1121,14 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 
           <section id="panelLook" class="inspector-tab-panel" data-panel="look" role="tabpanel" aria-labelledby="tabLook" hidden>
             <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" rx="2"/><circle cx="7" cy="7" r="1"/><path d="m4 15 5-5 3 3 2-2 3 4"/></svg><span>粒子貼圖</span></h3>
-              <div class="texture-card"><img id="textureThumbnail" class="texture-thumbnail" alt="目前粒子貼圖" hidden><div class="texture-details"><span id="textureInfo">使用內建柔光貼圖</span><div class="texture-actions"><button id="textureButton" type="button" class="text-button">載入圖片</button><button id="sequenceTextureButton" type="button" class="text-button" title="多張圖片依檔名順序逐張播放">載入連續圖</button><button id="randomTextureButton" type="button" class="text-button" title="多張圖片，每顆粒子出生時隨機挑一張">載入隨機圖</button><button id="removeTexture" type="button" class="text-button muted" title="清除單張貼圖、連續圖與隨機圖，回到內建柔光；可復原">重設</button></div></div></div>
+              <div class="texture-card"><img id="textureThumbnail" class="texture-thumbnail" alt="目前粒子貼圖" hidden><div class="texture-details"><span id="textureInfo">使用內建柔光貼圖</span><div class="texture-actions"><button id="textureButton" type="button" class="text-button">載入圖片</button><button id="sequenceTextureButton" data-particle-only type="button" class="text-button" title="多張圖片依檔名順序逐張播放">載入連續圖</button><button id="randomTextureButton" data-particle-only type="button" class="text-button" title="多張圖片，每顆粒子出生時隨機挑一張">載入隨機圖</button><button id="removeTexture" type="button" class="text-button muted" title="清除單張貼圖、連續圖與隨機圖，回到內建柔光；可復原">重設</button></div></div></div>
               <input id="textureFile" type="file" accept="image/png,image/jpeg,image/webp" hidden><input id="sequenceTextureFile" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" multiple hidden><input id="randomTextureFile" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" multiple hidden>
               <label id="textureModeField" class="field full-field" hidden><span>貼圖模式</span><select id="textureMode"><option value="single">單張圖片</option><option value="sequence">連續圖動畫 · 依序播放</option><option value="random">多圖隨機 · 每顆隨機一張</option></select></label>
               <div id="sequenceTextureControls" class="sequence-texture-controls" hidden><div id="randomTextureStrip" class="random-texture-strip" hidden></div><div id="sequencePlaybackRow" class="field-row"><label class="field sequence-fps-field"><span>連續圖 FPS <small>張／秒</small></span><input id="sequenceFps" type="number" min="1" max="120" step="1" value="12" aria-label="連續圖 FPS"></label><label class="field"><span>播放方式</span><select id="sequenceMode"><option value="loop">循環播放</option><option value="once">播放一次，停末張</option></select></label></div><p id="sequenceTextureInfo" class="field-hint sequence-texture-info" role="status"></p><p id="sequencePlaybackHint" class="field-hint">每顆粒子出生後從第一張播放；FPS 控制貼圖速度，可與專案幀率不同。</p></div>
               <p class="field-hint">建議使用透明 PNG。連續圖依檔名順序逐張播放；隨機圖讓每顆粒子隨機挑一張。素材會一起儲存與輸出。</p><label class="field full-field"><span>混合方式</span><select data-field="blend"><option value="additive">加色 · 發光</option><option value="normal">一般 · 透明疊加</option></select></label>
             </div>
-            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 8V3h5 M12 3h5v5 M17 12v5h-5 M8 17H3v-5"/><path d="M7 9a3 3 0 0 1 5-2 M13 11a3 3 0 0 1-5 2"/></svg><span>尺寸與旋轉</span></h3><div class="field-row"><label class="field"><span>粒子尺寸 <small>px</small></span><input data-field="size" type="number" min="1" max="1000" step="1" value="24"></label><label class="field"><span>尺寸隨機 <small>± px</small></span><input data-field="sizeRandom" type="number" min="0" max="1000" step="1" value="8"></label></div><label class="field full-field"><span>起始旋轉 <small>°</small></span><input data-field="rotation" type="number" min="-36000" max="36000" step="1" value="0"></label><div class="field-row"><label class="field"><span>旋轉速度 <small>°/秒</small></span><input data-field="spin" type="number" min="-3600" max="3600" step="1" value="0"></label><label class="field"><span>旋轉隨機 <small>± °/秒</small></span><input data-field="spinRandom" type="number" min="0" max="3600" step="1" value="30"></label></div><label class="checkbox-label standalone-check"><input data-field="alignDirection" type="checkbox">貼圖朝向移動方向</label></div>
-            <div class="inspector-section">
+            <div data-particle-only class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 8V3h5 M12 3h5v5 M17 12v5h-5 M8 17H3v-5"/><path d="M7 9a3 3 0 0 1 5-2 M13 11a3 3 0 0 1-5 2"/></svg><span>尺寸與旋轉</span></h3><div class="field-row"><label class="field"><span>粒子尺寸 <small>px</small></span><input data-field="size" type="number" min="1" max="1000" step="1" value="24"></label><label class="field"><span>尺寸隨機 <small>± px</small></span><input data-field="sizeRandom" type="number" min="0" max="1000" step="1" value="8"></label></div><label class="field full-field"><span>起始旋轉 <small>°</small></span><input data-field="rotation" type="number" min="-36000" max="36000" step="1" value="0"></label><div class="field-row"><label class="field"><span>旋轉速度 <small>°/秒</small></span><input data-field="spin" type="number" min="-3600" max="3600" step="1" value="0"></label><label class="field"><span>旋轉隨機 <small>± °/秒</small></span><input data-field="spinRandom" type="number" min="0" max="3600" step="1" value="30"></label></div><label class="checkbox-label standalone-check"><input data-field="alignDirection" type="checkbox">貼圖朝向移動方向</label></div>
+            <div data-particle-only class="inspector-section">
               <h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M10 2c0 0-6 6-6 10a6 6 0 0 0 12 0c0-4-6-10-6-10Z"/><path d="M7 12a3 3 0 0 0 3 3"/></svg><span>生命期間的配色與透明度</span></h3>
               <p class="look-preset-caption">配色預設 <span>整組顏色</span></p>
               <div id="colorPresetTools" class="look-preset-tools" role="group" aria-label="常用配色"></div>
@@ -1075,7 +1147,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
               <div class="field-row gradient-node-fields"><label id="gradientTimeField" class="field"><span>節點位置 <small>%</small></span><input id="gradientKeyTime" type="number" min="0" max="100" step="0.1" value="0"></label><label id="gradientColorField" class="field"><span>此節點的顏色</span><input id="gradientKeyColor" type="color" value="#fff1b0"></label><label id="gradientAlphaField" class="field"><span>此節點的透明度</span><input id="gradientKeyAlpha" type="number" min="0" max="1" step="0.001" value="1"></label><button id="deleteGradientKey" type="button" class="icon-button curve-delete-button" title="刪除選取的漸層節點" aria-label="刪除選取的漸層節點"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h14 M7 5V3h6v2 M5 5l1 12h8l1-12 M8 8v6 M12 8v6"/></svg></button></div>
               <p class="field-hint">點擊節點選取，左右拖曳調整生命位置。</p>
             </div>
-            <div class="inspector-section">
+            <div data-particle-only class="inspector-section">
               <h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 3v14h14 M5 13c5 0 2-7 6-7s2 4 6 4"/></svg><span>生命期間的曲線</span></h3>
               <details id="alphaAdvanced" class="advanced-options lifetime-alpha-advanced"><summary>透明度進階曲線 · 貝茲</summary><div class="advanced-options-content"><p class="field-hint">與上方透明度節點共用設定；這裡可微調變化的緩急與貝茲控制柄。</p>
               <div class="curve-header"><span>透明度倍率曲線</span><div class="curve-header-actions"><select id="alphaInterpolation" class="curve-interpolation" aria-label="透明度選取節點的插值方式"><option value="linear">線性</option><option value="bezier">貝茲</option><option value="stepped">階梯</option></select><button id="resetAlpha" type="button" class="text-button muted">重設</button></div></div>
@@ -1150,10 +1222,10 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     </main>
 
     <div id="message" class="app-message" role="alert" hidden></div>
-    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.26</span></span></footer>
+    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.28</span> · 開發者：小魚骨頭</span></footer>
   </div>
 
-  <dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle"><div class="dialog-header"><div><span class="section-eyebrow">PARTICLE STUDIO</span><h2 id="helpTitle">從粒子到 Spine 動畫</h2></div><button id="closeHelp" type="button" class="icon-button" aria-label="關閉操作說明">×</button></div><div class="dialog-content"><p>這是獨立開發的本機粒子編輯器。介面與模擬程式都存放在本機，操作時不需要連線。</p><ol class="help-steps"><li><strong>建立效果</strong><p>按左側「新增效果」開啟效果庫，雙擊內建或自己的效果加成圖層；也可以直接把 PNG、連續圖或專案檔拖進視窗。</p></li><li><strong>安排時間</strong><p>時間軸下方的「圖層時間」可拖曳每層的開始時間，拖右端調整發射長度。S 單獨顯示、H 預覽隱藏，不影響輸出。</p></li><li><strong>輸出</strong><p>直接按「輸出 Spine」，參數有修改時會自動重新烘焙。要一次產生多個版本或配色，用「批次輸出」。</p></li><li><strong>匯入對應版本 Spine</strong><p>解開輸出套件，保留 JSON 與 images 資料夾的位置。在 Spine 選擇「檔案 → 匯入資料（Import Data）」載入 JSON，確認 Images 路徑指向素材資料夾。</p></li></ol><div class="help-shortcuts"><strong>快捷鍵</strong><dl><dt>Space</dt><dd>播放／暫停</dd><dt>← →</dt><dd>逐幀</dd><dt>Ctrl＋Z／Y</dt><dd>復原／重做</dd><dt>Ctrl＋S／O</dt><dd>儲存／開啟專案</dd><dt>Ctrl＋B</dt><dd>更新烘焙</dd><dt>Ctrl＋E</dt><dd>輸出 Spine</dd><dt>Ctrl＋D</dt><dd>複製圖層</dd><dt>Ctrl＋C／V</dt><dd>複製／貼上圖層（可跨專案）</dd><dt>Delete</dt><dd>刪除圖層</dd><dt>[ ]</dt><dd>上／下一個圖層</dd><dt>S／H</dt><dd>單獨顯示／預覽隱藏</dd><dt>F</dt><dd>畫面對焦目前發射器</dd><dt>0</dt><dd>縮放回 100%</dd><dt>滾輪</dt><dd>以游標為中心縮放（5%–800%）</dd></dl></div><div class="help-callout"><strong>記得儲存編輯專案</strong><p>「儲存專案」包含發射器參數與粒子貼圖，可用「開啟」接續編輯。Spine 輸出是動畫交付資料。Atlas 圖集可在 Spine 匯出時產生。</p></div></div><div class="dialog-footer">Particle Studio · Spine 3.8 / 4.0 / 4.2</div></dialog>
+  <dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle"><div class="dialog-header"><div><span class="section-eyebrow">PARTICLE STUDIO</span><h2 id="helpTitle">從粒子到 Spine 動畫</h2></div><button id="closeHelp" type="button" class="icon-button" aria-label="關閉操作說明">×</button></div><div class="dialog-content"><p>這是獨立開發的本機粒子編輯器。介面與模擬程式都存放在本機，操作時不需要連線。</p><ol class="help-steps"><li><strong>建立效果</strong><p>按左側「新增效果」開啟效果庫，雙擊內建或自己的效果加成圖層；也可以直接把 PNG、連續圖或專案檔拖進視窗。</p></li><li><strong>安排時間</strong><p>時間軸下方的「圖層時間」可拖曳每層的開始時間，拖右端調整發射長度。S 單獨顯示、H 預覽隱藏，不影響輸出。</p></li><li><strong>輸出</strong><p>直接按「輸出 Spine」，參數有修改時會自動重新烘焙。要一次產生多個版本或配色，用「批次輸出」。</p></li><li><strong>匯入對應版本 Spine</strong><p>解開輸出套件，保留 JSON 與 images 資料夾的位置。在 Spine 選擇「檔案 → 匯入資料（Import Data）」載入 JSON，確認 Images 路徑指向素材資料夾。</p></li></ol><div class="help-shortcuts"><strong>快捷鍵</strong><dl><dt>Space</dt><dd>播放／暫停</dd><dt>← →</dt><dd>逐幀</dd><dt>Ctrl＋Z／Y</dt><dd>復原／重做</dd><dt>Ctrl＋S／O</dt><dd>儲存／開啟專案</dd><dt>Ctrl＋B</dt><dd>更新烘焙</dd><dt>Ctrl＋E</dt><dd>輸出 Spine</dd><dt>Ctrl＋D</dt><dd>複製圖層</dd><dt>Ctrl＋C／V</dt><dd>複製／貼上圖層（可跨專案）</dd><dt>Delete</dt><dd>刪除圖層</dd><dt>[ ]</dt><dd>上／下一個圖層</dd><dt>S／H</dt><dd>單獨顯示／預覽隱藏</dd><dt>F</dt><dd>畫面對焦目前發射器</dd><dt>A</dt><dd>點角色加效果（掛接預覽時）</dd><dt>0</dt><dd>縮放回 100%</dd><dt>滾輪</dt><dd>以游標為中心縮放（5%–800%）</dd></dl></div><div class="help-callout"><strong>記得儲存編輯專案</strong><p>「儲存專案」包含發射器參數與粒子貼圖，可用「開啟」接續編輯。Spine 輸出是動畫交付資料。Atlas 圖集可在 Spine 匯出時產生。</p></div></div><div class="dialog-footer">Particle Studio · Spine 3.8 / 4.0 / 4.2</div></dialog>
   <dialog id="newProjectDialog" class="help-dialog new-project-dialog" aria-labelledby="newProjectTitle" aria-describedby="newProjectDescription">
     <div class="dialog-header"><div><span class="section-eyebrow">NEW PROJECT</span><h2 id="newProjectTitle">重設並建立新專案</h2></div></div>
     <div class="dialog-content"><p id="newProjectDescription">粒子圖層、圖片、背景、Spine 掛接、時間軸與介面設定都會回到初始值。</p><p>目前尚未儲存的修改會被清除。已儲存的專案檔與「我的效果」會保留。</p></div>
@@ -1166,20 +1238,25 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     <div class="spine-merge-footer"><button id="bakeCheckDone" type="button" class="quiet-button">關閉</button><button id="bakeCheckBake" type="button" class="primary-button">試烘焙並檢查</button></div>
   </dialog>
   <dialog id="spineMergeDialog" class="help-dialog spine-merge-dialog" aria-labelledby="spineMergeTitle">
-    <div class="dialog-header"><div><span class="section-eyebrow">ATTACH TO SPINE</span><h2 id="spineMergeTitle">追加到既有骨架</h2></div><button id="spineCloseMerge" type="button" class="icon-button" aria-label="關閉掛接設定">×</button></div>
+    <div class="dialog-header"><div><span class="section-eyebrow">ATTACH TO SPINE</span><h2 id="spineMergeTitle">強化既有 Spine</h2></div><button id="spineCloseMerge" type="button" class="icon-button" aria-label="關閉掛接設定">×</button></div>
     <div class="dialog-content spine-merge-content">
+      <section class="spine-folder-card"><div class="spine-folder-row"><button id="spineOpenFolder" type="button" class="primary-button">開啟原工程資料夾</button><span class="spine-folder-or">或把整個匯出資料夾拖進視窗</span></div><input id="spineFolderInput" type="file" multiple webkitdirectory hidden><p id="spineFolderInfo" class="spine-source-info" role="status">選擇 Spine 匯出的資料夾（骨架 JSON＋images 或 atlas），會自動載入骨架與角色圖片。</p></section>
+      <ol id="spineChecklist" class="spine-checklist" aria-label="掛接進度"></ol>
+      <section id="spineQuickActions" class="spine-quick-actions" hidden><button id="spineArtPickStart" type="button" class="primary-button">點角色加效果</button><p class="field-hint">在角色身上點一下：選擇在那裡新增效果，或把目前的發射器移過去。骨骼、位置、開始時間（播放頭）與前後圖層會一次設好。</p></section>
+      <details id="spineManualSection" class="spine-binding-details spine-manual-details"><summary>手動載入檔案、移除掛接</summary>
       <section class="spine-source-card"><div class="spine-source-actions"><button id="spineLoadSource" type="button" class="secondary-button">載入原骨架 JSON</button><button id="spineClearSource" type="button" class="text-button muted" disabled>移除掛接</button><label class="checkbox-label"><input id="spineMergeEnabled" type="checkbox" disabled>啟用追加輸出</label></div><input id="spineSourceFile" type="file" accept=".json,.spine,application/json" hidden><p id="spineSourceInfo" class="spine-source-info" role="status">尚未載入原骨架</p><p class="field-hint">支援 Spine 3.8、4.0、4.2 的單一骨架 JSON；追加輸出自動跟隨原骨架版本。原生 .spine 請先用離線包附帶的「Spine 工程轉換」，或在對應版本 Spine 匯出 JSON 並勾選 Nonessential。</p></section>
       <section id="spineAssetsFields" class="spine-form-section" hidden><h3>原骨架預覽素材</h3><div class="spine-source-actions"><button id="spineLoadImages" type="button" class="secondary-button">載入角色圖片</button><button id="spineLoadImagesFolder" type="button" class="secondary-button">選擇 Images 資料夾</button><button id="spineLoadAtlas" type="button" class="secondary-button">載入 Atlas 圖集</button><button id="spineClearAssets" type="button" class="text-button muted" disabled>清除預覽素材</button></div><input id="spineImagesFile" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden><input id="spineImagesFolder" type="file" accept="image/png,image/jpeg,image/webp" multiple webkitdirectory hidden><input id="spineAtlasFile" type="file" accept=".atlas,text/plain" hidden><p id="spineAssetsInfo" class="spine-source-info" role="status">尚未載入角色圖片；預覽會顯示骨架與粒子。</p><p class="field-hint">原始圖片請選擇原 Images 根資料夾，保留 body/head.png 等子目錄。若使用圖集，請載入 .atlas 及對應 PNG 頁面。每張圖片上限 4 MiB、2048 像素，內嵌素材合計上限 16 MiB。</p><p id="spineAssetsPreviewInfo" class="field-hint" role="status" aria-live="polite"></p></section>
+      </details>
       <details id="spineUpdateSection" class="spine-binding-details"><summary>更新已追加的粒子效果</summary><p class="field-hint">先載入在 Spine 修改後的骨架 JSON，再載入同一效果的「效果更新記錄.json」或舊版「追加清單.json」。</p><div class="spine-source-actions"><button id="spineLoadReceipt" type="button" class="secondary-button" disabled>載入效果更新記錄</button><input id="spineReceiptFile" type="file" accept=".json,application/json" hidden></div><label id="spineUpdateModeField" class="field" hidden><span>輸出方式</span><select id="spineUpdateMode"><option value="append">追加新效果 · 保留既有粒子</option><option value="replace">更新此效果 · 替換原粒子</option></select></label><p id="spineUpdateInfo" class="field-hint" role="status">只有記錄中確認屬於該效果的資料會被更新。</p></details>
       <div id="spineMergeFields" hidden>
-        <section class="spine-form-section"><h3>掛接位置</h3><div class="spine-bone-picker"><label class="field"><span>搜尋骨骼</span><input id="spineParentFilter" type="search" placeholder="例如 hand、head、root…" autocomplete="off"></label><label class="field"><span>預設父骨骼</span><select id="spineParentBone"></select></label></div><p id="spineParentPath" class="spine-bone-path"></p><p class="field-hint">粒子的 X/Y 以父骨骼為原點，會跟隨骨骼的移動、旋轉與縮放。</p><details class="spine-binding-details"><summary>各發射器掛接與圖層</summary><div id="spineEmitterBindings" class="spine-emitter-bindings"></div></details></section>
-        <section id="spineSingleAnimationFields" class="spine-form-section"><h3>追加表演</h3><div class="field-row"><label class="field"><span>動畫方式</span><select id="spineAnimationMode"><option value="existing">追加至原動畫</option><option value="new">新增動畫</option></select></label><label id="spineExistingAnimationField" class="field"><span>目標動畫</span><select id="spineAnimationSelect"></select></label><label id="spineNewAnimationField" class="field" hidden><span>新動畫名稱</span><input id="spineNewAnimation" type="text" value="particle_effect" maxlength="80" spellcheck="false"></label></div><label class="field"><span>開始時間 <small>秒</small></span><input id="spineStartTime" type="number" min="0" max="600" step="0.01" value="0"></label><p class="field-hint">追加一段目前烘焙長度的粒子表演，段落結束後隱藏；原動畫的骨骼與其他表演軌保留。</p></section>
+        <section id="spineSingleAnimationFields" class="spine-form-section"><h3>動畫與時間</h3><div class="field-row"><label class="field"><span>動畫方式</span><select id="spineAnimationMode"><option value="existing">追加至原動畫</option><option value="new">新增動畫</option></select></label><label id="spineExistingAnimationField" class="field"><span>目標動畫</span><select id="spineAnimationSelect"></select></label><label id="spineNewAnimationField" class="field" hidden><span>新動畫名稱</span><input id="spineNewAnimation" type="text" value="particle_effect" maxlength="80" spellcheck="false"></label></div><label class="field"><span>開始時間 <small>秒</small></span><input id="spineStartTime" type="number" min="0" max="600" step="0.01" value="0"></label><div class="spine-source-actions spine-time-actions"><button id="spineStartAtPlayhead" type="button" class="secondary-button">從播放頭開始</button><button id="spineFitAnimation" type="button" class="secondary-button">長度對齊原動畫</button></div><p class="field-hint">也可以直接拖曳下方時間軸上的綠色粒子段落；會吸附到原動畫的事件與關鍵幀，按住 Alt 自由拖曳。段落結束後粒子隱藏，原動畫的骨骼與其他表演軌保留。</p></section>
         <section id="spineFlowAnimationFields" class="spine-form-section" hidden><h3>三段表演掛接</h3>
           <div class="spine-form-section"><h4>IN · 進場</h4><div class="field-row"><label class="field"><span>動畫方式</span><select id="spineFlowInMode"><option value="existing">追加至原動畫</option><option value="new">新增動畫</option></select></label><label id="spineFlowInExistingField" class="field"><span>目標動畫</span><select id="spineFlowInSelect"></select></label><label id="spineFlowInNewField" class="field" hidden><span>新動畫名稱</span><input id="spineFlowInName" type="text" value="in" maxlength="80" spellcheck="false"></label><label class="field"><span>開始時間 <small>秒</small></span><input id="spineFlowInStart" type="number" min="0" max="600" step="0.01" value="0"></label></div></div>
           <div class="spine-form-section"><h4>LOOP · 循環</h4><div class="field-row"><label class="field"><span>動畫方式</span><select id="spineFlowLoopMode"><option value="existing">追加至原動畫</option><option value="new">新增動畫</option></select></label><label id="spineFlowLoopExistingField" class="field"><span>目標動畫</span><select id="spineFlowLoopSelect"></select></label><label id="spineFlowLoopNewField" class="field" hidden><span>新動畫名稱</span><input id="spineFlowLoopName" type="text" value="loop" maxlength="80" spellcheck="false"></label><label class="field"><span>開始時間 <small>固定 0 秒</small></span><input id="spineFlowLoopStart" type="number" min="0" max="600" step="0.01" value="0" disabled></label></div></div>
           <div class="spine-form-section"><h4>OUT · 退場</h4><div class="field-row"><label class="field"><span>動畫方式</span><select id="spineFlowOutMode"><option value="existing">追加至原動畫</option><option value="new">新增動畫</option></select></label><label id="spineFlowOutExistingField" class="field"><span>目標動畫</span><select id="spineFlowOutSelect"></select></label><label id="spineFlowOutNewField" class="field" hidden><span>新動畫名稱</span><input id="spineFlowOutName" type="text" value="out" maxlength="80" spellcheck="false"></label><label class="field"><span>開始時間 <small>秒</small></span><input id="spineFlowOutStart" type="number" min="0" max="600" step="0.01" value="0"></label></div></div>
           <p id="spineFlowHint" class="field-hint">三段使用相同粒子骨骼與素材。LOOP 從 0 秒循環，在完整循環邊界接 OUT；原 LOOP 動畫不可長於粒子 LOOP。</p>
         </section>
+                <section class="spine-form-section"><h3>掛接位置</h3><div class="spine-bone-picker"><label class="field"><span>搜尋骨骼</span><input id="spineParentFilter" type="search" placeholder="例如 hand、head、root…" autocomplete="off"></label><label class="field"><span>預設父骨骼</span><select id="spineParentBone"></select></label></div><p id="spineParentPath" class="spine-bone-path"></p><p class="field-hint">粒子的 X/Y 以父骨骼為原點，會跟隨骨骼的移動、旋轉與縮放。</p><details class="spine-binding-details"><summary>各發射器掛接與圖層</summary><div id="spineEmitterBindings" class="spine-emitter-bindings"></div></details></section>
         <section class="spine-form-section"><label class="field"><span>新增群組名稱 <small>英數、底線</small></span><input id="spinePrefix" type="text" value="particle_fx" maxlength="48" pattern="[A-Za-z0-9_-]+" spellcheck="false"></label></section>
         <section class="spine-form-section"><h3>前後圖層</h3><div class="field-row"><label class="field"><span>粒子放置順序</span><select id="spineDrawOrder"><option value="front">最前方</option><option value="back">最後方</option><option value="after">指定插槽之後</option></select></label><label id="spineAfterSlotField" class="field" hidden><span>參考插槽</span><select id="spineAfterSlot"></select></label></div><p class="field-hint">Spine 以插槽決定前後順序；父骨骼與圖層可以分開指定。</p></section>
       </div>
@@ -1927,16 +2004,274 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 });
 
 </script>
+  <script data-bundle="lightning.js">
+(function (root, factory) {
+  'use strict';
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  root.ParticleLightning = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  'use strict';
+  // Mesh lightning: one texture is cut into a strip mesh along its length.
+  // Every flicker step the strip is re-bent into a new random bolt, exported as
+  // stepped Spine deform keys. Optional extra bolts, branches, and width /
+  // brightness jumps. Everything is a pure function of (settings, seed, step),
+  // so live preview, baked preview and the three Spine exports agree exactly.
+  const DEG = Math.PI / 180;
+  const EPS = 1e-9;
+  const round = value => Math.round(value * 1e6) / 1e6 || 0;
+  const round2 = value => Math.round(value * 100) / 100 || 0;
+  const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
+  const fail = message => { throw new Error(message); };
+  const DEFAULTS = Object.freeze({
+    mode: 'fixed', length: 320, angle: -90, thickness: 48, segments: 16, amplitude: 38, roughness: 0.55, rate: 18,
+    bolts: 1, boltSpread: 24, boltAngle: 10, branches: 0, branchChance: 0.55, branchLength: 0.4, branchAngle: 35,
+    widthJitter: 0.35, alphaJitter: 0.3, gap: 0.08, tailSwing: 25, lengthJitter: 0.25, taper: 0.55
+  });
+  const RANGES = {
+    length: [10, 4000, '閃電長度'], angle: [-3600, 3600, '閃電方向'], thickness: [1, 600, '閃電粗細'], segments: [4, 48, '網格段數', true],
+    amplitude: [0, 600, '扭曲幅度'], roughness: [0, 1, '鋸齒程度'], rate: [1, 60, '變化速度', false], bolts: [1, 4, '同時條數', true],
+    boltSpread: [0, 600, '多條間距'], boltAngle: [0, 90, '多條角度差'], branches: [0, 3, '分岔數', true], branchChance: [0, 1, '分岔機率'],
+    branchLength: [0.1, 1, '分岔長度'], branchAngle: [0, 90, '分岔角度'], widthJitter: [0, 1, '粗細跳動'], alphaJitter: [0, 1, '亮度跳動'],
+    gap: [0, 0.9, '閃斷機率'], tailSwing: [0, 180, '尾端擺動'], lengthJitter: [0, 0.9, '長度變化'], taper: [0, 1, '尖端收細']
+  };
+  function normalize(raw, label = '閃電') {
+    const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+    if (raw !== undefined && raw !== null && source !== raw) fail(label + '設定格式不正確。');
+    const result = {mode: source.mode === undefined ? DEFAULTS.mode : source.mode};
+    if (!['fixed', 'free'].includes(result.mode)) fail(label + '的兩端模式必須是 fixed 或 free。');
+    Object.keys(RANGES).forEach(key => {
+      const [low, high, name, integer] = RANGES[key], value = source[key] === undefined ? DEFAULTS[key] : source[key];
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < low || value > high || integer && !Number.isInteger(value)) fail(label + '的「' + name + '」必須介於 ' + low + '–' + high + (integer ? ' 的整數' : '') + '。');
+      result[key] = value;
+    });
+    return result;
+  }
+  // Deterministic per (seed, bolt, step) stream; independent of other steps.
+  function hash(a, b, c) {
+    let h = (a >>> 0) ^ 0x9e3779b9;
+    h = Math.imul(h ^ (b + 0x7f4a7c15), 0x85ebca6b) >>> 0;
+    h = Math.imul(h ^ (c + 0x165667b1), 0xc2b2ae35) >>> 0;
+    return (h ^ (h >>> 16)) >>> 0;
+  }
+  function stream(seed) {
+    let t = seed >>> 0;
+    return () => { t = (t + 0x6d2b79f5) >>> 0; let x = Math.imul(t ^ (t >>> 15), 1 | t); x ^= x + Math.imul(x ^ (x >>> 7), 61 | x); return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+  }
+  // Strip mesh: top row 0..S, then bottom row S..0, so the first 2(S+1)
+  // vertices run around the hull as Spine expects.
+  function strip(segments, image) {
+    const S = segments, horizontal = !image || image.width >= image.height, uvs = [], triangles = [];
+    for (let i = 0; i <= S; i++) { const t = i / S; if (horizontal) uvs.push(t, 0); else uvs.push(0, t); }
+    for (let i = S; i >= 0; i--) { const t = i / S; if (horizontal) uvs.push(t, 1); else uvs.push(1, t); }
+    const bottom = i => S + 1 + (S - i);
+    for (let i = 0; i < S; i++) triangles.push(i, bottom(i), i + 1, i + 1, bottom(i), bottom(i + 1));
+    return {segments: S, uvs, triangles, hull: 2 * (S + 1), vertexCount: 2 * (S + 1)};
+  }
+  function branchSegments(settings) { return Math.max(4, Math.round(settings.segments / 2)); }
+  // Vertices of a polyline with per-point half widths, in the strip order.
+  function ribbon(points, halfWidths) {
+    const S = points.length - 1, top = [], bottom = [];
+    for (let i = 0; i <= S; i++) {
+      const a = points[Math.max(0, i - 1)], b = points[Math.min(S, i + 1)];
+      let tx = b.x - a.x, ty = b.y - a.y; const length = Math.hypot(tx, ty) || 1; tx /= length; ty /= length;
+      const nx = -ty, ny = tx, h = halfWidths[i];
+      top.push(points[i].x + nx * h, points[i].y + ny * h);
+      bottom.push(points[i].x - nx * h, points[i].y - ny * h);
+    }
+    const vertices = top.slice();
+    for (let i = S; i >= 0; i--) vertices.push(bottom[i * 2], bottom[i * 2 + 1]);
+    return vertices.map(round2);
+  }
+  // Midpoint displacement with fixed ends; free tails get a random end offset.
+  function displacement(rand, segments, amplitude, roughness, freeTail) {
+    const d = new Array(segments + 1).fill(0);
+    if (freeTail) d[segments] = (rand() * 2 - 1) * amplitude;
+    (function split(lo, hi, amp) {
+      if (hi - lo < 2) return;
+      const mid = (lo + hi) >> 1;
+      d[mid] = (d[lo] * (hi - mid) + d[hi] * (mid - lo)) / (hi - lo) + (rand() * 2 - 1) * amp;
+      const next = amp * (0.35 + 0.65 * roughness);
+      split(lo, mid, next); split(mid, hi, next);
+    })(0, segments, amplitude);
+    // A little extra per-point jitter makes high roughness look electric.
+    for (let i = 1; i < segments; i++) d[i] += (rand() * 2 - 1) * amplitude * 0.25 * roughness;
+    const limit = amplitude * 1.5;
+    return d.map(value => clamp(value, -limit, limit));
+  }
+  function taperAt(t, taper, freeTail) {
+    return freeTail ? 1 - taper * Math.pow(t, 1.4) : 1 - taper * (1 - Math.sin(Math.PI * t));
+  }
+  function bolt(rand, {start, angle, length, segments, amplitude, roughness, half, taper, freeTail}) {
+    const dx = Math.cos(angle * DEG), dy = Math.sin(angle * DEG), nx = -dy, ny = dx;
+    const d = displacement(rand, segments, amplitude, roughness, freeTail), points = [], widths = [];
+    for (let i = 0; i <= segments; i++) {
+      const t = i / segments;
+      points.push({x: start.x + dx * length * t + nx * d[i], y: start.y + dy * length * t + ny * d[i]});
+      widths.push(Math.max(0.2, half * taperAt(t, taper, freeTail)));
+    }
+    return {points, vertices: ribbon(points, widths)};
+  }
+  // Straight setup geometry; deform keys move every vertex from here.
+  function setupVertices(settings, branch) {
+    const S = branch ? branchSegments(settings) : settings.segments, length = branch ? settings.length * settings.branchLength : settings.length;
+    const angle = branch ? 0 : settings.angle, half = (branch ? settings.thickness * 0.6 : settings.thickness) / 2;
+    const dx = Math.cos(angle * DEG), dy = Math.sin(angle * DEG), points = [], widths = [];
+    for (let i = 0; i <= S; i++) { points.push({x: dx * length * i / S, y: dy * length * i / S}); widths.push(half); }
+    return ribbon(points, widths);
+  }
+  function strike(settings, seed, boltIndex, step) {
+    const rand = stream(hash(seed, boltIndex + 1, step + 1)), free = settings.mode === 'free';
+    const visible = rand() >= settings.gap;
+    const alpha = visible ? clamp(1 - settings.alphaJitter * rand(), 0.05, 1) : 0;
+    const widthScale = clamp(1 + (rand() * 2 - 1) * settings.widthJitter * 0.7, 0.15, 2);
+    let angle = settings.angle, start = {x: 0, y: 0}, length = settings.length;
+    if (settings.bolts > 1) {
+      const spreadDraw = rand() * 2 - 1, angleDraw = rand() * 2 - 1;
+      if (free) {
+        const nx = -Math.sin(settings.angle * DEG), ny = Math.cos(settings.angle * DEG);
+        start = {x: nx * spreadDraw * settings.boltSpread / 2, y: ny * spreadDraw * settings.boltSpread / 2};
+        angle += angleDraw * settings.boltAngle;
+      }
+    }
+    if (free) { angle += (rand() * 2 - 1) * settings.tailSwing; length *= 1 - settings.lengthJitter * rand(); }
+    const amplitude = settings.amplitude * (settings.bolts > 1 && !free ? 0.75 + 0.5 * rand() : 1);
+    const main = bolt(rand, {start, angle, length, segments: settings.segments, amplitude, roughness: settings.roughness,
+      half: settings.thickness / 2 * widthScale, taper: settings.taper, freeTail: free});
+    const branches = [];
+    for (let j = 0; j < settings.branches; j++) {
+      const show = visible && rand() < settings.branchChance;
+      const at = 0.2 + 0.55 * rand(), side = rand() < 0.5 ? -1 : 1, spread = settings.branchAngle * (0.5 + 0.5 * rand());
+      const lengthScale = 0.55 + 0.45 * rand();
+      if (!show) { branches.push({visible: false, alpha: 0, vertices: null}); continue; }
+      const index = clamp(Math.round(at * settings.segments), 1, settings.segments - 1);
+      const a = main.points[index - 1], b = main.points[index + 1], base = main.points[index];
+      const tangent = Math.atan2(b.y - a.y, b.x - a.x) / DEG;
+      const branchLength = settings.length * settings.branchLength * lengthScale;
+      const shape = bolt(rand, {start: base, angle: tangent + side * spread, length: branchLength, segments: branchSegments(settings),
+        amplitude: settings.amplitude * settings.branchLength, roughness: settings.roughness, half: settings.thickness * 0.6 / 2 * widthScale,
+        taper: Math.max(0.7, settings.taper), freeTail: true});
+      branches.push({visible: true, alpha: alpha * (0.65 + 0.35 * rand()), vertices: shape.vertices});
+    }
+    return {visible, alpha, vertices: main.vertices, branches};
+  }
+  // Flicker steps inside the layer's active window. A looping full-length
+  // window divides the loop exactly so the last step meets the first.
+  function timing({duration, loop, startDelay = 0, activeDuration, rate, flow}) {
+    let start = 0, active = duration;
+    if (!flow) {
+      start = Math.min(startDelay, duration);
+      active = activeDuration > 0 ? Math.min(activeDuration, duration - start) : duration - start;
+    }
+    if (active <= EPS) return {start, end: start, steps: []};
+    const fullLoop = flow ? flow === 'loop' : loop && start <= EPS && active >= duration - EPS;
+    const count = fullLoop ? Math.max(1, Math.round(active * rate)) : Math.max(1, Math.ceil(active * rate - 1e-6));
+    const step = fullLoop ? active / count : 1 / rate;
+    const steps = [];
+    for (let i = 0; i < count; i++) steps.push(round(start + i * step));
+    return {start, end: round(start + active), steps, step};
+  }
+  function flowFactor(flow, time, duration) {
+    return flow === 'in' ? clamp(time / duration, 0, 1) : flow === 'out' ? clamp(1 - time / duration, 0, 1) : 1;
+  }
+  // Slot layout per emitter: for each bolt its main strip then its branches.
+  function lanes(settings) {
+    const result = [];
+    for (let b = 0; b < settings.bolts; b++) {
+      result.push({bolt: b, branch: -1});
+      for (let j = 0; j < settings.branches; j++) result.push({bolt: b, branch: j});
+    }
+    return result;
+  }
+  function stepIndexAt(plan, time) {
+    if (!plan.steps.length || time < plan.start - EPS || time >= plan.end - EPS) return -1;
+    const index = Math.floor((time - plan.start) / plan.step + 1e-9);
+    return clamp(index, 0, plan.steps.length - 1);
+  }
+  // States in emitter-local coordinates (the caller adds the emitter origin).
+  function states({settings, seed, duration, loop, startDelay, activeDuration, flow, time, color, blend, image, emitterId}) {
+    const plan = timing({duration, loop, startDelay, activeDuration, rate: settings.rate, flow});
+    const at = loop ? ((time % duration) + duration) % duration : clamp(time, 0, duration);
+    const index = stepIndexAt(plan, at), factor = flowFactor(flow, at, duration);
+    const result = [], main = strip(settings.segments, image), branch = strip(branchSegments(settings), image);
+    lanes(settings).forEach((lane, laneIndex) => {
+      const geometry = lane.branch < 0 ? main : branch;
+      let alpha = 0, vertices = null;
+      if (index >= 0) {
+        const shot = strike(settings, seed, lane.bolt, index), part = lane.branch < 0 ? shot : shot.branches[lane.branch];
+        alpha = part.visible ? part.alpha * factor : 0; vertices = part.vertices;
+      }
+      result.push({type: 'mesh', emitterId, lane: laneIndex, index: laneIndex, vertices: vertices || setupVertices(settings, lane.branch >= 0),
+        uvs: geometry.uvs, triangles: geometry.triangles, color: color.slice(), alpha, blend, image, alive: alpha > 0, isLightning: true});
+    });
+    return result;
+  }
+  function hex(color, alpha) {
+    return color.concat(alpha).map(value => Math.round(clamp(value, 0, 1) * 255).toString(16).padStart(2, '0')).join('');
+  }
+  // Bones, slots, mesh attachments and stepped timelines for one emitter.
+  function exportEmitter({e, settings, seed, duration, loop, flow, family, colorTimeline, path, image, color, startIndex}) {
+    const plan = timing({duration, loop, startDelay: e.startDelay || 0, activeDuration: e.emissionDuration, rate: settings.rate, flow});
+    const main = strip(settings.segments, image), branch = strip(branchSegments(settings), image);
+    const width = image ? image.width : 256, height = image ? image.height : 64;
+    const bones = [], slots = [], attachments = {}, slotTracks = {}, deform = {};
+    const shots = plan.steps.map((time, step) => ({time, shots: Array.from({length: settings.bolts}, (_, b) => strike(settings, seed, b, step))}));
+    let keyframes = 0;
+    lanes(settings).forEach((lane, laneIndex) => {
+      const boneName = 'em_' + e.id + '_p' + (startIndex + laneIndex), slotName = boneName + '_slot', geometry = lane.branch < 0 ? main : branch;
+      const setup = setupVertices(settings, lane.branch >= 0);
+      bones.push({name: boneName, parent: 'em_' + e.id});
+      slots.push({name: slotName, bone: boneName, color: hex(color, 0), attachment: 'particle', blend: e.blend});
+      attachments[slotName] = {particle: {type: 'mesh', path, uvs: geometry.uvs.map(round), triangles: geometry.triangles.slice(),
+        vertices: setup, hull: geometry.hull, width, height}};
+      const colors = [], deforms = [], attachment = [];
+      if (!plan.steps.length || plan.steps[0] > EPS) colors.push({color: hex(color, 0), curve: 'stepped'});
+      shots.forEach(({time, shots: shot}) => {
+        const part = lane.branch < 0 ? shot[lane.bolt] : shot[lane.bolt].branches[lane.branch];
+        const alpha = part.visible ? round(part.alpha * flowFactor(flow, time, duration)) : 0;
+        const key = {color: hex(color, alpha), curve: 'stepped'}; if (time > EPS) key.time = time;
+        colors.push(key);
+        if (part.visible && part.vertices) {
+          const offsets = part.vertices.map((value, i) => round2(value - setup[i]));
+          const frame = {vertices: offsets, curve: 'stepped'}; if (time > EPS) frame.time = time;
+          deforms.push(frame);
+        }
+      });
+      const fullLoop = flow ? flow === 'loop' : loop && plan.start <= EPS && plan.end >= duration - EPS;
+      if (!fullLoop && plan.steps.length) colors.push({time: round(plan.end), color: hex(color, 0), curve: 'stepped'});
+      const last = colors[colors.length - 1];
+      if ((last.time || 0) < duration - EPS) colors.push({time: round(duration), color: last.color});
+      // Remove the redundant stepped curve on the final key.
+      if (colors.length) delete colors[colors.length - 1].curve;
+      if (deforms.length) delete deforms[deforms.length - 1].curve;
+      attachment.push({name: 'particle'});
+      if (deforms.length && deforms[0].time) deforms.unshift({vertices: deforms[0].vertices.slice(), curve: 'stepped'});
+      slotTracks[slotName] = {[colorTimeline]: colors, attachment};
+      if (deforms.length) deform[slotName] = {particle: deforms};
+      keyframes += colors.length + deforms.length + attachment.length;
+    });
+    const animation = {slots: slotTracks};
+    if (Object.keys(deform).length) {
+      if (family === '4.2') animation.attachments = {default: Object.fromEntries(Object.entries(deform).map(([slot, map]) => [slot, {particle: {deform: map.particle}}]))};
+      else animation.deform = {default: deform};
+    }
+    return {bones, slots, attachments, animation, keyframes, laneCount: lanes(settings).length};
+  }
+  return {DEFAULTS, RANGES, normalize, strike, strip, setupVertices, timing, lanes, states, exportEmitter, branchSegments, hash, stream};
+});
+
+</script>
   <script data-bundle="core.js">
 (function (root, factory) {
   'use strict';
   const curveMath = typeof module === 'object' && module.exports ? require('./curve-math.js') : root.ParticleCurveMath;
   const pathMath = typeof module === 'object' && module.exports ? require('./path-math.js') : root.ParticlePathMath;
   const contourMath = typeof module === 'object' && module.exports ? require('./contour-math.js') : root.ParticleContourMath;
-  var api = factory(curveMath, pathMath, contourMath);
+  const lightning = typeof module === 'object' && module.exports ? require('./lightning.js') : root.ParticleLightning;
+  var api = factory(curveMath, pathMath, contourMath, lightning);
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.ParticleCore = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (CurveMath, PathMath, ContourMath) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (CurveMath, PathMath, ContourMath, Lightning) {
   'use strict';
   if (!CurveMath) throw new Error('粒子曲線模組尚未載入，請先載入 curve-math.js。');
   if (!PathMath) throw new Error('粒子路徑模組尚未載入，請先載入 path-math.js。');
@@ -2286,6 +2621,12 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       ids.add(id);
       const e = createEmitter(id, text(source, 'name', '發射器 ' + (emitterIndex + 1), 80, '發射器名稱'));
       e.enabled = boolean(source, 'enabled', true, '發射器啟用');
+      // Optional layer kind; absent keeps every legacy particle layer unchanged.
+      if (source.kind !== undefined && source.kind !== 'particles') {
+        e.kind = enumValue(source, 'kind', 'particles', ['particles', 'lightning'], '圖層類型');
+        if (!Lightning) fail('閃電網格模組尚未載入，請先載入 lightning.js。');
+        e.lightning = Lightning.normalize(source.lightning, '「' + e.name + '」閃電');
+      }
       // Keep old files and snapshots on their exact ID-split project streams.
       if (source.randomSeed !== undefined) e.randomSeed = number(source, 'randomSeed', undefined, 0, 0xffffffff, true, '發射器獨立隨機種子');
       e.alignDirection = boolean(source, 'alignDirection', false, '方向對齊');
@@ -2587,8 +2928,10 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     const particles = [];
     let generatedParticles = 0, maxPoolCycles = 1, longLived = false;
     const warnings = [];
+    const lightning = [];
     project.emitters.forEach(e => {
       if (!e.enabled) return;
+      if (e.kind === 'lightning') { lightning.push({emitterId: e.id, seed: emitterSeed(project, e)}); return; }
       const rand = random(emitterSeed(project, e));
       const signed = amplitude => (rand() * 2 - 1) * amplitude;
       const sampleRing = e.shape === 'ring' ? (e.emitFrom === 'area' ? ringAreaSampler(e) : ringSampler(e)) : null;
@@ -2676,13 +3019,16 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       if (!project.loop && clipped) warnings.push('「' + e.name + '」部分粒子會在動畫結尾截斷。');
       if (e.alphaCurve[e.alphaCurve.length - 1].v !== 0) warnings.push('「' + e.name + '」透明度曲線尾值不為 0；粒子壽命結束時會立即隱藏。');
     });
-    if (!particles.length) warnings.push('所有發射器都已停用，輸出動畫只包含 root。');
+    if (!particles.length && !lightning.length) warnings.push('所有發射器都已停用，輸出動畫只包含 root。');
+    const lightningLanes = lightning.reduce((sum, item) => sum + Lightning.lanes(project.emitters.find(e => e.id === item.emitterId).lightning).length, 0);
     if (longLived) warnings.push('壽命超過循環週期的粒子使用分段粒子池；循環畫面連續，部分骨骼在交接點交換角色。動畫混合與中斷尚未驗證。');
     const enabledEmitters = project.emitters.filter(e => e.enabled).length;
-    return freezeDeep({project, particles, duration: project.duration, fps: project.fps, loop: project.loop,
-      stats: Object.assign({particles: particles.length, generatedParticles, bones: particles.length + enabledEmitters + 1,
-        slots: particles.length, enabledEmitters, poolCycles: maxPoolCycles, fps: project.fps,
-        duration: project.duration, warnings}, qualityStats(project))});
+    const result = {project, particles, duration: project.duration, fps: project.fps, loop: project.loop,
+      stats: Object.assign({particles: particles.length, generatedParticles, bones: particles.length + lightningLanes + enabledEmitters + 1,
+        slots: particles.length + lightningLanes, enabledEmitters, poolCycles: maxPoolCycles, fps: project.fps,
+        duration: project.duration, warnings}, qualityStats(project))};
+    if (lightning.length) { result.lightning = lightning; result.stats.lightningStrips = lightningLanes; }
+    return freezeDeep(result);
   }
 
   function particleAge(baked, particle, time) {
@@ -2705,6 +3051,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       const flowPhase = kind === 'in' ? {kind, basis, offset: -duration} : {kind};
       phases[kind] = {project, particles, duration, fps: project.fps, loop: kind === 'loop', flowPhase,
         stats: Object.assign({}, basis.stats, {duration, phase: kind})};
+      if (basis.lightning) phases[kind].lightning = basis.lightning;
     });
     const stats = Object.assign({}, basis.stats, {duration: round(flow.in.duration + flow.loop.duration + flow.out.duration),
       phaseDurations: {in: flow.in.duration, loop: flow.loop.duration, out: flow.out.duration}});
@@ -2937,7 +3284,30 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   function sample(baked, time) {
     if (typeof time !== 'number' || !Number.isFinite(time)) fail('預覽時間必須是有限數值。');
     const t = baked.loop ? mod(time, baked.duration) : clamp(time, 0, baked.duration);
-    return baked.particles.map(particle => stateAt(baked, particle, t));
+    const states = baked.particles.map(particle => stateAt(baked, particle, t));
+    if (baked.lightning) states.push(...lightningStates(baked, t));
+    return states;
+  }
+  function lightningEmitter(baked, item) {
+    const e = baked.project.emitters.find(emitter => emitter.id === item.emitterId);
+    if (!e || e.kind !== 'lightning') fail('閃電圖層資料與專案不一致，請重新烘焙。');
+    return e;
+  }
+  // Mesh states with vertices in the emitter parent's space (emitter origin added).
+  function lightningStates(baked, t) {
+    const result = [];
+    baked.lightning.forEach(item => {
+      const e = lightningEmitter(baked, item);
+      Lightning.states({settings: e.lightning, seed: item.seed, duration: baked.duration, loop: baked.loop, startDelay: e.startDelay || 0,
+        activeDuration: e.emissionDuration, flow: baked.flowPhase ? baked.flowPhase.kind : null, time: t, color: rgb(e.colorStart),
+        blend: e.blend, image: e.image, emitterId: e.id}).forEach(state => {
+        const vertices = state.vertices.map((value, index) => value + (index % 2 ? e.y : e.x));
+        let x = 0, y = 0; for (let i = 0; i < vertices.length; i += 2) { x += vertices[i]; y += vertices[i + 1]; }
+        result.push(Object.assign(state, {vertices, x: x / (vertices.length / 2), y: y / (vertices.length / 2), width: 0, height: 0, rotation: 0, scale: 1,
+          slotName: 'em_' + e.id + '_l' + state.lane + '_slot'}));
+      });
+    });
+    return result;
   }
 
   // Each lane represents a bounded age interval, even if it spans several
@@ -3140,7 +3510,25 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     const enabled = baked.project.emitters.filter(e => e.enabled);
     enabled.forEach(e => json.bones.push({name: 'em_' + e.id, parent: 'root', x: e.x, y: e.y}));
     // The first emitter in the editor is the front layer; Spine draws the final slot last.
+    let lightningSlots = 0;
     enabled.slice().reverse().forEach(e => {
+      if (e.kind === 'lightning') {
+        const item = (baked.lightning || []).find(entry => entry.emitterId === e.id);
+        if (!item) fail('閃電圖層尚未烘焙，請重新烘焙。');
+        const asset = imagePlan.byEmitter.get(e.id)[0].asset;
+        const part = Lightning.exportEmitter({e, settings: e.lightning, seed: item.seed, duration: baked.duration, loop: baked.loop,
+          flow: baked.flowPhase ? baked.flowPhase.kind : null, family: profile.family, colorTimeline: profile.colorTimeline,
+          path: asset.name.slice(0, -4), image: e.image || asset, color: rgb(e.colorStart), startIndex: 0});
+        json.bones.push(...part.bones); json.slots.push(...part.slots); Object.assign(attachments, part.attachments);
+        Object.assign(json.animations.effect.slots, part.animation.slots);
+        ['deform', 'attachments'].forEach(group => {
+          if (!part.animation[group]) return;
+          const target = json.animations.effect[group] || (json.animations.effect[group] = {default: {}});
+          Object.assign(target.default, part.animation[group].default);
+        });
+        keyframes += part.keyframes; denseKeyframes += part.keyframes; lightningSlots += part.laneCount;
+        return;
+      }
       const sequence = activeSequence(e);
       const assets = imagePlan.byEmitter.get(e.id).map(ref => ref.asset);
       const path = assets[0].name.slice(0, -4);
@@ -3196,7 +3584,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         keyframes += translate.length + rotate.length + scale.length + colors.length + switches.length;
       });
     });
-    if (!baked.particles.length) {
+    if (!baked.particles.length && !lightningSlots) {
       json.animations.effect.bones.root = {translate: [{x: 0, y: 0}, {time: baked.duration, x: 0, y: 0}]};
       keyframes = denseKeyframes = 2;
     }
@@ -3406,7 +3794,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   const FORMAT = 'particle-studio-fx-library', MAX_ITEMS = 100, MAX_BYTES = 48 * 1024 * 1024, MAX_ITEM_BYTES = 16 * 1024 * 1024;
   const DATABASE_NAME = 'particle-studio-effects', STORE_NAME = 'library', RECORD_KEY = 'current', FALLBACK_KEY = 'particle-studio-effects-v1';
   const ANCHOR_KEYS = ['id', 'name', 'x', 'y', 'enabled'];
-  const EFFECT_KEYS = new Set(Object.keys(Core.createEmitter()).filter(key => !ANCHOR_KEYS.includes(key)).concat(['directionMode', 'directionSpread', 'emitFrom', 'path', 'outline', 'sequence', 'randomSeed', 'separateSizeAxes', 'sizeCurveX', 'sizeCurveY', 'startDelay']));
+  const EFFECT_KEYS = new Set(Object.keys(Core.createEmitter()).filter(key => !ANCHOR_KEYS.includes(key)).concat(['directionMode', 'directionSpread', 'emitFrom', 'path', 'outline', 'sequence', 'randomSeed', 'separateSizeAxes', 'sizeCurveX', 'sizeCurveY', 'startDelay', 'kind', 'lightning']));
   const clone = value => JSON.parse(JSON.stringify(value));
   const object = value => !!value && typeof value === 'object' && !Array.isArray(value);
   const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
@@ -4157,7 +4545,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     if (animationNames.length !== (isFlow ? 3 : 1)) fail(isFlow ? '三段粒子匯出必須包含 IN、LOOP、OUT 三段動畫。' : '粒子匯出必須包含一段動畫。');
     animationNames.forEach(animationName => {
       const sourceAnimation = source.animations[animationName];
-      if (Object.keys(sourceAnimation).some(key => !['bones', 'slots'].includes(key)) || ['ik', 'transform', 'path', 'physics'].some(key => own(source, key))) fail('粒子追加僅支援烘焙後的骨骼與插槽動畫。');
+      if (Object.keys(sourceAnimation).some(key => !['bones', 'slots', profile.minor === '4.2' ? 'attachments' : 'deform'].includes(key)) || ['ik', 'transform', 'path', 'physics'].some(key => own(source, key))) fail('粒子追加僅支援烘焙後的骨骼、插槽與網格變形動畫。');
       Object.values(sourceAnimation.slots || {}).forEach(track => {
         if (own(track, profile.colorChannel === 'color' ? 'rgba' : 'color')) fail('粒子插槽顏色軌與 Spine ' + sourceInfo.version + ' 格式不符；請使用對應版本重新烘焙輸出。');
       });
@@ -4218,7 +4606,8 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       if (!own(attachmentMap, slot)) put(attachmentMap, slot, {});
       Object.keys(skin.attachments[slot]).forEach(key => {
         const attachment = copy(skin.attachments[slot][key]);
-        if (!object(attachment) || (attachment.type !== undefined && attachment.type !== 'region')) fail('粒子追加僅支援 region 附件。');
+        if (!object(attachment) || (attachment.type !== undefined && attachment.type !== 'region' && attachment.type !== 'mesh')) fail('粒子追加僅支援 region 與網格閃電附件。');
+        if (attachment.type === 'mesh' && (!Array.isArray(attachment.vertices) || !Array.isArray(attachment.uvs) || attachment.vertices.length !== attachment.uvs.length)) fail('粒子追加僅支援無權重的網格附件。');
         const path = imagePath(attachment.path === undefined ? key : attachment.path);
         if (!imageNames.has(path)) fail('粒子附件找不到圖片：' + path);
         const mapped = namespace + '__' + key;
@@ -4267,6 +4656,25 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
           if (own(animation[group], mapped)) fail('粒子動畫命名發生衝突：' + mapped);
           put(animation[group], mapped, track);
         });
+      });
+      // Mesh lightning: deform keys follow the renamed slot / attachment and the segment start.
+      const deformGroup = profile.minor === '4.2' ? 'attachments' : 'deform';
+      Object.keys(sourceAnimation[deformGroup] || {}).forEach(skinName => {
+        const bySlot = sourceAnimation[deformGroup][skinName];
+        Object.keys(bySlot || {}).forEach(slot => Object.keys(bySlot[slot] || {}).forEach(key => {
+          const keys = deformGroup === 'deform' ? bySlot[slot][key] : bySlot[slot][key] && bySlot[slot][key].deform;
+          if (!own(slotMap, slot) || !own(get(attachmentMap, slot, {}), key)) fail('網格變形指定不存在的粒子附件：' + slot + '/' + key);
+          if (deformGroup === 'attachments' && Object.keys(bySlot[slot][key]).some(timeline => timeline !== 'deform')) fail('粒子追加僅支援網格 deform 軌。');
+          const shifted = shiftedKeys(keys, segment, 'deform', profile);
+          shifted.forEach(frame => { if (frame.curve !== undefined && frame.curve !== 'stepped') fail('網格變形必須是 linear 或 stepped 關鍵幀。'); });
+          if (!shifted.length) return;
+          if (!own(animation, deformGroup)) put(animation, deformGroup, {});
+          if (!own(animation[deformGroup], 'default')) put(animation[deformGroup], 'default', {});
+          const targetSlot = slotMap[slot], targetKey = attachmentMap[slot][key], bucket = animation[deformGroup].default;
+          if (!own(bucket, targetSlot)) put(bucket, targetSlot, {});
+          if (own(bucket[targetSlot], targetKey)) fail('粒子網格變形命名發生衝突：' + targetSlot);
+          put(bucket[targetSlot], targetKey, deformGroup === 'deform' ? shifted : {deform: shifted});
+        }));
       });
       segmentStats.push({phase: segment.phase, animationName: segment.animationName, animationCreated: !existed,
         startTime: segment.startTime, endTime: roundedTime(segment.startTime + segment.duration), duration: segment.duration, loop: segment.loop});
@@ -4573,7 +4981,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
           [manifest.namespace + '/particle', manifest.namespace + '/emitter_' + emitterId] :
           [manifest.namespace + '/emitter_' + emitterId + '_' + (original || '').slice('particle_'.length)];
         const identity = JSON.stringify([slot, key]);
-        if (skin.name !== 'default' || !original || foundAttachments.has(identity) || !object(attachment) || !['region', undefined].includes(attachment.type) || !paths.includes(attachment.path) || (attachment.name !== undefined && attachment.name !== key)) fail('粒子附件已變更結構、路徑或新增其他皮膚；請保留原效果並新增一組。');
+        if (skin.name !== 'default' || !original || foundAttachments.has(identity) || !object(attachment) || !['region', 'mesh', undefined].includes(attachment.type) || attachment.type === 'mesh' && Array.isArray(attachment.vertices) && Array.isArray(attachment.uvs) && attachment.vertices.length !== attachment.uvs.length || !paths.includes(attachment.path) || (attachment.name !== undefined && attachment.name !== key)) fail('粒子附件已變更結構、路徑或新增其他皮膚；請保留原效果並新增一組。');
         foundAttachments.add(identity);
         attachments++; foundSlots.add(slot); return;
       }
@@ -4588,7 +4996,13 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         if ((group === 'bones' ? ownedBones : ownedSlots).has(key) && !targetSet.has(animationName)) refFail('其他動畫', animationName);
       }));
       ['deform', 'attachments'].forEach(group => Object.keys(animation[group] || {}).forEach(skin => Object.keys(animation[group][skin] || {}).forEach(slot => {
-        if (ownedSlots.has(slot)) refFail('外部附件動畫', animationName);
+        if (!ownedSlots.has(slot)) return;
+        // Our mesh lightning keeps its deform keys in the effect's own animations.
+        const defaultSkin = (json.skins || []).find(item => item.name === 'default'), meshes = defaultSkin && defaultSkin.attachments && defaultSkin.attachments[slot] || {};
+        const owned = targetSet.has(animationName) && skin === 'default' && Object.keys(animation[group][skin][slot]).every(key =>
+          attachmentSources.get(slot) && attachmentSources.get(slot).has(key) && object(meshes[key]) && meshes[key].type === 'mesh' &&
+          (group === 'deform' || Object.keys(animation[group][skin][slot][key] || {}).every(timeline => timeline === 'deform')));
+        if (!owned) refFail('外部附件動畫', animationName);
       })));
     });
     return {ownedBones, ownedSlots, targetNames, summary: {namespace: manifest.namespace, removedBones: ownedBones.size, removedSlots: ownedSlots.size, removedAttachments: attachments, animations: targetNames.slice(), legacy: receipt.legacy === true}};
@@ -4614,6 +5028,14 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       ['bones', 'slots'].forEach(group => Object.keys(animation[group] || {}).forEach(key => {
         if ((group === 'bones' ? state.ownedBones : state.ownedSlots).has(key)) delete animation[group][key];
       }));
+      ['deform', 'attachments'].forEach(group => {
+        if (!object(animation[group])) return;
+        Object.keys(animation[group]).forEach(skin => {
+          Object.keys(animation[group][skin] || {}).forEach(slot => { if (state.ownedSlots.has(slot)) delete animation[group][skin][slot]; });
+          if (object(animation[group][skin]) && !Object.keys(animation[group][skin]).length) delete animation[group][skin];
+        });
+        if (!Object.keys(animation[group]).length) delete animation[group];
+      });
       ['drawOrder', 'draworder'].forEach(property => {
         if (!own(animation, property)) return;
         animation[property].forEach((frame, index) => {
@@ -5066,7 +5488,26 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     const skin = json.skins.find(item => item.name === 'default') || json.skins[0];
     if (!skin || !skin.attachments) fail('Spine JSON 缺少預設 skin 附件。');
     const slots = [], slotNames = new Set();
+    const deformMaps = animation.deform && animation.deform[skin.name] || {}, attachmentMaps = animation.attachments && animation.attachments[skin.name] || {};
+    let currentSlot = null;
+    function deformTrack(attachmentName, length) {
+      const keys = deformMaps[currentSlot] && deformMaps[currentSlot][attachmentName] ||
+        attachmentMaps[currentSlot] && attachmentMaps[currentSlot][attachmentName] && attachmentMaps[currentSlot][attachmentName].deform;
+      if (keys === undefined) return null;
+      if (!Array.isArray(keys)) fail('Spine 網格變形軌格式不正確。');
+      const times = [], values = [], steps = [];
+      keys.forEach((key, index) => {
+        const time = finite(key.time, 0, 'Spine 網格變形時間');
+        if (time < 0 || (index && time <= times[index - 1])) fail('Spine 網格變形時間必須嚴格遞增。');
+        if (key.curve !== undefined && key.curve !== 'stepped') fail('烘焙預覽僅支援 linear 與 stepped 網格變形。');
+        const offset = finite(key.offset, 0, '網格變形 offset'), full = new Array(length).fill(0);
+        (key.vertices || []).forEach((value, i) => { full[offset + i] = finite(value, 0, '網格變形頂點'); });
+        times.push(time); values.push(full); steps.push(key.curve === 'stepped');
+      });
+      return {times, values, steps};
+    }
     json.slots.forEach(source => {
+      currentSlot = source.name;
       if (!source || typeof source.name !== 'string' || slotNames.has(source.name)) fail('Spine 插槽名稱必須存在且唯一。');
       slotNames.add(source.name);
       const bone = boneMap.get(source.bone);
@@ -5074,6 +5515,17 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       const tracks = animation.slots && animation.slots[source.name] || {};
       const regions = new Map();
       Object.entries(skin.attachments[source.name] || {}).forEach(([name, sourceRegion]) => {
+        if (sourceRegion.type === 'mesh') {
+          // Unweighted mesh (mesh lightning): setup vertices plus deform offsets.
+          const vertices = sourceRegion.vertices, uvs = sourceRegion.uvs, triangles = sourceRegion.triangles;
+          if (!Array.isArray(vertices) || !Array.isArray(uvs) || vertices.length !== uvs.length || !Array.isArray(triangles)) fail('烘焙預覽僅支援無權重的網格附件。');
+          const meshPath = sourceRegion.path || name;
+          const image = imageMap.has(meshPath) ? imageMap.get(meshPath) : imageMap.get(meshPath.replace(/\.png$/i, ''));
+          if (image === undefined) fail('找不到 Spine 附件圖片：' + meshPath);
+          regions.set(name, {mesh: true, vertices: vertices.map(value => finite(value, 0, '網格頂點')), uvs: uvs.slice(), triangles: triangles.slice(),
+            color: rgba(sourceRegion.color, white), image, deform: deformTrack(name, vertices.length)});
+          return;
+        }
         if (sourceRegion.type !== undefined && sourceRegion.type !== 'region') fail('烘焙預覽僅支援 region 圖片附件。');
         const angle = finite(sourceRegion.rotation, 0, '附件旋轉');
         const sx = finite(sourceRegion.scaleX, 1, '附件 X 縮放');
@@ -5119,6 +5571,19 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         const region = slot.regions.get(name);
         const color = read(slot.rgba, t, slot.setupColor).map((channel, i) => clamp(channel * region.color[i], 0, 1));
         if (color[3] <= 0) return;
+        if (region.mesh) {
+          const offsets = region.deform ? read(region.deform, t, null) : null, world = slot.bone.world, vertices = [];
+          let cx = 0, cy = 0;
+          for (let i = 0; i < region.vertices.length; i += 2) {
+            const x = region.vertices[i] + (offsets ? offsets[i] : 0), y = region.vertices[i + 1] + (offsets ? offsets[i + 1] : 0);
+            const wx = world.a * x + world.b * y + world.x, wy = world.c * x + world.d * y + world.y;
+            vertices.push(wx, wy); cx += wx; cy += wy;
+          }
+          result.push({type: 'mesh', x: cx / (vertices.length / 2), y: cy / (vertices.length / 2), width: 0, height: 0, rotation: 0,
+            vertices, uvs: region.uvs, triangles: region.triangles, color: color.slice(0, 3), alpha: color[3], blend: slot.blend,
+            image: region.image, slotName: slot.name, attachmentName: name, isLightning: true});
+          return;
+        }
         const matrix = multiply(slot.bone.world, region.local);
         const normalizedAngle = Math.atan2(matrix.c, matrix.a) / DEG;
         const referenceAngle = slot.bone.referenceAngle + region.angle;
@@ -6236,13 +6701,15 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       return {phase: key, label: labels[key], name: typeof segment.name === 'string' ? segment.name : labels[key],
         duration: length, weight: relativeTotal > 0 ? .15 + .55 * (length / longest) / relativeTotal : 1 / 3, active: key === phase};
     }) : [];
-    return {phase, flow, segments, attached, duration, time, fps, progress: duration ? time / duration : 0,
+    const markers = attached && Array.isArray(context.markers) ? context.markers.filter(marker => marker && Number.isFinite(marker.time) && marker.time >= 0 && marker.time <= duration) : [];
+    const movable = attached && context.canMoveFx === true;
+    return {phase, flow, segments, attached, duration, time, fps, progress: duration ? time / duration : 0, markers, movable,
       startTime, endTime, fxDuration, holdsEnd, holdEnd,
       startProgress: duration ? startTime / duration : 0, endProgress: duration ? endTime / duration : 0,
       animationName: attached && typeof timeline.animationName === 'string' ? timeline.animationName : '粒子動畫'};
   }
 
-  function mount({host, getContext, onSeek, onSelectPhase, document: documentOverride} = {}) {
+  function mount({host, getContext, onSeek, onSelectPhase, onMoveFx, onMoveFxBegin, onMoveFxEnd, document: documentOverride} = {}) {
     if (!host) return {refresh: () => null, destroy() {}};
     const doc = documentOverride || host.ownerDocument || globalThis.document;
     const listeners = [];
@@ -6282,7 +6749,31 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     const seek = element('input', 'timeline-track-seek'); seek.id = 'timelineTrackSeek';
     seek.type = 'range'; seek.min = '0'; seek.setAttribute('aria-label', '在動畫時間軸定位');
     seek.setAttribute('aria-describedby', 'timelineTrackSummary');
-    track.append(original, fx, hold, playhead, seek);
+    const markerLayer = element('div', 'timeline-markers'); markerLayer.setAttribute('aria-hidden', 'true');
+    track.append(original, markerLayer, fx, hold, playhead, seek);
+    // Drag the particle segment to change when it starts in the original
+    // animation. Snaps to events, keys and frames; Alt drags freely.
+    let drag = null;
+    listen(fx, 'pointerdown', event => {
+      if (!model || !model.movable || event.button !== 0 || typeof onMoveFx !== 'function') return;
+      event.preventDefault(); event.stopPropagation();
+      const width = track.getBoundingClientRect().width || 1;
+      drag = {x: event.clientX, start: model.startTime, perPixel: model.duration / width, pointerId: event.pointerId, moved: false};
+      fx.setPointerCapture(event.pointerId); fx.classList.add('dragging');
+      if (typeof onMoveFxBegin === 'function') onMoveFxBegin();
+    });
+    listen(fx, 'pointermove', event => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      const perPixel = drag.perPixel, value = drag.start + (event.clientX - drag.x) * perPixel;
+      drag.moved = drag.moved || Math.abs(event.clientX - drag.x) > 1;
+      if (drag.moved) onMoveFx(value, {free: event.altKey, tolerance: 8 * perPixel});
+    });
+    const finish = event => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      drag = null; fx.classList.remove('dragging');
+      if (typeof onMoveFxEnd === 'function') onMoveFxEnd();
+    };
+    listen(fx, 'pointerup', finish); listen(fx, 'pointercancel', finish); listen(fx, 'lostpointercapture', finish);
     const ruler = element('div', 'timeline-track-ruler'); ruler.setAttribute('aria-hidden', 'true');
     const ticks = [0, .25, .5, .75, 1].map(position => { const node = element('span', ''); ruler.append(node); return {node, position}; });
     host.replaceChildren(phaseSection, heading, track, ruler);
@@ -6301,7 +6792,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       if (destroyed) return null;
       model = compute(typeof getContext === 'function' ? getContext() : {});
       const key = JSON.stringify([model.flow, model.segments, model.attached, model.duration, model.fps, model.startTime,
-        model.endTime, model.holdsEnd, model.animationName]);
+        model.endTime, model.holdsEnd, model.animationName, model.markers, model.movable]);
       if (key !== structuralKey) {
         structuralKey = key; phaseSection.hidden = !model.flow;
         for (const segment of model.segments) {
@@ -6321,7 +6812,15 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         original.setAttribute('aria-hidden', 'true');
         fx.style.left = model.startProgress * 100 + '%';
         fx.style.width = (model.endProgress - model.startProgress) * 100 + '%';
-        fx.title = '粒子 ' + seconds(model.startTime) + '–' + seconds(model.endTime) + ' 秒';
+        fx.title = '粒子 ' + seconds(model.startTime) + '–' + seconds(model.endTime) + ' 秒' + (model.movable ? ' · 拖曳調整開始時間（吸附事件與關鍵幀，Alt 自由拖曳）' : '');
+        fx.classList.toggle('movable', model.movable);
+        markerLayer.replaceChildren();
+        model.markers.forEach(marker => {
+          const node = element('span', 'timeline-marker ' + (marker.kind === 'event' ? 'event' : 'key'));
+          node.style.left = (model.duration ? marker.time / model.duration * 100 : 0) + '%';
+          if (marker.kind === 'event') { node.title = '事件 ' + marker.name + ' · ' + seconds(marker.time) + ' 秒'; node.setAttribute('data-name', marker.name); }
+          markerLayer.append(node);
+        });
         hold.hidden = !model.holdsEnd || model.holdEnd <= model.endTime;
         hold.style.left = model.endProgress * 100 + '%';
         hold.style.width = (model.duration ? (model.holdEnd - model.endTime) / model.duration * 100 : 0) + '%';
@@ -7072,7 +7571,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   const clone = value => JSON.parse(JSON.stringify(value));
   const owns = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
   const phases = ['in', 'loop', 'out'];
-  function mount({Merge, EffectUpdate, getEffectiveSession, getProject, getSession, setSession, getGeneration, onChange, onExport, onBake, onPickBone, canExport, notify, managePreviewChip = true, document: doc = document}) {
+  function mount({Merge, EffectUpdate, getEffectiveSession, getProject, getSession, setSession, getGeneration, onChange, onExport, onBake, onPickBone, canExport, notify, openPanel, managePreviewChip = true, document: doc = document}) {
     const $ = id => doc.getElementById(id);
     const ids = ['spineMergeButton', 'spineMergeDialog', 'spineCloseMerge', 'spineCloseMergeFooter',
       'spineLoadSource', 'spineSourceFile', 'spineClearSource', 'spineSourceInfo', 'spineMergeEnabled',
@@ -7354,7 +7853,10 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       const issue = flowIssue(exported); if (issue) throw new Error(issue);
       return {...exportSettings(exported, session.settings), flowTargets: clone(session.settings.flowTargets)};
     }
-    ui.spineMergeButton.addEventListener('click', () => { ui.spineMergeFeedback.hidden = true; refresh(); ui.spineMergeDialog.showModal(); });
+    ui.spineMergeButton.addEventListener('click', () => {
+      ui.spineMergeFeedback.hidden = true; refresh();
+      if (typeof openPanel === 'function') openPanel(); else ui.spineMergeDialog.showModal();
+    });
     [ui.spineCloseMerge, ui.spineCloseMergeFooter].forEach(button => button.addEventListener('click', () => ui.spineMergeDialog.close()));
     ui.spineLoadSource.addEventListener('click', () => ui.spineSourceFile.click());
     if (ui.spineLoadReceipt && EffectUpdate) {
@@ -7367,9 +7869,8 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
           if (file.size > 8 * 1024 * 1024) throw new Error('效果更新記錄超過 8 MiB。');
           const text = await file.text();
           if (request !== sourceRequest || getSession() !== session || typeof getGeneration === 'function' && getGeneration() !== generation) return;
-          let raw; try { raw = JSON.parse(text.replace(/^\uFEFF/, '')); } catch (_) { throw new Error('效果更新記錄不是有效的 JSON。'); }
-          const next = prepareUpdate(session, raw, true);
-          setSession(next); commit(); notify('已確認原效果，掛接預覽與輸出將更新這組粒子。');
+          applyReceiptText(session, text);
+          notify('已確認原效果，掛接預覽與輸出將更新這組粒子。');
         } catch (error) { notify(error.message, true); }
         finally { loading = false; event.target.value = ''; refresh(); }
       });
@@ -7388,6 +7889,22 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         } catch (error) { notify(error.message, true); refresh(); }
       });
     }
+    function applyReceiptText(session, text) {
+      let raw; try { raw = JSON.parse(String(text).replace(/^\uFEFF/, '')); } catch (_) { throw new Error('效果更新記錄不是有效的 JSON。'); }
+      const next = prepareUpdate(session, raw, true);
+      setSession(next); commit(); return next;
+    }
+    // Shared by the file picker and "open project folder". preferred carries
+    // earlier settings to keep when they still fit the skeleton.
+    function sessionFromText(fileName, text, preferred) {
+      let json; try { json = JSON.parse(String(text).replace(/^\uFEFF/, '')); } catch (_) { throw new Error('這個檔案不是有效的 Spine JSON。'); }
+      const inspected = Merge.inspect(json), first = inspected.animations[0];
+      const defaults = {enabled: true, animationMode: first ? 'existing' : 'new', animationName: first ? first.name : 'particle_effect'};
+      if (preferred) {
+        try { return Merge.normalizeSession({fileName, json, settings: {...clone(preferred), enabled: true}}); } catch (_) { /* fall back to defaults */ }
+      }
+      return Merge.normalizeSession({fileName, json, settings: defaults});
+    }
     ui.spineSourceFile.addEventListener('change', async event => {
       const file = event.target.files[0]; if (!file) return;
       const request = ++sourceRequest, generation = typeof getGeneration === 'function' ? getGeneration() : null;
@@ -7397,10 +7914,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         if (file.size > 32 * 1024 * 1024) throw new Error('骨架 JSON 超過 32 MiB，請縮小匯出資料。');
         const text = await file.text();
         if (request !== sourceRequest || typeof getGeneration === 'function' && getGeneration() !== generation) return;
-        let json; try { json = JSON.parse(text.replace(/^\uFEFF/, '')); } catch (_) { throw new Error('這個檔案不是有效的 Spine JSON。'); }
-        const inspected = Merge.inspect(json), first = inspected.animations[0];
-        const next = Merge.normalizeSession({fileName: file.name, json, settings: {enabled: true,
-          animationMode: first ? 'existing' : 'new', animationName: first ? first.name : 'particle_effect'}});
+        const next = sessionFromText(file.name, text);
         if (request !== sourceRequest || typeof getGeneration === 'function' && getGeneration() !== generation) return;
         setSession(next); commit(); notify('已載入原骨架；請選擇父骨骼、動畫與圖層。');
       } catch (error) { notify(error.message, true); }
@@ -7480,7 +7994,16 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       return {source: phase ? session.settings.flowTargets[phase] : session.settings, key: 'startTime', affectsParticles: false,
         restore() { session.settings = before; contextSignature = ''; onChange(); refresh(); }};
     }
-    refresh(); return {refresh, validateOptions, validateFlowOptions, bindingFor};
+    function loadSourceText(fileName, text, preferred) {
+      sourceRequest++;
+      const next = sessionFromText(fileName, text, preferred);
+      setSession(next); commit(); return next;
+    }
+    function loadReceiptText(text) {
+      const session = getSession(); if (!session) throw new Error('請先載入原骨架 JSON。');
+      return applyReceiptText(session, text);
+    }
+    refresh(); return {refresh, validateOptions, validateFlowOptions, bindingFor, loadSourceText, loadReceiptText};
   }
   return {mount};
 });
@@ -7940,7 +8463,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
               c: Math.sin(r) * attachment.scaleX, d: Math.cos(r) * attachment.scaleY, x: attachment.x, y: attachment.y};
           }
           const world = multiply(matrix(slot.bone), local), alias = names.aliases.get(attachment.name);
-          const item = {type: attachment instanceof runtime.RegionAttachment ? 'region' : 'mesh', slotName: slot.data.name,
+          const item = {type: attachment instanceof runtime.RegionAttachment ? 'region' : 'mesh', slotName: slot.data.name, boneName: slot.bone.data.name,
             attachmentName: alias ? alias.name : attachment.name, path: record && record.path,
             x: world.x, y: world.y, rotation: Math.atan2(world.c, world.a) / DEG, color, alpha,
             darkColor: slot.darkColor ? [slot.darkColor.r, slot.darkColor.g, slot.darkColor.b] : null,
@@ -8098,6 +8621,17 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       holdsEnd: flow && phase === 'in'};
   }
   function transform(state, parent, fallback) {
+    if (state.type === 'mesh') {
+      // Mesh lightning: map every vertex through the parent bone.
+      const vertices = [];
+      let cx = 0, cy = 0;
+      for (let i = 0; i < state.vertices.length; i += 2) {
+        const value = point(parent, {x: state.vertices[i], y: state.vertices[i + 1]});
+        vertices.push(value.x, value.y); cx += value.x; cy += value.y;
+      }
+      const count = vertices.length / 2 || 1;
+      return {...state, image: state.image || fallback, matrix: {...parent}, x: cx / count, y: cy / count, vertices, isParticle: true};
+    }
     const image = state.image || fallback, angle = state.rotation * Math.PI / 180;
     const width = image ? image.width : 64, height = image ? image.height : 64;
     const local = state.matrix || {a: Math.cos(angle) * state.width / width, b: -Math.sin(angle) * state.height / height,
@@ -8158,6 +8692,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
             if (!current || !current.enabled || !old) continue;
             const dx = current.x - old.x, dy = current.y - old.y;
             state = {...state, x: state.x + dx, y: state.y + dy};
+            if (state.vertices && state.type === 'mesh') state.vertices = state.vertices.map((value, i) => value + (i % 2 ? dy : dx));
             if (state.matrix) state.matrix = {...state.matrix, x: state.matrix.x + dx, y: state.matrix.y + dy};
           }
           const transformed = transform(state, frame.matrix, options.fallbackImage);
@@ -8526,6 +9061,498 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
 });
 
 </script>
+  <script data-bundle="spine-folder.js">
+(function (root, factory) {
+  'use strict';
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  root.ParticleSpineFolder = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  'use strict';
+  // Opens an exported Spine project folder (skeleton JSON + images/ or atlas) in
+  // one step and, when the browser grants write access, writes the merged result
+  // back next to the original with a timestamped backup. The pure planning
+  // functions run in Node tests; the handle helpers only run in the browser.
+  const SKIP_DIRS = new Set(['_particle_backup', '.git', 'node_modules', '__macosx', '.particle-spine-bridge']);
+  const MAX_ENTRIES = 6000;
+  const IMAGE = /\.(png|jpe?g|webp)$/i;
+  const BACKUP_DIR = '_particle_backup';
+
+  function fail(message) { throw new Error(message); }
+  function normalize(path) {
+    if (typeof path !== 'string') return null;
+    const parts = [];
+    for (const part of path.replace(/\\/g, '/').split('/')) {
+      if (!part || part === '.') continue;
+      if (part === '..') { if (!parts.length) return null; parts.pop(); continue; }
+      parts.push(part);
+    }
+    return parts.join('/');
+  }
+  const join = (...parts) => normalize(parts.filter(part => part !== '' && part !== null && part !== undefined).join('/'));
+  function dirname(path) { const index = path.lastIndexOf('/'); return index < 0 ? '' : path.slice(0, index); }
+  function basename(path) { return path.slice(path.lastIndexOf('/') + 1); }
+  function stemOf(path) { return basename(path).replace(/\.json$/i, ''); }
+  function within(path, dir) { return !dir || path.startsWith(dir + '/'); }
+  function relative(path, dir) { return dir ? path.slice(dir.length + 1) : path; }
+  function skipped(path) { return dirname(path).split('/').some(part => SKIP_DIRS.has(part.toLowerCase())); }
+  function ownArtifact(name) {
+    return /\.particle(?:-receipt)?\.json$/i.test(name) || /^(效果更新記錄|追加清單)\.json$/.test(name) || /\.fx-library\.json$/i.test(name);
+  }
+
+  // Candidate skeleton JSON files: everything JSON except files this tool writes.
+  function skeletonCandidates(entries) {
+    return entries.filter(entry => /\.json$/i.test(entry.path) && !ownArtifact(basename(entry.path)) && !skipped(entry.path))
+      .sort((a, b) => a.path.split('/').length - b.path.split('/').length || a.path.localeCompare(b.path));
+  }
+  function isSkeleton(json) { return !!json && typeof json === 'object' && !!json.skeleton && Array.isArray(json.bones); }
+
+  function imageEntriesUnder(entries, dir, exclude) {
+    return entries.filter(entry => IMAGE.test(entry.path) && within(entry.path, dir) && !skipped(entry.path) &&
+      !(exclude && within(entry.path, exclude)));
+  }
+  // Spine writes skeleton.images relative to the JSON file. Absolute editor
+  // paths (C:\..., /Users/...) cannot be reached from a dropped folder, so we
+  // fall back to an images/ folder next to the JSON, then the JSON folder.
+  function resolveImagesRoot(entries, jsonPath, json) {
+    const dir = dirname(jsonPath), raw = json && json.skeleton && typeof json.skeleton.images === 'string' ? json.skeleton.images.trim() : '';
+    const candidates = [];
+    if (raw && !/^([a-z]:|\/|\\\\)/i.test(raw)) { const value = join(dir, raw); if (value !== null) candidates.push({root: value, source: 'json'}); }
+    candidates.push({root: join(dir, 'images'), source: 'images'}, {root: join(dir, 'Images'), source: 'images'}, {root: dir, source: 'json-dir'});
+    for (const candidate of candidates) {
+      if (candidate.root === null) continue;
+      const direct = candidate.root === dir ? entries.filter(entry => IMAGE.test(entry.path) && dirname(entry.path) === dir) : imageEntriesUnder(entries, candidate.root);
+      if (direct.length) return candidate;
+    }
+    return {root: raw && !/^([a-z]:|\/|\\\\)/i.test(raw) ? join(dir, raw) || dir : join(dir, 'images'), source: 'missing'};
+  }
+  // Where Spine itself will look for images: the JSON's relative Images path.
+  function declaredImagesRoot(jsonPath, json, fallback) {
+    const raw = json && json.skeleton && typeof json.skeleton.images === 'string' ? json.skeleton.images.trim() : '';
+    if (!raw || /^([a-z]:|\/|\\\\)/i.test(raw)) return fallback;
+    const value = join(dirname(jsonPath), raw);
+    return value === null ? fallback : value;
+  }
+  function atlasPages(text) {
+    const pages = []; let expectPage = true;
+    for (const raw of String(text).replace(/^\uFEFF/, '').split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line) { expectPage = true; continue; }
+      if (expectPage) { if (!line.includes(':')) pages.push(line); expectPage = false; }
+    }
+    return pages;
+  }
+  function findAtlas(entries, jsonPath) {
+    const dir = dirname(jsonPath), stem = stemOf(jsonPath).toLowerCase();
+    const near = entries.filter(entry => /\.atlas(\.txt)?$/i.test(entry.path) && dirname(entry.path) === dir);
+    return near.find(entry => basename(entry.path).toLowerCase().replace(/\.atlas(\.txt)?$/, '') === stem) || (near.length === 1 ? near[0] : null);
+  }
+  function findSidecar(entries, jsonPath, suffix) {
+    const wanted = join(dirname(jsonPath), stemOf(jsonPath) + suffix);
+    return entries.find(entry => entry.path === wanted) || null;
+  }
+  function planLoad(entries, jsonPath, json, options = {}) {
+    const imagesRoot = resolveImagesRoot(entries, jsonPath, json);
+    const exclude = options.excludeImageDir ? join(imagesRoot.root, options.excludeImageDir) : null;
+    const images = imageEntriesUnder(entries, imagesRoot.root, exclude).map(entry => ({entry, path: relative(entry.path, imagesRoot.root)}));
+    const atlas = findAtlas(entries, jsonPath);
+    return {jsonPath, jsonDir: dirname(jsonPath), stem: stemOf(jsonPath), imagesRoot: imagesRoot.root, imagesSource: imagesRoot.source, images, atlas,
+      receipt: findSidecar(entries, jsonPath, '.particle-receipt.json'), project: findSidecar(entries, jsonPath, '.particle.json')};
+  }
+  function atlasPageEntries(entries, atlasPath, text) {
+    const dir = dirname(atlasPath), found = [], missing = [];
+    atlasPages(text).forEach(name => {
+      const path = join(dir, name), entry = path && entries.find(item => item.path === path);
+      if (entry) found.push({entry, path: name}); else missing.push(name);
+    });
+    return {found, missing};
+  }
+
+  function stamp(date = new Date()) {
+    const pad = value => String(value).padStart(2, '0');
+    return date.getFullYear() + pad(date.getMonth() + 1) + pad(date.getDate()) + '-' + pad(date.getHours()) + pad(date.getMinutes()) + pad(date.getSeconds());
+  }
+  // Everything the write-back touches, so the caller can show it and back it up.
+  // images are names relative to the images root ("group/spark.png").
+  function planWrite({jsonPath, imagesRoot, images, imageDirectory, existing, time}) {
+    if (typeof jsonPath !== 'string' || !normalize(jsonPath)) fail('原骨架 JSON 路徑無效。');
+    const dir = dirname(jsonPath), stem = stemOf(jsonPath), root = imagesRoot === null || imagesRoot === undefined ? join(dir, 'images') : imagesRoot;
+    const writes = [{path: jsonPath, kind: 'json'}, {path: join(dir, stem + '.particle-receipt.json'), kind: 'receipt'}, {path: join(dir, stem + '.particle.json'), kind: 'project'}];
+    const imagePaths = new Set();
+    (images || []).forEach(name => {
+      const path = join(root, name);
+      if (!path || !within(path, root)) fail('新增圖片路徑無效：' + name);
+      imagePaths.add(path); writes.push({path, kind: 'image'});
+    });
+    const present = new Set(existing || []);
+    const groupDir = imageDirectory ? join(root, imageDirectory) : null;
+    const removes = groupDir ? Array.from(present).filter(path => within(path, groupDir) && IMAGE.test(path) && !imagePaths.has(path)) : [];
+    const backupDir = BACKUP_DIR + '/' + stamp(time);
+    const backups = writes.filter(item => present.has(item.path)).map(item => item.path).concat(removes)
+      .map(path => ({from: path, to: backupDir + '/' + path}));
+    return {backupDir, writes, removes, backups, imagesRoot: root};
+  }
+
+  // ---- Browser helpers ----
+  async function collectFromDirectory(handle, prefix = '', list = []) {
+    for await (const [name, child] of handle.entries()) {
+      if (list.length >= MAX_ENTRIES) fail('資料夾內檔案超過 ' + MAX_ENTRIES + ' 個，請選擇只包含此骨架的匯出資料夾。');
+      const path = prefix ? prefix + '/' + name : name;
+      if (child.kind === 'directory') { if (!SKIP_DIRS.has(name.toLowerCase())) await collectFromDirectory(child, path, list); }
+      else list.push({path, handle: child, getFile: () => child.getFile()});
+    }
+    return list;
+  }
+  function entryFile(entry) { return new Promise((resolve, reject) => entry.file(resolve, reject)); }
+  async function collectFromEntry(entry, prefix, list) {
+    if (list.length >= MAX_ENTRIES) fail('資料夾內檔案超過 ' + MAX_ENTRIES + ' 個，請選擇只包含此骨架的匯出資料夾。');
+    const path = prefix ? prefix + '/' + entry.name : entry.name;
+    if (entry.isFile) { const file = await entryFile(entry); list.push({path, getFile: async () => file}); return; }
+    if (!entry.isDirectory || SKIP_DIRS.has(entry.name.toLowerCase())) return;
+    const reader = entry.createReader();
+    for (;;) {
+      const batch = await new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+      if (!batch.length) break;
+      for (const child of batch) await collectFromEntry(child, path, list);
+    }
+  }
+  // A dropped folder: prefer a writable handle (Chrome/Edge), else read-only entries.
+  async function fromDataTransfer(items) {
+    const list = Array.from(items || []).filter(item => item.kind === 'file');
+    const folders = [];
+    for (const item of list) {
+      const entry = typeof item.webkitGetAsEntry === 'function' ? item.webkitGetAsEntry() : null;
+      if (entry && entry.isDirectory) folders.push({item, entry});
+    }
+    if (folders.length !== 1) return null;
+    const {item, entry} = folders[0];
+    let handle = null;
+    if (typeof item.getAsFileSystemHandle === 'function') { try { handle = await item.getAsFileSystemHandle(); } catch (_) { handle = null; } }
+    if (handle && handle.kind === 'directory') return {name: handle.name, handle, entries: await collectFromDirectory(handle)};
+    const entries = [];
+    const reader = entry.createReader();
+    for (;;) {
+      const batch = await new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+      if (!batch.length) break;
+      for (const child of batch) await collectFromEntry(child, '', entries);
+    }
+    return {name: entry.name, handle: null, entries};
+  }
+  function fromFileList(files) {
+    const list = Array.from(files || []);
+    if (!list.length) return null;
+    const first = list[0].webkitRelativePath || '';
+    const name = first.includes('/') ? first.split('/')[0] : '';
+    const entries = list.map(file => {
+      const raw = file.webkitRelativePath || file.name;
+      return {path: name && raw.startsWith(name + '/') ? raw.slice(name.length + 1) : raw, getFile: async () => file};
+    }).filter(entry => !skipped(entry.path));
+    return {name: name || 'files', handle: null, entries};
+  }
+  async function walkTo(directory, parts, create) {
+    let current = directory;
+    for (const part of parts) current = await current.getDirectoryHandle(part, {create});
+    return current;
+  }
+  async function fileHandle(directory, path, create) {
+    const parts = path.split('/'), name = parts.pop();
+    return (await walkTo(directory, parts, create)).getFileHandle(name, {create});
+  }
+  async function readText(directory, path) {
+    try { return await (await (await fileHandle(directory, path, false)).getFile()).text(); } catch (_) { return null; }
+  }
+  async function fileSignature(directory, path) {
+    try { const file = await (await fileHandle(directory, path, false)).getFile(); return file.size + ':' + file.lastModified; } catch (_) { return null; }
+  }
+  async function writeFile(directory, path, data) {
+    const handle = await fileHandle(directory, path, true), writable = await handle.createWritable();
+    try { await writable.write(data); } finally { await writable.close(); }
+  }
+  async function copyFile(directory, from, to) {
+    const source = await (await fileHandle(directory, from, false)).getFile();
+    await writeFile(directory, to, await source.arrayBuffer());
+  }
+  async function removeFile(directory, path) {
+    const parts = path.split('/'), name = parts.pop();
+    await (await walkTo(directory, parts, false)).removeEntry(name);
+  }
+  async function ensureWritable(handle) {
+    if (!handle || typeof handle.queryPermission !== 'function') return false;
+    const options = {mode: 'readwrite'};
+    if (await handle.queryPermission(options) === 'granted') return true;
+    return await handle.requestPermission(options) === 'granted';
+  }
+  // data: Map(path -> string | Uint8Array). Backups first, then writes, then
+  // stale group images; a failure before writing leaves the original intact.
+  async function executeWrite(directory, plan, data) {
+    for (const backup of plan.backups) await copyFile(directory, backup.from, backup.to);
+    for (const item of plan.writes) {
+      if (!data.has(item.path)) fail('缺少要寫入的資料：' + item.path);
+      await writeFile(directory, item.path, data.get(item.path));
+    }
+    for (const path of plan.removes) await removeFile(directory, path);
+    return {written: plan.writes.length, backedUp: plan.backups.length, removed: plan.removes.length};
+  }
+  const supportsWrite = () => typeof globalThis.showDirectoryPicker === 'function';
+
+  return {normalize, join, dirname, declaredImagesRoot, basename, stemOf, ownArtifact, isSkeleton, skeletonCandidates, resolveImagesRoot, atlasPages, findAtlas,
+    planLoad, atlasPageEntries, planWrite, stamp, BACKUP_DIR,
+    collectFromDirectory, fromDataTransfer, fromFileList, readText, fileSignature, writeFile, executeWrite, ensureWritable, supportsWrite};
+});
+
+</script>
+  <script data-bundle="art-picker.js">
+(function (root, factory) {
+  'use strict';
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  root.ParticleArtPicker = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  'use strict';
+  // "Click the character": find the topmost visible original attachment under
+  // the pointer (region or mesh, honouring transparent pixels when the texture
+  // is loaded) so one click can choose the bone, the position and the layer.
+  const ALPHA_THRESHOLD = 24;
+  function barycentric(px, py, ax, ay, bx, by, cx, cy) {
+    const v0x = bx - ax, v0y = by - ay, v1x = cx - ax, v1y = cy - ay, v2x = px - ax, v2y = py - ay;
+    const den = v0x * v1y - v1x * v0y;
+    if (Math.abs(den) < 1e-12) return null;
+    const v = (v2x * v1y - v1x * v2y) / den, w = (v0x * v2y - v2x * v0y) / den, u = 1 - v - w;
+    const eps = -1e-6;
+    return u >= eps && v >= eps && w >= eps ? [u, v, w] : null;
+  }
+  // Returns {u, v} texture coordinates of point inside the item, or null.
+  function locate(item, point) {
+    const vertices = item && item.vertices, uvs = item && item.uvs;
+    if (!vertices || vertices.length < 6) return null;
+    const triangles = item.triangles && item.triangles.length ? item.triangles : vertices.length === 8 ? [0, 1, 2, 2, 3, 0] : [];
+    for (let i = 0; i + 2 < triangles.length; i += 3) {
+      const a = triangles[i], b = triangles[i + 1], c = triangles[i + 2];
+      const weights = barycentric(point.x, point.y, vertices[a * 2], vertices[a * 2 + 1], vertices[b * 2], vertices[b * 2 + 1], vertices[c * 2], vertices[c * 2 + 1]);
+      if (!weights) continue;
+      if (!uvs || uvs.length < vertices.length) return {u: 0.5, v: 0.5};
+      return {u: weights[0] * uvs[a * 2] + weights[1] * uvs[b * 2] + weights[2] * uvs[c * 2],
+        v: weights[0] * uvs[a * 2 + 1] + weights[1] * uvs[b * 2 + 1] + weights[2] * uvs[c * 2 + 1]};
+    }
+    return null;
+  }
+  // items are in draw order (back to front). alphaAt(item, u, v) returns 0–255,
+  // or null when the texture is not available (then the triangle area counts).
+  function hitTest(items, point, alphaAt) {
+    let fallback = null;
+    for (let index = items.length - 1; index >= 0; index--) {
+      const item = items[index];
+      if (!item || item.isParticle || !(item.alpha > 0.02)) continue;
+      const uv = locate(item, point);
+      if (!uv) continue;
+      const alpha = typeof alphaAt === 'function' ? alphaAt(item, uv.u, uv.v) : null;
+      if (alpha === null || alpha === undefined) { if (!fallback) fallback = {item, uv, exact: false}; continue; }
+      if (alpha >= ALPHA_THRESHOLD) return {item, uv, exact: true};
+    }
+    return fallback;
+  }
+  // Outline edges of a triangle list (edges used by exactly one triangle).
+  function outline(item) {
+    const vertices = item.vertices, triangles = item.triangles && item.triangles.length ? item.triangles : [0, 1, 2, 2, 3, 0];
+    const counts = new Map();
+    for (let i = 0; i + 2 < triangles.length; i += 3) {
+      [[triangles[i], triangles[i + 1]], [triangles[i + 1], triangles[i + 2]], [triangles[i + 2], triangles[i]]].forEach(([a, b]) => {
+        const key = a < b ? a + ':' + b : b + ':' + a; counts.set(key, (counts.get(key) || 0) + 1);
+      });
+    }
+    const edges = [];
+    counts.forEach((count, key) => {
+      if (count !== 1) return;
+      const [a, b] = key.split(':').map(Number);
+      edges.push([vertices[a * 2], vertices[a * 2 + 1], vertices[b * 2], vertices[b * 2 + 1]]);
+    });
+    return edges;
+  }
+  // Browser pixel reader with a per-image cache.
+  function createAlphaSampler(imageFor, doc = globalThis.document) {
+    const cache = new WeakMap();
+    return function alphaAt(item, u, v) {
+      if (!item.image || !item.image.dataUrl || typeof imageFor !== 'function' || !doc) return null;
+      const element = imageFor(item.image);
+      if (!element || !element.complete || !element.naturalWidth) return null;
+      let pixels = cache.get(element);
+      if (!pixels) {
+        const canvas = doc.createElement('canvas'); canvas.width = element.naturalWidth; canvas.height = element.naturalHeight;
+        const context = canvas.getContext('2d', {willReadFrequently: true}); context.drawImage(element, 0, 0);
+        try { pixels = {width: canvas.width, height: canvas.height, data: context.getImageData(0, 0, canvas.width, canvas.height).data}; }
+        catch (_) { return null; }
+        cache.set(element, pixels);
+      }
+      const x = Math.min(pixels.width - 1, Math.max(0, Math.floor(u * pixels.width)));
+      const y = Math.min(pixels.height - 1, Math.max(0, Math.floor(v * pixels.height)));
+      return pixels.data[(y * pixels.width + x) * 4 + 3];
+    };
+  }
+  function toWorld(point, view) { return {x: (point.x - view.width / 2 - view.panX) / view.zoom, y: -(point.y - view.height / 2 - view.panY) / view.zoom}; }
+
+  function mount({canvas, button, hint, getItems, getView, alphaAt, onPick, onState, canStart, notify, document: doc = globalThis.document}) {
+    let active = false, hover = null, selected = null;
+    const stage = canvas.parentElement, listeners = [];
+    const listen = (target, type, callback, options) => { target.addEventListener(type, callback, options); listeners.push([target, type, callback, options]); };
+    function label(hit) { return hit.item.attachmentName + ' · 插槽 ' + hit.item.slotName + ' · 骨骼 ' + hit.item.boneName; }
+    function updateHint() {
+      hint.hidden = !active;
+      if (active) hint.textContent = (hover ? label(hover) + ' · 點一下選擇' : '在角色圖片上點一下，選擇粒子要出現的位置') + ' · Esc 結束';
+      button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active));
+      stage.classList.toggle('art-picking', active);
+    }
+    function stop() {
+      if (!active) return;
+      active = false; hover = null; updateHint();
+      if (typeof onState === 'function') onState(false);
+    }
+    function start() {
+      if (active) { stop(); return false; }
+      const reason = typeof canStart === 'function' ? canStart() : '';
+      if (reason) { if (notify) notify(reason, true); return false; }
+      active = true; hover = null; selected = null;
+      if (typeof onState === 'function') onState(true);
+      updateHint(); canvas.focus(); return true;
+    }
+    function find(event) {
+      const rect = canvas.getBoundingClientRect(), screen = {x: event.clientX - rect.left, y: event.clientY - rect.top};
+      const world = toWorld(screen, getView());
+      const hit = hitTest(getItems() || [], world, alphaAt);
+      return hit ? {...hit, world, screen: {x: event.clientX, y: event.clientY}} : null;
+    }
+    listen(button, 'click', start);
+    listen(canvas, 'pointermove', event => {
+      if (!active) return;
+      const next = find(event);
+      if ((next && next.item.slotName) !== (hover && hover.item.slotName)) { hover = next; updateHint(); }
+      else hover = next;
+    });
+    listen(canvas, 'pointerleave', () => { if (active) { hover = null; updateHint(); } });
+    listen(canvas, 'pointerdown', event => {
+      if (!active || event.button !== 0) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      const hit = find(event);
+      if (!hit) { if (notify) notify('這裡沒有角色圖片；請點在角色身上，或按 Esc 結束。', true); return; }
+      selected = hit; hover = null; active = false; updateHint();
+      if (typeof onState === 'function') onState(false);
+      try { onPick(hit, event); } catch (error) { selected = null; if (notify) notify(error.message, true); }
+    }, true);
+    listen(doc, 'keydown', event => {
+      if (event.key !== 'Escape' || !active) return;
+      event.preventDefault(); event.stopImmediatePropagation(); stop();
+    }, true);
+    function drawItem(context, item, zoom, color, width) {
+      context.strokeStyle = color; context.lineWidth = width / zoom; context.beginPath();
+      outline(item).forEach(([ax, ay, bx, by]) => { context.moveTo(ax, -ay); context.lineTo(bx, -by); });
+      context.stroke();
+    }
+    function draw(context, zoom) {
+      const shown = active ? hover : selected;
+      if (!shown) return;
+      context.save(); context.globalCompositeOperation = 'source-over'; context.globalAlpha = 1; context.setLineDash([]);
+      drawItem(context, shown.item, zoom, '#1b1206', 4);
+      drawItem(context, shown.item, zoom, '#ffd27a', 2);
+      if (!active && selected) {
+        context.fillStyle = '#ffd27a'; context.strokeStyle = '#1b1206'; context.lineWidth = 2 / zoom;
+        context.beginPath(); context.arc(selected.world.x, -selected.world.y, 6 / zoom, 0, Math.PI * 2); context.fill(); context.stroke();
+      }
+      context.restore();
+    }
+    return {start, stop, draw, clearSelection() { selected = null; }, get active() { return active; }, get selected() { return selected; },
+      destroy() { stop(); listeners.forEach(args => args[0].removeEventListener(args[1], args[2], args[3])); }};
+  }
+  return {hitTest, locate, outline, createAlphaSampler, toWorld, mount, ALPHA_THRESHOLD};
+});
+
+</script>
+  <script data-bundle="attach-assist.js">
+(function (root, factory) {
+  'use strict';
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  root.ParticleAttachAssist = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  'use strict';
+  // Small, pure helpers for "enhance an existing Spine animation": timeline
+  // markers, snapping, picking a layer relative to a clicked slot, and placing
+  // a new layer at the playhead without moving the layers already timed.
+  const round = value => Math.round(value * 1e6) / 1e6;
+  const object = value => !!value && typeof value === 'object' && !Array.isArray(value);
+
+  function collectTimes(value, out, depth = 0) {
+    if (depth > 8 || value === null || typeof value !== 'object') return;
+    if (Array.isArray(value)) {
+      value.forEach(frame => {
+        if (object(frame)) out.add(round(typeof frame.time === 'number' && Number.isFinite(frame.time) ? frame.time : 0));
+      });
+      return;
+    }
+    Object.keys(value).forEach(key => collectTimes(value[key], out, depth + 1));
+  }
+  // Key and event times of one animation. Events come first so they win ties.
+  function animationMarkers(json, name, limit = 400) {
+    const animation = json && json.animations && object(json.animations[name]) ? json.animations[name] : null;
+    if (!animation) return [];
+    const markers = [];
+    (Array.isArray(animation.events) ? animation.events : []).forEach(event => {
+      if (!object(event)) return;
+      const time = round(typeof event.time === 'number' && Number.isFinite(event.time) ? event.time : 0);
+      markers.push({time, kind: 'event', name: typeof event.name === 'string' ? event.name : '事件'});
+    });
+    const keys = new Set();
+    Object.keys(animation).forEach(group => { if (group !== 'events') collectTimes(animation[group], keys); });
+    const eventTimes = new Set(markers.map(marker => marker.time));
+    Array.from(keys).sort((a, b) => a - b).filter(time => !eventTimes.has(time)).slice(0, limit)
+      .forEach(time => markers.push({time, kind: 'key'}));
+    return markers.sort((a, b) => a.time - b.time || (a.kind === 'event' ? -1 : 1));
+  }
+  // Snap to the closest marker inside the tolerance (seconds), else to a frame.
+  function snapTime(value, {markers = [], fps = 30, duration = Infinity, tolerance = 0, free = false} = {}) {
+    let time = Math.max(0, Math.min(duration, value));
+    if (free) return {time: round(time), marker: null};
+    let best = null, distance = tolerance;
+    for (const marker of markers) {
+      const gap = Math.abs(marker.time - time);
+      if (gap <= distance && (!best || gap < distance || marker.kind === 'event' && best.kind !== 'event')) { best = marker; distance = gap; }
+    }
+    if (best) return {time: round(Math.min(duration, best.time)), marker: best};
+    const step = fps > 0 ? 1 / fps : 0;
+    time = step ? Math.round(time / step) * step : time;
+    return {time: round(Math.max(0, Math.min(duration, time))), marker: null};
+  }
+  // Layer right above (after) or right below (before) a clicked slot, using
+  // the setup draw order. "Below the first slot" is the back of the skeleton.
+  function layerNextTo(slotOrder, slotName, below) {
+    const index = slotOrder.indexOf(slotName);
+    if (index < 0) throw new Error('找不到插槽：' + slotName);
+    if (!below) return {drawOrder: 'after', afterSlot: slotName};
+    return index === 0 ? {drawOrder: 'back', afterSlot: ''} : {drawOrder: 'after', afterSlot: slotOrder[index - 1]};
+  }
+  // Absolute time = session start + layer delay. Put a new layer at `at`
+  // seconds of the original animation; if that is before the session start,
+  // move the session start earlier and push existing layers later by the same
+  // amount so they keep their absolute times.
+  function placeAtTime({sessionStart = 0, at, delays = {}}) {
+    if (!Number.isFinite(at) || at < 0) throw new Error('時間必須是 0 秒以上。');
+    const start = Math.min(sessionStart, at), shift = round(sessionStart - start);
+    const nextDelays = {};
+    Object.keys(delays).forEach(id => { nextDelays[id] = round((delays[id] || 0) + shift); });
+    return {sessionStart: round(start), delays: nextDelays, delay: round(at - start), shift};
+  }
+  // Seconds the particle animation must last so every layer can finish.
+  function requiredDuration(emitters) {
+    let longest = 0;
+    (emitters || []).forEach(e => {
+      if (!e || e.enabled === false) return;
+      const life = (e.life || 0) * (1 + (e.lifeRandom || 0));
+      longest = Math.max(longest, (e.startDelay || 0) + (e.emissionDuration || 0) + life);
+    });
+    return round(longest);
+  }
+  return {animationMarkers, snapTime, layerNextTo, placeAtTime, requiredDuration};
+});
+
+</script>
   <script data-bundle="sequence-texture-ui.js">
 (function (root, factory) {
   'use strict';
@@ -8676,7 +9703,8 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     if ($('randomTextureButton')) wirePicker('randomTextureButton', 'randomTextureFile', true, true);
     $('removeTexture').addEventListener('click', () => {
       request++;
-      try { apply(options.getEmitter(), {image: null, sequence: undefined}); }
+      const selected = options.getEmitter(), reset = selected.kind === 'lightning' && options.lightningImage ? JSON.parse(JSON.stringify(options.lightningImage)) : null;
+      try { apply(selected, {image: reset, sequence: undefined}); }
       catch (error) { options.notify(error.message, true); }
     });
     $('textureMode').addEventListener('change', () => {
@@ -9376,6 +10404,21 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     return {name: kind + '.png', mime: 'image/png', width: 64, height: 64, dataUrl: surface.toDataURL('image/png')};
   }
   ['glow', 'sparks', 'coins', 'bubbles'].forEach(kind => { builtinImages[kind] = makeTexture(kind); });
+  // A horizontal electric streak: bright core, soft blue glow, slight grain so deform reads.
+  function makeBoltTexture() {
+    const surface = document.createElement('canvas'); surface.width = 256; surface.height = 64;
+    const c = surface.getContext('2d'), pixels = c.createImageData(256, 64);
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 256; x++) {
+      const d = Math.abs(y - 31.5) / 32, ends = Math.min(1, x / 18, (255 - x) / 18);
+      const grain = 0.82 + 0.18 * Math.sin(x * 0.9) * Math.sin(x * 0.37 + 1.3);
+      const core = Math.exp(-Math.pow(d / 0.07, 2)), glow = Math.exp(-Math.pow(d / 0.38, 2)) * 0.55 * grain;
+      const a = Math.min(1, core + glow) * ends, i = (y * 256 + x) * 4;
+      pixels.data[i] = 255; pixels.data[i + 1] = 255; pixels.data[i + 2] = 255; pixels.data[i + 3] = Math.round(a * 255);
+    }
+    c.putImageData(pixels, 0, 0);
+    return {name: 'lightning.png', mime: 'image/png', width: 256, height: 64, dataUrl: surface.toDataURL('image/png')};
+  }
+  builtinImages.lightning = makeBoltTexture();
 
   function notify(message, error) {
     if ($('flowDialog').open) {
@@ -9434,6 +10477,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     $('previewSkinField').hidden = skins.length < 2; if (attached) picker.value = attached.metadata.skinName;
     $('spineTargetChip').hidden = !enabled;
     if (enabled) $('spineTargetChip').textContent = attached ? '掛接 · ' + (integration.settings.emitterParents['em_' + selectedId] || integration.settings.parentBone) : attachedError ? '掛接預覽無法解析' : '粒子局部預覽';
+    refreshAttachPanel();
     if (assetsUi) assetsUi.setPreviewInfo(attached ? (attached.metadata.missingAssets.length ? '原骨架有 ' + attached.metadata.missingAssets.length + ' 個圖片路徑未匹配：' + attached.metadata.missingAssets.slice(0, 4).map(a => a.path).join('、') : '原骨架素材已完整匹配。') : attachedError || '切換至掛接預覽以檢查素材。');
   }
   function focusAttachment() {
@@ -9454,7 +10498,8 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     selectedId = next.id; previewAttached = true;
     if (mode === 'baked' && revision !== bakedRevision) { mode = 'live'; refreshLive(); }
     renderEmitters(); renderInspector(); refreshAttachmentPreview();
-    $('spineMergeDialog').close(); bonePicker.start();
+    if ($('spineMergeDialog').matches(':modal')) $('spineMergeDialog').close();
+    closeArtMenu(); if (artPicker) artPicker.stop(); bonePicker.start();
   }
   function wireBonePicker() {
     bonePicker = window.ParticleBonePicker.mount({canvas, button: $('previewPickBone'), hint: $('bonePickHint'), keepWorld: $('previewKeepWorld'), notify,
@@ -9675,9 +10720,10 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       path.setAttribute('d', shapeIcons[textureKind] || shapeIcons[item.shape] || shapeIcons.point); svg.append(path); icon.append(svg);
       const copy = document.createElement('span'); copy.className = 'emitter-copy';
       const name = document.createElement('span'); name.className = 'emitter-name'; name.textContent = item.name;
-      const meta = document.createElement('span'); meta.className = 'emitter-meta'; meta.textContent = item.count + ' 顆 · ' + (item.blend === 'additive' ? '加色' : '一般');
+      const meta = document.createElement('span'); meta.className = 'emitter-meta'; meta.textContent = item.kind === 'lightning' ? '網格閃電 · ' + item.lightning.bolts + ' 條' + (item.lightning.branches ? ' · 分岔 ' + item.lightning.branches : '') : item.count + ' 顆 · ' + (item.blend === 'additive' ? '加色' : '一般');
       const tags = document.createElement('span'); tags.className = 'emitter-tags';
-      const type = document.createElement('span'); type.className = 'emitter-type'; type.textContent = item.path && item.path.enabled ? '沿路徑移動' : (shapeNames[item.shape] || '點形') + (['box', 'circle', 'ring'].includes(item.shape) ? emitFrom(item) === 'edge' ? ' · 邊框' : ' · 區域內' : '');
+      if (item.kind === 'lightning') path.setAttribute('d', 'M13 2 5 13h6l-1 9 8-12h-6l1-8Z');
+      const type = document.createElement('span'); type.className = 'emitter-type'; type.textContent = item.kind === 'lightning' ? (item.lightning.mode === 'fixed' ? '兩端固定' : '尾端擺動') : item.path && item.path.enabled ? '沿路徑移動' : (shapeNames[item.shape] || '點形') + (['box', 'circle', 'ring'].includes(item.shape) ? emitFrom(item) === 'edge' ? ' · 邊框' : ' · 區域內' : '');
       const color = document.createElement('span'); color.className = 'emitter-color-dot'; color.style.setProperty('--emitter-color', item.colorGradient && item.colorGradient.length ? item.colorGradient[0].color : item.colorStart); color.setAttribute('aria-hidden', 'true');
       tags.append(type, color); copy.append(name, meta, tags);
       const index = document.createElement('span'); index.className = 'emitter-index'; index.textContent = String(layerIndex + 1).padStart(2, '0'); index.setAttribute('aria-hidden', 'true');
@@ -9792,6 +10838,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     updateHandlePositions();
   }
   function updateHandlePositions() {
+    updateLightningHandle();
     const attached = attachedFor();
     project.emitters.forEach(e => {
       const button = handles.get(e.id); if (!button) return;
@@ -9833,10 +10880,112 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     }
     renderPathInspector();
     renderOutlineInspector();
+    renderLightningInspector(e);
     drawCurves();
     if (libraryUi && $('effectLibraryDialog').open) libraryUi.refresh();
   }
   function pathFor(e) { return e.path || PathMath.defaults(); }
+  // Rigs that keep their art in named skins (Normal / Super…) look empty in
+  // "default"; preview the skin that holds the most attachments instead.
+  function preferredSkin(json) {
+    const skins = Array.isArray(json && json.skins) ? json.skins : [];
+    const count = skin => Object.values(skin && skin.attachments || {}).reduce((sum, slot) => sum + Object.keys(slot || {}).length, 0);
+    const named = skins.filter(skin => skin && skin.name !== 'default');
+    if (!named.length) return '';
+    const best = named.reduce((a, b) => count(b) > count(a) ? b : a);
+    const base = skins.find(skin => skin && skin.name === 'default');
+    return count(best) > count(base) ? best.name : '';
+  }
+  // ---- Mesh lightning layer ----
+  const LIGHTNING_DIGITS = {roughness: 2, lengthJitter: 2, branchChance: 2, branchLength: 2, widthJitter: 2, alphaJitter: 2, gap: 2, taper: 2};
+  function renderLightningInspector(e) {
+    const lightning = e.kind === 'lightning';
+    $('lightningSection').hidden = !lightning;
+    document.querySelectorAll('[data-particle-only]').forEach(node => { node.hidden = lightning; });
+    $('emissionDurationLabel').textContent = lightning ? '持續時間' : '發射時間';
+    $('tabMotion').hidden = lightning;
+    if (lightning && !$('panelMotion').hidden) setTab('basic');
+    if (!lightning) { renderHandles(); return; }
+    const L = e.lightning;
+    document.querySelectorAll('[data-lfield]').forEach(input => { if (!(document.activeElement === input && input.type === 'number')) input.value = L[input.dataset.lfield]; });
+    document.querySelectorAll('[data-lreadout]').forEach(output => {
+      const key = output.dataset.lreadout, value = L[key];
+      output.textContent = LIGHTNING_DIGITS[key] ? Math.round(value * 100) + '%' : String(value);
+    });
+    document.querySelectorAll('[data-lmode-set]').forEach(button => { const on = button.dataset.lmodeSet === L.mode; button.classList.toggle('active', on); button.setAttribute('aria-pressed', String(on)); });
+    document.querySelectorAll('[data-lmode]').forEach(node => { node.hidden = node.dataset.lmode !== L.mode; });
+    document.querySelectorAll('[data-lneeds]').forEach(node => {
+      const key = node.dataset.lneeds; node.hidden = key === 'bolts' ? L.bolts < 2 || L.mode !== 'free' : L[key] < 1;
+    });
+    renderHandles();
+  }
+  function setLightning(patch, duringInput) {
+    const e = emitter(); if (!e || e.kind !== 'lightning') return false;
+    const previous = e.lightning;
+    e.lightning = {...previous, ...patch};
+    try { Core.normalizeProject(project); }
+    catch (error) { e.lightning = previous; if (!duringInput) { notify(error.message, true); renderInspector(); } return false; }
+    changed(); renderEmitters(); renderLightningInspector(e);
+    return true;
+  }
+  function wireLightningInspector() {
+    document.querySelectorAll('[data-lfield]').forEach(input => {
+      const apply = duringInput => {
+        if (duringInput && !input.value.trim()) return;
+        const value = Number(input.value); if (!Number.isFinite(value)) return;
+        const key = input.dataset.lfield;
+        if (emitter().lightning && emitter().lightning[key] === value) return;
+        setLightning({[key]: value}, duringInput && input.type !== 'range');
+      };
+      input.addEventListener('input', () => apply(true));
+      input.addEventListener('change', () => apply(false));
+    });
+    document.querySelectorAll('[data-lmode-set]').forEach(button => button.addEventListener('click', () => {
+      historyBegin('command'); try { setLightning({mode: button.dataset.lmodeSet}); } finally { historyEnd(); }
+    }));
+  }
+  // Blue end handle: drag to set the bolt's length and direction.
+  let lightningHandle = null;
+  function lightningEndPoint(e) {
+    const L = e.lightning, a = L.angle * Math.PI / 180, local = {x: e.x + Math.cos(a) * L.length, y: e.y + Math.sin(a) * L.length};
+    if (!attachedMode()) return local;
+    const attached = attachedFor(), frame = attached && attached.emitterFrame(e.id, time);
+    return frame ? AttachmentPreview.point(frame.matrix, local) : null;
+  }
+  function updateLightningHandle() {
+    const e = emitter();
+    if (!lightningHandle) {
+      lightningHandle = document.createElement('button'); lightningHandle.type = 'button'; lightningHandle.className = 'lightning-end-handle';
+      lightningHandle.setAttribute('aria-label', '閃電終點：拖曳調整長度與方向'); lightningHandle.title = '閃電終點 · 拖曳調整長度與方向（Shift 鎖定 15°）';
+      lightningHandle.addEventListener('pointerdown', event => {
+        if (event.button !== 0) return;
+        const target = emitter(); if (!target || target.kind !== 'lightning') return;
+        event.preventDefault(); event.stopPropagation(); lightningHandle.setPointerCapture(event.pointerId);
+        const attached = attachedMode() ? attachedFor() : null, frame = attached && attached.emitterFrame(target.id, time);
+        lightningHandle.drag = {e: target, matrix: frame ? {...frame.matrix} : null, wasPlaying: playing};
+        playing = false; updatePlayButton(); historyBegin('command');
+      });
+      lightningHandle.addEventListener('pointermove', event => {
+        const drag = lightningHandle.drag; if (!drag) return;
+        const rect = canvas.getBoundingClientRect();
+        let world = {x: (event.clientX - rect.left - stageW / 2 - panX) / zoom, y: -(event.clientY - rect.top - stageH / 2 - panY) / zoom};
+        if (drag.matrix) { const local = AttachmentPreview.inverseDelta(drag.matrix, {x: world.x - drag.matrix.x, y: world.y - drag.matrix.y}); if (!local) return; world = local; }
+        const dx = world.x - drag.e.x, dy = world.y - drag.e.y;
+        let angle = Math.atan2(dy, dx) * 180 / Math.PI; if (event.shiftKey) angle = Math.round(angle / 15) * 15;
+        const length = Math.round(clamp(Math.hypot(dx, dy), 10, 4000));
+        drag.e.lightning = {...drag.e.lightning, length, angle: Math.round(angle)};
+        changed(); renderLightningInspector(drag.e);
+      });
+      const finish = () => { const drag = lightningHandle.drag; if (!drag) return; lightningHandle.drag = null; historyEnd(); playing = drag.wasPlaying; updatePlayButton(); refreshLive(); queueDraft(); };
+      lightningHandle.addEventListener('pointerup', finish); lightningHandle.addEventListener('pointercancel', finish); lightningHandle.addEventListener('lostpointercapture', finish);
+      handleLayer.append(lightningHandle);
+    }
+    const point = e && e.kind === 'lightning' && e.enabled ? lightningEndPoint(e) : null;
+    if (!point) { lightningHandle.hidden = true; return; }
+    const x = stageW / 2 + panX + point.x * zoom, y = stageH / 2 + panY - point.y * zoom;
+    lightningHandle.style.left = x + 'px'; lightningHandle.style.top = y + 'px';
+    lightningHandle.hidden = x < -13 || y < -13 || x > stageW + 13 || y > stageH + 13;
+  }
   function renderOutlineInspector() {
     const e = emitter(), outline = e.outline;
     $('outlineThreshold').value = outline ? outline.threshold : 24; $('outlineHoles').checked = !!(outline && outline.includeHoles);
@@ -10052,6 +11201,17 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       if (frame) { const m = frame.matrix; ctx.transform(m.a, -m.c, -m.b, m.d, m.x, -m.y); }
       ctx.translate(e.x, -e.y);
       const chosen = e.id === selectedId;
+      if (e.kind === 'lightning') {
+        const L = e.lightning, a = L.angle * Math.PI / 180, ex = Math.cos(a) * L.length, ey = -Math.sin(a) * L.length;
+        ctx.strokeStyle = chosen ? '#9fd8ff' : '#738194'; ctx.globalAlpha = e.enabled ? (chosen ? .8 : .35) : .2;
+        ctx.lineWidth = (chosen ? 1.4 : 1) / zoom; ctx.setLineDash([6 / zoom, 5 / zoom]);
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(ex, ey); ctx.stroke(); ctx.setLineDash([]);
+        if (L.mode === 'free' && chosen) {
+          ctx.globalAlpha = .25; ctx.beginPath(); ctx.moveTo(0, 0);
+          ctx.arc(0, 0, L.length, -(L.angle + L.tailSwing) * Math.PI / 180, -(L.angle - L.tailSwing) * Math.PI / 180); ctx.closePath(); ctx.stroke();
+        }
+        ctx.restore(); return;
+      }
       if (e.path && e.path.enabled) {
         const key = JSON.stringify(e.path); let compiled = pathGizmoCache.get(key);
         if (!compiled) { compiled = PathMath.compile(e.path); pathGizmoCache.set(key, compiled); if (pathGizmoCache.size > 16) pathGizmoCache.delete(pathGizmoCache.keys().next().value); }
@@ -10115,7 +11275,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
         }
         ctx.stroke();
       }
-      if (chosen) window.ParticleEmissionGuides.draw(ctx, e, {pixelRatio: Math.min(2, window.devicePixelRatio || 1)});
+      if (chosen && e.kind !== 'lightning') window.ParticleEmissionGuides.draw(ctx, e, {pixelRatio: Math.min(2, window.devicePixelRatio || 1)});
       ctx.restore();
     }); ctx.restore();
   }
@@ -10174,6 +11334,15 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
         continue;
       }
       if (hiddenEmitters.has(p.emitterId)) continue;
+      if (p.type === 'mesh') {
+        if (p.alpha <= 0.0001) continue;
+        const texture = tinted(p.image, p.color); if (!texture) continue;
+        const offset = offsets.get(p.emitterId);
+        const state = offset ? {...p, vertices: p.vertices.map((value, i) => value + (i % 2 ? offset.y : offset.x))} : p;
+        ctx.save(); ctx.scale(1, -1);
+        if (window.ParticleSpineCanvasRenderer.draw(ctx, state, texture)) visible++;
+        ctx.restore(); continue;
+      }
       if (p.alpha <= 0.0001 || p.width <= 0 || p.height <= 0) continue;
       const texture = tinted(p.image, p.color); if (!texture) continue;
       visible++;
@@ -10184,6 +11353,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     }
     if (attached && showBones && !(bonePicker && bonePicker.active)) drawBones(attached);
     if (bonePicker && bonePicker.active) bonePicker.draw(ctx);
+    else if (artPicker && (artPicker.active || artPicker.selected)) artPicker.draw(ctx, zoom);
     else drawGizmos(mode === 'live' ? project : snapshot.project);
     ctx.restore();
     const statistics = mode === 'baked' && exported ? exported.stats : snapshot.stats;
@@ -10410,7 +11580,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   }
   async function exportZip() {
     if (!(await ensureBaked())) return;
-    if (integration && integration.settings.enabled !== false) { exportMergedZip(); return; }
+    if (integration && integration.settings.enabled !== false) { await exportMerged(); return; }
     if (!bakeFresh()) { notify('烘焙未完成，無法輸出。', true); return; }
     try {
       const name = safeName();
@@ -10460,7 +11630,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       return {fileName};
     } finally { busy = false; updateBakeStatus(); }
   }
-  function exportMergedZip() {
+  async function exportMerged() {
     if (!baked || revision !== bakedRevision || !exported || busy) { notify('請先更新粒子烘焙再輸出追加包。', true); return; }
     try {
       const options = flowBaked ? attachmentUi.validateFlowOptions(exported) : attachmentUi.validateOptions(exported, baked.duration);
@@ -10478,7 +11648,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       let stem = integration.fileName.replace(/\.json$/i, '').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/^[. ]+|[. ]+$/g, '').slice(0, 64) || 'spine';
       if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(stem)) stem = 'spine_' + stem;
       const name = stem + '_particles';
-      const text = 'Particle Studio v1.26 · 既有 Spine ' + result.json.skeleton.spine + (integration.update && integration.update.mode === 'replace' ? ' 效果更新包\n\n' : ' 追加包\n\n') +
+      const text = 'Particle Studio v1.28 · 既有 Spine ' + result.json.skeleton.spine + (integration.update && integration.update.mode === 'replace' ? ' 效果更新包\n\n' : ' 追加包\n\n') +
         '1. 保留原 .spine 工程及其全部素材。此包不包含原角色的圖片或音效。\n' +
         '2. 把 new_images/ 裡的「' + result.manifest.imageDirectory + '」資料夾，複製進原工程的 Images 根目錄。\n' +
         '   原 JSON Images 設定：' + result.manifest.originalImagesPath + '\n' +
@@ -10492,6 +11662,21 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
         'JSON 往返只保留匯出的資料；未匯出的編輯器資料無法由本工具復原。\n' +
         '再次調整時，保留「效果更新記錄.json」。先開啟粒子編輯專案，再載入 Spine 修改後的骨架 JSON 與這份記錄，選擇更新此效果。新素材請覆蓋對應群組的圖片；JSON 與圖片需使用同一次輸出。\n' +
         result.warnings.join('\n');
+      const target = writeTarget();
+      if (target) {
+        const {assets, ...light} = integration;
+        const bundle = {result, json: JSON.stringify(result.json), receipt: JSON.stringify(receipt, null, 2),
+          project: Storage.serialize(project, baked.project, viewState(), light),
+          images: result.images.map(asset => ({name: asset.name, data: Zip.decodeDataUrl(asset.dataUrl || builtinImages.glow.dataUrl)}))};
+        try {
+          const written = await writeBack(bundle);
+          notify('已寫回「' + target.name + '」：' + target.jsonPath + ' 與 ' + bundle.images.length + ' 張粒子圖片（' + Folder.join(written.plan.imagesRoot, result.manifest.imageDirectory) + '）。原檔已備份到 ' + written.plan.backupDir + '。' +
+            (result.manifest.phases ? '' : ' 播放「' + result.manifest.animationName + '」檢查，') + '在 Spine 用 Import Data 匯入或直接給引擎使用；使用圖集的專案請重新打包圖集。');
+          refreshAttachPanel(); return;
+        } catch (error) {
+          notify('沒有寫回：' + error.message, true); refreshAttachPanel(); return;
+        }
+      }
       const entries = [
         {name: name + '.json', data: JSON.stringify(result.json)},
         {name: name + '.particle.json', data: Storage.serialize(project, baked.project, viewState(), integration)},
@@ -10504,12 +11689,12 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       notify('已開始下載：合併骨架、粒子新素材與效果更新記錄。原工程請保留並另存新版本。');
     } catch (error) { notify(error.message, true); }
   }
-  async function loadImage(file, includeSourceSize) {
+  async function loadImage(file, includeSourceSize, maxSide = 2048) {
     if (!file || !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) throw new Error('請選擇 PNG、JPEG 或 WebP 圖片。');
     if (file.size > 8 * 1024 * 1024) throw new Error('圖片超過 8 MB，請先縮小素材。');
     const source = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error('無法讀取圖片。')); reader.readAsDataURL(file); });
     const image = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = () => reject(new Error('圖片無法解碼。')); i.src = source; });
-    const ratio = Math.min(1, 2048 / Math.max(image.naturalWidth, image.naturalHeight));
+    const ratio = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
     const surface = document.createElement('canvas'); surface.width = Math.max(1, Math.round(image.naturalWidth * ratio)); surface.height = Math.max(1, Math.round(image.naturalHeight * ratio));
     surface.getContext('2d').drawImage(image, 0, 0, surface.width, surface.height);
     const result = {name: file.name, mime: 'image/png', width: surface.width, height: surface.height, dataUrl: surface.toDataURL('image/png')};
@@ -10544,11 +11729,19 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     {id: 'glow', name: '柔光粒子', description: '柔和光點，適合光塵與氛圍', symbol: '✦', gradient: 'radial-gradient(circle,#fff8dc,#ffc13b 45%,#3a2a12)'},
     {id: 'sparks', name: '迸射火花', description: '短促爆發的火花', symbol: '✸', gradient: 'linear-gradient(135deg,#fff2b0,#f34b23 70%,#4a1420)'},
     {id: 'coins', name: '金幣噴發', description: '金幣向上噴出再落下', symbol: '◉', gradient: 'linear-gradient(135deg,#ffe58a,#e8a018 70%,#3a2a12)'},
-    {id: 'bubbles', name: '漂浮氣泡', description: '緩慢上飄的氣泡', symbol: '○', gradient: 'linear-gradient(135deg,#f1fcff,#4b99ff 70%,#1b2550)'}
+    {id: 'bubbles', name: '漂浮氣泡', description: '緩慢上飄的氣泡', symbol: '○', gradient: 'linear-gradient(135deg,#f1fcff,#4b99ff 70%,#1b2550)'},
+    {id: 'lightning', name: '網格閃電', description: '一張貼圖切網格，隨機扭曲成閃電；可換成自己的閃電圖', symbol: 'ϟ', gradient: 'linear-gradient(135deg,#f4fbff,#6fc3ff 55%,#14234a)'}
   ];
   function builtinEmitter(preset, id = freshId()) {
     const names = Object.fromEntries(BUILTIN_EFFECTS.map(item => [item.id, item.name]));
     if (!names[preset]) throw new Error('找不到內建效果：' + preset);
+    if (preset === 'lightning') {
+      const e = Core.createEmitter(id, names[preset], 'glow');
+      Object.assign(e, {kind: 'lightning', lightning: {...window.ParticleLightning.DEFAULTS, bolts: 2, branches: 1},
+        image: clone(builtinImages.lightning), colorStart: '#cfeaff', colorEnd: '#7cc4ff', blend: 'additive',
+        count: 1, life: 0.05, lifeRandom: 0, emissionDuration: project.duration, x: 0, y: 160});
+      return e;
+    }
     const e = Core.createEmitter(id, names[preset], preset);
     if (preset !== 'glow') e.image = clone(builtinImages[preset]);
     return e;
@@ -10558,7 +11751,13 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     historyBegin('command');
     try {
       const index = Math.max(0, project.emitters.findIndex(item => item.id === selectedId));
-      project.emitters.splice(index, 0, e); selectedId = e.id; changed(); renderEmitters(); renderInspector();
+      project.emitters.splice(index, 0, e); selectedId = e.id;
+      let notes = [];
+      if (pendingPlacement && pendingPlacement.owner === project && integration && pendingPlacement.json === integration.json) {
+        notes = applyPlacement(e, pendingPlacement); Core.normalizeProject(project); integrationChanged();
+      }
+      changed(); renderEmitters(); renderInspector(); renderGlobals();
+      if (pendingPlacement && attachmentUi) { attachmentUi.refresh(); notify('已在 ' + pendingPlacement.slot + '（骨骼 ' + pendingPlacement.bone + '）新增「' + e.name + '」' + (pendingPlacement.at !== null ? '，' + pendingPlacement.at + ' 秒開始' : '') + (notes.length ? '；' + notes.join('；') : '') + '。'); }
     } finally { historyEnd(); }
   }
   function addEmitter(preset = 'glow') {
@@ -10936,7 +12135,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       notify(project.background.sourceWidth ? '背景與物件已使用相同像素比例，已調整視角。' : '背景已按保存的像素尺寸校正；舊版縮圖需重新載入原背景圖，才能恢復原始大小。');
     });
     $('removeBackground').addEventListener('click', () => { backgroundRequest++; project.background.image = null; delete project.background.sourceWidth; delete project.background.sourceHeight; renderGlobals(); queueDraft(); });
-    textureUi = window.ParticleSequenceTextureUI.mount({getProject: () => project, getEmitter: emitter,
+    textureUi = window.ParticleSequenceTextureUI.mount({getProject: () => project, getEmitter: emitter, lightningImage: builtinImages.lightning,
       getGeneration: () => textureRequest, defaultImage: builtinImages.glow, normalize: Core.normalizeProject, loadImage, notify,
       prepareImages: frames => frames.forEach(imageFor), onApply: (selected, patch, command) => {
         if (command) historyBegin('command');
@@ -10998,8 +12197,9 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     timelineView = window.ParticleTimelineView.mount({host: $('timelineTracks'), getContext: () => {
       const group = currentFlowBake(), attached = attachedFor();
       return {flow: group ? group.project.flow : mode === 'live' && project.flow.enabled ? project.flow : null,
-        phase, time, duration: previewDuration(), fps: activeFps(), attached: !!attached, timeline: attached && attached.timeline};
-    }, onSeek: seconds => {
+        phase, time, duration: previewDuration(), fps: activeFps(), attached: !!attached, timeline: attached && attached.timeline,
+        markers: timelineMarkers(attached), canMoveFx: !!attached && !!startTarget() && !busy};
+    }, onMoveFxBegin, onMoveFx, onMoveFxEnd, onSeek: seconds => {
       if (busy) return;
       stopSequence(); playing = false;
       const duration = previewDuration();
@@ -11044,7 +12244,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     }, {passive: false});
     document.addEventListener('keydown', event => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); saveProject(); return; }
-      if (event.target.closest('input,select,textarea,button,canvas.curve-canvas') || $('helpDialog').open || $('spineMergeDialog').open || $('flowDialog').open || $('pathDialog').open || $('bakeCheckDialog').open || $('effectLibraryDialog').open) return;
+      if (event.target.closest('input,select,textarea,button,canvas.curve-canvas') || $('helpDialog').open || $('spineMergeDialog').matches(':modal') || $('flowDialog').open || $('pathDialog').open || $('bakeCheckDialog').open || $('effectLibraryDialog').open) return;
       if (event.code === 'Space') { event.preventDefault(); $('playButton').click(); }
       if (event.key === 'ArrowLeft') { event.preventDefault(); $('framePrev').click(); }
       if (event.key === 'ArrowRight') { event.preventDefault(); $('frameNext').click(); }
@@ -11056,14 +12256,14 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
         const newSource = value && (!integration || value.json !== integration.json);
         if (bonePicker && value && integration && value.update !== integration.update) bonePicker.cancel();
         integration = value;
-        if (newSource) { previewAttached = true; previewSkin = ''; time = 0; stopSequence(); }
+        if (newSource) { previewAttached = true; previewSkin = preferredSkin(value.json); time = 0; stopSequence(); }
       },
-      onChange: integrationChanged, onExport: async () => { if (await ensureBaked()) exportMergedZip(); }, onBake: bakeNow, managePreviewChip: false,
+      onChange: integrationChanged, onExport: async () => { if (await ensureBaked()) await exportMerged(); }, onBake: bakeNow, managePreviewChip: false, openPanel: openAttachPanel,
       canExport: () => !busy, notify});
     assetsUi = window.ParticleSpineAssetsUI.mount({Merge: SpineMerge, getSession: () => integration,
       setSession: value => { integration = value; }, onChange: integrationChanged, imageLoader: loadImage, notify});
     $('previewFocus').addEventListener('click', focusAttachment);
-    $('spineFocusParent').addEventListener('click', () => { previewAttached = true; refreshAttachmentPreview(); $('spineMergeDialog').close(); focusAttachment(); });
+    $('spineFocusParent').addEventListener('click', () => { previewAttached = true; refreshAttachmentPreview(); if ($('spineMergeDialog').matches(':modal')) $('spineMergeDialog').close(); focusAttachment(); });
     $('previewFxStart').addEventListener('click', () => { const attached = attachedFor(); if (!attached) return; stopSequence(); playing = false; time = attached.timeline.startTime; updatePlayButton(); syncTimeline(); queueDraft(); });
     [['previewAttached', true], ['previewLocal', false]].forEach(([id, value]) => $(id).addEventListener('click', () => {
       if (previewAttached === value) return;
@@ -11074,7 +12274,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     }));
     $('previewBones').addEventListener('change', () => { showBones = $('previewBones').checked; queueDraft(); });
     $('previewSkin').addEventListener('change', () => { previewSkin = $('previewSkin').value; attachedCache.clear(); refreshAttachmentPreview(); queueDraft(); });
-    wireBonePicker(); wireNumberScrub(); wireShortcuts(); wireDropZone(); wireSectionCollapse();
+    wireBonePicker(); wireAttachAssist(); wireLightningInspector(); wireNumberScrub(); wireShortcuts(); wireDropZone(); wireSectionCollapse();
     batchUi = window.ParticleBatchExport.mount({run: runBatchExport, notify, getVersion: () => effectiveSpineVersion(),
       blockedReason: () => integration && integration.settings.enabled !== false ? '目前掛接既有骨架，版本跟隨原骨架；請用「輸出追加包」，或先移除掛接再批次輸出。' : busy ? '正在烘焙，請稍候。' : ''});
     window.addEventListener('pagehide', () => { try { saveDraftSnapshot(JSON.parse(Storage.serialize(project, baked ? baked.project : null, viewState(), integration))).catch(() => {}); } catch (_) {} });
@@ -11123,10 +12323,412 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     });
   }
 
+  // ---- v1.27 · Enhance an existing Spine: folder in, click the art, write back ----
+  const Folder = window.ParticleSpineFolder, ArtPicker = window.ParticleArtPicker, Assist = window.ParticleAttachAssist;
+  let folderState = null, artPicker = null, artPending = null, pendingPlacement = null, artBelow = false;
+  let markerCache = {json: null, name: null, markers: []};
+  function setOwn(target, key, value) { Object.defineProperty(target, key, {value, enumerable: true, writable: true, configurable: true}); }
+  function round3(value) { return Math.round(value * 1000) / 1000; }
+  function modalOpen() { return Array.from(document.querySelectorAll('dialog')).some(dialog => dialog.open && dialog.matches(':modal')); }
+  function panelDocked() { const dialog = $('spineMergeDialog'); return dialog.open && dialog.classList.contains('docked'); }
+  function dockPanel() {
+    const dialog = $('spineMergeDialog'), host = document.querySelector('.inspector');
+    if (!panelDocked() || !host) return;
+    const rect = host.getBoundingClientRect();
+    Object.assign(dialog.style, {top: rect.top + 'px', left: rect.left + 'px', width: rect.width + 'px', height: rect.height + 'px'});
+  }
+  function openAttachPanel() {
+    const dialog = $('spineMergeDialog');
+    if (dialog.open) { if (panelDocked()) dialog.close(); return; }
+    if (window.innerWidth < 821 || typeof dialog.show !== 'function') { dialog.classList.remove('docked'); dialog.removeAttribute('style'); dialog.showModal(); }
+    else { dialog.classList.add('docked'); dialog.show(); dockPanel(); }
+    $('spineMergeButton').classList.add('active'); refreshAttachPanel();
+  }
+  function originalAnimation(name) {
+    const base = effectiveIntegration(); if (!base) return null;
+    try { return SpineMerge.inspect(base.json).animations.find(item => item.name === name) || null; } catch (_) { return null; }
+  }
+  function timelineMarkers(attached) {
+    if (!attached) return [];
+    const base = effectiveIntegration(), name = attached.timeline.animationName;
+    if (markerCache.json !== base.json || markerCache.name !== name) markerCache = {json: base.json, name, markers: Assist.animationMarkers(base.json, name)};
+    return markerCache.markers;
+  }
+  function startTarget() {
+    if (!integration) return null;
+    const settings = integration.settings;
+    if (project.flow.enabled) return settings.flowTargets && phase !== 'loop' ? settings.flowTargets[phase] : null;
+    return settings;
+  }
+  function folderMatches() { return !!folderState && !!integration && integration.fileName === folderState.fileName; }
+  function writeTarget() { return folderMatches() && folderState.handle ? folderState : null; }
+  function refreshAttachPanel() {
+    if (!attachmentUi) return;
+    if (folderState && !folderMatches()) folderState = null;
+    const list = $('spineChecklist'), attached = attachedFor(), loaded = !!integration;
+    const items = [];
+    if (!loaded) items.push(['todo', '原骨架', '開啟原工程資料夾，或把資料夾拖進視窗']);
+    else {
+      let info = null; try { info = SpineMerge.inspect(effectiveIntegration().json); } catch (_) { info = null; }
+      items.push(['ok', '原骨架', integration.fileName + (info ? ' · Spine ' + info.version + ' · ' + info.animations.length + ' 個動畫' : '') + (integration.update && integration.update.mode === 'replace' ? ' · 更新上次的粒子' : '')]);
+      const images = integration.assets ? integration.assets.images.length : 0, missing = attached ? attached.metadata.missingAssets.length : 0;
+      items.push([images && !missing ? 'ok' : 'warn', '角色圖片', images ? images + ' 張' + (integration.assets.atlas ? '（圖集）' : '') + (missing ? ' · ' + missing + ' 個路徑未匹配' : ' · 完整') : '未載入，只顯示骨架']);
+      const e = emitter(), settings = integration.settings, key = 'em_' + (e && e.id);
+      const parent = settings.emitterParents && settings.emitterParents[key] || settings.parentBone;
+      const layer = SpineMerge.layerForEmitter(settings, key);
+      const layerText = layer.drawOrder === 'after' ? '在 ' + layer.afterSlot + ' 之後' : layer.drawOrder === 'back' ? '最後方' : '最前方';
+      items.push(['ok', '位置', (e ? '「' + e.name + '」→ ' : '') + parent + ' · ' + layerText]);
+      if (attached) items.push(['ok', '時間', attached.timeline.animationName + ' · ' + round3(attached.timeline.startTime) + '–' + round3(attached.timeline.endTime) + ' 秒']);
+      else items.push(['warn', '時間', attachedError || '切換到掛接預覽以檢查時間']);
+      const target = writeTarget();
+      items.push(['ok', '輸出', target ? '寫回「' + folderState.name + '/' + folderState.jsonPath + '」，先自動備份' : folderState ? '唯讀資料夾 · 下載追加包 ZIP（用 Chrome／Edge 開啟資料夾可直接寫回）' : '下載追加包 ZIP']);
+    }
+    const signature = JSON.stringify(items);
+    if (list.dataset.signature !== signature) {
+      list.dataset.signature = signature; list.replaceChildren();
+      items.forEach(([state, title, text]) => {
+        const li = document.createElement('li'); li.className = 'spine-check ' + state;
+        const strong = document.createElement('strong'); strong.textContent = title;
+        const span = document.createElement('span'); span.textContent = text;
+        li.append(strong, span); list.append(li);
+      });
+    }
+    $('spineQuickActions').hidden = !loaded;
+    $('spineFolderInfo').textContent = folderState ? '資料夾「' + folderState.name + '」 · ' + folderState.jsonPath + (folderState.handle ? ' · 可直接寫回' : ' · 唯讀') :
+      '選擇 Spine 匯出的資料夾（骨架 JSON＋images 或 atlas），會自動載入骨架與角色圖片。';
+    const exportLabel = writeTarget() ? '寫回原工程' : '輸出追加包';
+    $('spineExportMerge').textContent = exportLabel;
+    if (integration && integration.settings.enabled !== false) $('exportButton').querySelector('span').textContent = exportLabel;
+    const flow = project.flow.enabled;
+    $('spineStartAtPlayhead').disabled = !attached || flow; $('spineFitAnimation').disabled = !attached || flow;
+    $('previewArtPick').disabled = !attached;
+    if (!panelDocked()) $('spineMergeButton').classList.remove('active');
+  }
+
+  // -- Folder in --
+  function chooseFrom(title, options) {
+    return new Promise(resolve => {
+      const dialog = document.createElement('dialog'); dialog.className = 'help-dialog choice-dialog';
+      const heading = document.createElement('h2'); heading.textContent = title;
+      const list = document.createElement('div'); list.className = 'choice-list';
+      options.forEach((option, index) => {
+        const button = document.createElement('button'); button.type = 'button'; button.className = index ? 'secondary-button' : 'primary-button';
+        button.textContent = option.label; if (option.hint) button.title = option.hint;
+        button.addEventListener('click', () => { dialog.close(); resolve(option.value); });
+        list.append(button);
+      });
+      const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'text-button muted'; cancel.textContent = '取消';
+      cancel.addEventListener('click', () => { dialog.close(); resolve(null); });
+      dialog.addEventListener('close', () => { setTimeout(() => dialog.remove(), 0); resolve(null); });
+      list.append(cancel); dialog.append(heading, list); document.body.append(dialog); dialog.showModal();
+    });
+  }
+  async function readEntryText(entry, limit, label) {
+    const file = await entry.getFile();
+    if (file.size > limit) throw new Error(label + '超過 ' + Math.round(limit / 1048576) + ' MiB：' + entry.path);
+    return {file, text: await file.text()};
+  }
+  async function loadFolderAssets(plan, entries) {
+    const warnings = [];
+    const rawBytes = await plan.images.reduce(async (sum, item) => (await sum) + (await item.entry.getFile()).size, Promise.resolve(0));
+    const preferAtlas = plan.atlas && (!plan.images.length || plan.imagesSource === 'json-dir' || plan.imagesSource === 'missing' || rawBytes > 14 * 1048576);
+    if (preferAtlas) {
+      const {text} = await readEntryText(plan.atlas, 256 * 1024, 'Atlas ');
+      const pages = Folder.atlasPageEntries(entries, plan.atlas.path, text);
+      if (pages.missing.length) warnings.push('圖集缺少頁面：' + pages.missing.join('、'));
+      for (const side of [2048, 1024, 512]) {
+        const images = [];
+        for (const page of pages.found) images.push({...(await loadImage(await page.entry.getFile(), false, side)), path: page.path});
+        const assets = {images, atlas: {name: Folder.basename(plan.atlas.path).replace(/\.txt$/i, ''), text}};
+        try { return {assets: SpineMerge.normalizeAssets(assets), warnings, note: '圖集 ' + pages.found.length + ' 頁' + (side < 2048 ? '（預覽縮小至 ' + side + 'px）' : '')}; }
+        catch (error) { if (side === 512) throw error; }
+      }
+    }
+    if (!plan.images.length) return {assets: null, warnings: warnings.concat('找不到角色圖片；預覽只顯示骨架。'), note: ''};
+    let skipped = 0;
+    for (const side of [2048, 1024, 512, 256]) {
+      const images = []; let total = 0; skipped = 0;
+      for (const item of plan.images) {
+        const file = await item.entry.getFile();
+        if (file.size > 8 * 1048576 || !/\.(png|jpe?g|webp)$/i.test(file.name)) { skipped++; continue; }
+        const typed = file.type ? file : new File([file], file.name, {type: /\.png$/i.test(file.name) ? 'image/png' : /\.webp$/i.test(file.name) ? 'image/webp' : 'image/jpeg'});
+        let image; try { image = await loadImage(typed, false, side); } catch (_) { skipped++; continue; }
+        total += image.dataUrl.length; if (total > 15.5 * 1048576) break;
+        images.push({...image, path: item.path});
+      }
+      if (total > 15.5 * 1048576 && side !== 256) continue;
+      try { return {assets: SpineMerge.normalizeAssets({images}), warnings: skipped ? warnings.concat(skipped + ' 張圖片無法載入預覽') : warnings, note: images.length + ' 張圖片' + (side < 2048 ? '（預覽縮小至 ' + side + 'px）' : '')}; }
+      catch (error) { if (side === 256) throw error; }
+    }
+    return {assets: null, warnings, note: ''};
+  }
+  function fitRigView() {
+    const attached = attachedFor(); if (!attached) return;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    attached.sample(time).forEach(item => {
+      if (item.isParticle || !item.vertices) return;
+      for (let i = 0; i < item.vertices.length; i += 2) {
+        minX = Math.min(minX, item.vertices[i]); maxX = Math.max(maxX, item.vertices[i]);
+        minY = Math.min(minY, item.vertices[i + 1]); maxY = Math.max(maxY, item.vertices[i + 1]);
+      }
+    });
+    if (!Number.isFinite(minX) || maxX - minX < 1 || maxY - minY < 1) return;
+    zoom = clamp(Math.min(stageW / (maxX - minX), stageH / (maxY - minY)) * .8, .05, 4);
+    panX = -(minX + maxX) / 2 * zoom; panY = (minY + maxY) / 2 * zoom;
+    $('zoom').value = Math.round(zoom * 100); $('zoomLabel').textContent = Math.round(zoom * 100) + '%'; queueDraft();
+  }
+  async function openFolder(source) {
+    if (!source || busy) return;
+    const owner = project, request = ++projectRequest;
+    const stale = () => request !== projectRequest;
+    try {
+      const entries = source.entries;
+      const skeletons = [];
+      for (const entry of Folder.skeletonCandidates(entries)) {
+        if (skeletons.length >= 12) break;
+        const file = await entry.getFile(); if (file.size > 32 * 1048576) continue;
+        let json = null; try { json = JSON.parse((await file.text()).replace(/^﻿/, '')); } catch (_) { json = null; }
+        if (Folder.isSkeleton(json)) skeletons.push({entry, json});
+      }
+      if (stale()) return;
+      if (!skeletons.length) throw new Error('「' + source.name + '」裡找不到 Spine 骨架 JSON。請選擇 Spine 匯出 JSON 的資料夾；原生 .spine 請先用「Spine 工程轉換」轉成 JSON。');
+      let chosen = skeletons[0];
+      if (skeletons.length > 1) {
+        const pick = await chooseFrom('選擇要強化的骨架', skeletons.map(item => ({label: item.entry.path, value: item})));
+        if (!pick || stale()) return; chosen = pick;
+      }
+      const jsonFile = await chosen.entry.getFile(), jsonText = await jsonFile.text();
+      let receiptText = null, receipt = null;
+      const firstPlan = Folder.planLoad(entries, chosen.entry.path, chosen.json);
+      if (firstPlan.receipt) {
+        receiptText = (await readEntryText(firstPlan.receipt, 8 * 1048576, '效果更新記錄')).text;
+        try { receipt = JSON.parse(receiptText.replace(/^﻿/, '')); } catch (_) { receipt = null; receiptText = null; }
+      }
+      const imageDirectory = receipt && receipt.manifest && typeof receipt.manifest.imageDirectory === 'string' ? receipt.manifest.imageDirectory : null;
+      const plan = imageDirectory ? Folder.planLoad(entries, chosen.entry.path, chosen.json, {excludeImageDir: imageDirectory}) : firstPlan;
+      let resumed = false;
+      let preferred = integration && integration.fileName === Folder.basename(chosen.entry.path) ? clone(integration.settings) : null;
+      if (plan.project) {
+        const answer = await chooseFrom('這個資料夾有上次寫回的粒子專案', [
+          {label: '接續上次的粒子：' + Folder.basename(plan.project.path), value: 'resume'},
+          {label: '只載入骨架，保留目前的粒子', value: 'keep'}]);
+        if (!answer || stale()) return;
+        if (answer === 'resume') {
+          const parsed = Storage.parse((await readEntryText(plan.project, 48 * 1048576, '粒子專案')).text, Core);
+          if (stale()) return;
+          preferred = parsed.integration ? clone(parsed.integration.settings) : preferred;
+          await adopt({...parsed, integration: null}); resumed = true;
+        }
+      }
+      const loaded = await loadFolderAssets(plan, entries);
+      if (stale() || !resumed && owner !== project) return;
+      historyBegin('command');
+      try {
+        attachmentUi.loadSourceText(Folder.basename(chosen.entry.path), jsonText, preferred);
+        let receiptNote = '';
+        if (receiptText) {
+          try { attachmentUi.loadReceiptText(receiptText); receiptNote = '已辨識上次寫回的粒子，輸出會替換它。'; }
+          catch (error) { receiptNote = '上次的效果更新記錄與目前骨架不符，已改為追加新效果（' + error.message + '）'; }
+        }
+        if (loaded.assets) integration = {...integration, assets: loaded.assets};
+        folderState = {name: source.name, handle: source.handle || null, fileName: Folder.basename(chosen.entry.path), jsonPath: chosen.entry.path,
+          imagesRoot: Folder.declaredImagesRoot(chosen.entry.path, chosen.json, plan.imagesRoot), signature: jsonFile.size + ':' + jsonFile.lastModified};
+        previewAttached = true; time = 0; integrationChanged(); renderInspector(); updateBakeStatus();
+        if (assetsUi) assetsUi.refresh(); attachmentUi.refresh();
+        notify('已開啟「' + source.name + '」：' + chosen.entry.path + (loaded.note ? ' · ' + loaded.note : '') + '。' + receiptNote + (loaded.warnings.length ? ' ' + loaded.warnings.join('；') : '') + ' 接著按「點角色加效果」。', loaded.warnings.length > 0 && !loaded.assets);
+      } finally { historyEnd(); }
+      if (!$('spineMergeDialog').open) openAttachPanel();
+      requestAnimationFrame(() => { fitRigView(); refreshAttachPanel(); });
+    } catch (error) { notify(error.message, true); }
+  }
+  async function pickFolder() {
+    if (Folder.supportsWrite()) {
+      let handle;
+      try { handle = await window.showDirectoryPicker({id: 'particle-spine-project', mode: 'readwrite'}); }
+      catch (error) { if (error && error.name !== 'AbortError') notify('無法開啟資料夾：' + error.message, true); return; }
+      try { await openFolder({name: handle.name, handle, entries: await Folder.collectFromDirectory(handle)}); }
+      catch (error) { notify(error.message, true); }
+      return;
+    }
+    $('spineFolderInput').click();
+  }
+
+  // -- Write back --
+  async function writeBack(bundle) {
+    const target = writeTarget();
+    if (!(await Folder.ensureWritable(target.handle))) throw new Error('沒有取得資料夾的寫入權限。請再按一次並允許瀏覽器編輯此資料夾。');
+    const signature = await Folder.fileSignature(target.handle, target.jsonPath);
+    if (signature !== target.signature) throw new Error('原骨架 JSON 在開啟後被修改過（例如在 Spine 重新匯出）。為避免覆蓋新內容，請重新「開啟原工程資料夾」再寫回。');
+    const existing = (await Folder.collectFromDirectory(target.handle)).map(entry => entry.path);
+    const plan = Folder.planWrite({jsonPath: target.jsonPath, imagesRoot: target.imagesRoot, images: bundle.images.map(image => image.name),
+      imageDirectory: bundle.result.manifest.imageDirectory, existing});
+    const data = new Map();
+    data.set(target.jsonPath, bundle.json);
+    data.set(Folder.join(Folder.dirname(target.jsonPath), Folder.stemOf(target.jsonPath) + '.particle-receipt.json'), bundle.receipt);
+    data.set(Folder.join(Folder.dirname(target.jsonPath), Folder.stemOf(target.jsonPath) + '.particle.json'), bundle.project);
+    bundle.images.forEach(image => data.set(Folder.join(plan.imagesRoot, image.name), image.data));
+    const result = await Folder.executeWrite(target.handle, plan, data);
+    target.signature = await Folder.fileSignature(target.handle, target.jsonPath);
+    target.lastWrite = {backupDir: plan.backupDir, at: Date.now()};
+    return {...result, plan};
+  }
+
+  // -- Click the art --
+  function placementFrom(hit, useTime) {
+    const attached = attachedFor(); if (!attached) throw new Error('請先開啟原工程並切到掛接預覽。');
+    const bone = attached.bones(time).find(item => item.name === hit.item.boneName);
+    if (!bone) throw new Error('找不到骨骼 ' + hit.item.boneName + '。');
+    const local = AttachmentPreview.inverseDelta(bone.matrix, {x: hit.world.x - bone.matrix.x, y: hit.world.y - bone.matrix.y});
+    if (!local) throw new Error('骨骼 ' + bone.name + ' 的縮放為 0，無法掛接；請點選其他圖片。');
+    const slots = SpineMerge.inspect(effectiveIntegration().json).slots.map(slot => slot.name);
+    return {owner: project, json: integration.json, bone: bone.name, slot: hit.item.slotName, x: Math.round(local.x * 100) / 100, y: Math.round(local.y * 100) / 100,
+      layer: Assist.layerNextTo(slots, hit.item.slotName, artBelow), at: useTime && !project.flow.enabled ? round3(time) : null};
+  }
+  // Applies to an emitter that is already in project.emitters, inside a history group.
+  function applyPlacement(e, placement) {
+    const settings = integration.settings, key = 'em_' + e.id, notes = [];
+    e.x = placement.x; e.y = placement.y;
+    if (!settings.emitterParents) settings.emitterParents = {};
+    setOwn(settings.emitterParents, key, placement.bone);
+    if (!settings.emitterLayers) settings.emitterLayers = {};
+    setOwn(settings.emitterLayers, key, {drawOrder: placement.layer.drawOrder, afterSlot: placement.layer.afterSlot || ''});
+    if (placement.at !== null) {
+      const delays = {}; project.emitters.forEach(other => { if (other !== e) delays[other.id] = other.startDelay || 0; });
+      const plan = Assist.placeAtTime({sessionStart: settings.startTime || 0, at: placement.at, delays});
+      settings.startTime = plan.sessionStart;
+      project.emitters.forEach(other => { if (other !== e) { other.startDelay = plan.delays[other.id]; if (!other.startDelay) delete other.startDelay; } });
+      e.startDelay = plan.delay; if (!e.startDelay) delete e.startDelay;
+      const needed = Assist.requiredDuration(project.emitters);
+      if (!project.loop && needed > project.duration) {
+        const next = Math.min(30, Math.ceil(needed * 100) / 100);
+        if (next > project.duration) { project.duration = next; notes.push('粒子長度延長為 ' + next + ' 秒'); }
+      }
+    }
+    return notes;
+  }
+  function closeArtMenu() {
+    $('artPickMenu').hidden = true; artPending = null;
+    if (artPicker) artPicker.clearSelection(); queueDraft();
+  }
+  function openArtMenu(hit) {
+    const menu = $('artPickMenu'), stage = $('canvasStage').getBoundingClientRect();
+    artPending = {hit, time, owner: project, json: integration && integration.json};
+    $('artPickTitle').textContent = hit.item.attachmentName + ' · 插槽 ' + hit.item.slotName + ' · 骨骼 ' + hit.item.boneName;
+    const flow = project.flow.enabled;
+    $('artPickUseTime').disabled = flow;
+    $('artPickTimeLabel').textContent = flow ? '三段動畫的開始時間請在掛接設定調整' : '從播放頭 ' + time.toFixed(2) + ' 秒開始';
+    $('artPickMove').textContent = '把「' + emitter().name + '」移到這裡';
+    $('artPickAdd').disabled = project.emitters.length >= 8 || busy;
+    $('artPickAdd').title = project.emitters.length >= 8 ? '已達 8 個發射器上限' : '';
+    ['artPickAbove', 'artPickBelow'].forEach(id => { const below = id === 'artPickBelow'; $(id).classList.toggle('active', below === artBelow); $(id).setAttribute('aria-pressed', String(below === artBelow)); });
+    menu.hidden = false;
+    const width = menu.offsetWidth || 280, height = menu.offsetHeight || 180;
+    menu.style.left = clamp(hit.screen.x - stage.left + 14, 8, stage.width - width - 8) + 'px';
+    menu.style.top = clamp(hit.screen.y - stage.top + 14, 8, stage.height - height - 8) + 'px';
+    $('artPickAdd').focus();
+  }
+  function artPendingValid() {
+    return artPending && artPending.owner === project && integration && artPending.json === integration.json;
+  }
+  function startArtPick() {
+    if (!artPicker) return;
+    if (bonePicker && bonePicker.active) bonePicker.cancel();
+    closeArtMenu();
+    if (!previewAttached && integration) { previewAttached = true; refreshAttachmentPreview(); }
+    if (mode === 'baked' && revision !== bakedRevision) { mode = 'live'; refreshLive(); }
+    artPicker.start();
+  }
+  function wireAttachAssist() {
+    $('spineOpenFolder').addEventListener('click', pickFolder);
+    $('spineFolderInput').addEventListener('change', async event => {
+      const source = Folder.fromFileList(event.target.files); event.target.value = '';
+      if (source) await openFolder(source);
+    });
+    window.addEventListener('resize', dockPanel);
+    $('spineMergeDialog').addEventListener('close', () => { $('spineMergeButton').classList.remove('active'); });
+    artPicker = ArtPicker.mount({canvas, button: $('previewArtPick'), hint: $('artPickHint'), notify,
+      getView: () => ({width: stageW, height: stageH, zoom, panX, panY}),
+      getItems: () => { const attached = attachedFor(); return attached ? attached.sample(time) : []; },
+      alphaAt: ArtPicker.createAlphaSampler(imageFor),
+      canStart: () => attachedFor() ? '' : integration ? attachedError || '請切到「掛接預覽」。' : '請先開啟原工程資料夾，或載入原骨架 JSON。',
+      onState(active) {
+        if (active) { playing = false; closeArtMenu(); }
+        $('emitterDragHint').hidden = active; updatePlayButton(); queueDraft();
+      },
+      onPick(hit) { openArtMenu(hit); queueDraft(); }});
+    $('spineArtPickStart').addEventListener('click', () => { if (window.innerWidth < 821 && $('spineMergeDialog').open) $('spineMergeDialog').close(); startArtPick(); });
+    $('previewArtPick').addEventListener('click', event => { event.stopImmediatePropagation(); startArtPick(); }, true);
+    ['artPickAbove', 'artPickBelow'].forEach(id => $(id).addEventListener('click', () => {
+      artBelow = id === 'artPickBelow';
+      ['artPickAbove', 'artPickBelow'].forEach(other => { const below = other === 'artPickBelow'; $(other).classList.toggle('active', below === artBelow); $(other).setAttribute('aria-pressed', String(below === artBelow)); });
+    }));
+    $('artPickCancel').addEventListener('click', closeArtMenu);
+    $('artPickMove').addEventListener('click', () => {
+      if (!artPendingValid() || busy) { closeArtMenu(); return; }
+      try {
+        const placement = placementFrom(artPending.hit, $('artPickUseTime').checked), e = emitter();
+        historyBegin('command');
+        let notes;
+        try { notes = applyPlacement(e, placement); Core.normalizeProject(project); changed(); integrationChanged(); refreshLive(); renderInspector(); attachmentUi.refresh(); }
+        finally { historyEnd(); }
+        notify('已把「' + e.name + '」移到 ' + placement.slot + '（骨骼 ' + placement.bone + '）' + (placement.at !== null ? '，' + placement.at + ' 秒開始' : '') + (notes.length ? '；' + notes.join('；') : '') + '。');
+      } catch (error) { notify(error.message, true); }
+      closeArtMenu();
+    });
+    $('artPickAdd').addEventListener('click', () => {
+      if (!artPendingValid() || busy) { closeArtMenu(); return; }
+      try { pendingPlacement = placementFrom(artPending.hit, $('artPickUseTime').checked); }
+      catch (error) { notify(error.message, true); closeArtMenu(); return; }
+      $('artPickMenu').hidden = true;
+      libraryUi.open();
+    });
+    $('effectLibraryDialog').addEventListener('close', () => { if (pendingPlacement) { pendingPlacement = null; closeArtMenu(); } });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !$('artPickMenu').hidden) { event.preventDefault(); closeArtMenu(); return; }
+      if (modalOpen() || event.ctrlKey || event.metaKey || event.altKey || busy) return;
+      const target = event.target instanceof Element ? event.target : document.body;
+      if (target.closest('input,textarea,select,[contenteditable="true"]')) return;
+      if (event.key.toLowerCase() === 'a' && attachedFor()) { event.preventDefault(); startArtPick(); }
+    });
+    document.addEventListener('pointerdown', event => {
+      if ($('artPickMenu').hidden || $('artPickMenu').contains(event.target) || event.target === canvas) return;
+      if (!$('effectLibraryDialog').open) closeArtMenu();
+    }, true);
+    $('spineStartAtPlayhead').addEventListener('click', () => {
+      const attached = attachedFor(), target = startTarget(); if (!attached || !target) return;
+      historyBegin('command');
+      try { target.startTime = round3(Math.round(clamp(time, 0, 600) * activeFps()) / activeFps()); integrationChanged(); attachmentUi.refresh(); }
+      finally { historyEnd(); }
+      notify('粒子改從 ' + target.startTime + ' 秒開始。');
+    });
+    $('spineFitAnimation').addEventListener('click', () => {
+      const attached = attachedFor(); if (!attached || project.flow.enabled) return;
+      const original = originalAnimation(attached.timeline.animationName);
+      if (!original || !(original.duration > 0)) { notify('目標動畫沒有長度；請改選有動畫內容的原動畫。', true); return; }
+      const next = clamp(round3(original.duration), 0.05, 30);
+      historyBegin('command');
+      try { integration.settings.startTime = 0; project.duration = next; Core.normalizeProject(project); changed(); integrationChanged(); renderGlobals(); attachmentUi.refresh(); }
+      finally { historyEnd(); }
+      notify('粒子長度改為 ' + next + ' 秒，從 0 秒開始，與「' + original.name + '」同長' + (original.duration > 30 ? '（上限 30 秒）' : '') + '。');
+    });
+  }
+  function onMoveFxBegin() { if (!busy && startTarget()) historyBegin('command'); }
+  function onMoveFx(value, {free, tolerance}) {
+    const attached = attachedFor(), target = startTarget(); if (!attached || !target || busy) return;
+    const original = originalAnimation(attached.timeline.animationName);
+    const limit = Math.max(0, original ? original.duration : attached.timeline.duration);
+    const snapped = Assist.snapTime(value, {markers: timelineMarkers(attached), fps: activeFps(), duration: limit, tolerance, free});
+    if (target.startTime === snapped.time) return;
+    target.startTime = snapped.time;
+    integrationChanged(); refreshAttachmentPreview(); syncTimeline();
+    $('attachmentPreviewStatus').textContent = '粒子開始 ' + snapped.time + ' 秒' + (snapped.marker ? snapped.marker.kind === 'event' ? ' · 對齊事件「' + snapped.marker.name + '」' : ' · 對齊關鍵幀' : free ? ' · 自由拖曳' : '');
+  }
+  function onMoveFxEnd() { historyEnd(); if (attachmentUi) attachmentUi.refresh(); queueDraft(); }
+
   // ---- Workflow: shortcuts, emitter clipboard and drag & drop ----
   const CLIPBOARD_KEY = 'particle-studio-emitter-clipboard';
   let emitterClipboard = null;
-  function anyDialogOpen() { return Array.from(document.querySelectorAll('dialog')).some(dialog => dialog.open); }
+  function anyDialogOpen() { return modalOpen(); }
   function copyEmitter() {
     const source = emitter(); if (!source) return;
     emitterClipboard = {format: 'particle-studio-emitter', version: 1, emitter: clone(source)};
@@ -11237,7 +12839,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
           zonesHost.append(zone('background', '參考背景', '只在畫布對照，不會輸出'));
         }
         if (integration) zonesHost.append(zone('rig', '原骨架圖片', '掛接預覽用的角色素材'));
-      } else zonesHost.append(zone('auto', '自動辨識', '粒子專案、效果庫、Spine 骨架 JSON 或 Atlas'));
+      } else zonesHost.append(zone('auto', '自動辨識', 'Spine 匯出資料夾、粒子專案、效果庫、骨架 JSON 或 Atlas'));
       overlay.hidden = false;
     }
     function hide() { depth = 0; activeZone = null; overlay.hidden = true; }
@@ -11258,7 +12860,12 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       event.preventDefault();
       const node = event.target instanceof Element && event.target.closest('.drop-zone');
       const choice = node ? node.dataset.zone : (zonesHost.querySelector('.drop-zone') || {dataset: {}}).dataset.zone;
+      // Folder entries must be read synchronously inside the drop event.
+      const folderRequest = Folder.fromDataTransfer(event.dataTransfer.items).catch(error => { notify(error.message, true); return false; });
       const files = Array.from(event.dataTransfer.files || []); hide();
+      const folder = await folderRequest;
+      if (folder === false) return;
+      if (folder) { if (!busy) await openFolder(folder); return; }
       if (!files.length || busy) return;
       const owner = project;
       try {

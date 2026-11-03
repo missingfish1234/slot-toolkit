@@ -258,7 +258,7 @@
               c: Math.sin(r) * attachment.scaleX, d: Math.cos(r) * attachment.scaleY, x: attachment.x, y: attachment.y};
           }
           const world = multiply(matrix(slot.bone), local), alias = names.aliases.get(attachment.name);
-          const item = {type: attachment instanceof runtime.RegionAttachment ? 'region' : 'mesh', slotName: slot.data.name,
+          const item = {type: attachment instanceof runtime.RegionAttachment ? 'region' : 'mesh', slotName: slot.data.name, boneName: slot.bone.data.name,
             attachmentName: alias ? alias.name : attachment.name, path: record && record.path,
             x: world.x, y: world.y, rotation: Math.atan2(world.c, world.a) / DEG, color, alpha,
             darkColor: slot.darkColor ? [slot.darkColor.r, slot.darkColor.g, slot.darkColor.b] : null,

@@ -3,10 +3,11 @@
   const curveMath = typeof module === 'object' && module.exports ? require('./curve-math.js') : root.ParticleCurveMath;
   const pathMath = typeof module === 'object' && module.exports ? require('./path-math.js') : root.ParticlePathMath;
   const contourMath = typeof module === 'object' && module.exports ? require('./contour-math.js') : root.ParticleContourMath;
-  var api = factory(curveMath, pathMath, contourMath);
+  const lightning = typeof module === 'object' && module.exports ? require('./lightning.js') : root.ParticleLightning;
+  var api = factory(curveMath, pathMath, contourMath, lightning);
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.ParticleCore = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (CurveMath, PathMath, ContourMath) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (CurveMath, PathMath, ContourMath, Lightning) {
   'use strict';
   if (!CurveMath) throw new Error('粒子曲線模組尚未載入，請先載入 curve-math.js。');
   if (!PathMath) throw new Error('粒子路徑模組尚未載入，請先載入 path-math.js。');
@@ -356,6 +357,12 @@
       ids.add(id);
       const e = createEmitter(id, text(source, 'name', '發射器 ' + (emitterIndex + 1), 80, '發射器名稱'));
       e.enabled = boolean(source, 'enabled', true, '發射器啟用');
+      // Optional layer kind; absent keeps every legacy particle layer unchanged.
+      if (source.kind !== undefined && source.kind !== 'particles') {
+        e.kind = enumValue(source, 'kind', 'particles', ['particles', 'lightning'], '圖層類型');
+        if (!Lightning) fail('閃電網格模組尚未載入，請先載入 lightning.js。');
+        e.lightning = Lightning.normalize(source.lightning, '「' + e.name + '」閃電');
+      }
       // Keep old files and snapshots on their exact ID-split project streams.
       if (source.randomSeed !== undefined) e.randomSeed = number(source, 'randomSeed', undefined, 0, 0xffffffff, true, '發射器獨立隨機種子');
       e.alignDirection = boolean(source, 'alignDirection', false, '方向對齊');
@@ -657,8 +664,10 @@
     const particles = [];
     let generatedParticles = 0, maxPoolCycles = 1, longLived = false;
     const warnings = [];
+    const lightning = [];
     project.emitters.forEach(e => {
       if (!e.enabled) return;
+      if (e.kind === 'lightning') { lightning.push({emitterId: e.id, seed: emitterSeed(project, e)}); return; }
       const rand = random(emitterSeed(project, e));
       const signed = amplitude => (rand() * 2 - 1) * amplitude;
       const sampleRing = e.shape === 'ring' ? (e.emitFrom === 'area' ? ringAreaSampler(e) : ringSampler(e)) : null;
@@ -746,13 +755,16 @@
       if (!project.loop && clipped) warnings.push('「' + e.name + '」部分粒子會在動畫結尾截斷。');
       if (e.alphaCurve[e.alphaCurve.length - 1].v !== 0) warnings.push('「' + e.name + '」透明度曲線尾值不為 0；粒子壽命結束時會立即隱藏。');
     });
-    if (!particles.length) warnings.push('所有發射器都已停用，輸出動畫只包含 root。');
+    if (!particles.length && !lightning.length) warnings.push('所有發射器都已停用，輸出動畫只包含 root。');
+    const lightningLanes = lightning.reduce((sum, item) => sum + Lightning.lanes(project.emitters.find(e => e.id === item.emitterId).lightning).length, 0);
     if (longLived) warnings.push('壽命超過循環週期的粒子使用分段粒子池；循環畫面連續，部分骨骼在交接點交換角色。動畫混合與中斷尚未驗證。');
     const enabledEmitters = project.emitters.filter(e => e.enabled).length;
-    return freezeDeep({project, particles, duration: project.duration, fps: project.fps, loop: project.loop,
-      stats: Object.assign({particles: particles.length, generatedParticles, bones: particles.length + enabledEmitters + 1,
-        slots: particles.length, enabledEmitters, poolCycles: maxPoolCycles, fps: project.fps,
-        duration: project.duration, warnings}, qualityStats(project))});
+    const result = {project, particles, duration: project.duration, fps: project.fps, loop: project.loop,
+      stats: Object.assign({particles: particles.length, generatedParticles, bones: particles.length + lightningLanes + enabledEmitters + 1,
+        slots: particles.length + lightningLanes, enabledEmitters, poolCycles: maxPoolCycles, fps: project.fps,
+        duration: project.duration, warnings}, qualityStats(project))};
+    if (lightning.length) { result.lightning = lightning; result.stats.lightningStrips = lightningLanes; }
+    return freezeDeep(result);
   }
 
   function particleAge(baked, particle, time) {
@@ -775,6 +787,7 @@
       const flowPhase = kind === 'in' ? {kind, basis, offset: -duration} : {kind};
       phases[kind] = {project, particles, duration, fps: project.fps, loop: kind === 'loop', flowPhase,
         stats: Object.assign({}, basis.stats, {duration, phase: kind})};
+      if (basis.lightning) phases[kind].lightning = basis.lightning;
     });
     const stats = Object.assign({}, basis.stats, {duration: round(flow.in.duration + flow.loop.duration + flow.out.duration),
       phaseDurations: {in: flow.in.duration, loop: flow.loop.duration, out: flow.out.duration}});
@@ -1007,7 +1020,30 @@
   function sample(baked, time) {
     if (typeof time !== 'number' || !Number.isFinite(time)) fail('預覽時間必須是有限數值。');
     const t = baked.loop ? mod(time, baked.duration) : clamp(time, 0, baked.duration);
-    return baked.particles.map(particle => stateAt(baked, particle, t));
+    const states = baked.particles.map(particle => stateAt(baked, particle, t));
+    if (baked.lightning) states.push(...lightningStates(baked, t));
+    return states;
+  }
+  function lightningEmitter(baked, item) {
+    const e = baked.project.emitters.find(emitter => emitter.id === item.emitterId);
+    if (!e || e.kind !== 'lightning') fail('閃電圖層資料與專案不一致，請重新烘焙。');
+    return e;
+  }
+  // Mesh states with vertices in the emitter parent's space (emitter origin added).
+  function lightningStates(baked, t) {
+    const result = [];
+    baked.lightning.forEach(item => {
+      const e = lightningEmitter(baked, item);
+      Lightning.states({settings: e.lightning, seed: item.seed, duration: baked.duration, loop: baked.loop, startDelay: e.startDelay || 0,
+        activeDuration: e.emissionDuration, flow: baked.flowPhase ? baked.flowPhase.kind : null, time: t, color: rgb(e.colorStart),
+        blend: e.blend, image: e.image, emitterId: e.id}).forEach(state => {
+        const vertices = state.vertices.map((value, index) => value + (index % 2 ? e.y : e.x));
+        let x = 0, y = 0; for (let i = 0; i < vertices.length; i += 2) { x += vertices[i]; y += vertices[i + 1]; }
+        result.push(Object.assign(state, {vertices, x: x / (vertices.length / 2), y: y / (vertices.length / 2), width: 0, height: 0, rotation: 0, scale: 1,
+          slotName: 'em_' + e.id + '_l' + state.lane + '_slot'}));
+      });
+    });
+    return result;
   }
 
   // Each lane represents a bounded age interval, even if it spans several
@@ -1210,7 +1246,25 @@
     const enabled = baked.project.emitters.filter(e => e.enabled);
     enabled.forEach(e => json.bones.push({name: 'em_' + e.id, parent: 'root', x: e.x, y: e.y}));
     // The first emitter in the editor is the front layer; Spine draws the final slot last.
+    let lightningSlots = 0;
     enabled.slice().reverse().forEach(e => {
+      if (e.kind === 'lightning') {
+        const item = (baked.lightning || []).find(entry => entry.emitterId === e.id);
+        if (!item) fail('閃電圖層尚未烘焙，請重新烘焙。');
+        const asset = imagePlan.byEmitter.get(e.id)[0].asset;
+        const part = Lightning.exportEmitter({e, settings: e.lightning, seed: item.seed, duration: baked.duration, loop: baked.loop,
+          flow: baked.flowPhase ? baked.flowPhase.kind : null, family: profile.family, colorTimeline: profile.colorTimeline,
+          path: asset.name.slice(0, -4), image: e.image || asset, color: rgb(e.colorStart), startIndex: 0});
+        json.bones.push(...part.bones); json.slots.push(...part.slots); Object.assign(attachments, part.attachments);
+        Object.assign(json.animations.effect.slots, part.animation.slots);
+        ['deform', 'attachments'].forEach(group => {
+          if (!part.animation[group]) return;
+          const target = json.animations.effect[group] || (json.animations.effect[group] = {default: {}});
+          Object.assign(target.default, part.animation[group].default);
+        });
+        keyframes += part.keyframes; denseKeyframes += part.keyframes; lightningSlots += part.laneCount;
+        return;
+      }
       const sequence = activeSequence(e);
       const assets = imagePlan.byEmitter.get(e.id).map(ref => ref.asset);
       const path = assets[0].name.slice(0, -4);
@@ -1266,7 +1320,7 @@
         keyframes += translate.length + rotate.length + scale.length + colors.length + switches.length;
       });
     });
-    if (!baked.particles.length) {
+    if (!baked.particles.length && !lightningSlots) {
       json.animations.effect.bones.root = {translate: [{x: 0, y: 0}, {time: baked.duration, x: 0, y: 0}]};
       keyframes = denseKeyframes = 2;
     }

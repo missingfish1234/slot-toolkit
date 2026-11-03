@@ -212,6 +212,21 @@
     return {name: kind + '.png', mime: 'image/png', width: 64, height: 64, dataUrl: surface.toDataURL('image/png')};
   }
   ['glow', 'sparks', 'coins', 'bubbles'].forEach(kind => { builtinImages[kind] = makeTexture(kind); });
+  // A horizontal electric streak: bright core, soft blue glow, slight grain so deform reads.
+  function makeBoltTexture() {
+    const surface = document.createElement('canvas'); surface.width = 256; surface.height = 64;
+    const c = surface.getContext('2d'), pixels = c.createImageData(256, 64);
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 256; x++) {
+      const d = Math.abs(y - 31.5) / 32, ends = Math.min(1, x / 18, (255 - x) / 18);
+      const grain = 0.82 + 0.18 * Math.sin(x * 0.9) * Math.sin(x * 0.37 + 1.3);
+      const core = Math.exp(-Math.pow(d / 0.07, 2)), glow = Math.exp(-Math.pow(d / 0.38, 2)) * 0.55 * grain;
+      const a = Math.min(1, core + glow) * ends, i = (y * 256 + x) * 4;
+      pixels.data[i] = 255; pixels.data[i + 1] = 255; pixels.data[i + 2] = 255; pixels.data[i + 3] = Math.round(a * 255);
+    }
+    c.putImageData(pixels, 0, 0);
+    return {name: 'lightning.png', mime: 'image/png', width: 256, height: 64, dataUrl: surface.toDataURL('image/png')};
+  }
+  builtinImages.lightning = makeBoltTexture();
 
   function notify(message, error) {
     if ($('flowDialog').open) {
@@ -270,6 +285,7 @@
     $('previewSkinField').hidden = skins.length < 2; if (attached) picker.value = attached.metadata.skinName;
     $('spineTargetChip').hidden = !enabled;
     if (enabled) $('spineTargetChip').textContent = attached ? '掛接 · ' + (integration.settings.emitterParents['em_' + selectedId] || integration.settings.parentBone) : attachedError ? '掛接預覽無法解析' : '粒子局部預覽';
+    refreshAttachPanel();
     if (assetsUi) assetsUi.setPreviewInfo(attached ? (attached.metadata.missingAssets.length ? '原骨架有 ' + attached.metadata.missingAssets.length + ' 個圖片路徑未匹配：' + attached.metadata.missingAssets.slice(0, 4).map(a => a.path).join('、') : '原骨架素材已完整匹配。') : attachedError || '切換至掛接預覽以檢查素材。');
   }
   function focusAttachment() {
@@ -290,7 +306,8 @@
     selectedId = next.id; previewAttached = true;
     if (mode === 'baked' && revision !== bakedRevision) { mode = 'live'; refreshLive(); }
     renderEmitters(); renderInspector(); refreshAttachmentPreview();
-    $('spineMergeDialog').close(); bonePicker.start();
+    if ($('spineMergeDialog').matches(':modal')) $('spineMergeDialog').close();
+    closeArtMenu(); if (artPicker) artPicker.stop(); bonePicker.start();
   }
   function wireBonePicker() {
     bonePicker = window.ParticleBonePicker.mount({canvas, button: $('previewPickBone'), hint: $('bonePickHint'), keepWorld: $('previewKeepWorld'), notify,
@@ -511,9 +528,10 @@
       path.setAttribute('d', shapeIcons[textureKind] || shapeIcons[item.shape] || shapeIcons.point); svg.append(path); icon.append(svg);
       const copy = document.createElement('span'); copy.className = 'emitter-copy';
       const name = document.createElement('span'); name.className = 'emitter-name'; name.textContent = item.name;
-      const meta = document.createElement('span'); meta.className = 'emitter-meta'; meta.textContent = item.count + ' 顆 · ' + (item.blend === 'additive' ? '加色' : '一般');
+      const meta = document.createElement('span'); meta.className = 'emitter-meta'; meta.textContent = item.kind === 'lightning' ? '網格閃電 · ' + item.lightning.bolts + ' 條' + (item.lightning.branches ? ' · 分岔 ' + item.lightning.branches : '') : item.count + ' 顆 · ' + (item.blend === 'additive' ? '加色' : '一般');
       const tags = document.createElement('span'); tags.className = 'emitter-tags';
-      const type = document.createElement('span'); type.className = 'emitter-type'; type.textContent = item.path && item.path.enabled ? '沿路徑移動' : (shapeNames[item.shape] || '點形') + (['box', 'circle', 'ring'].includes(item.shape) ? emitFrom(item) === 'edge' ? ' · 邊框' : ' · 區域內' : '');
+      if (item.kind === 'lightning') path.setAttribute('d', 'M13 2 5 13h6l-1 9 8-12h-6l1-8Z');
+      const type = document.createElement('span'); type.className = 'emitter-type'; type.textContent = item.kind === 'lightning' ? (item.lightning.mode === 'fixed' ? '兩端固定' : '尾端擺動') : item.path && item.path.enabled ? '沿路徑移動' : (shapeNames[item.shape] || '點形') + (['box', 'circle', 'ring'].includes(item.shape) ? emitFrom(item) === 'edge' ? ' · 邊框' : ' · 區域內' : '');
       const color = document.createElement('span'); color.className = 'emitter-color-dot'; color.style.setProperty('--emitter-color', item.colorGradient && item.colorGradient.length ? item.colorGradient[0].color : item.colorStart); color.setAttribute('aria-hidden', 'true');
       tags.append(type, color); copy.append(name, meta, tags);
       const index = document.createElement('span'); index.className = 'emitter-index'; index.textContent = String(layerIndex + 1).padStart(2, '0'); index.setAttribute('aria-hidden', 'true');
@@ -628,6 +646,7 @@
     updateHandlePositions();
   }
   function updateHandlePositions() {
+    updateLightningHandle();
     const attached = attachedFor();
     project.emitters.forEach(e => {
       const button = handles.get(e.id); if (!button) return;
@@ -669,10 +688,112 @@
     }
     renderPathInspector();
     renderOutlineInspector();
+    renderLightningInspector(e);
     drawCurves();
     if (libraryUi && $('effectLibraryDialog').open) libraryUi.refresh();
   }
   function pathFor(e) { return e.path || PathMath.defaults(); }
+  // Rigs that keep their art in named skins (Normal / Super…) look empty in
+  // "default"; preview the skin that holds the most attachments instead.
+  function preferredSkin(json) {
+    const skins = Array.isArray(json && json.skins) ? json.skins : [];
+    const count = skin => Object.values(skin && skin.attachments || {}).reduce((sum, slot) => sum + Object.keys(slot || {}).length, 0);
+    const named = skins.filter(skin => skin && skin.name !== 'default');
+    if (!named.length) return '';
+    const best = named.reduce((a, b) => count(b) > count(a) ? b : a);
+    const base = skins.find(skin => skin && skin.name === 'default');
+    return count(best) > count(base) ? best.name : '';
+  }
+  // ---- Mesh lightning layer ----
+  const LIGHTNING_DIGITS = {roughness: 2, lengthJitter: 2, branchChance: 2, branchLength: 2, widthJitter: 2, alphaJitter: 2, gap: 2, taper: 2};
+  function renderLightningInspector(e) {
+    const lightning = e.kind === 'lightning';
+    $('lightningSection').hidden = !lightning;
+    document.querySelectorAll('[data-particle-only]').forEach(node => { node.hidden = lightning; });
+    $('emissionDurationLabel').textContent = lightning ? '持續時間' : '發射時間';
+    $('tabMotion').hidden = lightning;
+    if (lightning && !$('panelMotion').hidden) setTab('basic');
+    if (!lightning) { renderHandles(); return; }
+    const L = e.lightning;
+    document.querySelectorAll('[data-lfield]').forEach(input => { if (!(document.activeElement === input && input.type === 'number')) input.value = L[input.dataset.lfield]; });
+    document.querySelectorAll('[data-lreadout]').forEach(output => {
+      const key = output.dataset.lreadout, value = L[key];
+      output.textContent = LIGHTNING_DIGITS[key] ? Math.round(value * 100) + '%' : String(value);
+    });
+    document.querySelectorAll('[data-lmode-set]').forEach(button => { const on = button.dataset.lmodeSet === L.mode; button.classList.toggle('active', on); button.setAttribute('aria-pressed', String(on)); });
+    document.querySelectorAll('[data-lmode]').forEach(node => { node.hidden = node.dataset.lmode !== L.mode; });
+    document.querySelectorAll('[data-lneeds]').forEach(node => {
+      const key = node.dataset.lneeds; node.hidden = key === 'bolts' ? L.bolts < 2 || L.mode !== 'free' : L[key] < 1;
+    });
+    renderHandles();
+  }
+  function setLightning(patch, duringInput) {
+    const e = emitter(); if (!e || e.kind !== 'lightning') return false;
+    const previous = e.lightning;
+    e.lightning = {...previous, ...patch};
+    try { Core.normalizeProject(project); }
+    catch (error) { e.lightning = previous; if (!duringInput) { notify(error.message, true); renderInspector(); } return false; }
+    changed(); renderEmitters(); renderLightningInspector(e);
+    return true;
+  }
+  function wireLightningInspector() {
+    document.querySelectorAll('[data-lfield]').forEach(input => {
+      const apply = duringInput => {
+        if (duringInput && !input.value.trim()) return;
+        const value = Number(input.value); if (!Number.isFinite(value)) return;
+        const key = input.dataset.lfield;
+        if (emitter().lightning && emitter().lightning[key] === value) return;
+        setLightning({[key]: value}, duringInput && input.type !== 'range');
+      };
+      input.addEventListener('input', () => apply(true));
+      input.addEventListener('change', () => apply(false));
+    });
+    document.querySelectorAll('[data-lmode-set]').forEach(button => button.addEventListener('click', () => {
+      historyBegin('command'); try { setLightning({mode: button.dataset.lmodeSet}); } finally { historyEnd(); }
+    }));
+  }
+  // Blue end handle: drag to set the bolt's length and direction.
+  let lightningHandle = null;
+  function lightningEndPoint(e) {
+    const L = e.lightning, a = L.angle * Math.PI / 180, local = {x: e.x + Math.cos(a) * L.length, y: e.y + Math.sin(a) * L.length};
+    if (!attachedMode()) return local;
+    const attached = attachedFor(), frame = attached && attached.emitterFrame(e.id, time);
+    return frame ? AttachmentPreview.point(frame.matrix, local) : null;
+  }
+  function updateLightningHandle() {
+    const e = emitter();
+    if (!lightningHandle) {
+      lightningHandle = document.createElement('button'); lightningHandle.type = 'button'; lightningHandle.className = 'lightning-end-handle';
+      lightningHandle.setAttribute('aria-label', '閃電終點：拖曳調整長度與方向'); lightningHandle.title = '閃電終點 · 拖曳調整長度與方向（Shift 鎖定 15°）';
+      lightningHandle.addEventListener('pointerdown', event => {
+        if (event.button !== 0) return;
+        const target = emitter(); if (!target || target.kind !== 'lightning') return;
+        event.preventDefault(); event.stopPropagation(); lightningHandle.setPointerCapture(event.pointerId);
+        const attached = attachedMode() ? attachedFor() : null, frame = attached && attached.emitterFrame(target.id, time);
+        lightningHandle.drag = {e: target, matrix: frame ? {...frame.matrix} : null, wasPlaying: playing};
+        playing = false; updatePlayButton(); historyBegin('command');
+      });
+      lightningHandle.addEventListener('pointermove', event => {
+        const drag = lightningHandle.drag; if (!drag) return;
+        const rect = canvas.getBoundingClientRect();
+        let world = {x: (event.clientX - rect.left - stageW / 2 - panX) / zoom, y: -(event.clientY - rect.top - stageH / 2 - panY) / zoom};
+        if (drag.matrix) { const local = AttachmentPreview.inverseDelta(drag.matrix, {x: world.x - drag.matrix.x, y: world.y - drag.matrix.y}); if (!local) return; world = local; }
+        const dx = world.x - drag.e.x, dy = world.y - drag.e.y;
+        let angle = Math.atan2(dy, dx) * 180 / Math.PI; if (event.shiftKey) angle = Math.round(angle / 15) * 15;
+        const length = Math.round(clamp(Math.hypot(dx, dy), 10, 4000));
+        drag.e.lightning = {...drag.e.lightning, length, angle: Math.round(angle)};
+        changed(); renderLightningInspector(drag.e);
+      });
+      const finish = () => { const drag = lightningHandle.drag; if (!drag) return; lightningHandle.drag = null; historyEnd(); playing = drag.wasPlaying; updatePlayButton(); refreshLive(); queueDraft(); };
+      lightningHandle.addEventListener('pointerup', finish); lightningHandle.addEventListener('pointercancel', finish); lightningHandle.addEventListener('lostpointercapture', finish);
+      handleLayer.append(lightningHandle);
+    }
+    const point = e && e.kind === 'lightning' && e.enabled ? lightningEndPoint(e) : null;
+    if (!point) { lightningHandle.hidden = true; return; }
+    const x = stageW / 2 + panX + point.x * zoom, y = stageH / 2 + panY - point.y * zoom;
+    lightningHandle.style.left = x + 'px'; lightningHandle.style.top = y + 'px';
+    lightningHandle.hidden = x < -13 || y < -13 || x > stageW + 13 || y > stageH + 13;
+  }
   function renderOutlineInspector() {
     const e = emitter(), outline = e.outline;
     $('outlineThreshold').value = outline ? outline.threshold : 24; $('outlineHoles').checked = !!(outline && outline.includeHoles);
@@ -888,6 +1009,17 @@
       if (frame) { const m = frame.matrix; ctx.transform(m.a, -m.c, -m.b, m.d, m.x, -m.y); }
       ctx.translate(e.x, -e.y);
       const chosen = e.id === selectedId;
+      if (e.kind === 'lightning') {
+        const L = e.lightning, a = L.angle * Math.PI / 180, ex = Math.cos(a) * L.length, ey = -Math.sin(a) * L.length;
+        ctx.strokeStyle = chosen ? '#9fd8ff' : '#738194'; ctx.globalAlpha = e.enabled ? (chosen ? .8 : .35) : .2;
+        ctx.lineWidth = (chosen ? 1.4 : 1) / zoom; ctx.setLineDash([6 / zoom, 5 / zoom]);
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(ex, ey); ctx.stroke(); ctx.setLineDash([]);
+        if (L.mode === 'free' && chosen) {
+          ctx.globalAlpha = .25; ctx.beginPath(); ctx.moveTo(0, 0);
+          ctx.arc(0, 0, L.length, -(L.angle + L.tailSwing) * Math.PI / 180, -(L.angle - L.tailSwing) * Math.PI / 180); ctx.closePath(); ctx.stroke();
+        }
+        ctx.restore(); return;
+      }
       if (e.path && e.path.enabled) {
         const key = JSON.stringify(e.path); let compiled = pathGizmoCache.get(key);
         if (!compiled) { compiled = PathMath.compile(e.path); pathGizmoCache.set(key, compiled); if (pathGizmoCache.size > 16) pathGizmoCache.delete(pathGizmoCache.keys().next().value); }
@@ -951,7 +1083,7 @@
         }
         ctx.stroke();
       }
-      if (chosen) window.ParticleEmissionGuides.draw(ctx, e, {pixelRatio: Math.min(2, window.devicePixelRatio || 1)});
+      if (chosen && e.kind !== 'lightning') window.ParticleEmissionGuides.draw(ctx, e, {pixelRatio: Math.min(2, window.devicePixelRatio || 1)});
       ctx.restore();
     }); ctx.restore();
   }
@@ -1010,6 +1142,15 @@
         continue;
       }
       if (hiddenEmitters.has(p.emitterId)) continue;
+      if (p.type === 'mesh') {
+        if (p.alpha <= 0.0001) continue;
+        const texture = tinted(p.image, p.color); if (!texture) continue;
+        const offset = offsets.get(p.emitterId);
+        const state = offset ? {...p, vertices: p.vertices.map((value, i) => value + (i % 2 ? offset.y : offset.x))} : p;
+        ctx.save(); ctx.scale(1, -1);
+        if (window.ParticleSpineCanvasRenderer.draw(ctx, state, texture)) visible++;
+        ctx.restore(); continue;
+      }
       if (p.alpha <= 0.0001 || p.width <= 0 || p.height <= 0) continue;
       const texture = tinted(p.image, p.color); if (!texture) continue;
       visible++;
@@ -1020,6 +1161,7 @@
     }
     if (attached && showBones && !(bonePicker && bonePicker.active)) drawBones(attached);
     if (bonePicker && bonePicker.active) bonePicker.draw(ctx);
+    else if (artPicker && (artPicker.active || artPicker.selected)) artPicker.draw(ctx, zoom);
     else drawGizmos(mode === 'live' ? project : snapshot.project);
     ctx.restore();
     const statistics = mode === 'baked' && exported ? exported.stats : snapshot.stats;
@@ -1246,7 +1388,7 @@
   }
   async function exportZip() {
     if (!(await ensureBaked())) return;
-    if (integration && integration.settings.enabled !== false) { exportMergedZip(); return; }
+    if (integration && integration.settings.enabled !== false) { await exportMerged(); return; }
     if (!bakeFresh()) { notify('烘焙未完成，無法輸出。', true); return; }
     try {
       const name = safeName();
@@ -1296,7 +1438,7 @@
       return {fileName};
     } finally { busy = false; updateBakeStatus(); }
   }
-  function exportMergedZip() {
+  async function exportMerged() {
     if (!baked || revision !== bakedRevision || !exported || busy) { notify('請先更新粒子烘焙再輸出追加包。', true); return; }
     try {
       const options = flowBaked ? attachmentUi.validateFlowOptions(exported) : attachmentUi.validateOptions(exported, baked.duration);
@@ -1314,7 +1456,7 @@
       let stem = integration.fileName.replace(/\.json$/i, '').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/^[. ]+|[. ]+$/g, '').slice(0, 64) || 'spine';
       if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(stem)) stem = 'spine_' + stem;
       const name = stem + '_particles';
-      const text = 'Particle Studio v1.26 · 既有 Spine ' + result.json.skeleton.spine + (integration.update && integration.update.mode === 'replace' ? ' 效果更新包\n\n' : ' 追加包\n\n') +
+      const text = 'Particle Studio v1.28 · 既有 Spine ' + result.json.skeleton.spine + (integration.update && integration.update.mode === 'replace' ? ' 效果更新包\n\n' : ' 追加包\n\n') +
         '1. 保留原 .spine 工程及其全部素材。此包不包含原角色的圖片或音效。\n' +
         '2. 把 new_images/ 裡的「' + result.manifest.imageDirectory + '」資料夾，複製進原工程的 Images 根目錄。\n' +
         '   原 JSON Images 設定：' + result.manifest.originalImagesPath + '\n' +
@@ -1328,6 +1470,21 @@
         'JSON 往返只保留匯出的資料；未匯出的編輯器資料無法由本工具復原。\n' +
         '再次調整時，保留「效果更新記錄.json」。先開啟粒子編輯專案，再載入 Spine 修改後的骨架 JSON 與這份記錄，選擇更新此效果。新素材請覆蓋對應群組的圖片；JSON 與圖片需使用同一次輸出。\n' +
         result.warnings.join('\n');
+      const target = writeTarget();
+      if (target) {
+        const {assets, ...light} = integration;
+        const bundle = {result, json: JSON.stringify(result.json), receipt: JSON.stringify(receipt, null, 2),
+          project: Storage.serialize(project, baked.project, viewState(), light),
+          images: result.images.map(asset => ({name: asset.name, data: Zip.decodeDataUrl(asset.dataUrl || builtinImages.glow.dataUrl)}))};
+        try {
+          const written = await writeBack(bundle);
+          notify('已寫回「' + target.name + '」：' + target.jsonPath + ' 與 ' + bundle.images.length + ' 張粒子圖片（' + Folder.join(written.plan.imagesRoot, result.manifest.imageDirectory) + '）。原檔已備份到 ' + written.plan.backupDir + '。' +
+            (result.manifest.phases ? '' : ' 播放「' + result.manifest.animationName + '」檢查，') + '在 Spine 用 Import Data 匯入或直接給引擎使用；使用圖集的專案請重新打包圖集。');
+          refreshAttachPanel(); return;
+        } catch (error) {
+          notify('沒有寫回：' + error.message, true); refreshAttachPanel(); return;
+        }
+      }
       const entries = [
         {name: name + '.json', data: JSON.stringify(result.json)},
         {name: name + '.particle.json', data: Storage.serialize(project, baked.project, viewState(), integration)},
@@ -1340,12 +1497,12 @@
       notify('已開始下載：合併骨架、粒子新素材與效果更新記錄。原工程請保留並另存新版本。');
     } catch (error) { notify(error.message, true); }
   }
-  async function loadImage(file, includeSourceSize) {
+  async function loadImage(file, includeSourceSize, maxSide = 2048) {
     if (!file || !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) throw new Error('請選擇 PNG、JPEG 或 WebP 圖片。');
     if (file.size > 8 * 1024 * 1024) throw new Error('圖片超過 8 MB，請先縮小素材。');
     const source = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error('無法讀取圖片。')); reader.readAsDataURL(file); });
     const image = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = () => reject(new Error('圖片無法解碼。')); i.src = source; });
-    const ratio = Math.min(1, 2048 / Math.max(image.naturalWidth, image.naturalHeight));
+    const ratio = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
     const surface = document.createElement('canvas'); surface.width = Math.max(1, Math.round(image.naturalWidth * ratio)); surface.height = Math.max(1, Math.round(image.naturalHeight * ratio));
     surface.getContext('2d').drawImage(image, 0, 0, surface.width, surface.height);
     const result = {name: file.name, mime: 'image/png', width: surface.width, height: surface.height, dataUrl: surface.toDataURL('image/png')};
@@ -1380,11 +1537,19 @@
     {id: 'glow', name: '柔光粒子', description: '柔和光點，適合光塵與氛圍', symbol: '✦', gradient: 'radial-gradient(circle,#fff8dc,#ffc13b 45%,#3a2a12)'},
     {id: 'sparks', name: '迸射火花', description: '短促爆發的火花', symbol: '✸', gradient: 'linear-gradient(135deg,#fff2b0,#f34b23 70%,#4a1420)'},
     {id: 'coins', name: '金幣噴發', description: '金幣向上噴出再落下', symbol: '◉', gradient: 'linear-gradient(135deg,#ffe58a,#e8a018 70%,#3a2a12)'},
-    {id: 'bubbles', name: '漂浮氣泡', description: '緩慢上飄的氣泡', symbol: '○', gradient: 'linear-gradient(135deg,#f1fcff,#4b99ff 70%,#1b2550)'}
+    {id: 'bubbles', name: '漂浮氣泡', description: '緩慢上飄的氣泡', symbol: '○', gradient: 'linear-gradient(135deg,#f1fcff,#4b99ff 70%,#1b2550)'},
+    {id: 'lightning', name: '網格閃電', description: '一張貼圖切網格，隨機扭曲成閃電；可換成自己的閃電圖', symbol: 'ϟ', gradient: 'linear-gradient(135deg,#f4fbff,#6fc3ff 55%,#14234a)'}
   ];
   function builtinEmitter(preset, id = freshId()) {
     const names = Object.fromEntries(BUILTIN_EFFECTS.map(item => [item.id, item.name]));
     if (!names[preset]) throw new Error('找不到內建效果：' + preset);
+    if (preset === 'lightning') {
+      const e = Core.createEmitter(id, names[preset], 'glow');
+      Object.assign(e, {kind: 'lightning', lightning: {...window.ParticleLightning.DEFAULTS, bolts: 2, branches: 1},
+        image: clone(builtinImages.lightning), colorStart: '#cfeaff', colorEnd: '#7cc4ff', blend: 'additive',
+        count: 1, life: 0.05, lifeRandom: 0, emissionDuration: project.duration, x: 0, y: 160});
+      return e;
+    }
     const e = Core.createEmitter(id, names[preset], preset);
     if (preset !== 'glow') e.image = clone(builtinImages[preset]);
     return e;
@@ -1394,7 +1559,13 @@
     historyBegin('command');
     try {
       const index = Math.max(0, project.emitters.findIndex(item => item.id === selectedId));
-      project.emitters.splice(index, 0, e); selectedId = e.id; changed(); renderEmitters(); renderInspector();
+      project.emitters.splice(index, 0, e); selectedId = e.id;
+      let notes = [];
+      if (pendingPlacement && pendingPlacement.owner === project && integration && pendingPlacement.json === integration.json) {
+        notes = applyPlacement(e, pendingPlacement); Core.normalizeProject(project); integrationChanged();
+      }
+      changed(); renderEmitters(); renderInspector(); renderGlobals();
+      if (pendingPlacement && attachmentUi) { attachmentUi.refresh(); notify('已在 ' + pendingPlacement.slot + '（骨骼 ' + pendingPlacement.bone + '）新增「' + e.name + '」' + (pendingPlacement.at !== null ? '，' + pendingPlacement.at + ' 秒開始' : '') + (notes.length ? '；' + notes.join('；') : '') + '。'); }
     } finally { historyEnd(); }
   }
   function addEmitter(preset = 'glow') {
@@ -1772,7 +1943,7 @@
       notify(project.background.sourceWidth ? '背景與物件已使用相同像素比例，已調整視角。' : '背景已按保存的像素尺寸校正；舊版縮圖需重新載入原背景圖，才能恢復原始大小。');
     });
     $('removeBackground').addEventListener('click', () => { backgroundRequest++; project.background.image = null; delete project.background.sourceWidth; delete project.background.sourceHeight; renderGlobals(); queueDraft(); });
-    textureUi = window.ParticleSequenceTextureUI.mount({getProject: () => project, getEmitter: emitter,
+    textureUi = window.ParticleSequenceTextureUI.mount({getProject: () => project, getEmitter: emitter, lightningImage: builtinImages.lightning,
       getGeneration: () => textureRequest, defaultImage: builtinImages.glow, normalize: Core.normalizeProject, loadImage, notify,
       prepareImages: frames => frames.forEach(imageFor), onApply: (selected, patch, command) => {
         if (command) historyBegin('command');
@@ -1834,8 +2005,9 @@
     timelineView = window.ParticleTimelineView.mount({host: $('timelineTracks'), getContext: () => {
       const group = currentFlowBake(), attached = attachedFor();
       return {flow: group ? group.project.flow : mode === 'live' && project.flow.enabled ? project.flow : null,
-        phase, time, duration: previewDuration(), fps: activeFps(), attached: !!attached, timeline: attached && attached.timeline};
-    }, onSeek: seconds => {
+        phase, time, duration: previewDuration(), fps: activeFps(), attached: !!attached, timeline: attached && attached.timeline,
+        markers: timelineMarkers(attached), canMoveFx: !!attached && !!startTarget() && !busy};
+    }, onMoveFxBegin, onMoveFx, onMoveFxEnd, onSeek: seconds => {
       if (busy) return;
       stopSequence(); playing = false;
       const duration = previewDuration();
@@ -1880,7 +2052,7 @@
     }, {passive: false});
     document.addEventListener('keydown', event => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); saveProject(); return; }
-      if (event.target.closest('input,select,textarea,button,canvas.curve-canvas') || $('helpDialog').open || $('spineMergeDialog').open || $('flowDialog').open || $('pathDialog').open || $('bakeCheckDialog').open || $('effectLibraryDialog').open) return;
+      if (event.target.closest('input,select,textarea,button,canvas.curve-canvas') || $('helpDialog').open || $('spineMergeDialog').matches(':modal') || $('flowDialog').open || $('pathDialog').open || $('bakeCheckDialog').open || $('effectLibraryDialog').open) return;
       if (event.code === 'Space') { event.preventDefault(); $('playButton').click(); }
       if (event.key === 'ArrowLeft') { event.preventDefault(); $('framePrev').click(); }
       if (event.key === 'ArrowRight') { event.preventDefault(); $('frameNext').click(); }
@@ -1892,14 +2064,14 @@
         const newSource = value && (!integration || value.json !== integration.json);
         if (bonePicker && value && integration && value.update !== integration.update) bonePicker.cancel();
         integration = value;
-        if (newSource) { previewAttached = true; previewSkin = ''; time = 0; stopSequence(); }
+        if (newSource) { previewAttached = true; previewSkin = preferredSkin(value.json); time = 0; stopSequence(); }
       },
-      onChange: integrationChanged, onExport: async () => { if (await ensureBaked()) exportMergedZip(); }, onBake: bakeNow, managePreviewChip: false,
+      onChange: integrationChanged, onExport: async () => { if (await ensureBaked()) await exportMerged(); }, onBake: bakeNow, managePreviewChip: false, openPanel: openAttachPanel,
       canExport: () => !busy, notify});
     assetsUi = window.ParticleSpineAssetsUI.mount({Merge: SpineMerge, getSession: () => integration,
       setSession: value => { integration = value; }, onChange: integrationChanged, imageLoader: loadImage, notify});
     $('previewFocus').addEventListener('click', focusAttachment);
-    $('spineFocusParent').addEventListener('click', () => { previewAttached = true; refreshAttachmentPreview(); $('spineMergeDialog').close(); focusAttachment(); });
+    $('spineFocusParent').addEventListener('click', () => { previewAttached = true; refreshAttachmentPreview(); if ($('spineMergeDialog').matches(':modal')) $('spineMergeDialog').close(); focusAttachment(); });
     $('previewFxStart').addEventListener('click', () => { const attached = attachedFor(); if (!attached) return; stopSequence(); playing = false; time = attached.timeline.startTime; updatePlayButton(); syncTimeline(); queueDraft(); });
     [['previewAttached', true], ['previewLocal', false]].forEach(([id, value]) => $(id).addEventListener('click', () => {
       if (previewAttached === value) return;
@@ -1910,7 +2082,7 @@
     }));
     $('previewBones').addEventListener('change', () => { showBones = $('previewBones').checked; queueDraft(); });
     $('previewSkin').addEventListener('change', () => { previewSkin = $('previewSkin').value; attachedCache.clear(); refreshAttachmentPreview(); queueDraft(); });
-    wireBonePicker(); wireNumberScrub(); wireShortcuts(); wireDropZone(); wireSectionCollapse();
+    wireBonePicker(); wireAttachAssist(); wireLightningInspector(); wireNumberScrub(); wireShortcuts(); wireDropZone(); wireSectionCollapse();
     batchUi = window.ParticleBatchExport.mount({run: runBatchExport, notify, getVersion: () => effectiveSpineVersion(),
       blockedReason: () => integration && integration.settings.enabled !== false ? '目前掛接既有骨架，版本跟隨原骨架；請用「輸出追加包」，或先移除掛接再批次輸出。' : busy ? '正在烘焙，請稍候。' : ''});
     window.addEventListener('pagehide', () => { try { saveDraftSnapshot(JSON.parse(Storage.serialize(project, baked ? baked.project : null, viewState(), integration))).catch(() => {}); } catch (_) {} });
@@ -1959,10 +2131,412 @@
     });
   }
 
+  // ---- v1.27 · Enhance an existing Spine: folder in, click the art, write back ----
+  const Folder = window.ParticleSpineFolder, ArtPicker = window.ParticleArtPicker, Assist = window.ParticleAttachAssist;
+  let folderState = null, artPicker = null, artPending = null, pendingPlacement = null, artBelow = false;
+  let markerCache = {json: null, name: null, markers: []};
+  function setOwn(target, key, value) { Object.defineProperty(target, key, {value, enumerable: true, writable: true, configurable: true}); }
+  function round3(value) { return Math.round(value * 1000) / 1000; }
+  function modalOpen() { return Array.from(document.querySelectorAll('dialog')).some(dialog => dialog.open && dialog.matches(':modal')); }
+  function panelDocked() { const dialog = $('spineMergeDialog'); return dialog.open && dialog.classList.contains('docked'); }
+  function dockPanel() {
+    const dialog = $('spineMergeDialog'), host = document.querySelector('.inspector');
+    if (!panelDocked() || !host) return;
+    const rect = host.getBoundingClientRect();
+    Object.assign(dialog.style, {top: rect.top + 'px', left: rect.left + 'px', width: rect.width + 'px', height: rect.height + 'px'});
+  }
+  function openAttachPanel() {
+    const dialog = $('spineMergeDialog');
+    if (dialog.open) { if (panelDocked()) dialog.close(); return; }
+    if (window.innerWidth < 821 || typeof dialog.show !== 'function') { dialog.classList.remove('docked'); dialog.removeAttribute('style'); dialog.showModal(); }
+    else { dialog.classList.add('docked'); dialog.show(); dockPanel(); }
+    $('spineMergeButton').classList.add('active'); refreshAttachPanel();
+  }
+  function originalAnimation(name) {
+    const base = effectiveIntegration(); if (!base) return null;
+    try { return SpineMerge.inspect(base.json).animations.find(item => item.name === name) || null; } catch (_) { return null; }
+  }
+  function timelineMarkers(attached) {
+    if (!attached) return [];
+    const base = effectiveIntegration(), name = attached.timeline.animationName;
+    if (markerCache.json !== base.json || markerCache.name !== name) markerCache = {json: base.json, name, markers: Assist.animationMarkers(base.json, name)};
+    return markerCache.markers;
+  }
+  function startTarget() {
+    if (!integration) return null;
+    const settings = integration.settings;
+    if (project.flow.enabled) return settings.flowTargets && phase !== 'loop' ? settings.flowTargets[phase] : null;
+    return settings;
+  }
+  function folderMatches() { return !!folderState && !!integration && integration.fileName === folderState.fileName; }
+  function writeTarget() { return folderMatches() && folderState.handle ? folderState : null; }
+  function refreshAttachPanel() {
+    if (!attachmentUi) return;
+    if (folderState && !folderMatches()) folderState = null;
+    const list = $('spineChecklist'), attached = attachedFor(), loaded = !!integration;
+    const items = [];
+    if (!loaded) items.push(['todo', '原骨架', '開啟原工程資料夾，或把資料夾拖進視窗']);
+    else {
+      let info = null; try { info = SpineMerge.inspect(effectiveIntegration().json); } catch (_) { info = null; }
+      items.push(['ok', '原骨架', integration.fileName + (info ? ' · Spine ' + info.version + ' · ' + info.animations.length + ' 個動畫' : '') + (integration.update && integration.update.mode === 'replace' ? ' · 更新上次的粒子' : '')]);
+      const images = integration.assets ? integration.assets.images.length : 0, missing = attached ? attached.metadata.missingAssets.length : 0;
+      items.push([images && !missing ? 'ok' : 'warn', '角色圖片', images ? images + ' 張' + (integration.assets.atlas ? '（圖集）' : '') + (missing ? ' · ' + missing + ' 個路徑未匹配' : ' · 完整') : '未載入，只顯示骨架']);
+      const e = emitter(), settings = integration.settings, key = 'em_' + (e && e.id);
+      const parent = settings.emitterParents && settings.emitterParents[key] || settings.parentBone;
+      const layer = SpineMerge.layerForEmitter(settings, key);
+      const layerText = layer.drawOrder === 'after' ? '在 ' + layer.afterSlot + ' 之後' : layer.drawOrder === 'back' ? '最後方' : '最前方';
+      items.push(['ok', '位置', (e ? '「' + e.name + '」→ ' : '') + parent + ' · ' + layerText]);
+      if (attached) items.push(['ok', '時間', attached.timeline.animationName + ' · ' + round3(attached.timeline.startTime) + '–' + round3(attached.timeline.endTime) + ' 秒']);
+      else items.push(['warn', '時間', attachedError || '切換到掛接預覽以檢查時間']);
+      const target = writeTarget();
+      items.push(['ok', '輸出', target ? '寫回「' + folderState.name + '/' + folderState.jsonPath + '」，先自動備份' : folderState ? '唯讀資料夾 · 下載追加包 ZIP（用 Chrome／Edge 開啟資料夾可直接寫回）' : '下載追加包 ZIP']);
+    }
+    const signature = JSON.stringify(items);
+    if (list.dataset.signature !== signature) {
+      list.dataset.signature = signature; list.replaceChildren();
+      items.forEach(([state, title, text]) => {
+        const li = document.createElement('li'); li.className = 'spine-check ' + state;
+        const strong = document.createElement('strong'); strong.textContent = title;
+        const span = document.createElement('span'); span.textContent = text;
+        li.append(strong, span); list.append(li);
+      });
+    }
+    $('spineQuickActions').hidden = !loaded;
+    $('spineFolderInfo').textContent = folderState ? '資料夾「' + folderState.name + '」 · ' + folderState.jsonPath + (folderState.handle ? ' · 可直接寫回' : ' · 唯讀') :
+      '選擇 Spine 匯出的資料夾（骨架 JSON＋images 或 atlas），會自動載入骨架與角色圖片。';
+    const exportLabel = writeTarget() ? '寫回原工程' : '輸出追加包';
+    $('spineExportMerge').textContent = exportLabel;
+    if (integration && integration.settings.enabled !== false) $('exportButton').querySelector('span').textContent = exportLabel;
+    const flow = project.flow.enabled;
+    $('spineStartAtPlayhead').disabled = !attached || flow; $('spineFitAnimation').disabled = !attached || flow;
+    $('previewArtPick').disabled = !attached;
+    if (!panelDocked()) $('spineMergeButton').classList.remove('active');
+  }
+
+  // -- Folder in --
+  function chooseFrom(title, options) {
+    return new Promise(resolve => {
+      const dialog = document.createElement('dialog'); dialog.className = 'help-dialog choice-dialog';
+      const heading = document.createElement('h2'); heading.textContent = title;
+      const list = document.createElement('div'); list.className = 'choice-list';
+      options.forEach((option, index) => {
+        const button = document.createElement('button'); button.type = 'button'; button.className = index ? 'secondary-button' : 'primary-button';
+        button.textContent = option.label; if (option.hint) button.title = option.hint;
+        button.addEventListener('click', () => { dialog.close(); resolve(option.value); });
+        list.append(button);
+      });
+      const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'text-button muted'; cancel.textContent = '取消';
+      cancel.addEventListener('click', () => { dialog.close(); resolve(null); });
+      dialog.addEventListener('close', () => { setTimeout(() => dialog.remove(), 0); resolve(null); });
+      list.append(cancel); dialog.append(heading, list); document.body.append(dialog); dialog.showModal();
+    });
+  }
+  async function readEntryText(entry, limit, label) {
+    const file = await entry.getFile();
+    if (file.size > limit) throw new Error(label + '超過 ' + Math.round(limit / 1048576) + ' MiB：' + entry.path);
+    return {file, text: await file.text()};
+  }
+  async function loadFolderAssets(plan, entries) {
+    const warnings = [];
+    const rawBytes = await plan.images.reduce(async (sum, item) => (await sum) + (await item.entry.getFile()).size, Promise.resolve(0));
+    const preferAtlas = plan.atlas && (!plan.images.length || plan.imagesSource === 'json-dir' || plan.imagesSource === 'missing' || rawBytes > 14 * 1048576);
+    if (preferAtlas) {
+      const {text} = await readEntryText(plan.atlas, 256 * 1024, 'Atlas ');
+      const pages = Folder.atlasPageEntries(entries, plan.atlas.path, text);
+      if (pages.missing.length) warnings.push('圖集缺少頁面：' + pages.missing.join('、'));
+      for (const side of [2048, 1024, 512]) {
+        const images = [];
+        for (const page of pages.found) images.push({...(await loadImage(await page.entry.getFile(), false, side)), path: page.path});
+        const assets = {images, atlas: {name: Folder.basename(plan.atlas.path).replace(/\.txt$/i, ''), text}};
+        try { return {assets: SpineMerge.normalizeAssets(assets), warnings, note: '圖集 ' + pages.found.length + ' 頁' + (side < 2048 ? '（預覽縮小至 ' + side + 'px）' : '')}; }
+        catch (error) { if (side === 512) throw error; }
+      }
+    }
+    if (!plan.images.length) return {assets: null, warnings: warnings.concat('找不到角色圖片；預覽只顯示骨架。'), note: ''};
+    let skipped = 0;
+    for (const side of [2048, 1024, 512, 256]) {
+      const images = []; let total = 0; skipped = 0;
+      for (const item of plan.images) {
+        const file = await item.entry.getFile();
+        if (file.size > 8 * 1048576 || !/\.(png|jpe?g|webp)$/i.test(file.name)) { skipped++; continue; }
+        const typed = file.type ? file : new File([file], file.name, {type: /\.png$/i.test(file.name) ? 'image/png' : /\.webp$/i.test(file.name) ? 'image/webp' : 'image/jpeg'});
+        let image; try { image = await loadImage(typed, false, side); } catch (_) { skipped++; continue; }
+        total += image.dataUrl.length; if (total > 15.5 * 1048576) break;
+        images.push({...image, path: item.path});
+      }
+      if (total > 15.5 * 1048576 && side !== 256) continue;
+      try { return {assets: SpineMerge.normalizeAssets({images}), warnings: skipped ? warnings.concat(skipped + ' 張圖片無法載入預覽') : warnings, note: images.length + ' 張圖片' + (side < 2048 ? '（預覽縮小至 ' + side + 'px）' : '')}; }
+      catch (error) { if (side === 256) throw error; }
+    }
+    return {assets: null, warnings, note: ''};
+  }
+  function fitRigView() {
+    const attached = attachedFor(); if (!attached) return;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    attached.sample(time).forEach(item => {
+      if (item.isParticle || !item.vertices) return;
+      for (let i = 0; i < item.vertices.length; i += 2) {
+        minX = Math.min(minX, item.vertices[i]); maxX = Math.max(maxX, item.vertices[i]);
+        minY = Math.min(minY, item.vertices[i + 1]); maxY = Math.max(maxY, item.vertices[i + 1]);
+      }
+    });
+    if (!Number.isFinite(minX) || maxX - minX < 1 || maxY - minY < 1) return;
+    zoom = clamp(Math.min(stageW / (maxX - minX), stageH / (maxY - minY)) * .8, .05, 4);
+    panX = -(minX + maxX) / 2 * zoom; panY = (minY + maxY) / 2 * zoom;
+    $('zoom').value = Math.round(zoom * 100); $('zoomLabel').textContent = Math.round(zoom * 100) + '%'; queueDraft();
+  }
+  async function openFolder(source) {
+    if (!source || busy) return;
+    const owner = project, request = ++projectRequest;
+    const stale = () => request !== projectRequest;
+    try {
+      const entries = source.entries;
+      const skeletons = [];
+      for (const entry of Folder.skeletonCandidates(entries)) {
+        if (skeletons.length >= 12) break;
+        const file = await entry.getFile(); if (file.size > 32 * 1048576) continue;
+        let json = null; try { json = JSON.parse((await file.text()).replace(/^﻿/, '')); } catch (_) { json = null; }
+        if (Folder.isSkeleton(json)) skeletons.push({entry, json});
+      }
+      if (stale()) return;
+      if (!skeletons.length) throw new Error('「' + source.name + '」裡找不到 Spine 骨架 JSON。請選擇 Spine 匯出 JSON 的資料夾；原生 .spine 請先用「Spine 工程轉換」轉成 JSON。');
+      let chosen = skeletons[0];
+      if (skeletons.length > 1) {
+        const pick = await chooseFrom('選擇要強化的骨架', skeletons.map(item => ({label: item.entry.path, value: item})));
+        if (!pick || stale()) return; chosen = pick;
+      }
+      const jsonFile = await chosen.entry.getFile(), jsonText = await jsonFile.text();
+      let receiptText = null, receipt = null;
+      const firstPlan = Folder.planLoad(entries, chosen.entry.path, chosen.json);
+      if (firstPlan.receipt) {
+        receiptText = (await readEntryText(firstPlan.receipt, 8 * 1048576, '效果更新記錄')).text;
+        try { receipt = JSON.parse(receiptText.replace(/^﻿/, '')); } catch (_) { receipt = null; receiptText = null; }
+      }
+      const imageDirectory = receipt && receipt.manifest && typeof receipt.manifest.imageDirectory === 'string' ? receipt.manifest.imageDirectory : null;
+      const plan = imageDirectory ? Folder.planLoad(entries, chosen.entry.path, chosen.json, {excludeImageDir: imageDirectory}) : firstPlan;
+      let resumed = false;
+      let preferred = integration && integration.fileName === Folder.basename(chosen.entry.path) ? clone(integration.settings) : null;
+      if (plan.project) {
+        const answer = await chooseFrom('這個資料夾有上次寫回的粒子專案', [
+          {label: '接續上次的粒子：' + Folder.basename(plan.project.path), value: 'resume'},
+          {label: '只載入骨架，保留目前的粒子', value: 'keep'}]);
+        if (!answer || stale()) return;
+        if (answer === 'resume') {
+          const parsed = Storage.parse((await readEntryText(plan.project, 48 * 1048576, '粒子專案')).text, Core);
+          if (stale()) return;
+          preferred = parsed.integration ? clone(parsed.integration.settings) : preferred;
+          await adopt({...parsed, integration: null}); resumed = true;
+        }
+      }
+      const loaded = await loadFolderAssets(plan, entries);
+      if (stale() || !resumed && owner !== project) return;
+      historyBegin('command');
+      try {
+        attachmentUi.loadSourceText(Folder.basename(chosen.entry.path), jsonText, preferred);
+        let receiptNote = '';
+        if (receiptText) {
+          try { attachmentUi.loadReceiptText(receiptText); receiptNote = '已辨識上次寫回的粒子，輸出會替換它。'; }
+          catch (error) { receiptNote = '上次的效果更新記錄與目前骨架不符，已改為追加新效果（' + error.message + '）'; }
+        }
+        if (loaded.assets) integration = {...integration, assets: loaded.assets};
+        folderState = {name: source.name, handle: source.handle || null, fileName: Folder.basename(chosen.entry.path), jsonPath: chosen.entry.path,
+          imagesRoot: Folder.declaredImagesRoot(chosen.entry.path, chosen.json, plan.imagesRoot), signature: jsonFile.size + ':' + jsonFile.lastModified};
+        previewAttached = true; time = 0; integrationChanged(); renderInspector(); updateBakeStatus();
+        if (assetsUi) assetsUi.refresh(); attachmentUi.refresh();
+        notify('已開啟「' + source.name + '」：' + chosen.entry.path + (loaded.note ? ' · ' + loaded.note : '') + '。' + receiptNote + (loaded.warnings.length ? ' ' + loaded.warnings.join('；') : '') + ' 接著按「點角色加效果」。', loaded.warnings.length > 0 && !loaded.assets);
+      } finally { historyEnd(); }
+      if (!$('spineMergeDialog').open) openAttachPanel();
+      requestAnimationFrame(() => { fitRigView(); refreshAttachPanel(); });
+    } catch (error) { notify(error.message, true); }
+  }
+  async function pickFolder() {
+    if (Folder.supportsWrite()) {
+      let handle;
+      try { handle = await window.showDirectoryPicker({id: 'particle-spine-project', mode: 'readwrite'}); }
+      catch (error) { if (error && error.name !== 'AbortError') notify('無法開啟資料夾：' + error.message, true); return; }
+      try { await openFolder({name: handle.name, handle, entries: await Folder.collectFromDirectory(handle)}); }
+      catch (error) { notify(error.message, true); }
+      return;
+    }
+    $('spineFolderInput').click();
+  }
+
+  // -- Write back --
+  async function writeBack(bundle) {
+    const target = writeTarget();
+    if (!(await Folder.ensureWritable(target.handle))) throw new Error('沒有取得資料夾的寫入權限。請再按一次並允許瀏覽器編輯此資料夾。');
+    const signature = await Folder.fileSignature(target.handle, target.jsonPath);
+    if (signature !== target.signature) throw new Error('原骨架 JSON 在開啟後被修改過（例如在 Spine 重新匯出）。為避免覆蓋新內容，請重新「開啟原工程資料夾」再寫回。');
+    const existing = (await Folder.collectFromDirectory(target.handle)).map(entry => entry.path);
+    const plan = Folder.planWrite({jsonPath: target.jsonPath, imagesRoot: target.imagesRoot, images: bundle.images.map(image => image.name),
+      imageDirectory: bundle.result.manifest.imageDirectory, existing});
+    const data = new Map();
+    data.set(target.jsonPath, bundle.json);
+    data.set(Folder.join(Folder.dirname(target.jsonPath), Folder.stemOf(target.jsonPath) + '.particle-receipt.json'), bundle.receipt);
+    data.set(Folder.join(Folder.dirname(target.jsonPath), Folder.stemOf(target.jsonPath) + '.particle.json'), bundle.project);
+    bundle.images.forEach(image => data.set(Folder.join(plan.imagesRoot, image.name), image.data));
+    const result = await Folder.executeWrite(target.handle, plan, data);
+    target.signature = await Folder.fileSignature(target.handle, target.jsonPath);
+    target.lastWrite = {backupDir: plan.backupDir, at: Date.now()};
+    return {...result, plan};
+  }
+
+  // -- Click the art --
+  function placementFrom(hit, useTime) {
+    const attached = attachedFor(); if (!attached) throw new Error('請先開啟原工程並切到掛接預覽。');
+    const bone = attached.bones(time).find(item => item.name === hit.item.boneName);
+    if (!bone) throw new Error('找不到骨骼 ' + hit.item.boneName + '。');
+    const local = AttachmentPreview.inverseDelta(bone.matrix, {x: hit.world.x - bone.matrix.x, y: hit.world.y - bone.matrix.y});
+    if (!local) throw new Error('骨骼 ' + bone.name + ' 的縮放為 0，無法掛接；請點選其他圖片。');
+    const slots = SpineMerge.inspect(effectiveIntegration().json).slots.map(slot => slot.name);
+    return {owner: project, json: integration.json, bone: bone.name, slot: hit.item.slotName, x: Math.round(local.x * 100) / 100, y: Math.round(local.y * 100) / 100,
+      layer: Assist.layerNextTo(slots, hit.item.slotName, artBelow), at: useTime && !project.flow.enabled ? round3(time) : null};
+  }
+  // Applies to an emitter that is already in project.emitters, inside a history group.
+  function applyPlacement(e, placement) {
+    const settings = integration.settings, key = 'em_' + e.id, notes = [];
+    e.x = placement.x; e.y = placement.y;
+    if (!settings.emitterParents) settings.emitterParents = {};
+    setOwn(settings.emitterParents, key, placement.bone);
+    if (!settings.emitterLayers) settings.emitterLayers = {};
+    setOwn(settings.emitterLayers, key, {drawOrder: placement.layer.drawOrder, afterSlot: placement.layer.afterSlot || ''});
+    if (placement.at !== null) {
+      const delays = {}; project.emitters.forEach(other => { if (other !== e) delays[other.id] = other.startDelay || 0; });
+      const plan = Assist.placeAtTime({sessionStart: settings.startTime || 0, at: placement.at, delays});
+      settings.startTime = plan.sessionStart;
+      project.emitters.forEach(other => { if (other !== e) { other.startDelay = plan.delays[other.id]; if (!other.startDelay) delete other.startDelay; } });
+      e.startDelay = plan.delay; if (!e.startDelay) delete e.startDelay;
+      const needed = Assist.requiredDuration(project.emitters);
+      if (!project.loop && needed > project.duration) {
+        const next = Math.min(30, Math.ceil(needed * 100) / 100);
+        if (next > project.duration) { project.duration = next; notes.push('粒子長度延長為 ' + next + ' 秒'); }
+      }
+    }
+    return notes;
+  }
+  function closeArtMenu() {
+    $('artPickMenu').hidden = true; artPending = null;
+    if (artPicker) artPicker.clearSelection(); queueDraft();
+  }
+  function openArtMenu(hit) {
+    const menu = $('artPickMenu'), stage = $('canvasStage').getBoundingClientRect();
+    artPending = {hit, time, owner: project, json: integration && integration.json};
+    $('artPickTitle').textContent = hit.item.attachmentName + ' · 插槽 ' + hit.item.slotName + ' · 骨骼 ' + hit.item.boneName;
+    const flow = project.flow.enabled;
+    $('artPickUseTime').disabled = flow;
+    $('artPickTimeLabel').textContent = flow ? '三段動畫的開始時間請在掛接設定調整' : '從播放頭 ' + time.toFixed(2) + ' 秒開始';
+    $('artPickMove').textContent = '把「' + emitter().name + '」移到這裡';
+    $('artPickAdd').disabled = project.emitters.length >= 8 || busy;
+    $('artPickAdd').title = project.emitters.length >= 8 ? '已達 8 個發射器上限' : '';
+    ['artPickAbove', 'artPickBelow'].forEach(id => { const below = id === 'artPickBelow'; $(id).classList.toggle('active', below === artBelow); $(id).setAttribute('aria-pressed', String(below === artBelow)); });
+    menu.hidden = false;
+    const width = menu.offsetWidth || 280, height = menu.offsetHeight || 180;
+    menu.style.left = clamp(hit.screen.x - stage.left + 14, 8, stage.width - width - 8) + 'px';
+    menu.style.top = clamp(hit.screen.y - stage.top + 14, 8, stage.height - height - 8) + 'px';
+    $('artPickAdd').focus();
+  }
+  function artPendingValid() {
+    return artPending && artPending.owner === project && integration && artPending.json === integration.json;
+  }
+  function startArtPick() {
+    if (!artPicker) return;
+    if (bonePicker && bonePicker.active) bonePicker.cancel();
+    closeArtMenu();
+    if (!previewAttached && integration) { previewAttached = true; refreshAttachmentPreview(); }
+    if (mode === 'baked' && revision !== bakedRevision) { mode = 'live'; refreshLive(); }
+    artPicker.start();
+  }
+  function wireAttachAssist() {
+    $('spineOpenFolder').addEventListener('click', pickFolder);
+    $('spineFolderInput').addEventListener('change', async event => {
+      const source = Folder.fromFileList(event.target.files); event.target.value = '';
+      if (source) await openFolder(source);
+    });
+    window.addEventListener('resize', dockPanel);
+    $('spineMergeDialog').addEventListener('close', () => { $('spineMergeButton').classList.remove('active'); });
+    artPicker = ArtPicker.mount({canvas, button: $('previewArtPick'), hint: $('artPickHint'), notify,
+      getView: () => ({width: stageW, height: stageH, zoom, panX, panY}),
+      getItems: () => { const attached = attachedFor(); return attached ? attached.sample(time) : []; },
+      alphaAt: ArtPicker.createAlphaSampler(imageFor),
+      canStart: () => attachedFor() ? '' : integration ? attachedError || '請切到「掛接預覽」。' : '請先開啟原工程資料夾，或載入原骨架 JSON。',
+      onState(active) {
+        if (active) { playing = false; closeArtMenu(); }
+        $('emitterDragHint').hidden = active; updatePlayButton(); queueDraft();
+      },
+      onPick(hit) { openArtMenu(hit); queueDraft(); }});
+    $('spineArtPickStart').addEventListener('click', () => { if (window.innerWidth < 821 && $('spineMergeDialog').open) $('spineMergeDialog').close(); startArtPick(); });
+    $('previewArtPick').addEventListener('click', event => { event.stopImmediatePropagation(); startArtPick(); }, true);
+    ['artPickAbove', 'artPickBelow'].forEach(id => $(id).addEventListener('click', () => {
+      artBelow = id === 'artPickBelow';
+      ['artPickAbove', 'artPickBelow'].forEach(other => { const below = other === 'artPickBelow'; $(other).classList.toggle('active', below === artBelow); $(other).setAttribute('aria-pressed', String(below === artBelow)); });
+    }));
+    $('artPickCancel').addEventListener('click', closeArtMenu);
+    $('artPickMove').addEventListener('click', () => {
+      if (!artPendingValid() || busy) { closeArtMenu(); return; }
+      try {
+        const placement = placementFrom(artPending.hit, $('artPickUseTime').checked), e = emitter();
+        historyBegin('command');
+        let notes;
+        try { notes = applyPlacement(e, placement); Core.normalizeProject(project); changed(); integrationChanged(); refreshLive(); renderInspector(); attachmentUi.refresh(); }
+        finally { historyEnd(); }
+        notify('已把「' + e.name + '」移到 ' + placement.slot + '（骨骼 ' + placement.bone + '）' + (placement.at !== null ? '，' + placement.at + ' 秒開始' : '') + (notes.length ? '；' + notes.join('；') : '') + '。');
+      } catch (error) { notify(error.message, true); }
+      closeArtMenu();
+    });
+    $('artPickAdd').addEventListener('click', () => {
+      if (!artPendingValid() || busy) { closeArtMenu(); return; }
+      try { pendingPlacement = placementFrom(artPending.hit, $('artPickUseTime').checked); }
+      catch (error) { notify(error.message, true); closeArtMenu(); return; }
+      $('artPickMenu').hidden = true;
+      libraryUi.open();
+    });
+    $('effectLibraryDialog').addEventListener('close', () => { if (pendingPlacement) { pendingPlacement = null; closeArtMenu(); } });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !$('artPickMenu').hidden) { event.preventDefault(); closeArtMenu(); return; }
+      if (modalOpen() || event.ctrlKey || event.metaKey || event.altKey || busy) return;
+      const target = event.target instanceof Element ? event.target : document.body;
+      if (target.closest('input,textarea,select,[contenteditable="true"]')) return;
+      if (event.key.toLowerCase() === 'a' && attachedFor()) { event.preventDefault(); startArtPick(); }
+    });
+    document.addEventListener('pointerdown', event => {
+      if ($('artPickMenu').hidden || $('artPickMenu').contains(event.target) || event.target === canvas) return;
+      if (!$('effectLibraryDialog').open) closeArtMenu();
+    }, true);
+    $('spineStartAtPlayhead').addEventListener('click', () => {
+      const attached = attachedFor(), target = startTarget(); if (!attached || !target) return;
+      historyBegin('command');
+      try { target.startTime = round3(Math.round(clamp(time, 0, 600) * activeFps()) / activeFps()); integrationChanged(); attachmentUi.refresh(); }
+      finally { historyEnd(); }
+      notify('粒子改從 ' + target.startTime + ' 秒開始。');
+    });
+    $('spineFitAnimation').addEventListener('click', () => {
+      const attached = attachedFor(); if (!attached || project.flow.enabled) return;
+      const original = originalAnimation(attached.timeline.animationName);
+      if (!original || !(original.duration > 0)) { notify('目標動畫沒有長度；請改選有動畫內容的原動畫。', true); return; }
+      const next = clamp(round3(original.duration), 0.05, 30);
+      historyBegin('command');
+      try { integration.settings.startTime = 0; project.duration = next; Core.normalizeProject(project); changed(); integrationChanged(); renderGlobals(); attachmentUi.refresh(); }
+      finally { historyEnd(); }
+      notify('粒子長度改為 ' + next + ' 秒，從 0 秒開始，與「' + original.name + '」同長' + (original.duration > 30 ? '（上限 30 秒）' : '') + '。');
+    });
+  }
+  function onMoveFxBegin() { if (!busy && startTarget()) historyBegin('command'); }
+  function onMoveFx(value, {free, tolerance}) {
+    const attached = attachedFor(), target = startTarget(); if (!attached || !target || busy) return;
+    const original = originalAnimation(attached.timeline.animationName);
+    const limit = Math.max(0, original ? original.duration : attached.timeline.duration);
+    const snapped = Assist.snapTime(value, {markers: timelineMarkers(attached), fps: activeFps(), duration: limit, tolerance, free});
+    if (target.startTime === snapped.time) return;
+    target.startTime = snapped.time;
+    integrationChanged(); refreshAttachmentPreview(); syncTimeline();
+    $('attachmentPreviewStatus').textContent = '粒子開始 ' + snapped.time + ' 秒' + (snapped.marker ? snapped.marker.kind === 'event' ? ' · 對齊事件「' + snapped.marker.name + '」' : ' · 對齊關鍵幀' : free ? ' · 自由拖曳' : '');
+  }
+  function onMoveFxEnd() { historyEnd(); if (attachmentUi) attachmentUi.refresh(); queueDraft(); }
+
   // ---- Workflow: shortcuts, emitter clipboard and drag & drop ----
   const CLIPBOARD_KEY = 'particle-studio-emitter-clipboard';
   let emitterClipboard = null;
-  function anyDialogOpen() { return Array.from(document.querySelectorAll('dialog')).some(dialog => dialog.open); }
+  function anyDialogOpen() { return modalOpen(); }
   function copyEmitter() {
     const source = emitter(); if (!source) return;
     emitterClipboard = {format: 'particle-studio-emitter', version: 1, emitter: clone(source)};
@@ -2073,7 +2647,7 @@
           zonesHost.append(zone('background', '參考背景', '只在畫布對照，不會輸出'));
         }
         if (integration) zonesHost.append(zone('rig', '原骨架圖片', '掛接預覽用的角色素材'));
-      } else zonesHost.append(zone('auto', '自動辨識', '粒子專案、效果庫、Spine 骨架 JSON 或 Atlas'));
+      } else zonesHost.append(zone('auto', '自動辨識', 'Spine 匯出資料夾、粒子專案、效果庫、骨架 JSON 或 Atlas'));
       overlay.hidden = false;
     }
     function hide() { depth = 0; activeZone = null; overlay.hidden = true; }
@@ -2094,7 +2668,12 @@
       event.preventDefault();
       const node = event.target instanceof Element && event.target.closest('.drop-zone');
       const choice = node ? node.dataset.zone : (zonesHost.querySelector('.drop-zone') || {dataset: {}}).dataset.zone;
+      // Folder entries must be read synchronously inside the drop event.
+      const folderRequest = Folder.fromDataTransfer(event.dataTransfer.items).catch(error => { notify(error.message, true); return false; });
       const files = Array.from(event.dataTransfer.files || []); hide();
+      const folder = await folderRequest;
+      if (folder === false) return;
+      if (folder) { if (!busy) await openFolder(folder); return; }
       if (!files.length || busy) return;
       const owner = project;
       try {

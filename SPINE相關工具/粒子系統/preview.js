@@ -144,7 +144,26 @@
     const skin = json.skins.find(item => item.name === 'default') || json.skins[0];
     if (!skin || !skin.attachments) fail('Spine JSON 缺少預設 skin 附件。');
     const slots = [], slotNames = new Set();
+    const deformMaps = animation.deform && animation.deform[skin.name] || {}, attachmentMaps = animation.attachments && animation.attachments[skin.name] || {};
+    let currentSlot = null;
+    function deformTrack(attachmentName, length) {
+      const keys = deformMaps[currentSlot] && deformMaps[currentSlot][attachmentName] ||
+        attachmentMaps[currentSlot] && attachmentMaps[currentSlot][attachmentName] && attachmentMaps[currentSlot][attachmentName].deform;
+      if (keys === undefined) return null;
+      if (!Array.isArray(keys)) fail('Spine 網格變形軌格式不正確。');
+      const times = [], values = [], steps = [];
+      keys.forEach((key, index) => {
+        const time = finite(key.time, 0, 'Spine 網格變形時間');
+        if (time < 0 || (index && time <= times[index - 1])) fail('Spine 網格變形時間必須嚴格遞增。');
+        if (key.curve !== undefined && key.curve !== 'stepped') fail('烘焙預覽僅支援 linear 與 stepped 網格變形。');
+        const offset = finite(key.offset, 0, '網格變形 offset'), full = new Array(length).fill(0);
+        (key.vertices || []).forEach((value, i) => { full[offset + i] = finite(value, 0, '網格變形頂點'); });
+        times.push(time); values.push(full); steps.push(key.curve === 'stepped');
+      });
+      return {times, values, steps};
+    }
     json.slots.forEach(source => {
+      currentSlot = source.name;
       if (!source || typeof source.name !== 'string' || slotNames.has(source.name)) fail('Spine 插槽名稱必須存在且唯一。');
       slotNames.add(source.name);
       const bone = boneMap.get(source.bone);
@@ -152,6 +171,17 @@
       const tracks = animation.slots && animation.slots[source.name] || {};
       const regions = new Map();
       Object.entries(skin.attachments[source.name] || {}).forEach(([name, sourceRegion]) => {
+        if (sourceRegion.type === 'mesh') {
+          // Unweighted mesh (mesh lightning): setup vertices plus deform offsets.
+          const vertices = sourceRegion.vertices, uvs = sourceRegion.uvs, triangles = sourceRegion.triangles;
+          if (!Array.isArray(vertices) || !Array.isArray(uvs) || vertices.length !== uvs.length || !Array.isArray(triangles)) fail('烘焙預覽僅支援無權重的網格附件。');
+          const meshPath = sourceRegion.path || name;
+          const image = imageMap.has(meshPath) ? imageMap.get(meshPath) : imageMap.get(meshPath.replace(/\.png$/i, ''));
+          if (image === undefined) fail('找不到 Spine 附件圖片：' + meshPath);
+          regions.set(name, {mesh: true, vertices: vertices.map(value => finite(value, 0, '網格頂點')), uvs: uvs.slice(), triangles: triangles.slice(),
+            color: rgba(sourceRegion.color, white), image, deform: deformTrack(name, vertices.length)});
+          return;
+        }
         if (sourceRegion.type !== undefined && sourceRegion.type !== 'region') fail('烘焙預覽僅支援 region 圖片附件。');
         const angle = finite(sourceRegion.rotation, 0, '附件旋轉');
         const sx = finite(sourceRegion.scaleX, 1, '附件 X 縮放');
@@ -197,6 +227,19 @@
         const region = slot.regions.get(name);
         const color = read(slot.rgba, t, slot.setupColor).map((channel, i) => clamp(channel * region.color[i], 0, 1));
         if (color[3] <= 0) return;
+        if (region.mesh) {
+          const offsets = region.deform ? read(region.deform, t, null) : null, world = slot.bone.world, vertices = [];
+          let cx = 0, cy = 0;
+          for (let i = 0; i < region.vertices.length; i += 2) {
+            const x = region.vertices[i] + (offsets ? offsets[i] : 0), y = region.vertices[i + 1] + (offsets ? offsets[i + 1] : 0);
+            const wx = world.a * x + world.b * y + world.x, wy = world.c * x + world.d * y + world.y;
+            vertices.push(wx, wy); cx += wx; cy += wy;
+          }
+          result.push({type: 'mesh', x: cx / (vertices.length / 2), y: cy / (vertices.length / 2), width: 0, height: 0, rotation: 0,
+            vertices, uvs: region.uvs, triangles: region.triangles, color: color.slice(0, 3), alpha: color[3], blend: slot.blend,
+            image: region.image, slotName: slot.name, attachmentName: name, isLightning: true});
+          return;
+        }
         const matrix = multiply(slot.bone.world, region.local);
         const normalizedAngle = Math.atan2(matrix.c, matrix.a) / DEG;
         const referenceAngle = slot.bone.referenceAngle + region.angle;

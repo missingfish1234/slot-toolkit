@@ -8,7 +8,7 @@
   const clone = value => JSON.parse(JSON.stringify(value));
   const owns = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
   const phases = ['in', 'loop', 'out'];
-  function mount({Merge, EffectUpdate, getEffectiveSession, getProject, getSession, setSession, getGeneration, onChange, onExport, onBake, onPickBone, canExport, notify, managePreviewChip = true, document: doc = document}) {
+  function mount({Merge, EffectUpdate, getEffectiveSession, getProject, getSession, setSession, getGeneration, onChange, onExport, onBake, onPickBone, canExport, notify, openPanel, managePreviewChip = true, document: doc = document}) {
     const $ = id => doc.getElementById(id);
     const ids = ['spineMergeButton', 'spineMergeDialog', 'spineCloseMerge', 'spineCloseMergeFooter',
       'spineLoadSource', 'spineSourceFile', 'spineClearSource', 'spineSourceInfo', 'spineMergeEnabled',
@@ -290,7 +290,10 @@
       const issue = flowIssue(exported); if (issue) throw new Error(issue);
       return {...exportSettings(exported, session.settings), flowTargets: clone(session.settings.flowTargets)};
     }
-    ui.spineMergeButton.addEventListener('click', () => { ui.spineMergeFeedback.hidden = true; refresh(); ui.spineMergeDialog.showModal(); });
+    ui.spineMergeButton.addEventListener('click', () => {
+      ui.spineMergeFeedback.hidden = true; refresh();
+      if (typeof openPanel === 'function') openPanel(); else ui.spineMergeDialog.showModal();
+    });
     [ui.spineCloseMerge, ui.spineCloseMergeFooter].forEach(button => button.addEventListener('click', () => ui.spineMergeDialog.close()));
     ui.spineLoadSource.addEventListener('click', () => ui.spineSourceFile.click());
     if (ui.spineLoadReceipt && EffectUpdate) {
@@ -303,9 +306,8 @@
           if (file.size > 8 * 1024 * 1024) throw new Error('效果更新記錄超過 8 MiB。');
           const text = await file.text();
           if (request !== sourceRequest || getSession() !== session || typeof getGeneration === 'function' && getGeneration() !== generation) return;
-          let raw; try { raw = JSON.parse(text.replace(/^\uFEFF/, '')); } catch (_) { throw new Error('效果更新記錄不是有效的 JSON。'); }
-          const next = prepareUpdate(session, raw, true);
-          setSession(next); commit(); notify('已確認原效果，掛接預覽與輸出將更新這組粒子。');
+          applyReceiptText(session, text);
+          notify('已確認原效果，掛接預覽與輸出將更新這組粒子。');
         } catch (error) { notify(error.message, true); }
         finally { loading = false; event.target.value = ''; refresh(); }
       });
@@ -324,6 +326,22 @@
         } catch (error) { notify(error.message, true); refresh(); }
       });
     }
+    function applyReceiptText(session, text) {
+      let raw; try { raw = JSON.parse(String(text).replace(/^\uFEFF/, '')); } catch (_) { throw new Error('效果更新記錄不是有效的 JSON。'); }
+      const next = prepareUpdate(session, raw, true);
+      setSession(next); commit(); return next;
+    }
+    // Shared by the file picker and "open project folder". preferred carries
+    // earlier settings to keep when they still fit the skeleton.
+    function sessionFromText(fileName, text, preferred) {
+      let json; try { json = JSON.parse(String(text).replace(/^\uFEFF/, '')); } catch (_) { throw new Error('這個檔案不是有效的 Spine JSON。'); }
+      const inspected = Merge.inspect(json), first = inspected.animations[0];
+      const defaults = {enabled: true, animationMode: first ? 'existing' : 'new', animationName: first ? first.name : 'particle_effect'};
+      if (preferred) {
+        try { return Merge.normalizeSession({fileName, json, settings: {...clone(preferred), enabled: true}}); } catch (_) { /* fall back to defaults */ }
+      }
+      return Merge.normalizeSession({fileName, json, settings: defaults});
+    }
     ui.spineSourceFile.addEventListener('change', async event => {
       const file = event.target.files[0]; if (!file) return;
       const request = ++sourceRequest, generation = typeof getGeneration === 'function' ? getGeneration() : null;
@@ -333,10 +351,7 @@
         if (file.size > 32 * 1024 * 1024) throw new Error('骨架 JSON 超過 32 MiB，請縮小匯出資料。');
         const text = await file.text();
         if (request !== sourceRequest || typeof getGeneration === 'function' && getGeneration() !== generation) return;
-        let json; try { json = JSON.parse(text.replace(/^\uFEFF/, '')); } catch (_) { throw new Error('這個檔案不是有效的 Spine JSON。'); }
-        const inspected = Merge.inspect(json), first = inspected.animations[0];
-        const next = Merge.normalizeSession({fileName: file.name, json, settings: {enabled: true,
-          animationMode: first ? 'existing' : 'new', animationName: first ? first.name : 'particle_effect'}});
+        const next = sessionFromText(file.name, text);
         if (request !== sourceRequest || typeof getGeneration === 'function' && getGeneration() !== generation) return;
         setSession(next); commit(); notify('已載入原骨架；請選擇父骨骼、動畫與圖層。');
       } catch (error) { notify(error.message, true); }
@@ -416,7 +431,16 @@
       return {source: phase ? session.settings.flowTargets[phase] : session.settings, key: 'startTime', affectsParticles: false,
         restore() { session.settings = before; contextSignature = ''; onChange(); refresh(); }};
     }
-    refresh(); return {refresh, validateOptions, validateFlowOptions, bindingFor};
+    function loadSourceText(fileName, text, preferred) {
+      sourceRequest++;
+      const next = sessionFromText(fileName, text, preferred);
+      setSession(next); commit(); return next;
+    }
+    function loadReceiptText(text) {
+      const session = getSession(); if (!session) throw new Error('請先載入原骨架 JSON。');
+      return applyReceiptText(session, text);
+    }
+    refresh(); return {refresh, validateOptions, validateFlowOptions, bindingFor, loadSourceText, loadReceiptText};
   }
   return {mount};
 });

@@ -426,7 +426,7 @@
     if (animationNames.length !== (isFlow ? 3 : 1)) fail(isFlow ? '三段粒子匯出必須包含 IN、LOOP、OUT 三段動畫。' : '粒子匯出必須包含一段動畫。');
     animationNames.forEach(animationName => {
       const sourceAnimation = source.animations[animationName];
-      if (Object.keys(sourceAnimation).some(key => !['bones', 'slots'].includes(key)) || ['ik', 'transform', 'path', 'physics'].some(key => own(source, key))) fail('粒子追加僅支援烘焙後的骨骼與插槽動畫。');
+      if (Object.keys(sourceAnimation).some(key => !['bones', 'slots', profile.minor === '4.2' ? 'attachments' : 'deform'].includes(key)) || ['ik', 'transform', 'path', 'physics'].some(key => own(source, key))) fail('粒子追加僅支援烘焙後的骨骼、插槽與網格變形動畫。');
       Object.values(sourceAnimation.slots || {}).forEach(track => {
         if (own(track, profile.colorChannel === 'color' ? 'rgba' : 'color')) fail('粒子插槽顏色軌與 Spine ' + sourceInfo.version + ' 格式不符；請使用對應版本重新烘焙輸出。');
       });
@@ -487,7 +487,8 @@
       if (!own(attachmentMap, slot)) put(attachmentMap, slot, {});
       Object.keys(skin.attachments[slot]).forEach(key => {
         const attachment = copy(skin.attachments[slot][key]);
-        if (!object(attachment) || (attachment.type !== undefined && attachment.type !== 'region')) fail('粒子追加僅支援 region 附件。');
+        if (!object(attachment) || (attachment.type !== undefined && attachment.type !== 'region' && attachment.type !== 'mesh')) fail('粒子追加僅支援 region 與網格閃電附件。');
+        if (attachment.type === 'mesh' && (!Array.isArray(attachment.vertices) || !Array.isArray(attachment.uvs) || attachment.vertices.length !== attachment.uvs.length)) fail('粒子追加僅支援無權重的網格附件。');
         const path = imagePath(attachment.path === undefined ? key : attachment.path);
         if (!imageNames.has(path)) fail('粒子附件找不到圖片：' + path);
         const mapped = namespace + '__' + key;
@@ -536,6 +537,25 @@
           if (own(animation[group], mapped)) fail('粒子動畫命名發生衝突：' + mapped);
           put(animation[group], mapped, track);
         });
+      });
+      // Mesh lightning: deform keys follow the renamed slot / attachment and the segment start.
+      const deformGroup = profile.minor === '4.2' ? 'attachments' : 'deform';
+      Object.keys(sourceAnimation[deformGroup] || {}).forEach(skinName => {
+        const bySlot = sourceAnimation[deformGroup][skinName];
+        Object.keys(bySlot || {}).forEach(slot => Object.keys(bySlot[slot] || {}).forEach(key => {
+          const keys = deformGroup === 'deform' ? bySlot[slot][key] : bySlot[slot][key] && bySlot[slot][key].deform;
+          if (!own(slotMap, slot) || !own(get(attachmentMap, slot, {}), key)) fail('網格變形指定不存在的粒子附件：' + slot + '/' + key);
+          if (deformGroup === 'attachments' && Object.keys(bySlot[slot][key]).some(timeline => timeline !== 'deform')) fail('粒子追加僅支援網格 deform 軌。');
+          const shifted = shiftedKeys(keys, segment, 'deform', profile);
+          shifted.forEach(frame => { if (frame.curve !== undefined && frame.curve !== 'stepped') fail('網格變形必須是 linear 或 stepped 關鍵幀。'); });
+          if (!shifted.length) return;
+          if (!own(animation, deformGroup)) put(animation, deformGroup, {});
+          if (!own(animation[deformGroup], 'default')) put(animation[deformGroup], 'default', {});
+          const targetSlot = slotMap[slot], targetKey = attachmentMap[slot][key], bucket = animation[deformGroup].default;
+          if (!own(bucket, targetSlot)) put(bucket, targetSlot, {});
+          if (own(bucket[targetSlot], targetKey)) fail('粒子網格變形命名發生衝突：' + targetSlot);
+          put(bucket[targetSlot], targetKey, deformGroup === 'deform' ? shifted : {deform: shifted});
+        }));
       });
       segmentStats.push({phase: segment.phase, animationName: segment.animationName, animationCreated: !existed,
         startTime: segment.startTime, endTime: roundedTime(segment.startTime + segment.duration), duration: segment.duration, loop: segment.loop});

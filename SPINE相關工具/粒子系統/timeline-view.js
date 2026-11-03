@@ -33,13 +33,15 @@
       return {phase: key, label: labels[key], name: typeof segment.name === 'string' ? segment.name : labels[key],
         duration: length, weight: relativeTotal > 0 ? .15 + .55 * (length / longest) / relativeTotal : 1 / 3, active: key === phase};
     }) : [];
-    return {phase, flow, segments, attached, duration, time, fps, progress: duration ? time / duration : 0,
+    const markers = attached && Array.isArray(context.markers) ? context.markers.filter(marker => marker && Number.isFinite(marker.time) && marker.time >= 0 && marker.time <= duration) : [];
+    const movable = attached && context.canMoveFx === true;
+    return {phase, flow, segments, attached, duration, time, fps, progress: duration ? time / duration : 0, markers, movable,
       startTime, endTime, fxDuration, holdsEnd, holdEnd,
       startProgress: duration ? startTime / duration : 0, endProgress: duration ? endTime / duration : 0,
       animationName: attached && typeof timeline.animationName === 'string' ? timeline.animationName : '粒子動畫'};
   }
 
-  function mount({host, getContext, onSeek, onSelectPhase, document: documentOverride} = {}) {
+  function mount({host, getContext, onSeek, onSelectPhase, onMoveFx, onMoveFxBegin, onMoveFxEnd, document: documentOverride} = {}) {
     if (!host) return {refresh: () => null, destroy() {}};
     const doc = documentOverride || host.ownerDocument || globalThis.document;
     const listeners = [];
@@ -79,7 +81,31 @@
     const seek = element('input', 'timeline-track-seek'); seek.id = 'timelineTrackSeek';
     seek.type = 'range'; seek.min = '0'; seek.setAttribute('aria-label', '在動畫時間軸定位');
     seek.setAttribute('aria-describedby', 'timelineTrackSummary');
-    track.append(original, fx, hold, playhead, seek);
+    const markerLayer = element('div', 'timeline-markers'); markerLayer.setAttribute('aria-hidden', 'true');
+    track.append(original, markerLayer, fx, hold, playhead, seek);
+    // Drag the particle segment to change when it starts in the original
+    // animation. Snaps to events, keys and frames; Alt drags freely.
+    let drag = null;
+    listen(fx, 'pointerdown', event => {
+      if (!model || !model.movable || event.button !== 0 || typeof onMoveFx !== 'function') return;
+      event.preventDefault(); event.stopPropagation();
+      const width = track.getBoundingClientRect().width || 1;
+      drag = {x: event.clientX, start: model.startTime, perPixel: model.duration / width, pointerId: event.pointerId, moved: false};
+      fx.setPointerCapture(event.pointerId); fx.classList.add('dragging');
+      if (typeof onMoveFxBegin === 'function') onMoveFxBegin();
+    });
+    listen(fx, 'pointermove', event => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      const perPixel = drag.perPixel, value = drag.start + (event.clientX - drag.x) * perPixel;
+      drag.moved = drag.moved || Math.abs(event.clientX - drag.x) > 1;
+      if (drag.moved) onMoveFx(value, {free: event.altKey, tolerance: 8 * perPixel});
+    });
+    const finish = event => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      drag = null; fx.classList.remove('dragging');
+      if (typeof onMoveFxEnd === 'function') onMoveFxEnd();
+    };
+    listen(fx, 'pointerup', finish); listen(fx, 'pointercancel', finish); listen(fx, 'lostpointercapture', finish);
     const ruler = element('div', 'timeline-track-ruler'); ruler.setAttribute('aria-hidden', 'true');
     const ticks = [0, .25, .5, .75, 1].map(position => { const node = element('span', ''); ruler.append(node); return {node, position}; });
     host.replaceChildren(phaseSection, heading, track, ruler);
@@ -98,7 +124,7 @@
       if (destroyed) return null;
       model = compute(typeof getContext === 'function' ? getContext() : {});
       const key = JSON.stringify([model.flow, model.segments, model.attached, model.duration, model.fps, model.startTime,
-        model.endTime, model.holdsEnd, model.animationName]);
+        model.endTime, model.holdsEnd, model.animationName, model.markers, model.movable]);
       if (key !== structuralKey) {
         structuralKey = key; phaseSection.hidden = !model.flow;
         for (const segment of model.segments) {
@@ -118,7 +144,15 @@
         original.setAttribute('aria-hidden', 'true');
         fx.style.left = model.startProgress * 100 + '%';
         fx.style.width = (model.endProgress - model.startProgress) * 100 + '%';
-        fx.title = '粒子 ' + seconds(model.startTime) + '–' + seconds(model.endTime) + ' 秒';
+        fx.title = '粒子 ' + seconds(model.startTime) + '–' + seconds(model.endTime) + ' 秒' + (model.movable ? ' · 拖曳調整開始時間（吸附事件與關鍵幀，Alt 自由拖曳）' : '');
+        fx.classList.toggle('movable', model.movable);
+        markerLayer.replaceChildren();
+        model.markers.forEach(marker => {
+          const node = element('span', 'timeline-marker ' + (marker.kind === 'event' ? 'event' : 'key'));
+          node.style.left = (model.duration ? marker.time / model.duration * 100 : 0) + '%';
+          if (marker.kind === 'event') { node.title = '事件 ' + marker.name + ' · ' + seconds(marker.time) + ' 秒'; node.setAttribute('data-name', marker.name); }
+          markerLayer.append(node);
+        });
         hold.hidden = !model.holdsEnd || model.holdEnd <= model.endTime;
         hold.style.left = model.endProgress * 100 + '%';
         hold.style.width = (model.duration ? (model.holdEnd - model.endTime) / model.duration * 100 : 0) + '%';
