@@ -10,6 +10,7 @@
   const FlowPlayback = window.ParticleFlowPlayback;
   const AttachmentPreview = window.ParticleAttachmentPreview;
   const PathMath = window.ParticlePathMath;
+  const Trail = window.ParticleTrail;
   const ContourMath = window.ParticleContourMath;
   const $ = id => document.getElementById(id);
   const clone = value => JSON.parse(JSON.stringify(value));
@@ -23,7 +24,7 @@
   const tintCache = new Map();
   const imageIds = new WeakMap();
   let nextImageId = 1;
-  let curveEditor = null, gradientEditor = null, lookPresetsUi = null, libraryUi = null, timelineView = null, pathEditor = null, attachmentUi = null, assetsUi = null, textureUi = null;
+  let curveEditor = null, trailLengthEditor = null, gradientEditor = null, lookPresetsUi = null, libraryUi = null, timelineView = null, pathEditor = null, attachmentUi = null, assetsUi = null, textureUi = null;
   let bonePicker = null;
   let previewAttached = true, showBones = true, previewSkin = '', attachedError = '';
   const attachedCache = new Map();
@@ -31,6 +32,7 @@
   const outlineGizmoCache = new WeakMap();
   let outlineRequest = 0;
   let backgroundRequest = 0;
+  let backgroundJpegSession = null;
   let textureRequest = 0, projectRequest = 0;
   const inspectorScrollPositions = new Map();
   let integration = null;
@@ -191,6 +193,9 @@
         pixels.data[offset + 3] = r >= 1 ? 0 : Math.round(255 * Math.pow(1 - r, 2.2));
       }
       c.putImageData(pixels, 0, 0);
+    } else if (kind === 'trail-arrow') {
+      c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(8, 24); c.lineTo(35, 24); c.lineTo(35, 10);
+      c.lineTo(60, 32); c.lineTo(35, 54); c.lineTo(35, 40); c.lineTo(8, 40); c.closePath(); c.fill();
     } else if (kind === 'sparks') {
       const gradient = c.createRadialGradient(32, 32, 0, 32, 32, 30);
       gradient.addColorStop(0, '#ffffff'); gradient.addColorStop(1, '#ffffff00');
@@ -211,7 +216,7 @@
     }
     return {name: kind + '.png', mime: 'image/png', width: 64, height: 64, dataUrl: surface.toDataURL('image/png')};
   }
-  ['glow', 'sparks', 'coins', 'bubbles'].forEach(kind => { builtinImages[kind] = makeTexture(kind); });
+  ['glow', 'sparks', 'coins', 'bubbles', 'trail-arrow'].forEach(kind => { builtinImages[kind] = makeTexture(kind); });
   // A horizontal electric streak: bright core, soft blue glow, slight grain so deform reads.
   function makeBoltTexture() {
     const surface = document.createElement('canvas'); surface.width = 256; surface.height = 64;
@@ -500,6 +505,7 @@
     renderEmitterSeed();
     renderBakeCheck();
     renderPathFacing();
+    renderTrailInspector();
   }
   function renderEmitters() {
     const list = $('emitterList'); list.replaceChildren();
@@ -531,7 +537,7 @@
       const meta = document.createElement('span'); meta.className = 'emitter-meta'; meta.textContent = item.kind === 'lightning' ? '網格閃電 · ' + item.lightning.bolts + ' 條' + (item.lightning.branches ? ' · 分岔 ' + item.lightning.branches : '') : item.count + ' 顆 · ' + (item.blend === 'additive' ? '加色' : '一般');
       const tags = document.createElement('span'); tags.className = 'emitter-tags';
       if (item.kind === 'lightning') path.setAttribute('d', 'M13 2 5 13h6l-1 9 8-12h-6l1-8Z');
-      const type = document.createElement('span'); type.className = 'emitter-type'; type.textContent = item.kind === 'lightning' ? (item.lightning.mode === 'fixed' ? '兩端固定' : '尾端擺動') : item.path && item.path.enabled ? '沿路徑移動' : (shapeNames[item.shape] || '點形') + (['box', 'circle', 'ring'].includes(item.shape) ? emitFrom(item) === 'edge' ? ' · 邊框' : ' · 區域內' : '');
+      const type = document.createElement('span'); type.className = 'emitter-type'; type.textContent = item.kind === 'lightning' ? (item.lightning.mode === 'fixed' ? '兩端固定' : '尾端擺動') : item.trail && item.trail.enabled ? item.trail.mode === 'afterimage' ? '殘影拖尾' : '沿路徑拉伸' : item.path && item.path.enabled ? '沿路徑移動' : (shapeNames[item.shape] || '點形') + (['box', 'circle', 'ring'].includes(item.shape) ? emitFrom(item) === 'edge' ? ' · 邊框' : ' · 區域內' : '');
       const color = document.createElement('span'); color.className = 'emitter-color-dot'; color.style.setProperty('--emitter-color', item.colorGradient && item.colorGradient.length ? item.colorGradient[0].color : item.colorStart); color.setAttribute('aria-hidden', 'true');
       tags.append(type, color); copy.append(name, meta, tags);
       const index = document.createElement('span'); index.className = 'emitter-index'; index.textContent = String(layerIndex + 1).padStart(2, '0'); index.setAttribute('aria-hidden', 'true');
@@ -687,12 +693,198 @@
       $('textureInfo').textContent = (e.image ? e.image.name : '內建柔光') + ' · ' + image.width + ' × ' + image.height + ' px';
     }
     renderPathInspector();
+    renderTrailInspector();
     renderOutlineInspector();
     renderLightningInspector(e);
     drawCurves();
     if (libraryUi && $('effectLibraryDialog').open) libraryUi.refresh();
   }
   function pathFor(e) { return e.path || PathMath.defaults(); }
+  function trailFor(e) { return e.trail ? Trail.normalize(e.trail) : Trail.defaults(); }
+  const trailLengthTargets = new WeakMap(), inactiveTrailLengths = new WeakMap();
+  const trailLengthPulse = () => [{t: 0, v: 0.15}, {t: 0.4, v: 1}, {t: 1, v: 0.05}];
+  function trailLengthTarget() {
+    const e = emitter();
+    if (!trailLengthTargets.has(e)) trailLengthTargets.set(e, {
+      get lengthCurve() { return e.trail && e.trail.lengthCurve || null; },
+      set lengthCurve(points) { e.trail = {...trailFor(e), lengthCurve: points}; }
+    });
+    return trailLengthTargets.get(e);
+  }
+  function renderTrailInspector() {
+    const e = emitter(), trail = trailFor(e), active = !!trail.enabled;
+    const fullPath = trail.mode === 'stretch' && trail.coverage === 'path';
+    $('enableTrail').checked = active; $('enableTrail').disabled = busy || e.kind === 'lightning';
+    $('makePathRibbon').disabled = busy || e.kind === 'lightning';
+    $('trailFields').hidden = !active;
+    $('trailMode').value = trail.mode;
+    $('trailMode').disabled = busy || !active;
+    $('enableTrailLength').checked = !!trail.lengthCurve;
+    $('enableTrailLength').disabled = busy || !active;
+    $('trailLengthFields').hidden = !trail.lengthCurve;
+    $('trailLengthPulse').disabled = $('trailLengthFull').disabled = busy || !active;
+    const independent = trail.moveDuration != null || trail.lengthDuration != null;
+    $('trailIndependentTime').checked = independent; $('trailIndependentTime').disabled = busy || !active;
+    $('trailCometPreset').disabled = busy || e.kind === 'lightning';
+    $('trailTimingFields').hidden = !independent;
+    for (const [id, key] of [['trailMoveDuration', 'moveDuration'], ['trailLengthDuration', 'lengthDuration']]) {
+      if (document.activeElement !== $(id)) $(id).value = trail[key] == null ? e.life : trail[key];
+      $(id).disabled = busy || !active || !independent;
+    }
+    $('trailTimingHint').textContent = independent ? '從每顆粒子出生計時：' + (trail.moveDuration == null ? '依生命時間前進' : trail.moveDuration + ' 秒到達') + '，' + (trail.lengthDuration == null ? '長度曲線依生命時間' : trail.lengthDuration + ' 秒完成長度曲線') + '。預覽與輸出會保留足夠的存活時間，原生命設定保持不變。' : '兩個時間都從粒子出生起計算；到達後停住，尾巴可繼續收縮。';
+    if (trail.moveDuration != null && !(e.path && e.path.enabled && e.path.mode === 'lifetime')) $('trailTimingHint').textContent += '移動到達時間需啟用路徑，並使用「生命期間走完整條」。';
+    $('trailLengthTimeLabel').textContent = trail.lengthDuration == null ? '生命位置' : '收縮進度';
+    $('trailLengthEndLabel').textContent = trail.lengthDuration == null ? '生命結束' : trail.lengthDuration + ' 秒';
+    $('trailLengthHint').textContent = '可輸入 0–1000%。' + (fullPath ? '100% 覆蓋完整路徑；超過時，開放路徑沿終點方向延伸，封閉路徑繼續繞行。' : '100% 使用設定的殘留跨度；增加比例會拉長尾巴，最多使用已走過的軌跡。') + '0% 收到消失，寬度保持獨立；' + (trail.lengthDuration == null ? '時間依每顆粒子的生命長度計算。' : '長度曲線在出生後 ' + trail.lengthDuration + ' 秒走完。');
+    for (const [id, key] of [['trailCoverage', 'coverage'], ['trailAxis', 'axis']]) {
+      $(id).value = trail[key]; $(id).disabled = busy || !active;
+    }
+    for (const [id, key] of [['trailShowHead', 'showHead'], ['trailFlipTexture', 'flipTexture']]) {
+      $(id).checked = trail[key]; $(id).disabled = busy || !active;
+    }
+    document.querySelectorAll('[data-tfield]').forEach(input => {
+      if (!(document.activeElement === input && input.type === 'number')) input.value = trail[input.dataset.tfield];
+      input.disabled = busy || !active;
+    });
+    document.querySelectorAll('[data-trail-mode]').forEach(node => { node.hidden = node.dataset.trailMode !== trail.mode; });
+    document.querySelectorAll('[data-treadout]').forEach(output => { output.textContent = Math.round(trail[output.dataset.treadout] * 100) + '%'; });
+    $('trailNoPath').hidden = !!(e.path && e.path.enabled);
+    $('trailEditPath').disabled = busy;
+    $('trailModeHint').textContent = fullPath ? '整張貼圖從路徑起點鋪到終點，彎曲成連續光帶；生命期間控制整條光帶的顯示與淡出。' : trail.mode === 'stretch' ? '貼圖沿走過的路徑彎曲拉長；寬度跟隨粒子尺寸，尾端逐漸收細。' : '保留粒子走過的影像，越舊越透明；粒子消失後，殘影仍會繼續淡出。';
+    $('trailDurationLabel').textContent = fullPath ? '結束後淡出' : '殘留時間';
+    const image = e.sequence && e.sequence.frames.length ? e.sequence.frames[0] : e.image || builtinImages.glow;
+    const axis = trail.axis === 'auto' ? (image.height > image.width ? 'y' : 'x') : trail.axis;
+    $('trailAxisHint').textContent = '目前貼圖 ' + image.width + ' × ' + image.height + '，沿' + (axis === 'y' ? '直向' : '橫向') + '自動切為 ' + Trail.segmentCount(trail) + ' 段網格。原圖保留，不必先手動切 Mesh。';
+    let text = active ? (fullPath ? '整條光帶結束後，再淡出 ' : '粒子結束後，拖尾會再淡出 ') + trail.duration + ' 秒。' : '啟用後，讓目前粒子沿移動軌跡拉伸，或留下逐漸消失的殘影。';
+    if (active && !project.loop && !project.flow.enabled) {
+      const start = Math.min(e.startDelay || 0, project.duration), count = Math.max(1, e.count);
+      const lastBirth = start + (count - 1) / count * Math.min(e.emissionDuration, project.duration - start);
+      const life = Math.max(e.life + e.lifeRandom, trail.mode === 'stretch' ? trail.moveDuration || 0 : 0, trail.mode === 'stretch' ? trail.lengthDuration || 0 : 0);
+      if (lastBirth + life + trail.duration > project.duration) text += '目前動畫末尾可能截斷拖尾，可加長動畫或縮短發射時間。';
+    }
+    $('trailStatus').textContent = text;
+  }
+  function setTrail(patch, duringInput) {
+    const e = emitter(); if (!e || busy || e.kind === 'lightning') return false;
+    const previous = {trail: e.trail, path: e.path};
+    try {
+      e.trail = Trail.normalize({...trailFor(e), ...patch});
+      if (e.trail.enabled && e.trail.mode === 'stretch') {
+        if (e.trail.moveDuration != null && e.path && e.path.enabled) e.path = {...e.path, mode: 'lifetime'};
+      }
+      Core.normalizeProject(project);
+    } catch (error) {
+      if (previous.trail === undefined) delete e.trail; else e.trail = previous.trail;
+      if (previous.path === undefined) delete e.path; else e.path = previous.path;
+      if (!duringInput) { renderTrailInspector(); notify(error.message, true); }
+      return false;
+    }
+    changed(); renderEmitters(); renderPathInspector(); renderTrailInspector(); drawCurves(); return true;
+  }
+  function trailBindingFor(input) {
+    const key = input.dataset.tfield || {trailMoveDuration: 'moveDuration', trailLengthDuration: 'lengthDuration'}[input.id];
+    if (!key) return null;
+    const e = emitter(), before = e.trail === undefined ? undefined : clone(e.trail), path = e.path === undefined ? undefined : clone(e.path);
+    return {source: trailFor(e), key, restore() {
+      if (before === undefined) delete e.trail; else e.trail = before;
+      if (path === undefined) delete e.path; else e.path = path;
+      renderPathInspector(); renderTrailInspector();
+    }};
+  }
+  function wireTrail() {
+    $('enableTrail').addEventListener('change', () => setTrail({enabled: $('enableTrail').checked}));
+    $('trailMode').addEventListener('change', () => setTrail({mode: $('trailMode').value}));
+    $('trailCoverage').addEventListener('change', () => setTrail({coverage: $('trailCoverage').value}));
+    $('trailAxis').addEventListener('change', () => setTrail({axis: $('trailAxis').value}));
+    $('trailShowHead').addEventListener('change', () => setTrail({showHead: $('trailShowHead').checked}));
+    $('trailFlipTexture').addEventListener('change', () => setTrail({flipTexture: $('trailFlipTexture').checked}));
+    $('trailIndependentTime').addEventListener('change', () => {
+      const on = $('trailIndependentTime').checked, trail = trailFor(emitter());
+      setTrail({moveDuration: on ? 0.5 : null, lengthDuration: on ? 0.65 : null,
+        ...(on && !trail.lengthCurve ? {lengthCurve: trailLengthPulse()} : {})});
+    });
+    for (const [id, key] of [['trailMoveDuration', 'moveDuration'], ['trailLengthDuration', 'lengthDuration']]) {
+      const input = $(id);
+      const apply = duringInput => {
+        if (busy || input.disabled || !input.value.trim()) return;
+        if (!input.checkValidity()) { if (!duringInput) input.reportValidity(); return; }
+        const value = Number(input.value);
+        if (Number.isFinite(value) && trailFor(emitter())[key] !== value) setTrail({[key]: value}, duringInput);
+      };
+      input.addEventListener('input', () => apply(true)); input.addEventListener('change', () => apply(false));
+      input.addEventListener('blur', renderTrailInspector);
+    }
+    $('trailCometPreset').addEventListener('click', makeCometImpact);
+    $('enableTrailLength').addEventListener('change', () => {
+      const e = emitter(), enabled = $('enableTrailLength').checked;
+      if (!enabled && trailFor(e).lengthCurve) inactiveTrailLengths.set(e, clone(trailFor(e).lengthCurve));
+      setTrail({lengthCurve: enabled ? clone(inactiveTrailLengths.get(e) || trailLengthPulse()) : null});
+    });
+    for (const [id, points] of [['trailLengthPulse', trailLengthPulse], ['trailLengthFull', () => null]]) {
+      $(id).addEventListener('click', () => {
+        if (busy) return;
+        historyBegin('command');
+        try { setTrail({lengthCurve: points()}); } finally { historyEnd(); }
+      });
+    }
+    $('makePathRibbon').addEventListener('click', makePathRibbon);
+    $('trailEditPath').addEventListener('click', () => { try { pathEditor.open(); updateHistoryStatus(); } catch (error) { notify(error.message, true); } });
+    document.querySelectorAll('[data-tfield]').forEach(input => {
+      const apply = duringInput => {
+        if (busy || input.disabled) return;
+        if (!input.checkValidity()) { if (!duringInput) input.reportValidity(); return; }
+        if (!input.value.trim()) return;
+        const value = Number(input.value), key = input.dataset.tfield;
+        if (!Number.isFinite(value) || trailFor(emitter())[key] === value) return;
+        setTrail({[key]: value}, duringInput);
+      };
+      input.addEventListener('input', () => apply(true)); input.addEventListener('change', () => apply(false));
+      input.addEventListener('blur', renderTrailInspector);
+    });
+  }
+  function makePathRibbon() {
+    const e = emitter(); if (!e || busy || e.kind === 'lightning') return;
+    const before = clone(e);
+    historyBegin('command');
+    try {
+      const path = e.path ? {...clone(e.path), enabled: true, offsets: false} : {...PathMath.defaults(), ...PathMath.preset('s', 360, 130), enabled: true};
+      PathMath.compile(path);
+      Object.assign(e, {path, count: 1, emissionDuration: 0, lifeRandom: 0, sizeRandom: 0, speedRandom: 0,
+        spin: 0, spinRandom: 0, separateSizeAxes: false, colorStart: '#ffffff', colorEnd: '#ffffff', colorGradient: null,
+        size: Math.max(48, e.size), sizeCurve: [{t: 0, v: 1}, {t: 1, v: 1}],
+        trail: {...trailFor(e), enabled: true, mode: 'stretch', coverage: 'path', showHead: false,
+          axis: 'auto', flipTexture: false, opacity: 1, taper: 0, segments: 32}});
+      Core.normalizeProject(project);
+      changed(); renderEmitters(); renderInspector(); setTab('motion'); expandSectionFor($('trailSection'));
+      $('trailSection').scrollIntoView({block: 'start'});
+      notify('已保留目前貼圖與路徑，轉成單條光帶；可調整寬度、貼圖方向與淡出時間。');
+    } catch (error) {
+      for (const key of Object.keys(e)) delete e[key]; Object.assign(e, before);
+      renderInspector(); notify(error.message, true);
+    } finally { historyEnd(); }
+  }
+  function makeCometImpact() {
+    const e = emitter(); if (!e || busy || e.kind === 'lightning') return;
+    const before = clone(e); historyBegin('command');
+    try {
+      const path = e.path ? {...clone(e.path), enabled: true, offsets: false, mode: 'lifetime'} : {...PathMath.defaults(), ...PathMath.preset('s', 360, 130), enabled: true};
+      Object.assign(e, {path, count: 1, emissionDuration: 0, life: 0.65, lifeRandom: 0,
+        size: Math.max(48, e.size), sizeRandom: 0, speedRandom: 0, spin: 0, spinRandom: 0, alignDirection: true,
+        separateSizeAxes: false, colorStart: '#ffffff', colorEnd: '#ffffff', colorGradient: null,
+        sizeCurve: [{t: 0, v: 1}, {t: 1, v: 1}], alphaCurve: [{t: 0, v: 1}, {t: 0.98, v: 1}, {t: 1, v: 0}],
+        trail: {...trailFor(e), enabled: true, mode: 'stretch', coverage: 'history', showHead: true,
+          duration: 0.2, moveDuration: 0.5, lengthDuration: 0.65,
+          lengthCurve: [{t: 0, v: 0.15}, {t: 0.5 / 0.65, v: 2.5}, {t: 1, v: 0}],
+          opacity: 1, taper: 0.8, segments: 32}});
+      Core.normalizeProject(project);
+      changed(); renderEmitters(); renderInspector(); setTab('motion'); expandSectionFor($('trailSection'));
+      $('trailIndependentTime').scrollIntoView({block: 'center'});
+      notify('已保留貼圖與路徑：0.5 秒到達，尾巴繼續收縮至 0.65 秒。');
+    } catch (error) {
+      for (const key of Object.keys(e)) delete e[key]; Object.assign(e, before);
+      renderInspector(); notify(error.message, true);
+    } finally { historyEnd(); }
+  }
   // Rigs that keep their art in named skins (Normal / Super…) look empty in
   // "default"; preview the skin that holds the most attachments instead.
   function preferredSkin(json) {
@@ -849,7 +1041,8 @@
     let compiled = null, errorMessage = '';
     if (active) { try { compiled = PathMath.compile(path); } catch (error) { errorMessage = error.message; } }
     $('pathSummary').textContent = errorMessage || (active ? (path.closed ? '封閉' : '開放') + ' · ' + path.points.length + ' 個控制點 · ' + Math.round(compiled.totalLength) + ' px' + (path.reverse ? ' · 反向' : '') : e.path ? '已停用 · 保留控制點與設定' : '未啟用路徑');
-    const message = !active ? '' : (path.mode === 'lifetime' ? '每個粒子在生命期間走完整條路徑。' : '依像素速度前進；開放路徑到終點停止。') + (path.offsets ? '已疊加發射範圍與外力。' : '粒子貼合路徑。');
+    const arrival = Trail.active(e) && e.trail.mode === 'stretch' ? e.trail.moveDuration : null;
+    const message = !active ? '' : (path.mode === 'lifetime' ? arrival == null ? '每個粒子在生命期間走完整條路徑。' : '每個粒子在 ' + arrival + ' 秒到達；之後停在終點。' : '依像素速度前進；開放路徑到終點停止。') + (path.offsets ? '已疊加發射範圍與外力。' : '粒子貼合路徑。');
     $('pathMotionHint').textContent = message;
     ['speed', 'speedRandom'].forEach(field => { const input = controls.find(control => control.dataset.field === field); if (input) { input.disabled = active && path.mode === 'lifetime'; input.title = input.disabled ? '生命期間走完整條模式，以粒子生命長度決定總時間。' : '每秒移動像素；可左右拖曳調值'; } });
     ['shape', 'emitFrom', 'width', 'height', 'lineLength', 'lineRotation', 'arcAngle', 'arcRotation', 'wind', 'gravity'].forEach(field => { const input = controls.find(control => control.dataset.field === field); if (input) input.disabled = active && !path.offsets; });
@@ -858,7 +1051,7 @@
     $('emissionPathNotice').hidden = !active;
     $('emissionPathHint').textContent = strict ? '目前粒子貼合路徑，發射範圍與發射方向暫停作用；原設定會保留。' : '目前沿路徑移動，已疊加發射範圍；發射方向由路徑決定。';
     $('speedModeHint').hidden = !(active && path.mode === 'lifetime');
-    $('speedModeHint').textContent = '目前以生命長度控制走完整條路徑的時間，像素速度暫停作用；原數值會保留。';
+    $('speedModeHint').textContent = arrival == null ? '目前以生命長度控制走完整條路徑的時間，像素速度暫停作用；原數值會保留。' : '目前以獨立移動時間 ' + arrival + ' 秒控制到達，像素速度暫停作用。';
     $('forceModeHint').hidden = !strict;
     $('forceModeHint').textContent = '目前粒子貼合路徑，風力與重力暫停作用；可在下方「更多路徑選項」啟用疊加。';
     ['shape', 'emitFrom', 'width', 'height', 'lineLength', 'lineRotation', 'arcAngle', 'arcRotation', 'wind', 'gravity', 'angle', 'spread'].forEach(field => {
@@ -1308,6 +1501,7 @@
 
   function drawCurves() {
     if (curveEditor) curveEditor.refresh();
+    if (trailLengthEditor) trailLengthEditor.refresh();
     if (gradientEditor) gradientEditor.refresh();
     if (lookPresetsUi) lookPresetsUi.refresh();
   }
@@ -1510,6 +1704,63 @@
     if (result.dataUrl.length > 4 * 1024 * 1024 * 4 / 3) throw new Error('轉換後的 PNG 超過 4 MB，請縮小素材。');
     return result;
   }
+  function openBackgroundJpeg(file) {
+    if (!file) return;
+    backgroundJpegSession = {file, owner: project, request: ++backgroundRequest, conversion: 0, result: null};
+    $('backgroundJpegQuality').value = '88'; $('backgroundJpegQualityValue').textContent = '88%';
+    $('backgroundJpegMatte').value = project.background.color;
+    if (!$('backgroundJpegDialog').open) $('backgroundJpegDialog').showModal();
+    refreshBackgroundJpeg();
+  }
+  async function refreshBackgroundJpeg() {
+    const session = backgroundJpegSession; if (!session) return;
+    const conversion = ++session.conversion;
+    const stale = () => backgroundJpegSession !== session || session.owner !== project || session.request !== backgroundRequest || conversion !== session.conversion;
+    session.result = null;
+    $('backgroundJpegApply').disabled = $('backgroundJpegDownload').disabled = true;
+    $('backgroundJpegPreview').hidden = true; $('backgroundJpegStatus').textContent = '正在轉換 ' + session.file.name + '…';
+    try {
+      const result = await window.ParticleBackgroundJPEG.load(session.file, {quality: Number($('backgroundJpegQuality').value) / 100, background: $('backgroundJpegMatte').value});
+      if (stale()) return;
+      session.result = result;
+      $('backgroundJpegPreview').src = result.dataUrl; $('backgroundJpegPreview').hidden = false;
+      const size = bytes => (bytes / 1048576).toFixed(2) + ' MiB';
+      $('backgroundJpegStatus').textContent = result.width + ' × ' + result.height + ' px · ' + size(session.file.size) + ' → JPG ' + size(result.bytes) + ' · 品質 ' + Math.round(result.quality * 100) + '%';
+      $('backgroundJpegApply').disabled = $('backgroundJpegDownload').disabled = false;
+    } catch (error) { if (!stale()) $('backgroundJpegStatus').textContent = error.message; }
+  }
+  function wireBackgroundJpeg() {
+    $('backgroundJpegButton').addEventListener('click', () => $('backgroundJpegFile').click());
+    $('backgroundJpegFile').addEventListener('change', event => {
+      openBackgroundJpeg(event.target.files[0]); event.target.value = '';
+    });
+    $('backgroundJpegQuality').addEventListener('input', () => { $('backgroundJpegQualityValue').textContent = $('backgroundJpegQuality').value + '%'; });
+    $('backgroundJpegQuality').addEventListener('change', refreshBackgroundJpeg);
+    $('backgroundJpegMatte').addEventListener('change', refreshBackgroundJpeg);
+    for (const id of ['backgroundJpegCancel', 'backgroundJpegClose']) $(id).addEventListener('click', () => $('backgroundJpegDialog').close());
+    $('backgroundJpegDialog').addEventListener('close', () => {
+      backgroundJpegSession = null; backgroundRequest++;
+      $('backgroundJpegPreview').removeAttribute('src'); $('backgroundJpegPreview').hidden = true;
+    });
+    $('backgroundJpegDownload').addEventListener('click', () => {
+      const session = backgroundJpegSession, result = session && session.result;
+      if (!result || session.owner !== project || session.request !== backgroundRequest) return;
+      const binary = atob(result.dataUrl.slice(result.dataUrl.indexOf(',') + 1));
+      download(Uint8Array.from(binary, char => char.charCodeAt(0)), result.name, 'image/jpeg');
+    });
+    $('backgroundJpegApply').addEventListener('click', () => {
+      const session = backgroundJpegSession, loaded = session && session.result;
+      if (!loaded || session.owner !== project || session.request !== backgroundRequest) return;
+      try {
+        const {name, mime, width, height, dataUrl, sourceWidth, sourceHeight} = loaded;
+        const candidate = {...project, background: {...project.background, image: {name, mime, width, height, dataUrl}, sourceWidth, sourceHeight, scale: 1}};
+        const background = Core.normalizeProject(candidate).background;
+        historyBegin('command');
+        try { project.background = background; fitBackgroundView(); } finally { historyEnd(); }
+        $('backgroundJpegDialog').close(); notify('已套用 JPG 參考圖，保留 ' + width + ' × ' + height + ' 原始像素。');
+      } catch (error) { $('backgroundJpegStatus').textContent = error.message; }
+    });
+  }
   function fitBackgroundView() {
     const bg = project.background, size = Core.backgroundSize(bg); if (!size) return;
     // Change the shared camera, keeping PNG pixels and particle coordinates in one space.
@@ -1538,11 +1789,39 @@
     {id: 'sparks', name: '迸射火花', description: '短促爆發的火花', symbol: '✸', gradient: 'linear-gradient(135deg,#fff2b0,#f34b23 70%,#4a1420)'},
     {id: 'coins', name: '金幣噴發', description: '金幣向上噴出再落下', symbol: '◉', gradient: 'linear-gradient(135deg,#ffe58a,#e8a018 70%,#3a2a12)'},
     {id: 'bubbles', name: '漂浮氣泡', description: '緩慢上飄的氣泡', symbol: '○', gradient: 'linear-gradient(135deg,#f1fcff,#4b99ff 70%,#1b2550)'},
-    {id: 'lightning', name: '網格閃電', description: '一張貼圖切網格，隨機扭曲成閃電；可換成自己的閃電圖', symbol: 'ϟ', gradient: 'linear-gradient(135deg,#f4fbff,#6fc3ff 55%,#14234a)'}
+    {id: 'lightning', name: '網格閃電', description: '一張貼圖切網格，隨機扭曲成閃電；可換成自己的閃電圖', symbol: 'ϟ', gradient: 'linear-gradient(135deg,#f4fbff,#6fc3ff 55%,#14234a)'},
+    {id: 'path-ribbon', name: '整條路徑光帶', description: '整張貼圖沿完整曲線彎成一條光帶，自動切網格、隱藏頭部', symbol: '〰', gradient: 'linear-gradient(135deg,#e9ffff,#22d3ee 55%,#152b46)'},
+    {id: 'path-stretch', name: '沿路徑拉伸', description: '貼圖沿貝茲路徑彎曲拉長，尾端漸細淡出', symbol: '〰', gradient: 'linear-gradient(135deg,#88f4d5,#38bdf8 55%,#16243f)'},
+    {id: 'path-afterimage', name: '殘影拖尾', description: '沿移動軌跡留下多張殘影，逐漸消失', symbol: '✦', gradient: 'linear-gradient(135deg,#e9d5ff,#a78bfa 55%,#231a3e)'}
   ];
   function builtinEmitter(preset, id = freshId()) {
     const names = Object.fromEntries(BUILTIN_EFFECTS.map(item => [item.id, item.name]));
     if (!names[preset]) throw new Error('找不到內建效果：' + preset);
+    if (preset === 'path-ribbon') {
+      const e = Core.createEmitter(id, names[preset], 'glow');
+      Object.assign(e, {image: clone(builtinImages.lightning), count: 1, emissionDuration: 0,
+        life: Math.max(0.05, project.duration - 0.4), lifeRandom: 0, size: 72, sizeRandom: 0,
+        speed: 0, speedRandom: 0, spin: 0, spinRandom: 0, blend: 'additive',
+        colorStart: '#ffffff', colorEnd: '#ffffff',
+        path: {...PathMath.defaults(), ...PathMath.preset('s', 360, 130), enabled: true},
+        trail: {...Trail.defaults(), enabled: true, mode: 'stretch', coverage: 'path', showHead: false,
+          axis: 'auto', duration: 0.4, segments: 32, opacity: 1, taper: 0},
+        sizeCurve: [{t: 0, v: 1}, {t: 1, v: 1}],
+        alphaCurve: [{t: 0, v: 0}, {t: 0.08, v: 1}, {t: 0.9, v: 1}, {t: 1, v: 0}]});
+      return e;
+    }
+    if (preset === 'path-stretch' || preset === 'path-afterimage') {
+      const e = Core.createEmitter(id, names[preset], 'glow');
+      Object.assign(e, {image: clone(preset === 'path-stretch' ? builtinImages.glow : builtinImages['trail-arrow']), count: 2, emissionDuration: 0.45, life: Math.max(0.05, Math.min(1.8, project.duration * 0.6)),
+        lifeRandom: 0, size: preset === 'path-stretch' ? 24 : 32, sizeRandom: 0, speedRandom: 0, spin: 0, spinRandom: 0,
+        blend: preset === 'path-stretch' ? 'additive' : 'normal',
+        colorStart: preset === 'path-stretch' ? '#88ffe1' : '#ddc5ff', colorEnd: '#6ea8ff', alignDirection: true,
+        path: {...PathMath.defaults(), ...PathMath.preset('s', 360, 130), enabled: true},
+        trail: {...Trail.defaults(), enabled: true, mode: preset === 'path-stretch' ? 'stretch' : 'afterimage', duration: 0.5},
+        sizeCurve: [{t: 0, v: 0.8}, {t: 0.15, v: 1}, {t: 1, v: 0.7}],
+        alphaCurve: [{t: 0, v: 0}, {t: 0.06, v: 1}, {t: 0.85, v: 1}, {t: 1, v: 0}]});
+      return e;
+    }
     if (preset === 'lightning') {
       const e = Core.createEmitter(id, names[preset], 'glow');
       Object.assign(e, {kind: 'lightning', lightning: {...window.ParticleLightning.DEFAULTS, bolts: 2, branches: 1},
@@ -1565,6 +1844,7 @@
         notes = applyPlacement(e, pendingPlacement); Core.normalizeProject(project); integrationChanged();
       }
       changed(); renderEmitters(); renderInspector(); renderGlobals();
+      if (e.trail && e.trail.enabled) { setTab('motion'); expandSectionFor($('pathSection')); expandSectionFor($('trailSection')); $('trailSection').scrollIntoView({block: 'start'}); }
       if (pendingPlacement && attachmentUi) { attachmentUi.refresh(); notify('已在 ' + pendingPlacement.slot + '（骨骼 ' + pendingPlacement.bone + '）新增「' + e.name + '」' + (pendingPlacement.at !== null ? '，' + pendingPlacement.at + ' 秒開始' : '') + (notes.length ? '；' + notes.join('；') : '') + '。'); }
     } finally { historyEnd(); }
   }
@@ -1705,6 +1985,7 @@
         const value = input.valueAsNumber; if (!Number.isFinite(value)) return;
         let custom = null;
         if (typeof curveEditor !== 'undefined' && curveEditor) custom = curveEditor.bindingFor(input);
+        if (!custom && typeof trailLengthEditor !== 'undefined' && trailLengthEditor) custom = trailLengthEditor.bindingFor(input);
         if (!custom && typeof gradientEditor !== 'undefined' && gradientEditor) custom = gradientEditor.bindingFor(input);
         if (!custom && typeof pathEditor !== 'undefined' && pathEditor) custom = pathEditor.bindingFor(input);
         if (!custom && textureUi) custom = textureUi.bindingFor(input);
@@ -1712,6 +1993,7 @@
         if (!custom && typeof attachmentUi !== 'undefined' && attachmentUi) custom = attachmentUi.bindingFor(input);
         if (!custom && typeof flowBindingFor === 'function') custom = flowBindingFor(input);
         if (!custom && typeof seedBindingFor === 'function') custom = seedBindingFor(input);
+        if (!custom && typeof trailBindingFor === 'function') custom = trailBindingFor(input);
         const key = custom ? custom.key : input.dataset.field || {duration: 'duration', projectSeed: 'seed'}[input.id]; if (!key) return;
         if (gesture) finish(false);
         const source = custom ? custom.source : input.dataset.field ? emitter() : project;
@@ -1769,7 +2051,9 @@
   }
   function wireEvents() {
     wireHistory();
+    wireBackgroundJpeg();
     wireEmitterSeed();
+    wireTrail();
     pathEditor = window.ParticlePathEditor.mount({getEmitter: emitter, getScene: pathScene, loadOutline: loadPathOutline, onApply: (path, e, reference) => {
       const prior = {path: e.path, outline: e.outline, width: e.width, height: e.height};
       try {
@@ -1928,14 +2212,19 @@
     $('backgroundButton').addEventListener('click', () => $('backgroundFile').click());
     $('backgroundFile').addEventListener('change', async event => {
       const request = ++backgroundRequest, owner = project;
+      const file = event.target.files[0];
       try {
-        const file = event.target.files[0]; if (!file) return;
+        if (!file) return;
+        if (file.size > 4 * 1048576) { openBackgroundJpeg(file); return; }
         const loaded = await loadImage(file, true);
         if (request !== backgroundRequest || owner !== project) return;
         const {sourceWidth, sourceHeight, ...image} = loaded;
         const candidate = {...project, background: {...project.background, image, sourceWidth, sourceHeight, scale: 1}};
         project.background = Core.normalizeProject(candidate).background; fitBackgroundView();
-      } catch (error) { notify(error.message, true); } finally { event.target.value = ''; }
+      } catch (error) {
+        if (request === backgroundRequest && owner === project && /超過 [48] MB/.test(error.message)) openBackgroundJpeg(file);
+        else notify(error.message, true);
+      } finally { event.target.value = ''; }
     });
     $('backgroundActualSize').addEventListener('click', () => {
       if (!project.background.image) return;
@@ -1958,6 +2247,10 @@
     $('helpButton').addEventListener('click', () => $('helpDialog').showModal()); $('closeHelp').addEventListener('click', () => $('helpDialog').close());
     const lifecycleChange = () => { changed(); renderEmitters(); drawCurves(); };
     curveEditor = window.ParticleCurveEditor.mount({getEmitter: emitter, onChange: lifecycleChange, math: window.ParticleCurveMath, Core});
+    trailLengthEditor = window.ParticleCurveEditor.mount({getEmitter: trailLengthTarget,
+      onChange: () => { changed(); renderEmitters(); renderTrailInspector(); drawCurves(); }, math: window.ParticleCurveMath, Core,
+      lifecycleControls: false, definitions: [{prefix: 'trailLength', key: 'lengthCurve', max: Trail.MAX_LENGTH, valueScale: 100, autoScale: true,
+        reset: 'resetTrailLength', remove: 'deleteTrailLengthPoint', resetValue: [{t: 0, v: 1}, {t: 1, v: 1}]}]});
     gradientEditor = window.ParticleGradientEditor.mount({getEmitter: emitter, onChange: lifecycleChange, math: window.ParticleCurveMath, Core});
     $('alphaAdvanced').addEventListener('toggle', drawCurves);
     lookPresetsUi = window.ParticleLookPresetsUI.mount({getEmitter: emitter, onApply: (kind, id) => {
@@ -2022,7 +2315,7 @@
       if (flow && phase !== 'loop') local = 0;
       return {duration, fps: project.fps, time: local, selectedId,
         emitters: project.emitters.map(e => ({id: e.id, name: e.name, enabled: e.enabled, muted: muted.has(e.id),
-          startDelay: e.startDelay || 0, emissionDuration: e.emissionDuration, life: e.life, lifeRandom: e.lifeRandom,
+          startDelay: e.startDelay || 0, emissionDuration: e.emissionDuration, life: e.life, lifeRandom: e.lifeRandom, trail: e.trail,
           color: e.colorGradient && e.colorGradient.length ? e.colorGradient[Math.floor(e.colorGradient.length / 2)].color : e.colorStart}))};
     }, onSelect: id => { if (id !== selectedId) selectEmitter(id); },
     onBegin: () => { if (!busy) historyBegin('command'); },

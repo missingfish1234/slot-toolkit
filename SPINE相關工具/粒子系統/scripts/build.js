@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const workspace = path.resolve(__dirname, '..');
-const scripts = ['curve-math.js', 'path-math.js', 'contour-math.js', 'lightning.js', 'core.js', 'look-presets.js', 'effect-library.js', 'zip.js', 'spine-merge.js', 'effect-update.js', 'storage.js', 'preview.js', 'scrub.js', 'curve-editor.js', 'gradient-editor.js', 'look-presets-ui.js', 'effect-library-ui.js', 'timeline-view.js', 'path-editor.js', 'spine-attachment-ui.js', 'flow-playback.js',
+const scripts = ['curve-math.js', 'path-math.js', 'contour-math.js', 'lightning.js', 'trail.js', 'background-jpeg.js', 'core.js', 'look-presets.js', 'effect-library.js', 'zip.js', 'spine-merge.js', 'effect-update.js', 'storage.js', 'preview.js', 'scrub.js', 'curve-editor.js', 'gradient-editor.js', 'look-presets-ui.js', 'effect-library-ui.js', 'timeline-view.js', 'path-editor.js', 'spine-attachment-ui.js', 'flow-playback.js',
   'spine-runtimes.js', 'spine-runtime-preview.js', 'spine-canvas-renderer.js', 'attachment-preview.js', 'spine-assets-ui.js', 'history.js', 'bone-picker.js', 'spine-folder.js', 'art-picker.js', 'attach-assist.js', 'sequence-texture-ui.js', 'emission-guides.js', 'emitter-lanes.js', 'batch-export.js', 'app.js'];
 const output = path.join(workspace, 'dist', 'Particle-Studio.html');
 

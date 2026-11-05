@@ -8,17 +8,17 @@
   const clone = value => JSON.parse(JSON.stringify(value));
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const round = v => Math.round(v * 1000) / 1000;
-  function mount({getEmitter, onChange, math, Core, document: doc = document}) {
+  function mount({getEmitter, onChange, math, Core, document: doc = document, definitions = null, lifecycleControls = true}) {
     const $ = id => doc.getElementById(id);
     const fallback = new WeakMap();
     let currentEmitter = null;
-    const specs = [
+    const specs = (definitions || [
       {prefix: 'alpha', key: 'alphaCurve', max: 1, reset: 'resetAlpha', remove: 'deleteAlphaPoint'},
       {prefix: 'size', key: 'sizeCurve', max: 4, reset: 'resetSize', remove: 'deleteSizePoint'},
       {prefix: 'sizeX', key: 'sizeCurveX', max: 4, reset: 'resetSizeX', remove: 'deleteSizeXPoint', axis: true},
       {prefix: 'sizeY', key: 'sizeCurveY', max: 4, reset: 'resetSizeY', remove: 'deleteSizeYPoint', axis: true},
       {prefix: 'speed', key: 'speedCurve', max: 4, reset: 'resetSpeed', remove: 'deleteSpeedPoint'}
-    ].map(spec => ({...spec, selected: 0, canvas: $(spec.prefix + 'CurveCanvas'),
+    ]).map(spec => ({valueScale: 1, ...spec, selected: 0, canvas: $(spec.prefix + 'CurveCanvas'),
       time: $(spec.prefix + 'CurveTime'), value: $(spec.prefix + 'CurveValue'),
       interpolation: $(spec.prefix + 'Interpolation'), deleteButton: $(spec.remove)}));
     function points(spec, e = getEmitter()) {
@@ -43,13 +43,18 @@
       const gridLow = Math.ceil(low * 1000 - 1e-9) / 1000, gridHigh = Math.floor(high * 1000 + 1e-9) / 1000;
       return gridLow <= gridHigh ? [gridLow, gridHigh] : [low, high];
     }
+    function graphMax(spec) {
+      if (!spec.autoScale) return spec.max;
+      const values = points(spec).flatMap(p => [p.v, p.in ? p.in.y : 0, p.out ? p.out.y : 0]);
+      return Math.min(spec.max, Math.max(1, Math.ceil(Math.max(...values))));
+    }
     function geometry(spec) {
       const r = spec.canvas.getBoundingClientRect();
-      return {w: r.width, h: r.height, left: 28, top: 10,
+      return {w: r.width, h: r.height, left: 28, top: 10, max: graphMax(spec),
         width: Math.max(1, r.width - 40), height: Math.max(1, r.height - 30)};
     }
     function xy(spec, g, t, v) {
-      return {x: g.left + t * g.width, y: g.top + (1 - v / spec.max) * g.height};
+      return {x: g.left + t * g.width, y: g.top + (1 - v / g.max) * g.height};
     }
     function handle(left, right, kind) {
       return kind === 'out' ? left.out || {x: 1 / 3, y: left.v} : right.in || {x: 2 / 3, y: right.v};
@@ -101,7 +106,7 @@
       c.scale(dpr, dpr); c.lineWidth = 1; c.strokeStyle = '#263241'; c.beginPath();
       [0, .5, 1].forEach(t => { c.moveTo(g.left + t * g.width, g.top); c.lineTo(g.left + t * g.width, g.top + g.height); });
       [0, .5, 1].forEach(v => { c.moveTo(g.left, g.top + v * g.height); c.lineTo(g.left + g.width, g.top + v * g.height); }); c.stroke();
-      c.fillStyle = '#7f8c9f'; c.font = '10px sans-serif'; c.fillText(String(spec.max), 4, g.top + 4); c.fillText('0', 12, g.top + g.height);
+      c.fillStyle = '#7f8c9f'; c.font = '10px sans-serif'; c.fillText(String(g.max * spec.valueScale), 4, g.top + 4); c.fillText('0', 12, g.top + g.height);
       c.strokeStyle = getEmitter()[spec.key] || spec.axis ? '#edc98c' : '#687991'; c.lineWidth = 2; c.beginPath();
       const start = xy(spec, g, list[0].t, list[0].v); c.moveTo(start.x, start.y);
       for (let i = 1; i < list.length; i++) {
@@ -133,7 +138,7 @@
       const onGrid = n => Math.abs(n * 1000 - Math.round(n * 1000)) < 1e-7;
       spec.time.step = bounds.every(onGrid) && onGrid(p.t) ? '0.1' : 'any';
       if (doc.activeElement !== spec.time) spec.time.value = String(spec.time.step === 'any' ? p.t * 100 : round(p.t * 100));
-      if (doc.activeElement !== spec.value) spec.value.value = String(round(p.v));
+      if (doc.activeElement !== spec.value) spec.value.value = String(round(p.v * spec.valueScale));
       const mode = list[segment].curve || 'linear';
       const mixed = spec.selected > 0 && spec.selected < list.length - 1 && (list[spec.selected - 1].curve || 'linear') !== mode;
       if (mixed && !spec.mixedOption) {
@@ -149,12 +154,14 @@
     function refresh() {
       const e = getEmitter(); if (!e) return;
       if (e !== currentEmitter) { currentEmitter = e; specs.forEach(s => { s.selected = 0; }); }
+      if (lifecycleControls) {
       $('enableSpeedCurve').checked = !!e.speedCurve;
       $('legacyMotionField').querySelector('select').disabled = !!e.speedCurve;
       $('separateSizeAxes').checked = !!e.separateSizeAxes;
       $('uniformSizeCurveFields').hidden = !!e.separateSizeAxes;
       $('separateSizeCurveFields').hidden = !e.separateSizeAxes;
       $('sizeAxesHint').textContent = e.separateSizeAxes ? 'X 調整寬度，Y 調整高度。關閉後恢復統一倍率，分軸曲線會保留。' : 'X、Y 共用下方的尺寸倍率曲線；開啟後可分別調整寬度與高度。';
+      }
       specs.forEach(spec => { updateFields(spec); draw(spec); });
     }
     function change() { onChange(); refresh(); }
@@ -182,7 +189,7 @@
       const position = event => {
         const r = spec.canvas.getBoundingClientRect(), g = geometry(spec);
         const rawT = (event.clientX - r.left - g.left) / g.width;
-        const rawV = (1 - (event.clientY - r.top - g.top) / g.height) * spec.max;
+        const rawV = (1 - (event.clientY - r.top - g.top) / g.height) * g.max;
         return {g, x: event.clientX - r.left, y: event.clientY - r.top,
           rawT, rawV, t: clamp(rawT, 0, 1), v: clamp(rawV, 0, spec.max)};
       };
@@ -258,7 +265,7 @@
         const p = selected(spec);
         if (event.key === 'Escape' && dragging) finishDrag(true);
         else if (event.key === 'Delete' || event.key === 'Backspace') remove(spec);
-        else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') setValue(spec, 'v', p.v + (event.key === 'ArrowUp' ? 1 : -1) * spec.max * .02);
+        else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') setValue(spec, 'v', p.v + (event.key === 'ArrowUp' ? 1 : -1) * graphMax(spec) * .02);
         else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') setValue(spec, 't', p.t * 100 + (event.key === 'ArrowRight' ? 1 : -1));
         else return;
         event.preventDefault();
@@ -280,17 +287,18 @@
       });
       [[spec.time, 't'], [spec.value, 'v']].forEach(([input, kind]) => {
         ['input', 'change'].forEach(type => input.addEventListener(type, () => {
-          if (input.value.trim() && input.checkValidity() && Number.isFinite(input.valueAsNumber)) setValue(spec, kind, input.valueAsNumber);
+          if (input.value.trim() && input.checkValidity() && Number.isFinite(input.valueAsNumber)) setValue(spec, kind, input.valueAsNumber / (kind === 'v' ? spec.valueScale : 1));
         }));
-        input.addEventListener('blur', () => { const p = selected(spec); input.value = String(kind === 't' && input.step === 'any' ? p.t * 100 : round(kind === 't' ? p.t * 100 : p.v)); });
+        input.addEventListener('blur', () => { const p = selected(spec); input.value = String(kind === 't' && input.step === 'any' ? p.t * 100 : round(kind === 't' ? p.t * 100 : p.v * spec.valueScale)); });
       });
       spec.deleteButton.addEventListener('click', () => remove(spec));
       $(spec.reset).addEventListener('click', () => {
         if (spec.key === 'speedCurve') { fallback.delete(getEmitter()); getEmitter().inactiveSpeedCurve = null; }
-        getEmitter()[spec.key] = spec.key === 'speedCurve' ? null : clone(Core.createEmitter('temporary')[spec.axis ? 'sizeCurve' : spec.key]);
+        getEmitter()[spec.key] = spec.resetValue !== undefined ? clone(spec.resetValue) : spec.key === 'speedCurve' ? null : clone(Core.createEmitter('temporary')[spec.axis ? 'sizeCurve' : spec.key]);
         spec.selected = 0; change();
       });
     });
+    if (lifecycleControls) {
     $('enableSpeedCurve').addEventListener('change', () => {
       const e = getEmitter();
       if ($('enableSpeedCurve').checked) { e.speedCurve = clone(points(specs.find(spec => spec.key === 'speedCurve'), e)); e.inactiveSpeedCurve = null; }
@@ -306,12 +314,13 @@
       e.separateSizeAxes = enabled;
       change();
     });
+    }
     function bindingFor(input) {
       const spec = specs.find(s => s.time === input || s.value === input); if (!spec) return null;
       const e = getEmitter(), kind = spec.time === input ? 't' : 'v', before = clone(e[spec.key] || null), index = spec.selected;
       const hadOwn = Object.prototype.hasOwnProperty.call(e, spec.key);
-      return {source: {get value() { const p = points(spec, e)[index]; return kind === 't' ? p.t * 100 : p.v; },
-        set value(value) { spec.selected = index; setValue(spec, kind, value, e); }}, key: 'value',
+      return {source: {get value() { const p = points(spec, e)[index]; return kind === 't' ? p.t * 100 : p.v * spec.valueScale; },
+        set value(value) { spec.selected = index; setValue(spec, kind, value / (kind === 'v' ? spec.valueScale : 1), e); }}, key: 'value',
         restore() { if (hadOwn) e[spec.key] = before; else delete e[spec.key]; spec.selected = index; refresh(); }};
     }
     refresh(); return {refresh, bindingFor};

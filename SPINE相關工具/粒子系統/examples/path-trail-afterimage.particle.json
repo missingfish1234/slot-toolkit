@@ -1,0 +1,206 @@
+{
+  "format": "particle-studio-project",
+  "schemaVersion": 1,
+  "project": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "殘影拖尾 · 箭頭淡出",
+    "fps": 30,
+    "spineVersion": "4.0.56",
+    "duration": 3,
+    "loop": false,
+    "flow": {
+      "enabled": false,
+      "in": {
+        "name": "in",
+        "duration": 1
+      },
+      "loop": {
+        "name": "loop",
+        "duration": 3
+      },
+      "out": {
+        "name": "out",
+        "duration": 1
+      }
+    },
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "path_trail_afterimage",
+        "name": "箭頭殘影",
+        "enabled": true,
+        "x": 0,
+        "y": 0,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 1,
+        "emissionDuration": 0,
+        "life": 1.8,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 34,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": true,
+        "blend": "normal",
+        "colorStart": "#e2c4ff",
+        "colorEnd": "#a78bfa",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 1
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.04,
+            "v": 1
+          },
+          {
+            "t": 0.88,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "path-arrow.png",
+          "mime": "image/png",
+          "width": 64,
+          "height": 32,
+          "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAgCAYAAACinX6EAAAAjUlEQVR4nO3WyQ2AQBADQUIjc0IzrxEPENpThu2pCMYtcWxbSukLJB2SdvcdNrowQ+iOFeIhACvESwBGiIIAa4eoCLBmiIYA80J0HOM0LoR7Saf+EO4Fg7SHcF8+WH0I98WTlIdwXzoJNgD2EcC+BLGfwX//GmOHB+zwgB0esMMDdnjADg/Y4QE7PCWvE7QWFHmnfHWwAAAAAElFTkSuQmCC"
+        },
+        "startDelay": 0.2,
+        "emitFrom": "area",
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": -220,
+              "y": 0,
+              "curve": "bezier",
+              "out": {
+                "x": 36.666666666666664,
+                "y": 47.1238898038469
+              }
+            },
+            {
+              "x": -110,
+              "y": 90,
+              "curve": "bezier",
+              "in": {
+                "x": -36.666666666666664,
+                "y": -2.8855060405826848e-15
+              },
+              "out": {
+                "x": 36.666666666666664,
+                "y": 2.8855060405826848e-15
+              }
+            },
+            {
+              "x": 0,
+              "y": 1.1021821192326179e-14,
+              "curve": "bezier",
+              "in": {
+                "x": -36.666666666666664,
+                "y": 47.1238898038469
+              },
+              "out": {
+                "x": 36.666666666666664,
+                "y": -47.1238898038469
+              }
+            },
+            {
+              "x": 110,
+              "y": -90,
+              "curve": "bezier",
+              "in": {
+                "x": -36.666666666666664,
+                "y": 8.656518121748054e-15
+              },
+              "out": {
+                "x": 36.666666666666664,
+                "y": -8.656518121748054e-15
+              }
+            },
+            {
+              "x": 220,
+              "y": -2.2043642384652358e-14,
+              "curve": "bezier",
+              "in": {
+                "x": -36.666666666666664,
+                "y": -47.1238898038469
+              }
+            }
+          ],
+          "closed": false,
+          "smooth": 0,
+          "reverse": false,
+          "mode": "lifetime",
+          "offsets": false
+        },
+        "trail": {
+          "enabled": true,
+          "mode": "afterimage",
+          "duration": 0.65,
+          "samples": 12,
+          "segments": 24,
+          "opacity": 0.75,
+          "width": 1.2,
+          "taper": 0.85,
+          "coverage": "history",
+          "showHead": true,
+          "axis": "auto",
+          "flipTexture": false,
+          "lengthCurve": null,
+          "moveDuration": null,
+          "lengthDuration": null
+        }
+      }
+    ],
+    "background": {
+      "color": "#111827",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    },
+    "bakeQuality": "fine"
+  },
+  "bakedProject": null,
+  "view": {
+    "time": 1.25,
+    "mode": "live",
+    "zoom": 1.15,
+    "panX": 0,
+    "panY": 0
+  }
+}

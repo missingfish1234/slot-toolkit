@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0b1119">
   <meta name="author" content="小魚骨頭">
-  <title>粒子工作室 · Particle Studio 1.28</title>
+  <title>粒子工作室 · Particle Studio 1.29.6</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
     <header class="app-header">
       <div class="brand" aria-label="粒子工作室 Particle Studio">
         <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 36 36"><ellipse class="brand-orbit" cx="18" cy="18" rx="15" ry="9" transform="rotate(-38 18 18)"/><path class="brand-spark" d="m18 6 3.1 8.9L30 18l-8.9 3.1L18 30l-3.1-8.9L6 18l8.9-3.1Z"/><circle class="brand-particle" cx="29" cy="8" r="3"/><circle class="brand-particle-small" cx="7" cy="26" r="1.8"/></svg></span>
-        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.28</span></span><span class="brand-author">開發者：小魚骨頭</span></div>
+        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.29.6</span></span><span class="brand-author">開發者：小魚骨頭</span></div>
         <label class="version-control"><span id="spineTargetMode">輸出版本</span><select id="spineVersion" aria-label="Spine 輸出版本" title="選擇 Spine JSON 輸出版本"><option value="3.8.99">SPINE 3.8</option><option value="4.0.56" selected>SPINE 4.0</option><option value="4.2.43">SPINE 4.2</option></select></label>
       </div>
       <div class="project-heading"><span class="project-caption"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h5l2 2h7v10H3Z"/></svg>目前專案</span><label class="sr-only" for="projectName">專案名稱</label><input id="projectName" type="text" value="金色光塵" maxlength="80" spellcheck="false" aria-label="專案名稱"></div>
@@ -69,7 +69,7 @@
         <div id="attachmentPreviewBar" class="attachment-preview-bar" hidden><div class="segmented-control" role="group" aria-label="預覽座標"><button id="previewAttached" type="button" aria-pressed="true">掛接預覽</button><button id="previewLocal" type="button" aria-pressed="false">粒子單獨</button></div><label class="attachment-bones-toggle"><input id="previewBones" type="checkbox" checked>骨架</label><label id="previewSkinField" hidden>Skin <select id="previewSkin" aria-label="預覽原骨架 Skin"></select></label><button id="previewArtPick" type="button" class="art-pick-button" aria-pressed="false" title="在角色圖片上點一下，新增效果或移動目前發射器（快捷鍵 A）">點角色加效果</button><button id="previewPickBone" type="button" class="text-button" aria-pressed="false" title="在畫布點選骨骼，掛接目前發射器">畫布選骨骼</button><label class="attachment-bones-toggle"><input id="previewKeepWorld" type="checkbox" checked title="換骨骼時保持發射器紅點的當下畫面位置">保持紅點位置</label><button id="previewFocus" type="button" class="text-button">對焦掛接點</button><button id="previewFxStart" type="button" class="text-button">跳到粒子開始</button><span id="attachmentPreviewStatus" class="attachment-preview-status" role="status"></span></div>
         <div id="canvasStage" class="canvas-stage"><canvas id="previewCanvas" aria-label="粒子動畫預覽畫布" tabindex="0">此工具需要支援 Canvas 的瀏覽器。</canvas><div id="emitterHandles" class="emitter-handles" role="group" aria-label="畫布發射器控制點"></div><span id="emitterDragHint" class="stage-control-hint"><span class="emitter-handle-dot" aria-hidden="true"></span>紅色控制點：點選切換，拖曳移動位置</span><span id="bonePickHint" class="stage-control-hint bone-pick-hint" role="status" hidden></span><span id="artPickHint" class="stage-control-hint bone-pick-hint art-pick-hint" role="status" hidden></span><div id="artPickMenu" class="art-pick-menu" role="dialog" aria-label="在角色上新增效果" hidden><p id="artPickTitle" class="art-pick-title"></p><div class="segmented-control art-pick-layer" role="group" aria-label="前後圖層"><button id="artPickAbove" type="button" aria-pressed="true">在此圖前面</button><button id="artPickBelow" type="button" aria-pressed="false">在此圖後面</button></div><label class="checkbox-label art-pick-time"><input id="artPickUseTime" type="checkbox" checked><span id="artPickTimeLabel">從播放頭開始</span></label><div class="art-pick-actions"><button id="artPickAdd" type="button" class="primary-button">＋ 在這裡新增效果</button><button id="artPickMove" type="button" class="secondary-button">把目前發射器移到這裡</button><button id="artPickCancel" type="button" class="text-button muted">取消</button></div></div><span id="spineTargetChip" class="spine-target-chip" hidden></span><span class="stage-coordinate-note">X →　Y ↑</span><span class="stage-watermark" aria-hidden="true">PARTICLE STUDIO</span></div>
         <div class="canvas-bottom-bar">
-          <div class="background-controls"><label class="color-swatch-label" for="backgroundColor"><input id="backgroundColor" type="color" value="#12151a" title="畫布背景顏色"><span>背景</span></label><button id="backgroundButton" type="button" class="text-button">載入參考圖</button><input id="backgroundFile" type="file" accept="image/png,image/jpeg,image/webp" hidden><button id="backgroundActualSize" type="button" class="text-button" title="按原像素尺寸對齊背景與粒子，並調整視角顯示整張背景" hidden>校正尺寸</button><span id="backgroundInfo" class="background-info" hidden></span><button id="removeBackground" type="button" class="text-button muted" title="移除背景參考圖">移除</button></div><span class="canvas-hint">拖曳空白處移動視角</span>
+          <div class="background-controls"><label class="color-swatch-label" for="backgroundColor"><input id="backgroundColor" type="color" value="#12151a" title="畫布背景顏色"><span>背景</span></label><button id="backgroundButton" type="button" class="text-button">載入參考圖</button><button id="backgroundJpegButton" type="button" class="text-button">背景轉 JPG</button><input id="backgroundJpegFile" type="file" accept="image/png,image/jpeg,image/webp" hidden><input id="backgroundFile" type="file" accept="image/png,image/jpeg,image/webp" hidden><button id="backgroundActualSize" type="button" class="text-button" title="按原像素尺寸對齊背景與粒子，並調整視角顯示整張背景" hidden>校正尺寸</button><span id="backgroundInfo" class="background-info" hidden></span><button id="removeBackground" type="button" class="text-button muted" title="移除背景參考圖">移除</button></div><span class="canvas-hint">拖曳空白處移動視角</span>
         </div>
         <section class="timeline-panel" aria-label="播放與時間軸">
           <div class="playback-bar">
@@ -197,19 +197,8 @@
           </section>
 
           <section id="panelMotion" class="inspector-tab-panel" data-panel="motion" role="tabpanel" aria-labelledby="tabMotion" hidden>
-            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="m4 14 10-10 M8 4h6v6 M3 8h3 M9 16h3"/></svg><span>初始速度</span></h3><div class="field-row"><label class="field"><span>移動速度 <small>px/秒</small></span><input data-field="speed" type="number" min="0" max="4000" step="1" value="80"></label><label class="field"><span>速度隨機 <small>± px/秒</small></span><input data-field="speedRandom" type="number" min="0" max="4000" step="1" value="30"></label></div><p id="speedModeHint" class="field-hint mode-reason" hidden></p><div id="legacyMotionControls"><label id="legacyMotionField" class="field full-field"><span>移動節奏</span><select data-field="motionCurve"><option value="linear">線性 · 恆定速度</option><option value="easeOut">漸慢 · 起快末慢</option><option value="easeIn">漸快 · 起慢末快</option><option value="easeInOut">緩入緩出</option></select></label><p class="field-hint">啟用速度曲線後，曲線會覆蓋此移動節奏。</p></div></div>
-            <div class="inspector-section">
-              <div class="inspector-section-heading"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 15c3 0 3-10 7-10s3 7 7 7 M14 9l3 3-3 3"/></svg><span>生命期間的速度</span></h3><label class="checkbox-label"><input id="enableSpeedCurve" type="checkbox">啟用速度曲線</label></div>
-              <div class="curve-header"><span>速度倍率曲線</span><div class="curve-header-actions"><select id="speedInterpolation" class="curve-interpolation" aria-label="速度選取節點的插值方式"><option value="linear">線性</option><option value="bezier">貝茲</option><option value="stepped">階梯</option></select><button id="resetSpeed" type="button" class="text-button muted">重設</button></div></div>
-              <div id="speedPresetTools" class="look-preset-tools" role="group" aria-label="常用速度曲線"></div>
-              <canvas id="speedCurveCanvas" class="curve-canvas" width="260" height="100" tabindex="0" aria-label="速度曲線，拖曳節點調整" title="點擊會啟用速度曲線；中間節點選貝茲可調左右兩側，拖藍色控制柄預設平衡；Ctrl 單側調整。右鍵或 Delete 刪除節點。">速度曲線</canvas>
-              <div class="curve-labels" aria-hidden="true"><span>出生</span><span>死亡</span></div>
-              <div class="field-row curve-node-fields"><label class="field"><span>生命位置 <small>%</small></span><input id="speedCurveTime" type="number" min="0" max="100" step="0.1" value="0"></label><label class="field"><span>速度倍率</span><input id="speedCurveValue" type="number" min="0" max="4" step="0.001" value="1"></label><button id="deleteSpeedPoint" type="button" class="icon-button curve-delete-button" title="刪除選取的速度曲線節點" aria-label="刪除速度曲線節點"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h14 M7 5V3h6v2 M5 5l1 12h8l1-12 M8 8v6 M12 8v6"/></svg></button></div>
-              <p id="speedCurveHint" class="field-hint">0 為停止，1 為基礎速度，4 為四倍速度。中間節點選貝茲可調左右兩側；拖控制柄預設平衡，Ctrl 單側調整。</p>
-            </div>
-            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M10 2v16 M2 10h16 M7 5l3-3 3 3 M7 15l3 3 3-3"/></svg><span>外力</span></h3><p id="forceModeHint" class="field-hint mode-reason" hidden></p><label class="field full-field"><span>重力 <small>px/秒² · ＋向下／−向上</small></span><input data-field="gravity" type="number" min="-6000" max="6000" step="1" value="0"></label><label class="field full-field"><span>風向 <small>px/秒² · ＋向右／−向左</small></span><input data-field="wind" type="number" min="-3000" max="3000" step="1" value="0"></label><p class="field-hint">風向：正值往右吹，負值往左吹。<br>重力：正值往下，負值往上；0 表示無此外力。</p></div>
             <div id="pathSection" class="inspector-section path-section">
-              <div class="inspector-section-heading"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 15C3 4 8 3 10 10s7 6 7-5 M14 5h3v3"/></svg><span>沿路徑移動</span></h3><label class="checkbox-label"><input id="enablePath" type="checkbox">啟用</label></div>
+              <div class="inspector-section-heading"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 15C3 4 8 3 10 10s7 6 7-5 M14 5h3v3"/></svg><span>路徑與拖尾</span></h3><label class="checkbox-label"><input id="enablePath" type="checkbox">啟用</label></div>
               <button id="editPath" type="button" class="secondary-button path-edit-button" aria-haspopup="dialog">編輯路徑與控制點</button>
               <button id="pathUseOutline" type="button" class="text-button path-outline-shortcut" aria-haspopup="dialog">沿物件外型移動</button>
               <p id="pathSummary" class="path-summary" role="status">未啟用路徑</p>
@@ -227,6 +216,60 @@
               </div>
               <p id="pathMotionHint" class="field-hint">路徑決定粒子出生後的移動軌跡，可製作繞框光點與流動光串。</p>
             </div>
+            <div id="trailSection" class="inspector-section trail-section" data-particle-only>
+              <div class="inspector-section-heading"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M2 14c5 0 5-8 10-8 M4 17c5 0 5-8 10-8 M7 19c4 0 4-7 9-7"/></svg><span>拖尾表演</span></h3><label class="checkbox-label"><input id="enableTrail" type="checkbox">啟用</label></div>
+              <p id="trailStatus" class="field-hint" role="status">啟用後，讓粒子沿移動軌跡拉伸或留下殘影。</p>
+              <button id="makePathRibbon" type="button" class="secondary-button path-edit-button">把目前貼圖做成路徑光帶</button>
+              <p class="field-hint">保留目前貼圖與路徑，自動切網格鋪成一條光帶。</p>
+              <div id="trailFields" hidden>
+                <label class="field full-field"><span>拖尾方式</span><select id="trailMode"><option value="stretch">沿路徑拉伸</option><option value="afterimage">殘影拖尾</option></select></label>
+                <div data-trail-mode="stretch">
+                  <label class="field full-field"><span>拉伸範圍</span><select id="trailCoverage"><option value="history">跟隨移動拖尾</option><option value="path">整條路徑鋪圖</option></select></label>
+                  <label class="checkbox-label"><input id="trailShowHead" type="checkbox" checked>顯示頭部粒子</label>
+                  <div class="trail-timing-controls">
+                    <button id="trailCometPreset" type="button" class="secondary-button path-edit-button">彗星撞擊 · 0.5 秒到達／0.65 秒收尾</button>
+                    <label class="checkbox-label"><input id="trailIndependentTime" type="checkbox" aria-controls="trailTimingFields">獨立移動／收縮時間</label>
+                    <div id="trailTimingFields" class="field-row" hidden><label class="field"><span>移動到達 <small>秒</small></span><input id="trailMoveDuration" type="number" min="0.01" max="10" step="0.01" value="0.5"></label><label class="field"><span>收縮結束 <small>秒</small></span><input id="trailLengthDuration" type="number" min="0.01" max="10" step="0.01" value="0.65"></label></div>
+                    <p id="trailTimingHint" class="field-hint">兩個時間都從粒子出生起計算；到達後停住，尾巴可繼續收縮。</p>
+                  </div>
+                  <div class="trail-length-controls">
+                    <label class="checkbox-label"><input id="enableTrailLength" type="checkbox" aria-controls="trailLengthFields">啟用拉伸長度曲線</label>
+                    <div class="trail-length-presets" role="group" aria-label="拉伸長度預設"><button id="trailLengthPulse" type="button" class="secondary-button">先長再短</button><button id="trailLengthFull" type="button" class="quiet-button">維持全長</button></div>
+                    <div id="trailLengthFields" hidden>
+                      <div class="curve-header"><span>拉伸長度曲線</span><div class="curve-header-actions"><select id="trailLengthInterpolation" class="curve-interpolation" aria-label="拉伸長度選取節點的插值方式"><option value="linear">線性</option><option value="bezier">貝茲</option><option value="stepped">階梯</option></select><button id="resetTrailLength" type="button" class="text-button muted">重設</button></div></div>
+                      <canvas id="trailLengthCurveCanvas" class="curve-canvas" width="260" height="100" tabindex="0" aria-label="拉伸長度曲線，拖曳節點控制先長再短" title="點擊新增節點；拖曳改變時間與長度，貝茲可調控制柄；右鍵或 Delete 刪除節點。">拉伸長度曲線</canvas>
+                      <div class="curve-labels" aria-hidden="true"><span>出生</span><span id="trailLengthEndLabel">生命結束</span></div>
+                      <div class="field-row curve-node-fields"><label class="field"><span><span id="trailLengthTimeLabel">生命位置</span> <small>%</small></span><input id="trailLengthCurveTime" type="number" min="0" max="100" step="0.1" value="0"></label><label class="field"><span>拉伸長度 <small>%</small></span><input id="trailLengthCurveValue" type="number" min="0" max="1000" step="0.1" value="100"></label><button id="deleteTrailLengthPoint" type="button" class="icon-button curve-delete-button" title="刪除長度節點" aria-label="刪除長度曲線節點">×</button></div>
+                    </div>
+                    <p id="trailLengthHint" class="field-hint">長度可輸入 0–1000%；100% 為完整路徑，0% 收到消失。</p>
+                  </div>
+                </div>
+                <p id="trailModeHint" class="field-hint"></p>
+                <button id="trailEditPath" type="button" class="secondary-button path-edit-button" aria-haspopup="dialog">設定／編輯移動路徑</button>
+                <div class="field-row"><label class="field"><span><span id="trailDurationLabel">殘留時間</span> <small>秒</small></span><input id="trailDuration" data-tfield="duration" type="number" min="0.05" max="3" step="0.05" value="0.35"></label><label class="field"><span>寬度倍數</span><input id="trailWidth" data-tfield="width" type="number" min="0.1" max="4" step="0.1" value="1"></label></div>
+                <label class="field full-field range-field"><span>拖尾透明度 <output data-treadout="opacity">65%</output></span><input id="trailOpacity" data-tfield="opacity" type="range" min="0" max="1" step="0.05" value="0.65"></label>
+                <label class="field full-field" data-trail-mode="afterimage" hidden><span>殘影數 <small>張</small></span><input id="trailSamples" data-tfield="samples" type="number" min="2" max="24" step="1" value="8"></label>
+                <div data-trail-mode="stretch">
+                  <label class="field full-field"><span>貼圖長邊</span><select id="trailAxis"><option value="auto">自動判斷</option><option value="x">橫向</option><option value="y">直向</option></select></label>
+                  <label class="checkbox-label"><input id="trailFlipTexture" type="checkbox">反轉貼圖</label>
+                  <p id="trailAxisHint" class="field-hint"></p>
+                  <label class="field full-field range-field"><span>尾端收尖 <output data-treadout="taper">80%</output></span><input id="trailTaper" data-tfield="taper" type="range" min="0" max="1" step="0.05" value="0.8"></label>
+                  <details id="trailAdvanced" class="advanced-options"><summary>更多拖尾選項</summary><div class="advanced-options-content"><label class="field full-field"><span>彎曲細緻度 <small>段</small></span><input id="trailSegments" data-tfield="segments" type="number" min="4" max="32" step="1" value="16"></label></div></details>
+                </div>
+                <p id="trailNoPath" class="field-hint">目前跟隨速度與外力形成拖尾；設定路徑可沿曲線表演。</p>
+              </div>
+            </div>
+            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="m4 14 10-10 M8 4h6v6 M3 8h3 M9 16h3"/></svg><span>初始速度</span></h3><div class="field-row"><label class="field"><span>移動速度 <small>px/秒</small></span><input data-field="speed" type="number" min="0" max="4000" step="1" value="80"></label><label class="field"><span>速度隨機 <small>± px/秒</small></span><input data-field="speedRandom" type="number" min="0" max="4000" step="1" value="30"></label></div><p id="speedModeHint" class="field-hint mode-reason" hidden></p><div id="legacyMotionControls"><label id="legacyMotionField" class="field full-field"><span>移動節奏</span><select data-field="motionCurve"><option value="linear">線性 · 恆定速度</option><option value="easeOut">漸慢 · 起快末慢</option><option value="easeIn">漸快 · 起慢末快</option><option value="easeInOut">緩入緩出</option></select></label><p class="field-hint">啟用速度曲線後，曲線會覆蓋此移動節奏。</p></div></div>
+            <div class="inspector-section">
+              <div class="inspector-section-heading"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 15c3 0 3-10 7-10s3 7 7 7 M14 9l3 3-3 3"/></svg><span>生命期間的速度</span></h3><label class="checkbox-label"><input id="enableSpeedCurve" type="checkbox">啟用速度曲線</label></div>
+              <div class="curve-header"><span>速度倍率曲線</span><div class="curve-header-actions"><select id="speedInterpolation" class="curve-interpolation" aria-label="速度選取節點的插值方式"><option value="linear">線性</option><option value="bezier">貝茲</option><option value="stepped">階梯</option></select><button id="resetSpeed" type="button" class="text-button muted">重設</button></div></div>
+              <div id="speedPresetTools" class="look-preset-tools" role="group" aria-label="常用速度曲線"></div>
+              <canvas id="speedCurveCanvas" class="curve-canvas" width="260" height="100" tabindex="0" aria-label="速度曲線，拖曳節點調整" title="點擊會啟用速度曲線；中間節點選貝茲可調左右兩側，拖藍色控制柄預設平衡；Ctrl 單側調整。右鍵或 Delete 刪除節點。">速度曲線</canvas>
+              <div class="curve-labels" aria-hidden="true"><span>出生</span><span>死亡</span></div>
+              <div class="field-row curve-node-fields"><label class="field"><span>生命位置 <small>%</small></span><input id="speedCurveTime" type="number" min="0" max="100" step="0.1" value="0"></label><label class="field"><span>速度倍率</span><input id="speedCurveValue" type="number" min="0" max="4" step="0.001" value="1"></label><button id="deleteSpeedPoint" type="button" class="icon-button curve-delete-button" title="刪除選取的速度曲線節點" aria-label="刪除速度曲線節點"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h14 M7 5V3h6v2 M5 5l1 12h8l1-12 M8 8v6 M12 8v6"/></svg></button></div>
+              <p id="speedCurveHint" class="field-hint">0 為停止，1 為基礎速度，4 為四倍速度。中間節點選貝茲可調左右兩側；拖控制柄預設平衡，Ctrl 單側調整。</p>
+            </div>
+            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M10 2v16 M2 10h16 M7 5l3-3 3 3 M7 15l3 3 3-3"/></svg><span>外力</span></h3><p id="forceModeHint" class="field-hint mode-reason" hidden></p><label class="field full-field"><span>重力 <small>px/秒² · ＋向下／−向上</small></span><input data-field="gravity" type="number" min="-6000" max="6000" step="1" value="0"></label><label class="field full-field"><span>風向 <small>px/秒² · ＋向右／−向左</small></span><input data-field="wind" type="number" min="-3000" max="3000" step="1" value="0"></label><p class="field-hint">風向：正值往右吹，負值往左吹。<br>重力：正值往下，負值往上；0 表示無此外力。</p></div>
             <div class="inspector-note"><span class="note-mark" aria-hidden="true">↗</span><p>隨機種子固定後，每次預覽與烘焙都會得到相同的粒子路徑。</p></div>
           </section>
         </div>
@@ -234,9 +277,17 @@
     </main>
 
     <div id="message" class="app-message" role="alert" hidden></div>
-    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.28</span> · 開發者：小魚骨頭</span></footer>
+    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.29.6</span> · 開發者：小魚骨頭</span></footer>
   </div>
 
+  <dialog id="backgroundJpegDialog" class="help-dialog background-jpeg-dialog" aria-labelledby="backgroundJpegTitle">
+    <div class="dialog-header"><div><span class="section-eyebrow">BACKGROUND JPG</span><h2 id="backgroundJpegTitle">背景圖片轉 JPG</h2></div><button id="backgroundJpegClose" type="button" class="icon-button" aria-label="關閉背景轉 JPG">×</button></div>
+    <div class="dialog-content"><p>轉成 JPG 後可直接作為背景參考圖，也可另存新檔。保留原圖解析度，原始檔案不會被覆寫；透明區域會填入選定底色。</p>
+      <div class="field-row"><label class="field range-field"><span>JPG 品質 <output id="backgroundJpegQualityValue">88%</output></span><input id="backgroundJpegQuality" type="range" min="30" max="100" step="1" value="88"></label><label class="field"><span>透明區域底色</span><input id="backgroundJpegMatte" type="color" value="#ffffff"></label></div>
+      <p id="backgroundJpegStatus" class="field-hint" role="status">準備轉換…</p><div class="background-jpeg-preview"><img id="backgroundJpegPreview" alt="轉換後的 JPG 預覽" hidden></div>
+      <p class="field-hint">支援原始檔案至 32 MiB；超過 4 MiB 時會降低 JPG 品質，維持原解析度。粒子貼圖仍使用保留透明度的 PNG。</p>
+    </div><div class="spine-merge-footer"><button id="backgroundJpegCancel" type="button" class="quiet-button">取消</button><button id="backgroundJpegDownload" type="button" class="secondary-button" disabled>下載 JPG</button><button id="backgroundJpegApply" type="button" class="primary-button" disabled>套用為參考圖</button></div>
+  </dialog>
   <dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle"><div class="dialog-header"><div><span class="section-eyebrow">PARTICLE STUDIO</span><h2 id="helpTitle">從粒子到 Spine 動畫</h2></div><button id="closeHelp" type="button" class="icon-button" aria-label="關閉操作說明">×</button></div><div class="dialog-content"><p>這是獨立開發的本機粒子編輯器。介面與模擬程式都存放在本機，操作時不需要連線。</p><ol class="help-steps"><li><strong>建立效果</strong><p>按左側「新增效果」開啟效果庫，雙擊內建或自己的效果加成圖層；也可以直接把 PNG、連續圖或專案檔拖進視窗。</p></li><li><strong>安排時間</strong><p>時間軸下方的「圖層時間」可拖曳每層的開始時間，拖右端調整發射長度。S 單獨顯示、H 預覽隱藏，不影響輸出。</p></li><li><strong>輸出</strong><p>直接按「輸出 Spine」，參數有修改時會自動重新烘焙。要一次產生多個版本或配色，用「批次輸出」。</p></li><li><strong>匯入對應版本 Spine</strong><p>解開輸出套件，保留 JSON 與 images 資料夾的位置。在 Spine 選擇「檔案 → 匯入資料（Import Data）」載入 JSON，確認 Images 路徑指向素材資料夾。</p></li></ol><div class="help-shortcuts"><strong>快捷鍵</strong><dl><dt>Space</dt><dd>播放／暫停</dd><dt>← →</dt><dd>逐幀</dd><dt>Ctrl＋Z／Y</dt><dd>復原／重做</dd><dt>Ctrl＋S／O</dt><dd>儲存／開啟專案</dd><dt>Ctrl＋B</dt><dd>更新烘焙</dd><dt>Ctrl＋E</dt><dd>輸出 Spine</dd><dt>Ctrl＋D</dt><dd>複製圖層</dd><dt>Ctrl＋C／V</dt><dd>複製／貼上圖層（可跨專案）</dd><dt>Delete</dt><dd>刪除圖層</dd><dt>[ ]</dt><dd>上／下一個圖層</dd><dt>S／H</dt><dd>單獨顯示／預覽隱藏</dd><dt>F</dt><dd>畫面對焦目前發射器</dd><dt>A</dt><dd>點角色加效果（掛接預覽時）</dd><dt>0</dt><dd>縮放回 100%</dd><dt>滾輪</dt><dd>以游標為中心縮放（5%–800%）</dd></dl></div><div class="help-callout"><strong>記得儲存編輯專案</strong><p>「儲存專案」包含發射器參數與粒子貼圖，可用「開啟」接續編輯。Spine 輸出是動畫交付資料。Atlas 圖集可在 Spine 匯出時產生。</p></div></div><div class="dialog-footer">Particle Studio · Spine 3.8 / 4.0 / 4.2</div></dialog>
   <dialog id="newProjectDialog" class="help-dialog new-project-dialog" aria-labelledby="newProjectTitle" aria-describedby="newProjectDescription">
     <div class="dialog-header"><div><span class="section-eyebrow">NEW PROJECT</span><h2 id="newProjectTitle">重設並建立新專案</h2></div></div>
@@ -298,6 +349,8 @@
   <script src="path-math.js"></script>
   <script src="contour-math.js"></script>
   <script src="lightning.js"></script>
+  <script src="trail.js"></script>
+  <script src="background-jpeg.js"></script>
   <script src="core.js"></script>
   <script src="look-presets.js"></script>
   <script src="effect-library.js"></script>

@@ -16,7 +16,10 @@
     const span = Math.max(1e-6, finite(duration, 1));
     const delay = clamp(finite(emitter.startDelay, 0), 0, span);
     const window = clamp(finite(emitter.emissionDuration, 0), 0, span - delay);
-    const life = Math.max(0, finite(emitter.life, 0)) + Math.max(0, finite(emitter.lifeRandom, 0));
+    const authoredLife = Math.max(0, finite(emitter.life, 0)) + Math.max(0, finite(emitter.lifeRandom, 0));
+    const stretch = emitter.trail && emitter.trail.enabled && emitter.trail.mode === 'stretch';
+    const life = Math.max(authoredLife, stretch ? finite(emitter.trail.moveDuration, 0) : 0, stretch ? finite(emitter.trail.lengthDuration, 0) : 0) +
+      (emitter.trail && emitter.trail.enabled ? Math.max(0, finite(emitter.trail.duration, 0)) : 0);
     const tailEnd = clamp(delay + window + life, delay, span);
     return {delay, window, tailEnd, start: delay / span, width: window / span, tail: (tailEnd - delay) / span};
   }

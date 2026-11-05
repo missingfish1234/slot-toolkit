@@ -4,10 +4,11 @@
   const pathMath = typeof module === 'object' && module.exports ? require('./path-math.js') : root.ParticlePathMath;
   const contourMath = typeof module === 'object' && module.exports ? require('./contour-math.js') : root.ParticleContourMath;
   const lightning = typeof module === 'object' && module.exports ? require('./lightning.js') : root.ParticleLightning;
-  var api = factory(curveMath, pathMath, contourMath, lightning);
+  const trail = typeof module === 'object' && module.exports ? require('./trail.js') : root.ParticleTrail;
+  var api = factory(curveMath, pathMath, contourMath, lightning, trail);
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.ParticleCore = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (CurveMath, PathMath, ContourMath, Lightning) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (CurveMath, PathMath, ContourMath, Lightning, Trail) {
   'use strict';
   if (!CurveMath) throw new Error('粒子曲線模組尚未載入，請先載入 curve-math.js。');
   if (!PathMath) throw new Error('粒子路徑模組尚未載入，請先載入 path-math.js。');
@@ -247,6 +248,87 @@
     return {name: text(raw, 'name', 'image.png', 160, label + '檔名'), mime: 'image/png', width, height, dataUrl: data};
   }
 
+  // JPEG is a reference-background format only. Particle and outline assets
+  // continue to use the original PNG validator and export contract.
+  function backgroundImage(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw) || raw.mime !== 'image/jpeg') return image(raw, '背景');
+    const width = number(raw, 'width', undefined, 1, 8192, true, '背景寬度');
+    const height = number(raw, 'height', undefined, 1, 8192, true, '背景高度');
+    if (width * height > 16 * 1024 * 1024) fail('背景 JPEG 不能超過 1600 萬（16 Mi）像素。');
+    const prefix = 'data:image/jpeg;base64,', data = raw.dataUrl, limit = 8 * 1024 * 1024;
+    if (typeof data !== 'string' || !data.startsWith(prefix)) fail('背景 JPEG 必須使用內嵌 image/jpeg，不能使用外部網址。');
+    const base64 = data.slice(prefix.length);
+    const invalid = () => fail('背景 JPEG 編碼或檔案結構無效，或素材超過 8 MiB。');
+    if (base64.length > Math.ceil(limit / 3) * 4 || base64.length < 40 || base64.length % 4 || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) invalid();
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/', lookup = new Uint8Array(128);
+    for (let i = 0; i < alphabet.length; i++) lookup[alphabet.charCodeAt(i)] = i;
+    const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+    const length = base64.length / 4 * 3 - padding, tail = lookup[base64.charCodeAt(base64.length - padding - 1)];
+    if (length > limit || padding === 2 && (tail & 15) || padding === 1 && (tail & 3)) invalid();
+    const bytes = new Uint8Array(length);
+    for (let i = 0, at = 0; i < base64.length; i += 4) {
+      const word = lookup[base64.charCodeAt(i)] << 18 | lookup[base64.charCodeAt(i + 1)] << 12 |
+        lookup[base64.charCodeAt(i + 2)] << 6 | lookup[base64.charCodeAt(i + 3)];
+      bytes[at++] = word >>> 16 & 255;
+      if (at < length) bytes[at++] = word >>> 8 & 255;
+      if (at < length) bytes[at++] = word & 255;
+    }
+    if (bytes[0] !== 0xff || bytes[1] !== 0xd8) invalid();
+    const u16 = at => bytes[at] * 256 + bytes[at + 1];
+    let at = 2, frame = null, scanned = false, inScan = false, scanData = false;
+    while (at < length) {
+      if (inScan) {
+        const start = at;
+        while (at < length && bytes[at] !== 0xff) at++;
+        if (at > start) scanData = true;
+      }
+      if (at >= length || bytes[at++] !== 0xff) invalid();
+      while (bytes[at] === 0xff) at++;
+      if (at >= length) invalid();
+      const marker = bytes[at++];
+      if (inScan && marker === 0) { scanData = true; continue; }
+      if (inScan && marker >= 0xd0 && marker <= 0xd7) continue;
+      if (inScan && !scanData) invalid();
+      inScan = false;
+      if (marker === 0xd9) {
+        if (!frame || !scanned || at !== length) invalid();
+        return {name: text(raw, 'name', 'background.jpg', 160, '背景檔名'), mime: 'image/jpeg', width, height, dataUrl: data};
+      }
+      if (marker === 0 || marker === 0xd8 || marker >= 0xd0 && marker <= 0xd7 || at + 2 > length) invalid();
+      const span = u16(at), payload = at + 2, end = at + span;
+      if (span < 2 || end > length) invalid();
+      if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
+        if (![0xc0, 0xc2].includes(marker)) fail('背景 JPEG 僅支援 baseline／progressive 格式。');
+        if (frame || span < 11 || bytes[payload] !== 8) invalid();
+        const actualHeight = u16(payload + 1), actualWidth = u16(payload + 3), count = bytes[payload + 5];
+        if (actualWidth !== width || actualHeight !== height) fail('背景尺寸與 JPEG 檔案內容不一致。');
+        if (count < 1 || count > 4 || span !== 8 + count * 3) invalid();
+        const ids = new Set();
+        for (let i = 0; i < count; i++) {
+          const offset = payload + 6 + i * 3, id = bytes[offset], sampling = bytes[offset + 1];
+          if (ids.has(id) || !(sampling >> 4) || (sampling >> 4) > 4 || !(sampling & 15) || (sampling & 15) > 4 || bytes[offset + 2] > 3) invalid();
+          ids.add(id);
+        }
+        frame = {marker, ids};
+      } else if (marker === 0xda) {
+        const count = bytes[payload];
+        if (!frame || count < 1 || count > frame.ids.size || span !== 6 + count * 2) invalid();
+        const ids = new Set();
+        for (let i = 0; i < count; i++) {
+          const id = bytes[payload + 1 + i * 2], table = bytes[payload + 2 + i * 2];
+          if (!frame.ids.has(id) || ids.has(id) || (table >> 4) > 3 || (table & 15) > 3) invalid();
+          ids.add(id);
+        }
+        const start = bytes[payload + 1 + count * 2], finish = bytes[payload + 2 + count * 2], approximation = bytes[payload + 3 + count * 2];
+        if (frame.marker === 0xc0 ? start !== 0 || finish !== 63 || approximation !== 0 :
+          start > finish || finish > 63 || start === 0 && finish !== 0 || start > 0 && count !== 1 || (approximation >> 4) > 13 || (approximation & 15) > 13) invalid();
+        scanned = true; inScan = true; scanData = false;
+      } else if (![0xc4, 0xcc, 0xdb, 0xdc, 0xdd, 0xde, 0xdf, 0xfe].includes(marker) && !(marker >= 0xe0 && marker <= 0xef)) invalid();
+      at = end;
+    }
+    invalid();
+  }
+
   function normalizeSequence(raw, label) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) fail(label + '連續圖設定格式不正確。');
     if (!Array.isArray(raw.frames) || raw.frames.length < 1 || raw.frames.length > 120) fail(label + '連續圖必須包含 1 到 120 張 PNG。');
@@ -419,6 +501,12 @@
         e.path = PathMath.normalize(source.path);
         if (e.path && e.path.enabled) PathMath.compile(e.path);
       }
+      if (source.trail !== undefined) {
+        if (!Trail) fail('拖尾模組尚未載入，請先載入 trail.js。');
+        e.trail = Trail.normalize(source.trail);
+        if (Trail.active(e) && e.trail.mode === 'stretch' && e.trail.coverage === 'path' && !(e.path && e.path.enabled))
+          fail('發射器「' + e.name + '」的整條路徑光帶需要先啟用有效路徑，並設定至少兩個不同的路徑點。');
+      }
       if (source.outline !== undefined) {
         e.outline = ContourMath.normalize(source.outline);
         if (e.outline && e.outline.image) {
@@ -433,21 +521,21 @@
     const bg = raw.background === undefined ? result.background : raw.background;
     if (!bg || typeof bg !== 'object' || Array.isArray(bg)) fail('背景設定格式不正確。');
     result.background = {
-      color: color(bg.color === undefined ? '#111827' : bg.color, '背景色'), image: image(bg.image, '背景'),
+      color: color(bg.color === undefined ? '#111827' : bg.color, '背景色'), image: backgroundImage(bg.image),
       x: number(bg, 'x', 0, -4000, 4000, false, '背景 X'),
       y: number(bg, 'y', 0, -4000, 4000, false, '背景 Y'),
       scale: number(bg, 'scale', 1, 0.01, 20, false, '背景縮放')
     };
     // Keep legacy objects unchanged until the original image is reloaded.
-    // The stored PNG dimensions remain validated against its actual IHDR.
+    // Stored raster dimensions remain validated against the PNG/JPEG header.
     if (result.background.image && (bg.sourceWidth !== undefined || bg.sourceHeight !== undefined)) {
       const sourceWidth = number(bg, 'sourceWidth', undefined, 1, 32768, true, '背景來源寬度');
       const sourceHeight = number(bg, 'sourceHeight', undefined, 1, 32768, true, '背景來源高度');
       const bitmap = result.background.image;
-      if (sourceWidth < bitmap.width || sourceHeight < bitmap.height) fail('背景來源尺寸不能小於已保存的 PNG 尺寸。');
+      if (sourceWidth < bitmap.width || sourceHeight < bitmap.height) fail('背景來源尺寸不能小於已保存的圖片尺寸。');
       const ratio = Math.min(bitmap.width / sourceWidth, bitmap.height / sourceHeight);
       if (Math.abs(Math.max(1, Math.round(sourceWidth * ratio)) - bitmap.width) > 1 ||
-          Math.abs(Math.max(1, Math.round(sourceHeight * ratio)) - bitmap.height) > 1) fail('背景來源比例與已保存的 PNG 不一致，請重新載入原圖。');
+          Math.abs(Math.max(1, Math.round(sourceHeight * ratio)) - bitmap.height) > 1) fail('背景來源比例與已保存的圖片不一致，請重新載入原圖。');
       result.background.sourceWidth = sourceWidth;
       result.background.sourceHeight = sourceHeight;
     }
@@ -650,19 +738,43 @@
 
   function scalarCurves(particle) {
     const e = particle.emitter;
-    return activeSizeCurves(e).concat([e.alphaCurve], e.speedCurve ? [e.speedCurve] : []);
+    const length = activeTrailLengthCurve(e);
+    return activeSizeCurves(e).concat([e.alphaCurve], e.speedCurve ? [e.speedCurve] : [], length ? [length] : []);
   }
 
   function compiledScalarCurves(particle) {
     const life = particle.lifecycle;
     const sizes = particle.emitter.separateSizeAxes ? Array.from(new Set([life.sizeX, life.sizeY])) : [life.size];
-    return sizes.concat([life.alpha, life.speed]);
+    return sizes.concat([life.alpha, life.speed], life.trailLength ? [life.trailLength] : []);
+  }
+  function activeTrailLengthCurve(e) {
+    return Trail && Trail.active(e) && e.trail.mode === 'stretch' ? e.trail.lengthCurve : null;
+  }
+  function pathDuration(particle) {
+    const e = particle.emitter;
+    return Trail && Trail.active(e) && e.trail.mode === 'stretch' && particle.lifecycle.path &&
+      e.path.mode === 'lifetime' && e.trail.moveDuration != null ? e.trail.moveDuration : particle.life;
+  }
+  function scalarDuration(particle, source) {
+    const e = particle.emitter, length = activeTrailLengthCurve(e);
+    if (length && (source === length || source === particle.lifecycle.trailLength))
+      return e.trail.lengthDuration == null ? particle.life : e.trail.lengthDuration;
+    if (source === e.speedCurve || source === particle.lifecycle.speed) return pathDuration(particle);
+    return particle.life;
+  }
+  function trailClockDurations(particle) {
+    const e = particle.emitter;
+    if (!(Trail && Trail.active(e) && e.trail.mode === 'stretch')) return [];
+    return Array.from(new Set([
+      e.trail.moveDuration != null && particle.lifecycle.path && e.path.mode === 'lifetime' ? e.trail.moveDuration : null,
+      e.trail.lengthDuration
+    ].filter(value => value != null)));
   }
 
   function bake(raw) {
     const project = normalizeProject(raw);
     const particles = [];
-    let generatedParticles = 0, maxPoolCycles = 1, longLived = false;
+    let generatedParticles = 0, maxPoolCycles = 1, longLived = false, trailLanes = 0;
     const warnings = [];
     const lightning = [];
     project.emitters.forEach(e => {
@@ -685,6 +797,8 @@
         alphaLinear: e.alphaCurve.every(point => !point.curve || point.curve === 'linear'),
         gradient: e.colorGradient ? e.colorGradient.map(point => ({t: point.t, color: rgb(point.color)})) : null
       };
+      const trailLength = activeTrailLengthCurve(e);
+      if (trailLength) lifecycle.trailLength = CurveMath.compile(trailLength, Trail.MAX_LENGTH);
       if (e.separateSizeAxes) {
         ['X', 'Y'].forEach(axis => {
           const points = e['sizeCurve' + axis];
@@ -702,7 +816,12 @@
       for (let sourceIndex = 0; sourceIndex < e.count; sourceIndex++) {
         // Use the same microsecond grid as JSON keys so birth/death attachment events
         // cannot slip to the following video frame after decimal quantization.
-        const life = round(clamp(e.life + signed(e.lifeRandom), 0.05, 16));
+        const authoredLife = round(clamp(e.life + signed(e.lifeRandom), 0.05, 16));
+        // Independent clocks can keep this particle alive without rewriting
+        // the author's lifetime. Recompute from the same random draw on every
+        // bake so restoring a clock restores its appearance and pool schedule.
+        const life = Trail && Trail.active(e) && e.trail.mode === 'stretch' ?
+          round(Math.max(authoredLife, e.trail.moveDuration || 0, e.trail.lengthDuration || 0)) : authoredLife;
         const speed = Math.max(0, e.speed + signed(e.speedRandom));
         const size = Math.max(0.1, e.size + signed(e.sizeRandom));
         // Reuse the historical fourth draw for every direction mode. Changing
@@ -735,8 +854,9 @@
         const randomFrame = frameRand ? Math.min(sequence.frames.length - 1, Math.floor(frameRand() * sequence.frames.length)) : undefined;
         const delay = Math.min(e.startDelay || 0, project.duration);
         const birth = round(delay + sourceIndex / e.count * Math.min(e.emissionDuration, project.duration - delay));
-        clipped = clipped || (birth + life > project.duration);
-        const cycles = project.loop ? Math.max(1, Math.ceil((life - EPS) / project.duration)) : 1;
+        const tail = Trail && Trail.active(e) ? e.trail.duration : 0;
+        clipped = clipped || (birth + life + tail > project.duration);
+        const cycles = project.loop ? Math.max(1, Math.ceil((life + tail - EPS) / project.duration)) : 1;
         maxPoolCycles = Math.max(maxPoolCycles, cycles);
         longLived = longLived || (project.loop && life > project.duration);
         generatedParticles++;
@@ -746,23 +866,26 @@
             ax: e.wind, ay: -e.gravity,
             direction: angle / DEG, emitter: e, lifecycle, startColor: rgb(e.colorStart), endColor: rgb(e.colorEnd),
             ...(randomFrame === undefined ? {} : {randomFrame})});
+          if (tail) trailLanes += Trail.lanes(e.trail).length;
         }
-        if (particles.length > MAX_POOL) fail('循環粒子池超過 ' + MAX_POOL + ' 個。請減少粒子數、縮短壽命，或增加動畫長度。');
+        if (particles.length + trailLanes > MAX_POOL) fail('循環粒子池超過 ' + MAX_POOL + ' 個（包含拖尾）。請減少粒子數／殘影數、縮短壽命／拖尾，或增加動畫長度。');
       }
       if (e.startDelay && e.startDelay >= project.duration) warnings.push('「' + e.name + '」開始時間超過動畫長度，粒子會在最後一刻同時出生；請縮短開始時間或加長動畫。');
       else if (e.startDelay && e.startDelay + e.emissionDuration > project.duration) warnings.push('「' + e.name + '」開始時間＋發射時間超過動畫長度；本次發射壓縮在 ' + round(project.duration - e.startDelay) + ' 秒內。');
       else if (e.emissionDuration > project.duration) warnings.push('「' + e.name + '」發射時間超過動畫長度；本次烘焙採用 ' + project.duration + ' 秒。');
       if (!project.loop && clipped) warnings.push('「' + e.name + '」部分粒子會在動畫結尾截斷。');
-      if (e.alphaCurve[e.alphaCurve.length - 1].v !== 0) warnings.push('「' + e.name + '」透明度曲線尾值不為 0；粒子壽命結束時會立即隱藏。');
+      const hiddenHead = Trail && Trail.active(e) && e.trail.mode === 'stretch' && e.trail.showHead === false;
+      if (!hiddenHead && e.alphaCurve[e.alphaCurve.length - 1].v !== 0) warnings.push('「' + e.name + '」透明度曲線尾值不為 0；粒子壽命結束時會立即隱藏。');
     });
     if (!particles.length && !lightning.length) warnings.push('所有發射器都已停用，輸出動畫只包含 root。');
     const lightningLanes = lightning.reduce((sum, item) => sum + Lightning.lanes(project.emitters.find(e => e.id === item.emitterId).lightning).length, 0);
     if (longLived) warnings.push('壽命超過循環週期的粒子使用分段粒子池；循環畫面連續，部分骨骼在交接點交換角色。動畫混合與中斷尚未驗證。');
     const enabledEmitters = project.emitters.filter(e => e.enabled).length;
     const result = {project, particles, duration: project.duration, fps: project.fps, loop: project.loop,
-      stats: Object.assign({particles: particles.length, generatedParticles, bones: particles.length + lightningLanes + enabledEmitters + 1,
-        slots: particles.length + lightningLanes, enabledEmitters, poolCycles: maxPoolCycles, fps: project.fps,
+      stats: Object.assign({particles: particles.length, generatedParticles, bones: particles.length + lightningLanes + trailLanes + enabledEmitters + 1,
+        slots: particles.length + lightningLanes + trailLanes, enabledEmitters, poolCycles: maxPoolCycles, fps: project.fps,
         duration: project.duration, warnings}, qualityStats(project))};
+    if (trailLanes) result.stats.trailLanes = trailLanes;
     if (lightning.length) { result.lightning = lightning; result.stats.lightningStrips = lightningLanes; }
     return freezeDeep(result);
   }
@@ -796,8 +919,8 @@
 
   function pathProgress(particle, age) {
     const e = particle.emitter, path = particle.lifecycle.path, curve = particle.lifecycle.speed;
-    const u = clamp(age / particle.life, 0, 1);
-    const progress = curve ? curve.integral(curveProgress(e.speedCurve, age, particle.life)) : ease(u, e.motionCurve);
+    const duration = pathDuration(particle), evaluatedAge = clamp(age, 0, duration), u = evaluatedAge / duration;
+    const progress = curve ? curve.integral(curveProgress(e.speedCurve, evaluatedAge, duration)) : ease(u, e.motionCurve);
     if (e.path.mode === 'lifetime') {
       const total = curve ? curve.integral(1) : 1;
       return total > EPS ? progress / total : 0;
@@ -844,7 +967,7 @@
     // Birth/death, scalar step pre-keys, authored curve markers and compiled
     // Bezier samples may coincide or fall outside this phase. Counting all of
     // them gives an upper bound without allocating their timestamps.
-    const markers = 4 + curves.reduce((sum, points) => sum + points.length * 2, 0) +
+    const markers = 4 + trailClockDurations(particle).length + curves.reduce((sum, points) => sum + points.length * 2, 0) +
       (e.colorGradient ? e.colorGradient.length : 0) +
       compiledScalarCurves(particle).reduce((sum, curve) => sum + (curve ? curve.sampleTimes.length : 0), 0);
     const direction = directionEvents(particle).length;
@@ -870,6 +993,10 @@
         phaseLower += cost.lower; phaseUpper += cost.upper; guards += cost.guards;
         rejected = rejected || cost.rejected;
         adaptivePossible = adaptivePossible || needsRefinement(phase, particle);
+        if (hasTrail(particle)) {
+          const tail = trailCost(phase, particle);
+          phaseLower += tail.lower; phaseUpper += tail.upper; rejected = rejected || tail.rejected; adaptivePossible = true;
+        }
       }
       // An empty effect exports two root keys and never evaluates particles.
       phases[name] = {duration: phase.duration, baseSamplesLowerBound: phaseLower, baseSamplesUpperBound: phaseUpper};
@@ -877,7 +1004,7 @@
     }
     const imageCount = planImages(normalized).images.length;
     const warnings = baked.stats.warnings.slice();
-    const sampleLimitEnforced = normalized.flow.enabled || normalized.bakeQuality !== undefined || adaptivePossible || normalized.emitters.some(e => activeSequence(e) || e.separateSizeAxes);
+    const sampleLimitEnforced = normalized.flow.enabled || normalized.bakeQuality !== undefined || adaptivePossible || normalized.emitters.some(e => activeSequence(e) || e.separateSizeAxes || Trail && Trail.active(e));
     const definitelyOverLimit = rejected || (sampleLimitEnforced && lower > MAX_EXPORT_SAMPLES);
     const budgetRisk = definitelyOverLimit || upper > MAX_EXPORT_SAMPLES;
     if (adaptivePossible) warnings.push('取樣估算未含曲線補採樣；實際 KEY 數及檔案大小需試烘焙後確認。');
@@ -964,10 +1091,10 @@
     return result;
   }
 
-  function stateAt(baked, particle, time, pathAngle) {
+  function stateAt(baked, particle, time, pathAngle, historyAge) {
     const e = particle.emitter;
     const flow = baked.flowPhase;
-    const age = flow && flow.kind === 'in' ? particleAge(flow.basis, particle, mod(time + flow.offset, flow.basis.duration)) : particleAge(baked, particle, time);
+    const age = historyAge === undefined ? flow && flow.kind === 'in' ? particleAge(flow.basis, particle, mod(time + flow.offset, flow.basis.duration)) : particleAge(baked, particle, time) : historyAge;
     const alive = age >= -EPS && age < particle.life - EPS && !(flow && flow.kind === 'out' && time >= baked.duration - EPS);
     const evaluatedAge = clamp(age, 0, particle.life);
     const u = evaluatedAge / particle.life;
@@ -1020,9 +1147,54 @@
   function sample(baked, time) {
     if (typeof time !== 'number' || !Number.isFinite(time)) fail('預覽時間必須是有限數值。');
     const t = baked.loop ? mod(time, baked.duration) : clamp(time, 0, baked.duration);
-    const states = baked.particles.map(particle => stateAt(baked, particle, t));
+    const states = [];
+    baked.particles.forEach(particle => {
+      if (Trail && Trail.active(particle.emitter)) {
+        const settings = particle.emitter.trail, lanes = Trail.lanes(settings), stride = lanes.length + 1;
+        lanes.forEach(lane => {
+          const state = trailState(baked, particle, lane, t), index = particle.index * stride + lane.index;
+          states.push({...state, index, slotName: 'em_' + particle.emitterId + '_p' + index + '_slot'});
+        });
+        const head = visibleHeadState(particle, stateAt(baked, particle, t)), index = particle.index * stride + lanes.length;
+        states.push({...head, slotName: 'em_' + particle.emitterId + '_p' + index + '_slot'});
+      } else states.push(stateAt(baked, particle, t));
+    });
     if (baked.lightning) states.push(...lightningStates(baked, t));
+    if (baked.particles.some(hasTrail)) {
+      const order = new Map(baked.project.emitters.map((e, index) => [e.id, index]));
+      states.sort((a, b) => order.get(b.emitterId) - order.get(a.emitterId));
+    }
     return states;
+  }
+  function trailAge(baked, particle, time) {
+    const flow = baked.flowPhase;
+    return flow && flow.kind === 'in' ? particleAge(flow.basis, particle, mod(time + flow.offset, flow.basis.duration)) : particleAge(baked, particle, time);
+  }
+  function visibleHeadState(particle, state) {
+    const settings = particle.emitter.trail;
+    return hasTrail(particle) && settings.mode === 'stretch' && settings.showHead === false ? {...state, alpha: 0} : state;
+  }
+  function trailState(baked, particle, lane, time) {
+    const age = trailAge(baked, particle, time), e = particle.emitter, path = particle.lifecycle.path;
+    const evaluatedAge = clamp(age, 0, Math.max(0, particle.life - 1e-7));
+    // Full-path ribbons use the authored geometry rather than the moving
+    // particle's history. Optional physical offsets translate the entire mesh.
+    const atPath = path ? fraction => {
+      const point = path.sample(fraction);
+      // Open paths continue along their actual end tangent after 100%.
+      // Compiled paths already account for reverse; closed paths keep their
+      // existing wrapped sampling contract, including exact integer seams.
+      if (!path.closed && fraction > 1) {
+        const distance = path.totalLength * (fraction - 1), angle = point.angle * DEG;
+        point.x += Math.cos(angle) * distance; point.y += Math.sin(angle) * distance;
+      }
+      return {x: e.x + point.x + (e.path.offsets ? particle.sx + particle.ax * evaluatedAge * evaluatedAge / 2 : 0),
+        y: e.y + point.y + (e.path.offsets ? particle.sy + particle.ay * evaluatedAge * evaluatedAge / 2 : 0)};
+    } : undefined;
+    return Trail.state(e.trail, lane, age, particle.life,
+      value => stateAt(baked, particle, time, undefined, value), atPath,
+      particle.lifecycle.trailLength ? particle.lifecycle.trailLength.sample(curveProgress(e.trail.lengthCurve,
+        clamp(age, 0, scalarDuration(particle, e.trail.lengthCurve)), scalarDuration(particle, e.trail.lengthCurve))) : 1);
   }
   function lightningEmitter(baked, item) {
     const e = baked.project.emitters.find(emitter => emitter.id === item.emitterId);
@@ -1094,8 +1266,8 @@
         if (time <= EPS && baked.loop) add(duration, true);
       }
     }
-    function lifetimeEvent(t, reset, mandatory) {
-      const age = t * particle.life - (baked.loop ? particle.cycleIndex * duration : 0);
+    function lifetimeEvent(t, reset, mandatory, clock) {
+      const age = t * (clock === undefined ? particle.life : clock) - (baked.loop ? particle.cycleIndex * duration : 0);
       if (!baked.loop || (age >= 0 && age <= duration)) event(age, reset, mandatory);
     }
     const curves = scalarCurves(particle);
@@ -1106,10 +1278,11 @@
     } else {
       event(0, true); event(particle.life, true);
     }
-    curves.forEach(points => points.forEach((point, index) => lifetimeEvent(point.t, index > 0 && points[index - 1].curve === 'stepped')));
+    curves.forEach(points => points.forEach((point, index) => lifetimeEvent(point.t, index > 0 && points[index - 1].curve === 'stepped', undefined, scalarDuration(particle, points))));
+    trailClockDurations(particle).forEach(clock => lifetimeEvent(1, false, true, clock));
     if (particle.emitter.colorGradient) particle.emitter.colorGradient.forEach(point => lifetimeEvent(point.t, false));
     compiledScalarCurves(particle).forEach(compiled => {
-      if (compiled) compiled.sampleTimes.forEach(t => lifetimeEvent(t, false, false));
+      if (compiled) compiled.sampleTimes.forEach(t => lifetimeEvent(t, false, false, scalarDuration(particle, compiled)));
     });
     const sequence = activeSequence(particle.emitter), sequenceRange = sequenceBoundaryRange(baked, particle);
     for (let frame = sequenceRange.first; frame <= sequenceRange.last; frame++) {
@@ -1214,14 +1387,175 @@
     return state.color.concat(state.alpha).map(value => Math.round(clamp(value, 0, 1) * 255).toString(16).padStart(2, '0')).join('');
   }
 
+  function hasTrail(particle) { return !!(Trail && Trail.active(particle.emitter)); }
+  function trailCost(baked, particle) {
+    const settings = particle.emitter.trail, count = Trail.lanes(settings).length;
+    const sequence = activeSequence(particle.emitter), frames = sequence ? sequence.frames.length : 1;
+    const grid = Math.ceil(baked.duration * baked.fps) + 1, weight = settings.mode === 'stretch' ? (Trail.segmentCount(settings) + 1) * frames : 1;
+    const source = timelineCost({...baked, duration: particle.life, loop: false, flowPhase: undefined}, {...particle, birth: 0, cycleIndex: 0});
+    const extended = settings.mode === 'stretch' && Trail.maxLength(settings) > 1;
+    const copies = settings.mode === 'stretch' ? extended && settings.coverage === 'path' ? 2 : (settings.segments + 1) * (extended ? 2 : 1) : 1;
+    const repeats = baked.flowPhase && baked.flowPhase.kind === 'in' ? Math.ceil(baked.duration / baked.flowPhase.basis.duration) + 2 : 1;
+    return {lower: grid * count * weight, upper: (grid + source.upper * copies * repeats + 8) * count * weight,
+      rejected: source.rejected};
+  }
+  // Shift authored motion/texture events by the history lag. This retains
+  // precise births, deaths, step curves, path corners and sequence switches.
+  function trailMetadata(baked, particle, lane) {
+    const settings = particle.emitter.trail, duration = baked.duration, times = new Map();
+    function add(time, stepped) {
+      if (time < -EPS || time > duration + EPS) return;
+      const at = round(clamp(time, 0, duration)), previous = times.get(at);
+      times.set(at, {time: at, stepped: !!stepped || !!(previous && previous.stepped)});
+    }
+    add(0); add(duration);
+    for (let frame = 1; frame < Math.ceil(duration * baked.fps); frame++) add(frame / baked.fps);
+    if (baked.flowPhase && baked.flowPhase.kind === 'in') {
+      const basis = baked.flowPhase.basis, source = trailMetadata(basis, particle, lane), cycles = Math.ceil(duration / basis.duration) + 1;
+      if (source.length * (cycles + 1) > MAX_EXPORT_SAMPLES) fail('拖尾進場取樣超過 200 萬，請縮短 In 或增加 Loop 長度。');
+      for (let cycle = -cycles; cycle <= 0; cycle++) source.forEach(key => add(duration + cycle * basis.duration + key.time, key.stepped));
+    } else {
+      const virtual = {...baked, duration: particle.life, loop: false, flowPhase: undefined}, sourceParticle = {...particle, birth: 0, cycleIndex: 0};
+      if (timelineCost(virtual, sourceParticle).rejected) fail('拖尾路徑取樣超過 200 萬，請減少路徑重複次數。');
+      const source = sampledTimeline(virtual, sourceParticle, true);
+      let lags = lane.mode === 'stretch' ? Array.from({length: settings.segments + 1}, (_, i) => settings.duration * i / settings.segments) : [lane.delay];
+      if (lane.mode === 'stretch' && Trail.maxLength(settings) > 1) {
+        // Whole-path geometry has no history lags. Extended history retains
+        // its original width events and adds the longer sampling horizon.
+        lags = settings.coverage === 'path' ? [0, settings.duration] :
+          Array.from(new Set(lags.concat(lags.map(lag => lag * Trail.maxLength(settings)))));
+      }
+      if (source.length * lags.length > MAX_EXPORT_SAMPLES) fail('拖尾事件取樣超過 200 萬，請降低細緻度。');
+      for (const lag of lags) for (const key of source) {
+        const age = key.time + lag - (baked.loop ? particle.cycleIndex * duration : 0);
+        if (baked.loop && (age < -EPS || age > duration + EPS)) continue;
+        let at = particle.birth + age;
+        if (baked.loop) at = mod(at, duration);
+        add(at, key.stepped);
+      }
+      if (baked.loop) {
+        const at = mod(particle.birth, duration);
+        add(at); add(at <= EPS ? duration - RESET_EPS : at - RESET_EPS, true);
+      }
+    }
+    return Array.from(times.values()).sort((a, b) => a.time - b.time);
+  }
+  function trailTimeline(baked, particle, lane, sampleBudget) {
+    const settings = particle.emitter.trail, sequence = activeSequence(particle.emitter), frames = sequence ? sequence.frames.length : 1;
+    const weight = lane.mode === 'stretch' ? (Trail.segmentCount(settings) + 1) * frames : 1;
+    const spend = () => {
+      sampleBudget.used += weight;
+      if (sampleBudget.used > MAX_EXPORT_SAMPLES) fail('拖尾匯出取樣超過 200 萬，請減少粒子／殘影數、細緻度或拖尾時間。');
+    };
+    function state(time) {
+      spend();
+      return trailState(baked, particle, lane, time);
+    }
+    const keys = trailMetadata(baked, particle, lane).map(key => ({...key, state: state(key.time)}));
+    if (lane.mode === 'afterimage') {
+      for (let i = 1; i < keys.length; i++) {
+        const previous = keys[i - 1], key = keys[i];
+        if (previous.stepped || !previous.state.alive || !key.state.alive) continue;
+        const expected = previous.state.rotation + particle.spin * (key.time - previous.time);
+        key.state.rotation += 360 * Math.round((expected - key.state.rotation) / 360);
+      }
+    }
+    const result = [keys[0]], quality = qualityProfile(baked.project).refinement;
+    function append(first, last, depth) {
+      if (first.stepped || depth >= 12 || last.time - first.time <= .000002) { result.push(last); return; }
+      const time = round((first.time + last.time) / 2);
+      if (time <= first.time || time >= last.time) { result.push(last); return; }
+      const middle = {time, stepped: false, state: state(time)}, ratio = (time - first.time) / (last.time - first.time);
+      const expected = (a, b) => a + (b - a) * ratio;
+      let geometry = 0;
+      if (lane.mode === 'stretch') {
+        geometry = Math.max(...middle.state.vertices.map((value, i) => Math.abs(value - expected(first.state.vertices[i], last.state.vertices[i]))));
+      } else {
+        middle.state.rotation += 360 * Math.round((expected(first.state.rotation, last.state.rotation) - middle.state.rotation) / 360);
+        geometry = Math.max(...['x', 'y', 'width', 'height'].map(key => Math.abs(middle.state[key] - expected(first.state[key], last.state[key]))));
+        geometry = Math.max(geometry, Math.abs(middle.state.rotation - expected(first.state.rotation, last.state.rotation)));
+      }
+      const alpha = Math.abs(middle.state.alpha - expected(first.state.alpha, last.state.alpha));
+      const colors = Math.max(...middle.state.color.map((value, i) => Math.abs(value - expected(first.state.color[i], last.state.color[i]))));
+      const rotationGuard = lane.mode === 'afterimage' && Math.abs(last.state.rotation - first.state.rotation) > 120;
+      if (!rotationGuard && geometry <= quality.position && alpha <= .001 && colors <= 1 / 1020) { result.push(last); return; }
+      append(first, middle, depth + 1); append(middle, last, depth + 1);
+    }
+    for (let i = 1; i < keys.length; i++) append(keys[i - 1], keys[i], 0);
+    // Spine stores timeline times as Float32. Sharing those exact values with
+    // the JSON preview avoids amplified error around short mesh intervals.
+    const quantized = [];
+    result.forEach(key => {
+      const time = Math.fround(key.time), previous = quantized[quantized.length - 1];
+      if (previous && previous.time === time) quantized[quantized.length - 1] = {...key, time, stepped: previous.stepped || key.stepped};
+      else quantized.push({...key, time});
+    });
+    return quantized;
+  }
+  function trailKeyframe(key, values) {
+    const result = {...values};
+    if (key.time > 0) result.time = key.time;
+    if (key.stepped) result.curve = 'stepped';
+    return result;
+  }
+  function exportTrail(baked, particle, profile, assets, sampleBudget) {
+    const e = particle.emitter, settings = e.trail, lanes = Trail.lanes(settings), stride = lanes.length + 1;
+    const bones = [], slots = [], attachments = {}, boneTracks = {}, slotTracks = {}, deforms = {};
+    let keyframes = 0;
+    lanes.forEach(lane => {
+      const index = particle.index * stride + lane.index, boneName = 'em_' + e.id + '_p' + index, slotName = boneName + '_slot';
+      const dense = trailTimeline(baked, particle, lane, sampleBudget), initial = dense[0].state, sequence = activeSequence(e);
+      const attachmentName = s => s.alive ? sequence ? sequenceAttachment(s.sequenceFrame) : 'particle' : null;
+      bones.push({name: boneName, parent: 'em_' + e.id});
+      slots.push({name: slotName, bone: boneName, color: rgba(initial), attachment: attachmentName(initial) || undefined, blend: e.blend});
+      attachments[slotName] = {};
+      const frames = sequence ? sequence.frames : [e.image || {width: 64, height: 64}];
+      frames.forEach((frame, frameIndex) => {
+        const name = sequence ? sequenceAttachment(frameIndex) : 'particle';
+        const attachment = {type: lane.mode === 'stretch' ? 'mesh' : 'region', path: assets[frameIndex].name.slice(0, -4), width: frame.width, height: frame.height};
+        if (lane.mode === 'stretch') {
+          const geometry = Trail.strip(settings.segments, frame, settings);
+          Object.assign(attachment, geometry, {vertices: Array(geometry.uvs.length).fill(0)});
+        }
+        attachments[slotName][name] = attachment;
+      });
+      const switches = []; let previous;
+      dense.forEach(key => {
+        const name = attachmentName(key.state);
+        if (previous === undefined || name !== previous || key === dense[dense.length - 1]) { switches.push(trailKeyframe({time: key.time}, {name})); previous = name; }
+      });
+      const colors = dense.map(key => trailKeyframe(key, {color: rgba(key.state)}));
+      slotTracks[slotName] = {[profile.colorTimeline]: colors, attachment: switches};
+      keyframes += colors.length + switches.length;
+      if (lane.mode === 'stretch') {
+        const deform = dense.map(key => trailKeyframe(key, {vertices: key.state.vertices.map((value, i) => round(value - (i % 2 ? e.y : e.x)))}));
+        const byAttachment = {};
+        Object.keys(attachments[slotName]).forEach(name => { byAttachment[name] = deform; keyframes += deform.length; });
+        deforms[slotName] = byAttachment;
+      } else {
+        const translate = dense.map(key => trailKeyframe(key, {x: round(key.state.x - e.x), y: round(key.state.y - e.y)}));
+        const rotate = dense.map(key => trailKeyframe(key, {[profile.rotationKey]: round(key.state.rotation)}));
+        const scale = dense.map(key => trailKeyframe(key, {x: round(key.state.scaleX === undefined ? key.state.scale : key.state.scaleX), y: round(key.state.scaleY === undefined ? key.state.scale : key.state.scaleY)}));
+        boneTracks[boneName] = {translate, rotate, scale}; keyframes += dense.length * 3;
+      }
+    });
+    const animation = {bones: boneTracks, slots: slotTracks};
+    if (Object.keys(deforms).length) {
+      if (profile.family === '4.2') animation.attachments = {default: Object.fromEntries(Object.entries(deforms).map(([slot, names]) => [slot, Object.fromEntries(Object.entries(names).map(([name, deform]) => [name, {deform}]))]))};
+      else animation.deform = {default: deforms};
+    }
+    return {bones, slots, attachments, animation, keyframes};
+  }
+
   function exportSpine(baked, targetVersion, sampleBudget) {
     const needsAdaptive = baked.particles.some(particle => needsRefinement(baked, particle));
-    const needsBudget = needsAdaptive || baked.project.bakeQuality !== undefined || baked.particles.some(particle => activeSequence(particle.emitter) || particle.emitter.separateSizeAxes);
+    const needsBudget = needsAdaptive || baked.project.bakeQuality !== undefined || baked.particles.some(particle => activeSequence(particle.emitter) || particle.emitter.separateSizeAxes || hasTrail(particle));
     if (needsBudget && !sampleBudget) {
       let floor = 0;
       for (const particle of baked.particles) {
         const cost = timelineCost(baked, particle);
         floor += cost.lower;
+        if (hasTrail(particle)) floor += trailCost(baked, particle).lower;
         if (cost.rejected || floor > MAX_EXPORT_SAMPLES) fail('動畫匯出取樣成本超過 200 萬，請降低速度、減少粒子數，或縮短動畫。');
       }
     }
@@ -1269,8 +1603,21 @@
       const assets = imagePlan.byEmitter.get(e.id).map(ref => ref.asset);
       const path = assets[0].name.slice(0, -4);
       baked.particles.filter(particle => particle.emitterId === e.id).forEach(particle => {
-        const boneName = 'em_' + e.id + '_p' + particle.index, slotName = boneName + '_slot';
-        const initial = stateAt(baked, particle, 0);
+        const trail = hasTrail(particle), lanes = trail ? Trail.lanes(e.trail) : [];
+        if (trail) {
+          const part = exportTrail(baked, particle, profile, assets, sampleBudget);
+          json.bones.push(...part.bones); json.slots.push(...part.slots); Object.assign(attachments, part.attachments);
+          Object.assign(json.animations.effect.bones, part.animation.bones); Object.assign(json.animations.effect.slots, part.animation.slots);
+          ['deform', 'attachments'].forEach(group => {
+            if (!part.animation[group]) return;
+            const target = json.animations.effect[group] || (json.animations.effect[group] = {default: {}});
+            Object.assign(target.default, part.animation[group].default);
+          });
+          keyframes += part.keyframes; denseKeyframes += part.keyframes;
+        }
+        const headIndex = trail ? particle.index * (lanes.length + 1) + lanes.length : particle.index;
+        const boneName = 'em_' + e.id + '_p' + headIndex, slotName = boneName + '_slot';
+        const initial = visibleHeadState(particle, stateAt(baked, particle, 0));
         json.bones.push({name: boneName, parent: 'em_' + e.id});
         json.slots.push({name: slotName, bone: boneName, color: rgba(initial),
           attachment: initial.alive ? sequence ? sequenceAttachment(initial.sequenceFrame) : 'particle' : undefined, blend: e.blend});
@@ -1279,7 +1626,7 @@
           sequence.frames.forEach((frame, index) => { attachments[slotName][sequenceAttachment(index)] = {type: 'region',
             path: assets[index].name.slice(0, -4), width: frame.width, height: frame.height}; });
         } else attachments[slotName] = {particle: {type: 'region', path, width: e.image ? e.image.width : 64, height: e.image ? e.image.height : 64}};
-        const dense = sampledTimeline(baked, particle, false, sampleBudget);
+        const dense = sampledTimeline(baked, particle, false, sampleBudget).map(key => ({...key, state: visibleHeadState(particle, key.state)}));
         denseKeyframes += dense.length * 4;
         const translate = reduceTimeline(dense, s => [s.x, s.y], [tolerance.position, tolerance.position]).map(key => keyframe(key, {x: key.state.x - e.x, y: key.state.y - e.y}));
         let rotationKeys = reduceTimeline(dense, s => [s.rotation], [tolerance.rotation]);
@@ -1344,6 +1691,7 @@
     for (const phase of Object.values(flowBaked.phases)) for (const particle of phase.particles) {
       const cost = timelineCost(phase, particle);
       floor += cost.lower;
+      if (hasTrail(particle)) floor += trailCost(phase, particle).lower;
       if (cost.rejected || floor > MAX_EXPORT_SAMPLES) fail('三段動畫匯出取樣成本估算超過 200 萬，可能使介面暫停。請減少粒子數、縮短 In，或增加 Loop 長度，再重新匯出。');
     }
     // Count timestamp metadata without evaluating positions, curves, or tiled
@@ -1361,8 +1709,8 @@
         add(at);
         if (reset) add(at <= EPS && phase.loop ? period - RESET_EPS : at - RESET_EPS);
       }
-      function lifetimeEvent(t, reset) {
-        const age = t * particle.life - (phase.loop ? particle.cycleIndex * period : 0);
+      function lifetimeEvent(t, reset, clock) {
+        const age = t * (clock === undefined ? particle.life : clock) - (phase.loop ? particle.cycleIndex * period : 0);
         if (!phase.loop || (age >= 0 && age <= period)) event(age, reset);
       }
       event(0, true);
@@ -1371,10 +1719,11 @@
         if (death >= 0 && death <= period) event(death, true);
       } else event(particle.life, true);
       const curves = scalarCurves(particle);
-      curves.forEach(points => points.forEach((point, index) => lifetimeEvent(point.t, index > 0 && points[index - 1].curve === 'stepped')));
+      curves.forEach(points => points.forEach((point, index) => lifetimeEvent(point.t, index > 0 && points[index - 1].curve === 'stepped', scalarDuration(particle, points))));
+      trailClockDurations(particle).forEach(clock => lifetimeEvent(1, false, clock));
       if (particle.emitter.colorGradient) particle.emitter.colorGradient.forEach(point => lifetimeEvent(point.t, false));
       compiledScalarCurves(particle).forEach(compiled => {
-        if (compiled) compiled.sampleTimes.forEach(t => lifetimeEvent(t, false));
+        if (compiled) compiled.sampleTimes.forEach(t => lifetimeEvent(t, false, scalarDuration(particle, compiled)));
       });
       return times.size;
     }
@@ -1385,9 +1734,12 @@
     for (let index = 0; index < loopPhase.particles.length; index++) {
       const loopKeys = timelineCount(loopPhase, loopPhase.particles[index]);
       estimatedSamples += inGrid + loopKeys * repeats + loopKeys + timelineCount(outPhase, outPhase.particles[index]);
+      if (hasTrail(loopPhase.particles[index])) {
+        for (const phase of Object.values(flowBaked.phases)) estimatedSamples += trailCost(phase, phase.particles[index]).lower;
+      }
       if (estimatedSamples > sampleLimit) fail('三段動畫匯出取樣成本估算超過 200 萬，可能使介面暫停。請減少粒子數、縮短 In，或增加 Loop 長度，再重新匯出。');
     }
-    const sampleBudget = loopPhase.particles.some(particle => needsRefinement(loopPhase, particle) || activeSequence(particle.emitter) || particle.emitter.separateSizeAxes) || flowBaked.project.bakeQuality !== undefined ? {used: 0} : undefined;
+    const sampleBudget = loopPhase.particles.some(particle => needsRefinement(loopPhase, particle) || activeSequence(particle.emitter) || particle.emitter.separateSizeAxes || hasTrail(particle)) || flowBaked.project.bakeQuality !== undefined ? {used: 0} : undefined;
     ['in', 'loop', 'out'].forEach(kind => { exported[kind] = exportSpine(flowBaked.phases[kind], targetVersion, sampleBudget); });
     const json = Object.assign({}, exported.loop.json, {animations: Object.create(null)});
     json.slots.forEach(slot => { slot.attachment = null; slot.color = 'ffffff00'; });

@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0b1119">
   <meta name="author" content="小魚骨頭">
-  <title>粒子工作室 · Particle Studio 1.28</title>
+  <title>粒子工作室 · Particle Studio 1.29.6</title>
   <style data-bundle="styles.css">
 :root {
   color-scheme: dark;
@@ -794,6 +794,25 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 .path-facing-spin { padding-top: 8px; margin-bottom: 8px; border-top: 1px solid var(--line-soft); }
 .path-facing-spin .field-hint { margin-bottom: 0; }
 .path-facing-spin button { padding-left: 0; font-size: 11px; }
+.trail-section { border-color: #3b625b; background: linear-gradient(135deg,#173b352e,transparent 75%),#17212b; }
+.trail-section > .field-hint { margin-top: 8px; }
+.trail-section #trailFields > .field-hint { margin: 0 0 12px; }
+.trail-section .path-edit-button { margin-bottom: 12px; }
+.trail-section .advanced-options-content { padding-bottom: 1px; }
+.trail-section [data-trail-mode] > .checkbox-label { margin-bottom: 12px; }
+.trail-section #trailAxisHint { margin: 0 0 12px; }
+.trail-length-controls { margin: 4px 0 14px; padding: 12px 10px 0; border: 1px solid #395950; border-radius: 10px; }
+.trail-length-presets { display: flex; gap: 8px; margin: 10px 0; }
+.trail-length-presets > button { flex: 1; padding: 8px 5px; font-size: 12px; }
+.trail-length-controls .curve-canvas { height: 110px; }
+.trail-length-controls .field-hint { margin: 8px 0 12px; }
+.trail-timing-controls { margin-bottom: 12px; }
+.trail-timing-controls > .checkbox-label { margin: 0 0 10px; }
+.trail-timing-controls .field-hint { margin: 8px 0 12px; }
+.background-jpeg-dialog { width: min(680px, calc(100vw - 32px)); }
+.background-jpeg-preview { display: grid; place-items: center; min-height: 120px; background: #0c1420; border: 1px solid #344354; border-radius: 10px; overflow: hidden; }
+.background-jpeg-preview img { display: block; max-width: 100%; max-height: 260px; object-fit: contain; }
+.background-jpeg-dialog input[type="color"] { width: 100%; height: 34px; padding: 3px; }
 .path-dialog { width: min(780px, calc(100vw - 32px)); }
 .path-dialog[open] { display: flex; flex-direction: column; }
 .path-dialog > .dialog-header, .path-dialog > .spine-merge-footer { flex-shrink: 0; }
@@ -1002,7 +1021,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     <header class="app-header">
       <div class="brand" aria-label="粒子工作室 Particle Studio">
         <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 36 36"><ellipse class="brand-orbit" cx="18" cy="18" rx="15" ry="9" transform="rotate(-38 18 18)"/><path class="brand-spark" d="m18 6 3.1 8.9L30 18l-8.9 3.1L18 30l-3.1-8.9L6 18l8.9-3.1Z"/><circle class="brand-particle" cx="29" cy="8" r="3"/><circle class="brand-particle-small" cx="7" cy="26" r="1.8"/></svg></span>
-        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.28</span></span><span class="brand-author">開發者：小魚骨頭</span></div>
+        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.29.6</span></span><span class="brand-author">開發者：小魚骨頭</span></div>
         <label class="version-control"><span id="spineTargetMode">輸出版本</span><select id="spineVersion" aria-label="Spine 輸出版本" title="選擇 Spine JSON 輸出版本"><option value="3.8.99">SPINE 3.8</option><option value="4.0.56" selected>SPINE 4.0</option><option value="4.2.43">SPINE 4.2</option></select></label>
       </div>
       <div class="project-heading"><span class="project-caption"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h5l2 2h7v10H3Z"/></svg>目前專案</span><label class="sr-only" for="projectName">專案名稱</label><input id="projectName" type="text" value="金色光塵" maxlength="80" spellcheck="false" aria-label="專案名稱"></div>
@@ -1057,7 +1076,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         <div id="attachmentPreviewBar" class="attachment-preview-bar" hidden><div class="segmented-control" role="group" aria-label="預覽座標"><button id="previewAttached" type="button" aria-pressed="true">掛接預覽</button><button id="previewLocal" type="button" aria-pressed="false">粒子單獨</button></div><label class="attachment-bones-toggle"><input id="previewBones" type="checkbox" checked>骨架</label><label id="previewSkinField" hidden>Skin <select id="previewSkin" aria-label="預覽原骨架 Skin"></select></label><button id="previewArtPick" type="button" class="art-pick-button" aria-pressed="false" title="在角色圖片上點一下，新增效果或移動目前發射器（快捷鍵 A）">點角色加效果</button><button id="previewPickBone" type="button" class="text-button" aria-pressed="false" title="在畫布點選骨骼，掛接目前發射器">畫布選骨骼</button><label class="attachment-bones-toggle"><input id="previewKeepWorld" type="checkbox" checked title="換骨骼時保持發射器紅點的當下畫面位置">保持紅點位置</label><button id="previewFocus" type="button" class="text-button">對焦掛接點</button><button id="previewFxStart" type="button" class="text-button">跳到粒子開始</button><span id="attachmentPreviewStatus" class="attachment-preview-status" role="status"></span></div>
         <div id="canvasStage" class="canvas-stage"><canvas id="previewCanvas" aria-label="粒子動畫預覽畫布" tabindex="0">此工具需要支援 Canvas 的瀏覽器。</canvas><div id="emitterHandles" class="emitter-handles" role="group" aria-label="畫布發射器控制點"></div><span id="emitterDragHint" class="stage-control-hint"><span class="emitter-handle-dot" aria-hidden="true"></span>紅色控制點：點選切換，拖曳移動位置</span><span id="bonePickHint" class="stage-control-hint bone-pick-hint" role="status" hidden></span><span id="artPickHint" class="stage-control-hint bone-pick-hint art-pick-hint" role="status" hidden></span><div id="artPickMenu" class="art-pick-menu" role="dialog" aria-label="在角色上新增效果" hidden><p id="artPickTitle" class="art-pick-title"></p><div class="segmented-control art-pick-layer" role="group" aria-label="前後圖層"><button id="artPickAbove" type="button" aria-pressed="true">在此圖前面</button><button id="artPickBelow" type="button" aria-pressed="false">在此圖後面</button></div><label class="checkbox-label art-pick-time"><input id="artPickUseTime" type="checkbox" checked><span id="artPickTimeLabel">從播放頭開始</span></label><div class="art-pick-actions"><button id="artPickAdd" type="button" class="primary-button">＋ 在這裡新增效果</button><button id="artPickMove" type="button" class="secondary-button">把目前發射器移到這裡</button><button id="artPickCancel" type="button" class="text-button muted">取消</button></div></div><span id="spineTargetChip" class="spine-target-chip" hidden></span><span class="stage-coordinate-note">X →　Y ↑</span><span class="stage-watermark" aria-hidden="true">PARTICLE STUDIO</span></div>
         <div class="canvas-bottom-bar">
-          <div class="background-controls"><label class="color-swatch-label" for="backgroundColor"><input id="backgroundColor" type="color" value="#12151a" title="畫布背景顏色"><span>背景</span></label><button id="backgroundButton" type="button" class="text-button">載入參考圖</button><input id="backgroundFile" type="file" accept="image/png,image/jpeg,image/webp" hidden><button id="backgroundActualSize" type="button" class="text-button" title="按原像素尺寸對齊背景與粒子，並調整視角顯示整張背景" hidden>校正尺寸</button><span id="backgroundInfo" class="background-info" hidden></span><button id="removeBackground" type="button" class="text-button muted" title="移除背景參考圖">移除</button></div><span class="canvas-hint">拖曳空白處移動視角</span>
+          <div class="background-controls"><label class="color-swatch-label" for="backgroundColor"><input id="backgroundColor" type="color" value="#12151a" title="畫布背景顏色"><span>背景</span></label><button id="backgroundButton" type="button" class="text-button">載入參考圖</button><button id="backgroundJpegButton" type="button" class="text-button">背景轉 JPG</button><input id="backgroundJpegFile" type="file" accept="image/png,image/jpeg,image/webp" hidden><input id="backgroundFile" type="file" accept="image/png,image/jpeg,image/webp" hidden><button id="backgroundActualSize" type="button" class="text-button" title="按原像素尺寸對齊背景與粒子，並調整視角顯示整張背景" hidden>校正尺寸</button><span id="backgroundInfo" class="background-info" hidden></span><button id="removeBackground" type="button" class="text-button muted" title="移除背景參考圖">移除</button></div><span class="canvas-hint">拖曳空白處移動視角</span>
         </div>
         <section class="timeline-panel" aria-label="播放與時間軸">
           <div class="playback-bar">
@@ -1185,19 +1204,8 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
           </section>
 
           <section id="panelMotion" class="inspector-tab-panel" data-panel="motion" role="tabpanel" aria-labelledby="tabMotion" hidden>
-            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="m4 14 10-10 M8 4h6v6 M3 8h3 M9 16h3"/></svg><span>初始速度</span></h3><div class="field-row"><label class="field"><span>移動速度 <small>px/秒</small></span><input data-field="speed" type="number" min="0" max="4000" step="1" value="80"></label><label class="field"><span>速度隨機 <small>± px/秒</small></span><input data-field="speedRandom" type="number" min="0" max="4000" step="1" value="30"></label></div><p id="speedModeHint" class="field-hint mode-reason" hidden></p><div id="legacyMotionControls"><label id="legacyMotionField" class="field full-field"><span>移動節奏</span><select data-field="motionCurve"><option value="linear">線性 · 恆定速度</option><option value="easeOut">漸慢 · 起快末慢</option><option value="easeIn">漸快 · 起慢末快</option><option value="easeInOut">緩入緩出</option></select></label><p class="field-hint">啟用速度曲線後，曲線會覆蓋此移動節奏。</p></div></div>
-            <div class="inspector-section">
-              <div class="inspector-section-heading"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 15c3 0 3-10 7-10s3 7 7 7 M14 9l3 3-3 3"/></svg><span>生命期間的速度</span></h3><label class="checkbox-label"><input id="enableSpeedCurve" type="checkbox">啟用速度曲線</label></div>
-              <div class="curve-header"><span>速度倍率曲線</span><div class="curve-header-actions"><select id="speedInterpolation" class="curve-interpolation" aria-label="速度選取節點的插值方式"><option value="linear">線性</option><option value="bezier">貝茲</option><option value="stepped">階梯</option></select><button id="resetSpeed" type="button" class="text-button muted">重設</button></div></div>
-              <div id="speedPresetTools" class="look-preset-tools" role="group" aria-label="常用速度曲線"></div>
-              <canvas id="speedCurveCanvas" class="curve-canvas" width="260" height="100" tabindex="0" aria-label="速度曲線，拖曳節點調整" title="點擊會啟用速度曲線；中間節點選貝茲可調左右兩側，拖藍色控制柄預設平衡；Ctrl 單側調整。右鍵或 Delete 刪除節點。">速度曲線</canvas>
-              <div class="curve-labels" aria-hidden="true"><span>出生</span><span>死亡</span></div>
-              <div class="field-row curve-node-fields"><label class="field"><span>生命位置 <small>%</small></span><input id="speedCurveTime" type="number" min="0" max="100" step="0.1" value="0"></label><label class="field"><span>速度倍率</span><input id="speedCurveValue" type="number" min="0" max="4" step="0.001" value="1"></label><button id="deleteSpeedPoint" type="button" class="icon-button curve-delete-button" title="刪除選取的速度曲線節點" aria-label="刪除速度曲線節點"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h14 M7 5V3h6v2 M5 5l1 12h8l1-12 M8 8v6 M12 8v6"/></svg></button></div>
-              <p id="speedCurveHint" class="field-hint">0 為停止，1 為基礎速度，4 為四倍速度。中間節點選貝茲可調左右兩側；拖控制柄預設平衡，Ctrl 單側調整。</p>
-            </div>
-            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M10 2v16 M2 10h16 M7 5l3-3 3 3 M7 15l3 3 3-3"/></svg><span>外力</span></h3><p id="forceModeHint" class="field-hint mode-reason" hidden></p><label class="field full-field"><span>重力 <small>px/秒² · ＋向下／−向上</small></span><input data-field="gravity" type="number" min="-6000" max="6000" step="1" value="0"></label><label class="field full-field"><span>風向 <small>px/秒² · ＋向右／−向左</small></span><input data-field="wind" type="number" min="-3000" max="3000" step="1" value="0"></label><p class="field-hint">風向：正值往右吹，負值往左吹。<br>重力：正值往下，負值往上；0 表示無此外力。</p></div>
             <div id="pathSection" class="inspector-section path-section">
-              <div class="inspector-section-heading"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 15C3 4 8 3 10 10s7 6 7-5 M14 5h3v3"/></svg><span>沿路徑移動</span></h3><label class="checkbox-label"><input id="enablePath" type="checkbox">啟用</label></div>
+              <div class="inspector-section-heading"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 15C3 4 8 3 10 10s7 6 7-5 M14 5h3v3"/></svg><span>路徑與拖尾</span></h3><label class="checkbox-label"><input id="enablePath" type="checkbox">啟用</label></div>
               <button id="editPath" type="button" class="secondary-button path-edit-button" aria-haspopup="dialog">編輯路徑與控制點</button>
               <button id="pathUseOutline" type="button" class="text-button path-outline-shortcut" aria-haspopup="dialog">沿物件外型移動</button>
               <p id="pathSummary" class="path-summary" role="status">未啟用路徑</p>
@@ -1215,6 +1223,60 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
               </div>
               <p id="pathMotionHint" class="field-hint">路徑決定粒子出生後的移動軌跡，可製作繞框光點與流動光串。</p>
             </div>
+            <div id="trailSection" class="inspector-section trail-section" data-particle-only>
+              <div class="inspector-section-heading"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M2 14c5 0 5-8 10-8 M4 17c5 0 5-8 10-8 M7 19c4 0 4-7 9-7"/></svg><span>拖尾表演</span></h3><label class="checkbox-label"><input id="enableTrail" type="checkbox">啟用</label></div>
+              <p id="trailStatus" class="field-hint" role="status">啟用後，讓粒子沿移動軌跡拉伸或留下殘影。</p>
+              <button id="makePathRibbon" type="button" class="secondary-button path-edit-button">把目前貼圖做成路徑光帶</button>
+              <p class="field-hint">保留目前貼圖與路徑，自動切網格鋪成一條光帶。</p>
+              <div id="trailFields" hidden>
+                <label class="field full-field"><span>拖尾方式</span><select id="trailMode"><option value="stretch">沿路徑拉伸</option><option value="afterimage">殘影拖尾</option></select></label>
+                <div data-trail-mode="stretch">
+                  <label class="field full-field"><span>拉伸範圍</span><select id="trailCoverage"><option value="history">跟隨移動拖尾</option><option value="path">整條路徑鋪圖</option></select></label>
+                  <label class="checkbox-label"><input id="trailShowHead" type="checkbox" checked>顯示頭部粒子</label>
+                  <div class="trail-timing-controls">
+                    <button id="trailCometPreset" type="button" class="secondary-button path-edit-button">彗星撞擊 · 0.5 秒到達／0.65 秒收尾</button>
+                    <label class="checkbox-label"><input id="trailIndependentTime" type="checkbox" aria-controls="trailTimingFields">獨立移動／收縮時間</label>
+                    <div id="trailTimingFields" class="field-row" hidden><label class="field"><span>移動到達 <small>秒</small></span><input id="trailMoveDuration" type="number" min="0.01" max="10" step="0.01" value="0.5"></label><label class="field"><span>收縮結束 <small>秒</small></span><input id="trailLengthDuration" type="number" min="0.01" max="10" step="0.01" value="0.65"></label></div>
+                    <p id="trailTimingHint" class="field-hint">兩個時間都從粒子出生起計算；到達後停住，尾巴可繼續收縮。</p>
+                  </div>
+                  <div class="trail-length-controls">
+                    <label class="checkbox-label"><input id="enableTrailLength" type="checkbox" aria-controls="trailLengthFields">啟用拉伸長度曲線</label>
+                    <div class="trail-length-presets" role="group" aria-label="拉伸長度預設"><button id="trailLengthPulse" type="button" class="secondary-button">先長再短</button><button id="trailLengthFull" type="button" class="quiet-button">維持全長</button></div>
+                    <div id="trailLengthFields" hidden>
+                      <div class="curve-header"><span>拉伸長度曲線</span><div class="curve-header-actions"><select id="trailLengthInterpolation" class="curve-interpolation" aria-label="拉伸長度選取節點的插值方式"><option value="linear">線性</option><option value="bezier">貝茲</option><option value="stepped">階梯</option></select><button id="resetTrailLength" type="button" class="text-button muted">重設</button></div></div>
+                      <canvas id="trailLengthCurveCanvas" class="curve-canvas" width="260" height="100" tabindex="0" aria-label="拉伸長度曲線，拖曳節點控制先長再短" title="點擊新增節點；拖曳改變時間與長度，貝茲可調控制柄；右鍵或 Delete 刪除節點。">拉伸長度曲線</canvas>
+                      <div class="curve-labels" aria-hidden="true"><span>出生</span><span id="trailLengthEndLabel">生命結束</span></div>
+                      <div class="field-row curve-node-fields"><label class="field"><span><span id="trailLengthTimeLabel">生命位置</span> <small>%</small></span><input id="trailLengthCurveTime" type="number" min="0" max="100" step="0.1" value="0"></label><label class="field"><span>拉伸長度 <small>%</small></span><input id="trailLengthCurveValue" type="number" min="0" max="1000" step="0.1" value="100"></label><button id="deleteTrailLengthPoint" type="button" class="icon-button curve-delete-button" title="刪除長度節點" aria-label="刪除長度曲線節點">×</button></div>
+                    </div>
+                    <p id="trailLengthHint" class="field-hint">長度可輸入 0–1000%；100% 為完整路徑，0% 收到消失。</p>
+                  </div>
+                </div>
+                <p id="trailModeHint" class="field-hint"></p>
+                <button id="trailEditPath" type="button" class="secondary-button path-edit-button" aria-haspopup="dialog">設定／編輯移動路徑</button>
+                <div class="field-row"><label class="field"><span><span id="trailDurationLabel">殘留時間</span> <small>秒</small></span><input id="trailDuration" data-tfield="duration" type="number" min="0.05" max="3" step="0.05" value="0.35"></label><label class="field"><span>寬度倍數</span><input id="trailWidth" data-tfield="width" type="number" min="0.1" max="4" step="0.1" value="1"></label></div>
+                <label class="field full-field range-field"><span>拖尾透明度 <output data-treadout="opacity">65%</output></span><input id="trailOpacity" data-tfield="opacity" type="range" min="0" max="1" step="0.05" value="0.65"></label>
+                <label class="field full-field" data-trail-mode="afterimage" hidden><span>殘影數 <small>張</small></span><input id="trailSamples" data-tfield="samples" type="number" min="2" max="24" step="1" value="8"></label>
+                <div data-trail-mode="stretch">
+                  <label class="field full-field"><span>貼圖長邊</span><select id="trailAxis"><option value="auto">自動判斷</option><option value="x">橫向</option><option value="y">直向</option></select></label>
+                  <label class="checkbox-label"><input id="trailFlipTexture" type="checkbox">反轉貼圖</label>
+                  <p id="trailAxisHint" class="field-hint"></p>
+                  <label class="field full-field range-field"><span>尾端收尖 <output data-treadout="taper">80%</output></span><input id="trailTaper" data-tfield="taper" type="range" min="0" max="1" step="0.05" value="0.8"></label>
+                  <details id="trailAdvanced" class="advanced-options"><summary>更多拖尾選項</summary><div class="advanced-options-content"><label class="field full-field"><span>彎曲細緻度 <small>段</small></span><input id="trailSegments" data-tfield="segments" type="number" min="4" max="32" step="1" value="16"></label></div></details>
+                </div>
+                <p id="trailNoPath" class="field-hint">目前跟隨速度與外力形成拖尾；設定路徑可沿曲線表演。</p>
+              </div>
+            </div>
+            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="m4 14 10-10 M8 4h6v6 M3 8h3 M9 16h3"/></svg><span>初始速度</span></h3><div class="field-row"><label class="field"><span>移動速度 <small>px/秒</small></span><input data-field="speed" type="number" min="0" max="4000" step="1" value="80"></label><label class="field"><span>速度隨機 <small>± px/秒</small></span><input data-field="speedRandom" type="number" min="0" max="4000" step="1" value="30"></label></div><p id="speedModeHint" class="field-hint mode-reason" hidden></p><div id="legacyMotionControls"><label id="legacyMotionField" class="field full-field"><span>移動節奏</span><select data-field="motionCurve"><option value="linear">線性 · 恆定速度</option><option value="easeOut">漸慢 · 起快末慢</option><option value="easeIn">漸快 · 起慢末快</option><option value="easeInOut">緩入緩出</option></select></label><p class="field-hint">啟用速度曲線後，曲線會覆蓋此移動節奏。</p></div></div>
+            <div class="inspector-section">
+              <div class="inspector-section-heading"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 15c3 0 3-10 7-10s3 7 7 7 M14 9l3 3-3 3"/></svg><span>生命期間的速度</span></h3><label class="checkbox-label"><input id="enableSpeedCurve" type="checkbox">啟用速度曲線</label></div>
+              <div class="curve-header"><span>速度倍率曲線</span><div class="curve-header-actions"><select id="speedInterpolation" class="curve-interpolation" aria-label="速度選取節點的插值方式"><option value="linear">線性</option><option value="bezier">貝茲</option><option value="stepped">階梯</option></select><button id="resetSpeed" type="button" class="text-button muted">重設</button></div></div>
+              <div id="speedPresetTools" class="look-preset-tools" role="group" aria-label="常用速度曲線"></div>
+              <canvas id="speedCurveCanvas" class="curve-canvas" width="260" height="100" tabindex="0" aria-label="速度曲線，拖曳節點調整" title="點擊會啟用速度曲線；中間節點選貝茲可調左右兩側，拖藍色控制柄預設平衡；Ctrl 單側調整。右鍵或 Delete 刪除節點。">速度曲線</canvas>
+              <div class="curve-labels" aria-hidden="true"><span>出生</span><span>死亡</span></div>
+              <div class="field-row curve-node-fields"><label class="field"><span>生命位置 <small>%</small></span><input id="speedCurveTime" type="number" min="0" max="100" step="0.1" value="0"></label><label class="field"><span>速度倍率</span><input id="speedCurveValue" type="number" min="0" max="4" step="0.001" value="1"></label><button id="deleteSpeedPoint" type="button" class="icon-button curve-delete-button" title="刪除選取的速度曲線節點" aria-label="刪除速度曲線節點"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h14 M7 5V3h6v2 M5 5l1 12h8l1-12 M8 8v6 M12 8v6"/></svg></button></div>
+              <p id="speedCurveHint" class="field-hint">0 為停止，1 為基礎速度，4 為四倍速度。中間節點選貝茲可調左右兩側；拖控制柄預設平衡，Ctrl 單側調整。</p>
+            </div>
+            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M10 2v16 M2 10h16 M7 5l3-3 3 3 M7 15l3 3 3-3"/></svg><span>外力</span></h3><p id="forceModeHint" class="field-hint mode-reason" hidden></p><label class="field full-field"><span>重力 <small>px/秒² · ＋向下／−向上</small></span><input data-field="gravity" type="number" min="-6000" max="6000" step="1" value="0"></label><label class="field full-field"><span>風向 <small>px/秒² · ＋向右／−向左</small></span><input data-field="wind" type="number" min="-3000" max="3000" step="1" value="0"></label><p class="field-hint">風向：正值往右吹，負值往左吹。<br>重力：正值往下，負值往上；0 表示無此外力。</p></div>
             <div class="inspector-note"><span class="note-mark" aria-hidden="true">↗</span><p>隨機種子固定後，每次預覽與烘焙都會得到相同的粒子路徑。</p></div>
           </section>
         </div>
@@ -1222,9 +1284,17 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     </main>
 
     <div id="message" class="app-message" role="alert" hidden></div>
-    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.28</span> · 開發者：小魚骨頭</span></footer>
+    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.29.6</span> · 開發者：小魚骨頭</span></footer>
   </div>
 
+  <dialog id="backgroundJpegDialog" class="help-dialog background-jpeg-dialog" aria-labelledby="backgroundJpegTitle">
+    <div class="dialog-header"><div><span class="section-eyebrow">BACKGROUND JPG</span><h2 id="backgroundJpegTitle">背景圖片轉 JPG</h2></div><button id="backgroundJpegClose" type="button" class="icon-button" aria-label="關閉背景轉 JPG">×</button></div>
+    <div class="dialog-content"><p>轉成 JPG 後可直接作為背景參考圖，也可另存新檔。保留原圖解析度，原始檔案不會被覆寫；透明區域會填入選定底色。</p>
+      <div class="field-row"><label class="field range-field"><span>JPG 品質 <output id="backgroundJpegQualityValue">88%</output></span><input id="backgroundJpegQuality" type="range" min="30" max="100" step="1" value="88"></label><label class="field"><span>透明區域底色</span><input id="backgroundJpegMatte" type="color" value="#ffffff"></label></div>
+      <p id="backgroundJpegStatus" class="field-hint" role="status">準備轉換…</p><div class="background-jpeg-preview"><img id="backgroundJpegPreview" alt="轉換後的 JPG 預覽" hidden></div>
+      <p class="field-hint">支援原始檔案至 32 MiB；超過 4 MiB 時會降低 JPG 品質，維持原解析度。粒子貼圖仍使用保留透明度的 PNG。</p>
+    </div><div class="spine-merge-footer"><button id="backgroundJpegCancel" type="button" class="quiet-button">取消</button><button id="backgroundJpegDownload" type="button" class="secondary-button" disabled>下載 JPG</button><button id="backgroundJpegApply" type="button" class="primary-button" disabled>套用為參考圖</button></div>
+  </dialog>
   <dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle"><div class="dialog-header"><div><span class="section-eyebrow">PARTICLE STUDIO</span><h2 id="helpTitle">從粒子到 Spine 動畫</h2></div><button id="closeHelp" type="button" class="icon-button" aria-label="關閉操作說明">×</button></div><div class="dialog-content"><p>這是獨立開發的本機粒子編輯器。介面與模擬程式都存放在本機，操作時不需要連線。</p><ol class="help-steps"><li><strong>建立效果</strong><p>按左側「新增效果」開啟效果庫，雙擊內建或自己的效果加成圖層；也可以直接把 PNG、連續圖或專案檔拖進視窗。</p></li><li><strong>安排時間</strong><p>時間軸下方的「圖層時間」可拖曳每層的開始時間，拖右端調整發射長度。S 單獨顯示、H 預覽隱藏，不影響輸出。</p></li><li><strong>輸出</strong><p>直接按「輸出 Spine」，參數有修改時會自動重新烘焙。要一次產生多個版本或配色，用「批次輸出」。</p></li><li><strong>匯入對應版本 Spine</strong><p>解開輸出套件，保留 JSON 與 images 資料夾的位置。在 Spine 選擇「檔案 → 匯入資料（Import Data）」載入 JSON，確認 Images 路徑指向素材資料夾。</p></li></ol><div class="help-shortcuts"><strong>快捷鍵</strong><dl><dt>Space</dt><dd>播放／暫停</dd><dt>← →</dt><dd>逐幀</dd><dt>Ctrl＋Z／Y</dt><dd>復原／重做</dd><dt>Ctrl＋S／O</dt><dd>儲存／開啟專案</dd><dt>Ctrl＋B</dt><dd>更新烘焙</dd><dt>Ctrl＋E</dt><dd>輸出 Spine</dd><dt>Ctrl＋D</dt><dd>複製圖層</dd><dt>Ctrl＋C／V</dt><dd>複製／貼上圖層（可跨專案）</dd><dt>Delete</dt><dd>刪除圖層</dd><dt>[ ]</dt><dd>上／下一個圖層</dd><dt>S／H</dt><dd>單獨顯示／預覽隱藏</dd><dt>F</dt><dd>畫面對焦目前發射器</dd><dt>A</dt><dd>點角色加效果（掛接預覽時）</dd><dt>0</dt><dd>縮放回 100%</dd><dt>滾輪</dt><dd>以游標為中心縮放（5%–800%）</dd></dl></div><div class="help-callout"><strong>記得儲存編輯專案</strong><p>「儲存專案」包含發射器參數與粒子貼圖，可用「開啟」接續編輯。Spine 輸出是動畫交付資料。Atlas 圖集可在 Spine 匯出時產生。</p></div></div><div class="dialog-footer">Particle Studio · Spine 3.8 / 4.0 / 4.2</div></dialog>
   <dialog id="newProjectDialog" class="help-dialog new-project-dialog" aria-labelledby="newProjectTitle" aria-describedby="newProjectDescription">
     <div class="dialog-header"><div><span class="section-eyebrow">NEW PROJECT</span><h2 id="newProjectTitle">重設並建立新專案</h2></div></div>
@@ -2261,6 +2331,271 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 });
 
 </script>
+  <script data-bundle="trail.js">
+(function (root, factory) {
+  'use strict';
+  const curveMath = typeof module === 'object' && module.exports ? require('./curve-math.js') : root.ParticleCurveMath;
+  const api = factory(curveMath);
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  root.ParticleTrail = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (CurveMath) {
+  'use strict';
+  const MAX_LENGTH = 10, MAX_TIME = 10;
+  const DEFAULTS = Object.freeze({enabled: false, mode: 'stretch', duration: .35, samples: 8, segments: 16, opacity: .65, width: 1, taper: .8,
+    coverage: 'history', showHead: true, axis: 'auto', flipTexture: false, lengthCurve: null,
+    moveDuration: null, lengthDuration: null});
+  const RANGES = {duration: [.05, 3], samples: [2, 24, true], segments: [4, 32, true], opacity: [0, 1], width: [.1, 4], taper: [0, 1]};
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const compiledLengths = new WeakMap();
+  function defaults() { return {...DEFAULTS}; }
+  function normalize(raw) {
+    const source = raw === undefined ? {} : raw;
+    if (!source || typeof source !== 'object' || Array.isArray(source)) throw new Error('拖尾設定必須是物件。');
+    const result = defaults();
+    if (source.enabled !== undefined) {
+      if (typeof source.enabled !== 'boolean') throw new Error('拖尾開關必須是布林值。');
+      result.enabled = source.enabled;
+    }
+    if (source.mode !== undefined) result.mode = source.mode;
+    if (!['stretch', 'afterimage'].includes(result.mode)) throw new Error('拖尾模式僅支援 stretch／afterimage。');
+    for (const [key, values] of Object.entries({coverage: ['history', 'path'], axis: ['auto', 'x', 'y']})) {
+      if (source[key] !== undefined) result[key] = source[key];
+      if (!values.includes(result[key])) throw new Error('拖尾「' + key + '」僅支援 ' + values.join('／') + '。');
+    }
+    for (const key of ['showHead', 'flipTexture']) {
+      if (source[key] === undefined) continue;
+      if (typeof source[key] !== 'boolean') throw new Error('拖尾「' + key + '」必須是布林值。');
+      result[key] = source[key];
+    }
+    for (const [key, [low, high, integer]] of Object.entries(RANGES)) {
+      const value = source[key] === undefined ? result[key] : source[key];
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < low || value > high || integer && !Number.isInteger(value)) throw new Error('拖尾「' + key + '」必須介於 ' + low + '–' + high + (integer ? ' 的整數' : '') + '。');
+      result[key] = value;
+    }
+    if (source.lengthCurve !== undefined && source.lengthCurve !== null) {
+      if (!CurveMath) throw new Error('拖尾長度曲線模組尚未載入，請先載入 curve-math.js。');
+      result.lengthCurve = CurveMath.normalize(source.lengthCurve, MAX_LENGTH, '拖尾長度曲線');
+    }
+    for (const key of ['moveDuration', 'lengthDuration']) {
+      if (source[key] === undefined || source[key] === null) continue;
+      if (typeof source[key] !== 'number' || !Number.isFinite(source[key]) || source[key] < .01 || source[key] > MAX_TIME)
+        throw new Error('拖尾「' + key + '」必須介於 0.01–' + MAX_TIME + ' 秒。');
+      result[key] = source[key];
+    }
+    return result;
+  }
+  function maxLength(settings) {
+    if (!(settings && settings.mode === 'stretch' && settings.lengthCurve)) return 1;
+    return Math.max(1, ...settings.lengthCurve.flatMap(point => [point.v, point.in ? point.in.y : 0, point.out ? point.out.y : 0]));
+  }
+  function segmentCount(settings, base) {
+    return Math.min(320, (base === undefined ? settings.segments : base) * Math.ceil(maxLength(settings)));
+  }
+  function lengthAt(settings, age, life) {
+    const points = settings && settings.lengthCurve;
+    if (!points) return 1;
+    if (!CurveMath) throw new Error('拖尾長度曲線模組尚未載入，請先載入 curve-math.js。');
+    let compiled = compiledLengths.get(points);
+    if (!compiled) { compiled = CurveMath.compile(points, MAX_LENGTH); compiledLengths.set(points, compiled); }
+    const duration = settings.lengthDuration == null ? life : settings.lengthDuration;
+    const evaluatedAge = clamp(age, 0, duration);
+    const node = points.find(point => Math.abs(evaluatedAge - point.t * duration) <= .000000501);
+    return compiled.sample(node ? node.t : evaluatedAge / duration);
+  }
+  function active(emitter) { return emitter.kind !== 'lightning' && !!(emitter.trail && emitter.trail.enabled); }
+  function lanes(settings) {
+    if (!settings || !settings.enabled) return [];
+    if (settings.mode === 'stretch') return [{index: 0, mode: 'stretch'}];
+    return Array.from({length: settings.samples}, (_, index) => ({index, mode: 'afterimage', delay: Math.round(settings.duration * (settings.samples - index) / settings.samples * 1e6) / 1e6}));
+  }
+  function horizontalAxis(image, settings) {
+    return settings && settings.axis === 'x' || !(settings && settings.axis === 'y') && (!image || image.width >= image.height);
+  }
+  function strip(segments, image, settings) {
+    segments = segmentCount(settings, segments);
+    const horizontal = horizontalAxis(image, settings), uvs = [], triangles = [];
+    const longitudinal = t => {
+      const value = settings && settings.coverage === 'path' ? t : 1 - t;
+      return settings && settings.flipTexture ? 1 - value : value;
+    };
+    for (let i = 0; i <= segments; i++) { const t = longitudinal(i / segments); uvs.push(...(horizontal ? [t, 0] : [0, t])); }
+    for (let i = segments; i >= 0; i--) { const t = longitudinal(i / segments); uvs.push(...(horizontal ? [t, 1] : [1, t])); }
+    const bottom = i => segments * 2 + 1 - i;
+    for (let i = 0; i < segments; i++) triangles.push(i, bottom(i), i + 1, i + 1, bottom(i), bottom(i + 1));
+    return {uvs, triangles, hull: (segments + 1) * 2};
+  }
+  function state(settings, lane, age, life, atAge, atPath, lengthFactor) {
+    if (lane.mode === 'afterimage') {
+      const source = atAge(age - lane.delay), fade = Math.pow(1 - lane.delay / (settings.duration + settings.duration / settings.samples), 1.3);
+      const historyAge = age - lane.delay, edge = Math.min(life / 2, settings.duration / settings.samples);
+      const envelope = clamp(historyAge / edge, 0, 1) * clamp((life - historyAge) / edge, 0, 1);
+      const alpha = source.alpha * settings.opacity * fade * envelope;
+      const size = settings.width;
+      return {...source, width: source.width * size, height: source.height * size, scale: source.scale * size,
+        ...(source.scaleX === undefined ? {} : {scaleX: source.scaleX * size, scaleY: source.scaleY * size}),
+        alpha, alive: source.alive, isTrail: true, trailMode: 'afterimage', trailIndex: lane.index};
+    }
+    const wholePath = settings.coverage === 'path';
+    if (wholePath && typeof atPath !== 'function') throw new Error('整條路徑光帶需要先啟用有效路徑，並設定至少兩個不同的路徑點。');
+    const length = lengthFactor === undefined ? lengthAt(settings, age, life) : clamp(lengthFactor, 0, MAX_LENGTH);
+    const segments = segmentCount(settings);
+    const points = [], widths = [], sources = [], current = wholePath ? atAge(clamp(age, 0, Math.max(0, life - 1e-7))) : null;
+    for (let i = 0; i <= segments; i++) {
+      const t = i / segments, historyAge = age - t * settings.duration * length;
+      const source = wholePath ? current : atAge(clamp(historyAge, 0, Math.max(0, life - 1e-7)));
+      sources.push(source); points.push(wholePath ? atPath(t * length) : {x: source.x, y: source.y});
+      // Length changes move longitudinal samples only. Keep the original
+      // width envelope so shortening never also narrows the ribbon.
+      const widthAge = age - t * settings.duration;
+      const widthSource = wholePath || length === 1 ? source : atAge(clamp(widthAge, 0, Math.max(0, life - 1e-7)));
+      const thickness = wholePath ? (horizontalAxis(source.image, settings) ? source.height : source.width) : Math.min(widthSource.width, widthSource.height);
+      // Keep ribbon geometry continuous at birth/death. A hard zero-width
+      // cutoff can select opposite sides of a floating-point Spine key time.
+      const growth = wholePath ? 1 : clamp(widthAge / Math.max(.0001, Math.min(life, settings.duration / settings.segments)), 0, 1);
+      const decay = wholePath ? 1 : clamp(1 - Math.max(0, widthAge - life) / settings.duration, 0, 1);
+      widths.push(Math.max(0, thickness) * settings.width / 2 * (1 - settings.taper * t) * growth * decay);
+    }
+    const top = [], bottom = [];
+    for (let i = 0; i < points.length; i++) {
+      const a = points[Math.max(0, i - 1)], b = points[Math.min(segments, i + 1)];
+      let tx = b.x - a.x, ty = b.y - a.y, distance = Math.hypot(tx, ty);
+      if (distance <= 1e-8) {
+        // Clamping at a birth/death endpoint repeats positions. Search for a
+        // real history tangent instead of flipping to the head's direction.
+        let before = null, after = null;
+        for (let j = i - 1; j >= 0; j--) if (Math.hypot(points[j].x - points[i].x, points[j].y - points[i].y) > 1e-8) { before = points[j]; break; }
+        for (let j = i + 1; j < points.length; j++) if (Math.hypot(points[j].x - points[i].x, points[j].y - points[i].y) > 1e-8) { after = points[j]; break; }
+        const first = before || points[i], last = after || points[i];
+        tx = last.x - first.x; ty = last.y - first.y; distance = Math.hypot(tx, ty);
+        if (distance <= 1e-8 && after) { tx = after.x - points[i].x; ty = after.y - points[i].y; distance = Math.hypot(tx, ty); }
+      }
+      const angle = sources[0].rotation * Math.PI / 180;
+      const nx = distance > 1e-8 ? -ty / distance : Math.sin(angle), ny = distance > 1e-8 ? tx / distance : -Math.cos(angle);
+      top.push(points[i].x + nx * widths[i], points[i].y + ny * widths[i]);
+      bottom.push(points[i].x - nx * widths[i], points[i].y - ny * widths[i]);
+    }
+    const vertices = top.slice();
+    for (let i = segments; i >= 0; i--) vertices.push(bottom[i * 2], bottom[i * 2 + 1]);
+    const head = sources[0], geometry = strip(settings.segments, head.image, settings);
+    const fade = clamp(1 - Math.max(0, age - life) / settings.duration, 0, 1);
+    const alpha = length <= 1e-9 || age < 0 || age >= life + settings.duration ? 0 : (wholePath ? head.alpha : Math.max(...sources.map(s => s.alpha))) * settings.opacity * fade;
+    return {type: 'mesh', isTrail: true, trailMode: 'stretch', trailIndex: lane.index,
+      emitterId: head.emitterId, index: head.index, x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
+      y: points.reduce((sum, p) => sum + p.y, 0) / points.length, width: 0, height: 0, rotation: 0, scale: 1,
+      vertices, uvs: geometry.uvs, triangles: geometry.triangles, hull: geometry.hull,
+      color: head.color.slice(), alpha, alive: age >= -1e-9 && age < life + settings.duration - 1e-9, blend: head.blend, image: head.image,
+      ...(head.sequenceFrame === undefined ? {} : {sequenceFrame: head.sequenceFrame})};
+  }
+  function states(settings, age, life, atAge, atPath, lengthFactor) { return lanes(settings).map(lane => state(settings, lane, age, life, atAge, atPath, lengthFactor)); }
+  return {MAX_LENGTH, MAX_TIME, DEFAULTS, RANGES, defaults, normalize, maxLength, segmentCount, lengthAt, active, lanes, strip, state, states};
+});
+
+</script>
+  <script data-bundle="background-jpeg.js">
+(function (root, factory) {
+  'use strict';
+  const api = factory(root);
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  root.ParticleBackgroundJPEG = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (root) {
+  'use strict';
+  const MAX_INPUT_BYTES = 32 * 1024 * 1024;
+  const MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
+  const MAX_SIDE = 8192, MAX_PIXELS = 16 * 1024 * 1024;
+  const DEFAULT_QUALITY = .88;
+  const fail = message => { throw new Error(message); };
+  function environment(options) {
+    const env = options.env || {};
+    return {document: env.document || options.document || root.document,
+      FileReader: env.FileReader || options.FileReader || root.FileReader,
+      Image: env.Image || options.Image || root.Image};
+  }
+  function settings(options) {
+    const quality = options.quality === undefined ? DEFAULT_QUALITY : options.quality;
+    if (typeof quality !== 'number' || !Number.isFinite(quality) || quality < .3 || quality > 1) fail('JPG 品質請設為 0.3–1。');
+    const background = options.background === undefined ? '#ffffff' : options.background;
+    if (typeof background !== 'string' || !/^#(?:[\da-f]{3}|[\da-f]{6})$/i.test(background)) fail('JPG 底色請使用不透明色碼，例如 #ffffff。');
+    return {quality, background};
+  }
+  function dimensions(image) {
+    const width = image && (image.naturalWidth || image.width), height = image && (image.naturalHeight || image.height);
+    if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) fail('背景圖片沒有有效尺寸，請重新載入 PNG、JPG 或 WebP。');
+    if (width > MAX_SIDE || height > MAX_SIDE) fail('背景圖片單邊不能超過 8192 px，請先裁切或縮小原圖後重新載入。');
+    if (width * height > MAX_PIXELS) fail('背景圖片不能超過 16 Mi 像素，請先裁切或縮小原圖後重新載入。');
+    return {width, height};
+  }
+  function filename(name) {
+    const base = String(name || 'background').split(/[\\/]/).pop().replace(/\.[^.]*$/, '') || 'background';
+    return base + '.jpg';
+  }
+  function encodedBytes(dataUrl) {
+    const match = typeof dataUrl === 'string' && /^data:image\/jpeg;base64,([A-Za-z0-9+/]+={0,2})$/.exec(dataUrl);
+    if (!match || match[1].length % 4 !== 0) fail('瀏覽器無法產生 JPG，請改用新版 Chrome 或 Edge 重試。');
+    const body = match[1], padding = body.endsWith('==') ? 2 : body.endsWith('=') ? 1 : 0;
+    return body.length / 4 * 3 - padding;
+  }
+  // The decoded source is drawn at its original dimensions. Only JPEG quality
+  // changes to meet the size limit; this helper never resizes or writes a file.
+  function convert(image, options = {}) {
+    const config = settings(options), size = dimensions(image), env = environment(options);
+    if (!env.document || typeof env.document.createElement !== 'function') fail('瀏覽器無法建立背景圖片，請改用新版 Chrome 或 Edge。');
+    const canvas = env.document.createElement('canvas');
+    canvas.width = size.width; canvas.height = size.height;
+    const context = canvas.getContext('2d');
+    if (!context) fail('記憶體不足，無法轉換背景圖片；請關閉其他分頁後重試。');
+    context.fillStyle = config.background;
+    context.fillRect(0, 0, size.width, size.height);
+    context.drawImage(image, 0, 0, size.width, size.height);
+    let quality = config.quality;
+    const minimum = Math.min(.4, quality);
+    while (true) {
+      let dataUrl;
+      try { dataUrl = canvas.toDataURL('image/jpeg', quality); }
+      catch (_) { fail('背景無法轉成 JPG，請重新載入本機 PNG、JPG 或 WebP 圖片後重試。'); }
+      const bytes = encodedBytes(dataUrl);
+      if (bytes <= MAX_OUTPUT_BYTES) return {name: filename(options.name), mime: 'image/jpeg',
+        width: size.width, height: size.height, dataUrl, sourceWidth: size.width, sourceHeight: size.height,
+        quality, bytes, originalBytes: options.originalBytes === undefined ? 0 : options.originalBytes};
+      if (quality <= minimum) fail('這張背景在原解析度、降低 JPG 品質後仍超過 4 MiB。請先裁切或縮小圖片後重試；原圖與解析度皆未更動。');
+      quality = Math.max(minimum, Math.round((quality - .1) * 1000) / 1000);
+    }
+  }
+  function readFile(file, Reader) {
+    if (typeof Reader !== 'function') return Promise.reject(new Error('瀏覽器無法讀取背景檔案，請改用新版 Chrome 或 Edge。'));
+    return new Promise((resolve, reject) => {
+      const reader = new Reader();
+      reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('背景檔案讀取失敗，請重新選擇圖片。'));
+      reader.onerror = () => reject(new Error('背景檔案讀取失敗，請重新選擇圖片。'));
+      reader.onabort = () => reject(new Error('背景檔案讀取已取消，請重新選擇圖片。'));
+      try { reader.readAsDataURL(file); } catch (_) { reject(new Error('背景檔案讀取失敗，請重新選擇圖片。')); }
+    });
+  }
+  function decode(dataUrl, ImageType) {
+    if (typeof ImageType !== 'function') return Promise.reject(new Error('瀏覽器無法解碼背景圖片，請改用新版 Chrome 或 Edge。'));
+    return new Promise((resolve, reject) => {
+      const image = new ImageType(), invalid = () => reject(new Error('背景圖片無法解碼，請重新匯出 PNG、JPG 或 WebP 後載入。'));
+      image.onerror = invalid;
+      image.onload = () => {
+        try {
+          Promise.resolve(typeof image.decode === 'function' ? image.decode() : undefined).then(() => resolve(image), invalid);
+        } catch (_) { invalid(); }
+      };
+      try { image.src = dataUrl; } catch (_) { invalid(); }
+    });
+  }
+  async function load(file, options = {}) {
+    settings(options);
+    if (!file || typeof file.size !== 'number' || !Number.isFinite(file.size) || file.size <= 0) fail('請選擇有效的 PNG、JPG 或 WebP 背景圖片。');
+    if (file.size > MAX_INPUT_BYTES) fail('背景來源檔不能超過 32 MiB，請先壓縮或裁切後重新載入。');
+    const mime = String(file.type || '').toLowerCase();
+    if (mime ? !['image/png', 'image/jpeg', 'image/webp'].includes(mime) : !/\.(?:png|jpe?g|webp)$/i.test(file.name || '')) fail('背景轉 JPG 僅支援 PNG、JPG 或 WebP 圖片。');
+    const env = environment(options), dataUrl = await readFile(file, env.FileReader), image = await decode(dataUrl, env.Image);
+    return convert(image, {...options, name: file.name, originalBytes: file.size});
+  }
+  return {load, convert, MAX_INPUT_BYTES, MAX_OUTPUT_BYTES, MAX_SIDE, MAX_PIXELS, DEFAULT_QUALITY};
+});
+
+</script>
   <script data-bundle="core.js">
 (function (root, factory) {
   'use strict';
@@ -2268,10 +2603,11 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   const pathMath = typeof module === 'object' && module.exports ? require('./path-math.js') : root.ParticlePathMath;
   const contourMath = typeof module === 'object' && module.exports ? require('./contour-math.js') : root.ParticleContourMath;
   const lightning = typeof module === 'object' && module.exports ? require('./lightning.js') : root.ParticleLightning;
-  var api = factory(curveMath, pathMath, contourMath, lightning);
+  const trail = typeof module === 'object' && module.exports ? require('./trail.js') : root.ParticleTrail;
+  var api = factory(curveMath, pathMath, contourMath, lightning, trail);
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.ParticleCore = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (CurveMath, PathMath, ContourMath, Lightning) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (CurveMath, PathMath, ContourMath, Lightning, Trail) {
   'use strict';
   if (!CurveMath) throw new Error('粒子曲線模組尚未載入，請先載入 curve-math.js。');
   if (!PathMath) throw new Error('粒子路徑模組尚未載入，請先載入 path-math.js。');
@@ -2511,6 +2847,87 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     return {name: text(raw, 'name', 'image.png', 160, label + '檔名'), mime: 'image/png', width, height, dataUrl: data};
   }
 
+  // JPEG is a reference-background format only. Particle and outline assets
+  // continue to use the original PNG validator and export contract.
+  function backgroundImage(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw) || raw.mime !== 'image/jpeg') return image(raw, '背景');
+    const width = number(raw, 'width', undefined, 1, 8192, true, '背景寬度');
+    const height = number(raw, 'height', undefined, 1, 8192, true, '背景高度');
+    if (width * height > 16 * 1024 * 1024) fail('背景 JPEG 不能超過 1600 萬（16 Mi）像素。');
+    const prefix = 'data:image/jpeg;base64,', data = raw.dataUrl, limit = 8 * 1024 * 1024;
+    if (typeof data !== 'string' || !data.startsWith(prefix)) fail('背景 JPEG 必須使用內嵌 image/jpeg，不能使用外部網址。');
+    const base64 = data.slice(prefix.length);
+    const invalid = () => fail('背景 JPEG 編碼或檔案結構無效，或素材超過 8 MiB。');
+    if (base64.length > Math.ceil(limit / 3) * 4 || base64.length < 40 || base64.length % 4 || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) invalid();
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/', lookup = new Uint8Array(128);
+    for (let i = 0; i < alphabet.length; i++) lookup[alphabet.charCodeAt(i)] = i;
+    const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+    const length = base64.length / 4 * 3 - padding, tail = lookup[base64.charCodeAt(base64.length - padding - 1)];
+    if (length > limit || padding === 2 && (tail & 15) || padding === 1 && (tail & 3)) invalid();
+    const bytes = new Uint8Array(length);
+    for (let i = 0, at = 0; i < base64.length; i += 4) {
+      const word = lookup[base64.charCodeAt(i)] << 18 | lookup[base64.charCodeAt(i + 1)] << 12 |
+        lookup[base64.charCodeAt(i + 2)] << 6 | lookup[base64.charCodeAt(i + 3)];
+      bytes[at++] = word >>> 16 & 255;
+      if (at < length) bytes[at++] = word >>> 8 & 255;
+      if (at < length) bytes[at++] = word & 255;
+    }
+    if (bytes[0] !== 0xff || bytes[1] !== 0xd8) invalid();
+    const u16 = at => bytes[at] * 256 + bytes[at + 1];
+    let at = 2, frame = null, scanned = false, inScan = false, scanData = false;
+    while (at < length) {
+      if (inScan) {
+        const start = at;
+        while (at < length && bytes[at] !== 0xff) at++;
+        if (at > start) scanData = true;
+      }
+      if (at >= length || bytes[at++] !== 0xff) invalid();
+      while (bytes[at] === 0xff) at++;
+      if (at >= length) invalid();
+      const marker = bytes[at++];
+      if (inScan && marker === 0) { scanData = true; continue; }
+      if (inScan && marker >= 0xd0 && marker <= 0xd7) continue;
+      if (inScan && !scanData) invalid();
+      inScan = false;
+      if (marker === 0xd9) {
+        if (!frame || !scanned || at !== length) invalid();
+        return {name: text(raw, 'name', 'background.jpg', 160, '背景檔名'), mime: 'image/jpeg', width, height, dataUrl: data};
+      }
+      if (marker === 0 || marker === 0xd8 || marker >= 0xd0 && marker <= 0xd7 || at + 2 > length) invalid();
+      const span = u16(at), payload = at + 2, end = at + span;
+      if (span < 2 || end > length) invalid();
+      if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
+        if (![0xc0, 0xc2].includes(marker)) fail('背景 JPEG 僅支援 baseline／progressive 格式。');
+        if (frame || span < 11 || bytes[payload] !== 8) invalid();
+        const actualHeight = u16(payload + 1), actualWidth = u16(payload + 3), count = bytes[payload + 5];
+        if (actualWidth !== width || actualHeight !== height) fail('背景尺寸與 JPEG 檔案內容不一致。');
+        if (count < 1 || count > 4 || span !== 8 + count * 3) invalid();
+        const ids = new Set();
+        for (let i = 0; i < count; i++) {
+          const offset = payload + 6 + i * 3, id = bytes[offset], sampling = bytes[offset + 1];
+          if (ids.has(id) || !(sampling >> 4) || (sampling >> 4) > 4 || !(sampling & 15) || (sampling & 15) > 4 || bytes[offset + 2] > 3) invalid();
+          ids.add(id);
+        }
+        frame = {marker, ids};
+      } else if (marker === 0xda) {
+        const count = bytes[payload];
+        if (!frame || count < 1 || count > frame.ids.size || span !== 6 + count * 2) invalid();
+        const ids = new Set();
+        for (let i = 0; i < count; i++) {
+          const id = bytes[payload + 1 + i * 2], table = bytes[payload + 2 + i * 2];
+          if (!frame.ids.has(id) || ids.has(id) || (table >> 4) > 3 || (table & 15) > 3) invalid();
+          ids.add(id);
+        }
+        const start = bytes[payload + 1 + count * 2], finish = bytes[payload + 2 + count * 2], approximation = bytes[payload + 3 + count * 2];
+        if (frame.marker === 0xc0 ? start !== 0 || finish !== 63 || approximation !== 0 :
+          start > finish || finish > 63 || start === 0 && finish !== 0 || start > 0 && count !== 1 || (approximation >> 4) > 13 || (approximation & 15) > 13) invalid();
+        scanned = true; inScan = true; scanData = false;
+      } else if (![0xc4, 0xcc, 0xdb, 0xdc, 0xdd, 0xde, 0xdf, 0xfe].includes(marker) && !(marker >= 0xe0 && marker <= 0xef)) invalid();
+      at = end;
+    }
+    invalid();
+  }
+
   function normalizeSequence(raw, label) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) fail(label + '連續圖設定格式不正確。');
     if (!Array.isArray(raw.frames) || raw.frames.length < 1 || raw.frames.length > 120) fail(label + '連續圖必須包含 1 到 120 張 PNG。');
@@ -2683,6 +3100,12 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         e.path = PathMath.normalize(source.path);
         if (e.path && e.path.enabled) PathMath.compile(e.path);
       }
+      if (source.trail !== undefined) {
+        if (!Trail) fail('拖尾模組尚未載入，請先載入 trail.js。');
+        e.trail = Trail.normalize(source.trail);
+        if (Trail.active(e) && e.trail.mode === 'stretch' && e.trail.coverage === 'path' && !(e.path && e.path.enabled))
+          fail('發射器「' + e.name + '」的整條路徑光帶需要先啟用有效路徑，並設定至少兩個不同的路徑點。');
+      }
       if (source.outline !== undefined) {
         e.outline = ContourMath.normalize(source.outline);
         if (e.outline && e.outline.image) {
@@ -2697,21 +3120,21 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     const bg = raw.background === undefined ? result.background : raw.background;
     if (!bg || typeof bg !== 'object' || Array.isArray(bg)) fail('背景設定格式不正確。');
     result.background = {
-      color: color(bg.color === undefined ? '#111827' : bg.color, '背景色'), image: image(bg.image, '背景'),
+      color: color(bg.color === undefined ? '#111827' : bg.color, '背景色'), image: backgroundImage(bg.image),
       x: number(bg, 'x', 0, -4000, 4000, false, '背景 X'),
       y: number(bg, 'y', 0, -4000, 4000, false, '背景 Y'),
       scale: number(bg, 'scale', 1, 0.01, 20, false, '背景縮放')
     };
     // Keep legacy objects unchanged until the original image is reloaded.
-    // The stored PNG dimensions remain validated against its actual IHDR.
+    // Stored raster dimensions remain validated against the PNG/JPEG header.
     if (result.background.image && (bg.sourceWidth !== undefined || bg.sourceHeight !== undefined)) {
       const sourceWidth = number(bg, 'sourceWidth', undefined, 1, 32768, true, '背景來源寬度');
       const sourceHeight = number(bg, 'sourceHeight', undefined, 1, 32768, true, '背景來源高度');
       const bitmap = result.background.image;
-      if (sourceWidth < bitmap.width || sourceHeight < bitmap.height) fail('背景來源尺寸不能小於已保存的 PNG 尺寸。');
+      if (sourceWidth < bitmap.width || sourceHeight < bitmap.height) fail('背景來源尺寸不能小於已保存的圖片尺寸。');
       const ratio = Math.min(bitmap.width / sourceWidth, bitmap.height / sourceHeight);
       if (Math.abs(Math.max(1, Math.round(sourceWidth * ratio)) - bitmap.width) > 1 ||
-          Math.abs(Math.max(1, Math.round(sourceHeight * ratio)) - bitmap.height) > 1) fail('背景來源比例與已保存的 PNG 不一致，請重新載入原圖。');
+          Math.abs(Math.max(1, Math.round(sourceHeight * ratio)) - bitmap.height) > 1) fail('背景來源比例與已保存的圖片不一致，請重新載入原圖。');
       result.background.sourceWidth = sourceWidth;
       result.background.sourceHeight = sourceHeight;
     }
@@ -2914,19 +3337,43 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 
   function scalarCurves(particle) {
     const e = particle.emitter;
-    return activeSizeCurves(e).concat([e.alphaCurve], e.speedCurve ? [e.speedCurve] : []);
+    const length = activeTrailLengthCurve(e);
+    return activeSizeCurves(e).concat([e.alphaCurve], e.speedCurve ? [e.speedCurve] : [], length ? [length] : []);
   }
 
   function compiledScalarCurves(particle) {
     const life = particle.lifecycle;
     const sizes = particle.emitter.separateSizeAxes ? Array.from(new Set([life.sizeX, life.sizeY])) : [life.size];
-    return sizes.concat([life.alpha, life.speed]);
+    return sizes.concat([life.alpha, life.speed], life.trailLength ? [life.trailLength] : []);
+  }
+  function activeTrailLengthCurve(e) {
+    return Trail && Trail.active(e) && e.trail.mode === 'stretch' ? e.trail.lengthCurve : null;
+  }
+  function pathDuration(particle) {
+    const e = particle.emitter;
+    return Trail && Trail.active(e) && e.trail.mode === 'stretch' && particle.lifecycle.path &&
+      e.path.mode === 'lifetime' && e.trail.moveDuration != null ? e.trail.moveDuration : particle.life;
+  }
+  function scalarDuration(particle, source) {
+    const e = particle.emitter, length = activeTrailLengthCurve(e);
+    if (length && (source === length || source === particle.lifecycle.trailLength))
+      return e.trail.lengthDuration == null ? particle.life : e.trail.lengthDuration;
+    if (source === e.speedCurve || source === particle.lifecycle.speed) return pathDuration(particle);
+    return particle.life;
+  }
+  function trailClockDurations(particle) {
+    const e = particle.emitter;
+    if (!(Trail && Trail.active(e) && e.trail.mode === 'stretch')) return [];
+    return Array.from(new Set([
+      e.trail.moveDuration != null && particle.lifecycle.path && e.path.mode === 'lifetime' ? e.trail.moveDuration : null,
+      e.trail.lengthDuration
+    ].filter(value => value != null)));
   }
 
   function bake(raw) {
     const project = normalizeProject(raw);
     const particles = [];
-    let generatedParticles = 0, maxPoolCycles = 1, longLived = false;
+    let generatedParticles = 0, maxPoolCycles = 1, longLived = false, trailLanes = 0;
     const warnings = [];
     const lightning = [];
     project.emitters.forEach(e => {
@@ -2949,6 +3396,8 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         alphaLinear: e.alphaCurve.every(point => !point.curve || point.curve === 'linear'),
         gradient: e.colorGradient ? e.colorGradient.map(point => ({t: point.t, color: rgb(point.color)})) : null
       };
+      const trailLength = activeTrailLengthCurve(e);
+      if (trailLength) lifecycle.trailLength = CurveMath.compile(trailLength, Trail.MAX_LENGTH);
       if (e.separateSizeAxes) {
         ['X', 'Y'].forEach(axis => {
           const points = e['sizeCurve' + axis];
@@ -2966,7 +3415,12 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       for (let sourceIndex = 0; sourceIndex < e.count; sourceIndex++) {
         // Use the same microsecond grid as JSON keys so birth/death attachment events
         // cannot slip to the following video frame after decimal quantization.
-        const life = round(clamp(e.life + signed(e.lifeRandom), 0.05, 16));
+        const authoredLife = round(clamp(e.life + signed(e.lifeRandom), 0.05, 16));
+        // Independent clocks can keep this particle alive without rewriting
+        // the author's lifetime. Recompute from the same random draw on every
+        // bake so restoring a clock restores its appearance and pool schedule.
+        const life = Trail && Trail.active(e) && e.trail.mode === 'stretch' ?
+          round(Math.max(authoredLife, e.trail.moveDuration || 0, e.trail.lengthDuration || 0)) : authoredLife;
         const speed = Math.max(0, e.speed + signed(e.speedRandom));
         const size = Math.max(0.1, e.size + signed(e.sizeRandom));
         // Reuse the historical fourth draw for every direction mode. Changing
@@ -2999,8 +3453,9 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         const randomFrame = frameRand ? Math.min(sequence.frames.length - 1, Math.floor(frameRand() * sequence.frames.length)) : undefined;
         const delay = Math.min(e.startDelay || 0, project.duration);
         const birth = round(delay + sourceIndex / e.count * Math.min(e.emissionDuration, project.duration - delay));
-        clipped = clipped || (birth + life > project.duration);
-        const cycles = project.loop ? Math.max(1, Math.ceil((life - EPS) / project.duration)) : 1;
+        const tail = Trail && Trail.active(e) ? e.trail.duration : 0;
+        clipped = clipped || (birth + life + tail > project.duration);
+        const cycles = project.loop ? Math.max(1, Math.ceil((life + tail - EPS) / project.duration)) : 1;
         maxPoolCycles = Math.max(maxPoolCycles, cycles);
         longLived = longLived || (project.loop && life > project.duration);
         generatedParticles++;
@@ -3010,23 +3465,26 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
             ax: e.wind, ay: -e.gravity,
             direction: angle / DEG, emitter: e, lifecycle, startColor: rgb(e.colorStart), endColor: rgb(e.colorEnd),
             ...(randomFrame === undefined ? {} : {randomFrame})});
+          if (tail) trailLanes += Trail.lanes(e.trail).length;
         }
-        if (particles.length > MAX_POOL) fail('循環粒子池超過 ' + MAX_POOL + ' 個。請減少粒子數、縮短壽命，或增加動畫長度。');
+        if (particles.length + trailLanes > MAX_POOL) fail('循環粒子池超過 ' + MAX_POOL + ' 個（包含拖尾）。請減少粒子數／殘影數、縮短壽命／拖尾，或增加動畫長度。');
       }
       if (e.startDelay && e.startDelay >= project.duration) warnings.push('「' + e.name + '」開始時間超過動畫長度，粒子會在最後一刻同時出生；請縮短開始時間或加長動畫。');
       else if (e.startDelay && e.startDelay + e.emissionDuration > project.duration) warnings.push('「' + e.name + '」開始時間＋發射時間超過動畫長度；本次發射壓縮在 ' + round(project.duration - e.startDelay) + ' 秒內。');
       else if (e.emissionDuration > project.duration) warnings.push('「' + e.name + '」發射時間超過動畫長度；本次烘焙採用 ' + project.duration + ' 秒。');
       if (!project.loop && clipped) warnings.push('「' + e.name + '」部分粒子會在動畫結尾截斷。');
-      if (e.alphaCurve[e.alphaCurve.length - 1].v !== 0) warnings.push('「' + e.name + '」透明度曲線尾值不為 0；粒子壽命結束時會立即隱藏。');
+      const hiddenHead = Trail && Trail.active(e) && e.trail.mode === 'stretch' && e.trail.showHead === false;
+      if (!hiddenHead && e.alphaCurve[e.alphaCurve.length - 1].v !== 0) warnings.push('「' + e.name + '」透明度曲線尾值不為 0；粒子壽命結束時會立即隱藏。');
     });
     if (!particles.length && !lightning.length) warnings.push('所有發射器都已停用，輸出動畫只包含 root。');
     const lightningLanes = lightning.reduce((sum, item) => sum + Lightning.lanes(project.emitters.find(e => e.id === item.emitterId).lightning).length, 0);
     if (longLived) warnings.push('壽命超過循環週期的粒子使用分段粒子池；循環畫面連續，部分骨骼在交接點交換角色。動畫混合與中斷尚未驗證。');
     const enabledEmitters = project.emitters.filter(e => e.enabled).length;
     const result = {project, particles, duration: project.duration, fps: project.fps, loop: project.loop,
-      stats: Object.assign({particles: particles.length, generatedParticles, bones: particles.length + lightningLanes + enabledEmitters + 1,
-        slots: particles.length + lightningLanes, enabledEmitters, poolCycles: maxPoolCycles, fps: project.fps,
+      stats: Object.assign({particles: particles.length, generatedParticles, bones: particles.length + lightningLanes + trailLanes + enabledEmitters + 1,
+        slots: particles.length + lightningLanes + trailLanes, enabledEmitters, poolCycles: maxPoolCycles, fps: project.fps,
         duration: project.duration, warnings}, qualityStats(project))};
+    if (trailLanes) result.stats.trailLanes = trailLanes;
     if (lightning.length) { result.lightning = lightning; result.stats.lightningStrips = lightningLanes; }
     return freezeDeep(result);
   }
@@ -3060,8 +3518,8 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 
   function pathProgress(particle, age) {
     const e = particle.emitter, path = particle.lifecycle.path, curve = particle.lifecycle.speed;
-    const u = clamp(age / particle.life, 0, 1);
-    const progress = curve ? curve.integral(curveProgress(e.speedCurve, age, particle.life)) : ease(u, e.motionCurve);
+    const duration = pathDuration(particle), evaluatedAge = clamp(age, 0, duration), u = evaluatedAge / duration;
+    const progress = curve ? curve.integral(curveProgress(e.speedCurve, evaluatedAge, duration)) : ease(u, e.motionCurve);
     if (e.path.mode === 'lifetime') {
       const total = curve ? curve.integral(1) : 1;
       return total > EPS ? progress / total : 0;
@@ -3108,7 +3566,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     // Birth/death, scalar step pre-keys, authored curve markers and compiled
     // Bezier samples may coincide or fall outside this phase. Counting all of
     // them gives an upper bound without allocating their timestamps.
-    const markers = 4 + curves.reduce((sum, points) => sum + points.length * 2, 0) +
+    const markers = 4 + trailClockDurations(particle).length + curves.reduce((sum, points) => sum + points.length * 2, 0) +
       (e.colorGradient ? e.colorGradient.length : 0) +
       compiledScalarCurves(particle).reduce((sum, curve) => sum + (curve ? curve.sampleTimes.length : 0), 0);
     const direction = directionEvents(particle).length;
@@ -3134,6 +3592,10 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         phaseLower += cost.lower; phaseUpper += cost.upper; guards += cost.guards;
         rejected = rejected || cost.rejected;
         adaptivePossible = adaptivePossible || needsRefinement(phase, particle);
+        if (hasTrail(particle)) {
+          const tail = trailCost(phase, particle);
+          phaseLower += tail.lower; phaseUpper += tail.upper; rejected = rejected || tail.rejected; adaptivePossible = true;
+        }
       }
       // An empty effect exports two root keys and never evaluates particles.
       phases[name] = {duration: phase.duration, baseSamplesLowerBound: phaseLower, baseSamplesUpperBound: phaseUpper};
@@ -3141,7 +3603,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     }
     const imageCount = planImages(normalized).images.length;
     const warnings = baked.stats.warnings.slice();
-    const sampleLimitEnforced = normalized.flow.enabled || normalized.bakeQuality !== undefined || adaptivePossible || normalized.emitters.some(e => activeSequence(e) || e.separateSizeAxes);
+    const sampleLimitEnforced = normalized.flow.enabled || normalized.bakeQuality !== undefined || adaptivePossible || normalized.emitters.some(e => activeSequence(e) || e.separateSizeAxes || Trail && Trail.active(e));
     const definitelyOverLimit = rejected || (sampleLimitEnforced && lower > MAX_EXPORT_SAMPLES);
     const budgetRisk = definitelyOverLimit || upper > MAX_EXPORT_SAMPLES;
     if (adaptivePossible) warnings.push('取樣估算未含曲線補採樣；實際 KEY 數及檔案大小需試烘焙後確認。');
@@ -3228,10 +3690,10 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     return result;
   }
 
-  function stateAt(baked, particle, time, pathAngle) {
+  function stateAt(baked, particle, time, pathAngle, historyAge) {
     const e = particle.emitter;
     const flow = baked.flowPhase;
-    const age = flow && flow.kind === 'in' ? particleAge(flow.basis, particle, mod(time + flow.offset, flow.basis.duration)) : particleAge(baked, particle, time);
+    const age = historyAge === undefined ? flow && flow.kind === 'in' ? particleAge(flow.basis, particle, mod(time + flow.offset, flow.basis.duration)) : particleAge(baked, particle, time) : historyAge;
     const alive = age >= -EPS && age < particle.life - EPS && !(flow && flow.kind === 'out' && time >= baked.duration - EPS);
     const evaluatedAge = clamp(age, 0, particle.life);
     const u = evaluatedAge / particle.life;
@@ -3284,9 +3746,54 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   function sample(baked, time) {
     if (typeof time !== 'number' || !Number.isFinite(time)) fail('預覽時間必須是有限數值。');
     const t = baked.loop ? mod(time, baked.duration) : clamp(time, 0, baked.duration);
-    const states = baked.particles.map(particle => stateAt(baked, particle, t));
+    const states = [];
+    baked.particles.forEach(particle => {
+      if (Trail && Trail.active(particle.emitter)) {
+        const settings = particle.emitter.trail, lanes = Trail.lanes(settings), stride = lanes.length + 1;
+        lanes.forEach(lane => {
+          const state = trailState(baked, particle, lane, t), index = particle.index * stride + lane.index;
+          states.push({...state, index, slotName: 'em_' + particle.emitterId + '_p' + index + '_slot'});
+        });
+        const head = visibleHeadState(particle, stateAt(baked, particle, t)), index = particle.index * stride + lanes.length;
+        states.push({...head, slotName: 'em_' + particle.emitterId + '_p' + index + '_slot'});
+      } else states.push(stateAt(baked, particle, t));
+    });
     if (baked.lightning) states.push(...lightningStates(baked, t));
+    if (baked.particles.some(hasTrail)) {
+      const order = new Map(baked.project.emitters.map((e, index) => [e.id, index]));
+      states.sort((a, b) => order.get(b.emitterId) - order.get(a.emitterId));
+    }
     return states;
+  }
+  function trailAge(baked, particle, time) {
+    const flow = baked.flowPhase;
+    return flow && flow.kind === 'in' ? particleAge(flow.basis, particle, mod(time + flow.offset, flow.basis.duration)) : particleAge(baked, particle, time);
+  }
+  function visibleHeadState(particle, state) {
+    const settings = particle.emitter.trail;
+    return hasTrail(particle) && settings.mode === 'stretch' && settings.showHead === false ? {...state, alpha: 0} : state;
+  }
+  function trailState(baked, particle, lane, time) {
+    const age = trailAge(baked, particle, time), e = particle.emitter, path = particle.lifecycle.path;
+    const evaluatedAge = clamp(age, 0, Math.max(0, particle.life - 1e-7));
+    // Full-path ribbons use the authored geometry rather than the moving
+    // particle's history. Optional physical offsets translate the entire mesh.
+    const atPath = path ? fraction => {
+      const point = path.sample(fraction);
+      // Open paths continue along their actual end tangent after 100%.
+      // Compiled paths already account for reverse; closed paths keep their
+      // existing wrapped sampling contract, including exact integer seams.
+      if (!path.closed && fraction > 1) {
+        const distance = path.totalLength * (fraction - 1), angle = point.angle * DEG;
+        point.x += Math.cos(angle) * distance; point.y += Math.sin(angle) * distance;
+      }
+      return {x: e.x + point.x + (e.path.offsets ? particle.sx + particle.ax * evaluatedAge * evaluatedAge / 2 : 0),
+        y: e.y + point.y + (e.path.offsets ? particle.sy + particle.ay * evaluatedAge * evaluatedAge / 2 : 0)};
+    } : undefined;
+    return Trail.state(e.trail, lane, age, particle.life,
+      value => stateAt(baked, particle, time, undefined, value), atPath,
+      particle.lifecycle.trailLength ? particle.lifecycle.trailLength.sample(curveProgress(e.trail.lengthCurve,
+        clamp(age, 0, scalarDuration(particle, e.trail.lengthCurve)), scalarDuration(particle, e.trail.lengthCurve))) : 1);
   }
   function lightningEmitter(baked, item) {
     const e = baked.project.emitters.find(emitter => emitter.id === item.emitterId);
@@ -3358,8 +3865,8 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         if (time <= EPS && baked.loop) add(duration, true);
       }
     }
-    function lifetimeEvent(t, reset, mandatory) {
-      const age = t * particle.life - (baked.loop ? particle.cycleIndex * duration : 0);
+    function lifetimeEvent(t, reset, mandatory, clock) {
+      const age = t * (clock === undefined ? particle.life : clock) - (baked.loop ? particle.cycleIndex * duration : 0);
       if (!baked.loop || (age >= 0 && age <= duration)) event(age, reset, mandatory);
     }
     const curves = scalarCurves(particle);
@@ -3370,10 +3877,11 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     } else {
       event(0, true); event(particle.life, true);
     }
-    curves.forEach(points => points.forEach((point, index) => lifetimeEvent(point.t, index > 0 && points[index - 1].curve === 'stepped')));
+    curves.forEach(points => points.forEach((point, index) => lifetimeEvent(point.t, index > 0 && points[index - 1].curve === 'stepped', undefined, scalarDuration(particle, points))));
+    trailClockDurations(particle).forEach(clock => lifetimeEvent(1, false, true, clock));
     if (particle.emitter.colorGradient) particle.emitter.colorGradient.forEach(point => lifetimeEvent(point.t, false));
     compiledScalarCurves(particle).forEach(compiled => {
-      if (compiled) compiled.sampleTimes.forEach(t => lifetimeEvent(t, false, false));
+      if (compiled) compiled.sampleTimes.forEach(t => lifetimeEvent(t, false, false, scalarDuration(particle, compiled)));
     });
     const sequence = activeSequence(particle.emitter), sequenceRange = sequenceBoundaryRange(baked, particle);
     for (let frame = sequenceRange.first; frame <= sequenceRange.last; frame++) {
@@ -3478,14 +3986,175 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     return state.color.concat(state.alpha).map(value => Math.round(clamp(value, 0, 1) * 255).toString(16).padStart(2, '0')).join('');
   }
 
+  function hasTrail(particle) { return !!(Trail && Trail.active(particle.emitter)); }
+  function trailCost(baked, particle) {
+    const settings = particle.emitter.trail, count = Trail.lanes(settings).length;
+    const sequence = activeSequence(particle.emitter), frames = sequence ? sequence.frames.length : 1;
+    const grid = Math.ceil(baked.duration * baked.fps) + 1, weight = settings.mode === 'stretch' ? (Trail.segmentCount(settings) + 1) * frames : 1;
+    const source = timelineCost({...baked, duration: particle.life, loop: false, flowPhase: undefined}, {...particle, birth: 0, cycleIndex: 0});
+    const extended = settings.mode === 'stretch' && Trail.maxLength(settings) > 1;
+    const copies = settings.mode === 'stretch' ? extended && settings.coverage === 'path' ? 2 : (settings.segments + 1) * (extended ? 2 : 1) : 1;
+    const repeats = baked.flowPhase && baked.flowPhase.kind === 'in' ? Math.ceil(baked.duration / baked.flowPhase.basis.duration) + 2 : 1;
+    return {lower: grid * count * weight, upper: (grid + source.upper * copies * repeats + 8) * count * weight,
+      rejected: source.rejected};
+  }
+  // Shift authored motion/texture events by the history lag. This retains
+  // precise births, deaths, step curves, path corners and sequence switches.
+  function trailMetadata(baked, particle, lane) {
+    const settings = particle.emitter.trail, duration = baked.duration, times = new Map();
+    function add(time, stepped) {
+      if (time < -EPS || time > duration + EPS) return;
+      const at = round(clamp(time, 0, duration)), previous = times.get(at);
+      times.set(at, {time: at, stepped: !!stepped || !!(previous && previous.stepped)});
+    }
+    add(0); add(duration);
+    for (let frame = 1; frame < Math.ceil(duration * baked.fps); frame++) add(frame / baked.fps);
+    if (baked.flowPhase && baked.flowPhase.kind === 'in') {
+      const basis = baked.flowPhase.basis, source = trailMetadata(basis, particle, lane), cycles = Math.ceil(duration / basis.duration) + 1;
+      if (source.length * (cycles + 1) > MAX_EXPORT_SAMPLES) fail('拖尾進場取樣超過 200 萬，請縮短 In 或增加 Loop 長度。');
+      for (let cycle = -cycles; cycle <= 0; cycle++) source.forEach(key => add(duration + cycle * basis.duration + key.time, key.stepped));
+    } else {
+      const virtual = {...baked, duration: particle.life, loop: false, flowPhase: undefined}, sourceParticle = {...particle, birth: 0, cycleIndex: 0};
+      if (timelineCost(virtual, sourceParticle).rejected) fail('拖尾路徑取樣超過 200 萬，請減少路徑重複次數。');
+      const source = sampledTimeline(virtual, sourceParticle, true);
+      let lags = lane.mode === 'stretch' ? Array.from({length: settings.segments + 1}, (_, i) => settings.duration * i / settings.segments) : [lane.delay];
+      if (lane.mode === 'stretch' && Trail.maxLength(settings) > 1) {
+        // Whole-path geometry has no history lags. Extended history retains
+        // its original width events and adds the longer sampling horizon.
+        lags = settings.coverage === 'path' ? [0, settings.duration] :
+          Array.from(new Set(lags.concat(lags.map(lag => lag * Trail.maxLength(settings)))));
+      }
+      if (source.length * lags.length > MAX_EXPORT_SAMPLES) fail('拖尾事件取樣超過 200 萬，請降低細緻度。');
+      for (const lag of lags) for (const key of source) {
+        const age = key.time + lag - (baked.loop ? particle.cycleIndex * duration : 0);
+        if (baked.loop && (age < -EPS || age > duration + EPS)) continue;
+        let at = particle.birth + age;
+        if (baked.loop) at = mod(at, duration);
+        add(at, key.stepped);
+      }
+      if (baked.loop) {
+        const at = mod(particle.birth, duration);
+        add(at); add(at <= EPS ? duration - RESET_EPS : at - RESET_EPS, true);
+      }
+    }
+    return Array.from(times.values()).sort((a, b) => a.time - b.time);
+  }
+  function trailTimeline(baked, particle, lane, sampleBudget) {
+    const settings = particle.emitter.trail, sequence = activeSequence(particle.emitter), frames = sequence ? sequence.frames.length : 1;
+    const weight = lane.mode === 'stretch' ? (Trail.segmentCount(settings) + 1) * frames : 1;
+    const spend = () => {
+      sampleBudget.used += weight;
+      if (sampleBudget.used > MAX_EXPORT_SAMPLES) fail('拖尾匯出取樣超過 200 萬，請減少粒子／殘影數、細緻度或拖尾時間。');
+    };
+    function state(time) {
+      spend();
+      return trailState(baked, particle, lane, time);
+    }
+    const keys = trailMetadata(baked, particle, lane).map(key => ({...key, state: state(key.time)}));
+    if (lane.mode === 'afterimage') {
+      for (let i = 1; i < keys.length; i++) {
+        const previous = keys[i - 1], key = keys[i];
+        if (previous.stepped || !previous.state.alive || !key.state.alive) continue;
+        const expected = previous.state.rotation + particle.spin * (key.time - previous.time);
+        key.state.rotation += 360 * Math.round((expected - key.state.rotation) / 360);
+      }
+    }
+    const result = [keys[0]], quality = qualityProfile(baked.project).refinement;
+    function append(first, last, depth) {
+      if (first.stepped || depth >= 12 || last.time - first.time <= .000002) { result.push(last); return; }
+      const time = round((first.time + last.time) / 2);
+      if (time <= first.time || time >= last.time) { result.push(last); return; }
+      const middle = {time, stepped: false, state: state(time)}, ratio = (time - first.time) / (last.time - first.time);
+      const expected = (a, b) => a + (b - a) * ratio;
+      let geometry = 0;
+      if (lane.mode === 'stretch') {
+        geometry = Math.max(...middle.state.vertices.map((value, i) => Math.abs(value - expected(first.state.vertices[i], last.state.vertices[i]))));
+      } else {
+        middle.state.rotation += 360 * Math.round((expected(first.state.rotation, last.state.rotation) - middle.state.rotation) / 360);
+        geometry = Math.max(...['x', 'y', 'width', 'height'].map(key => Math.abs(middle.state[key] - expected(first.state[key], last.state[key]))));
+        geometry = Math.max(geometry, Math.abs(middle.state.rotation - expected(first.state.rotation, last.state.rotation)));
+      }
+      const alpha = Math.abs(middle.state.alpha - expected(first.state.alpha, last.state.alpha));
+      const colors = Math.max(...middle.state.color.map((value, i) => Math.abs(value - expected(first.state.color[i], last.state.color[i]))));
+      const rotationGuard = lane.mode === 'afterimage' && Math.abs(last.state.rotation - first.state.rotation) > 120;
+      if (!rotationGuard && geometry <= quality.position && alpha <= .001 && colors <= 1 / 1020) { result.push(last); return; }
+      append(first, middle, depth + 1); append(middle, last, depth + 1);
+    }
+    for (let i = 1; i < keys.length; i++) append(keys[i - 1], keys[i], 0);
+    // Spine stores timeline times as Float32. Sharing those exact values with
+    // the JSON preview avoids amplified error around short mesh intervals.
+    const quantized = [];
+    result.forEach(key => {
+      const time = Math.fround(key.time), previous = quantized[quantized.length - 1];
+      if (previous && previous.time === time) quantized[quantized.length - 1] = {...key, time, stepped: previous.stepped || key.stepped};
+      else quantized.push({...key, time});
+    });
+    return quantized;
+  }
+  function trailKeyframe(key, values) {
+    const result = {...values};
+    if (key.time > 0) result.time = key.time;
+    if (key.stepped) result.curve = 'stepped';
+    return result;
+  }
+  function exportTrail(baked, particle, profile, assets, sampleBudget) {
+    const e = particle.emitter, settings = e.trail, lanes = Trail.lanes(settings), stride = lanes.length + 1;
+    const bones = [], slots = [], attachments = {}, boneTracks = {}, slotTracks = {}, deforms = {};
+    let keyframes = 0;
+    lanes.forEach(lane => {
+      const index = particle.index * stride + lane.index, boneName = 'em_' + e.id + '_p' + index, slotName = boneName + '_slot';
+      const dense = trailTimeline(baked, particle, lane, sampleBudget), initial = dense[0].state, sequence = activeSequence(e);
+      const attachmentName = s => s.alive ? sequence ? sequenceAttachment(s.sequenceFrame) : 'particle' : null;
+      bones.push({name: boneName, parent: 'em_' + e.id});
+      slots.push({name: slotName, bone: boneName, color: rgba(initial), attachment: attachmentName(initial) || undefined, blend: e.blend});
+      attachments[slotName] = {};
+      const frames = sequence ? sequence.frames : [e.image || {width: 64, height: 64}];
+      frames.forEach((frame, frameIndex) => {
+        const name = sequence ? sequenceAttachment(frameIndex) : 'particle';
+        const attachment = {type: lane.mode === 'stretch' ? 'mesh' : 'region', path: assets[frameIndex].name.slice(0, -4), width: frame.width, height: frame.height};
+        if (lane.mode === 'stretch') {
+          const geometry = Trail.strip(settings.segments, frame, settings);
+          Object.assign(attachment, geometry, {vertices: Array(geometry.uvs.length).fill(0)});
+        }
+        attachments[slotName][name] = attachment;
+      });
+      const switches = []; let previous;
+      dense.forEach(key => {
+        const name = attachmentName(key.state);
+        if (previous === undefined || name !== previous || key === dense[dense.length - 1]) { switches.push(trailKeyframe({time: key.time}, {name})); previous = name; }
+      });
+      const colors = dense.map(key => trailKeyframe(key, {color: rgba(key.state)}));
+      slotTracks[slotName] = {[profile.colorTimeline]: colors, attachment: switches};
+      keyframes += colors.length + switches.length;
+      if (lane.mode === 'stretch') {
+        const deform = dense.map(key => trailKeyframe(key, {vertices: key.state.vertices.map((value, i) => round(value - (i % 2 ? e.y : e.x)))}));
+        const byAttachment = {};
+        Object.keys(attachments[slotName]).forEach(name => { byAttachment[name] = deform; keyframes += deform.length; });
+        deforms[slotName] = byAttachment;
+      } else {
+        const translate = dense.map(key => trailKeyframe(key, {x: round(key.state.x - e.x), y: round(key.state.y - e.y)}));
+        const rotate = dense.map(key => trailKeyframe(key, {[profile.rotationKey]: round(key.state.rotation)}));
+        const scale = dense.map(key => trailKeyframe(key, {x: round(key.state.scaleX === undefined ? key.state.scale : key.state.scaleX), y: round(key.state.scaleY === undefined ? key.state.scale : key.state.scaleY)}));
+        boneTracks[boneName] = {translate, rotate, scale}; keyframes += dense.length * 3;
+      }
+    });
+    const animation = {bones: boneTracks, slots: slotTracks};
+    if (Object.keys(deforms).length) {
+      if (profile.family === '4.2') animation.attachments = {default: Object.fromEntries(Object.entries(deforms).map(([slot, names]) => [slot, Object.fromEntries(Object.entries(names).map(([name, deform]) => [name, {deform}]))]))};
+      else animation.deform = {default: deforms};
+    }
+    return {bones, slots, attachments, animation, keyframes};
+  }
+
   function exportSpine(baked, targetVersion, sampleBudget) {
     const needsAdaptive = baked.particles.some(particle => needsRefinement(baked, particle));
-    const needsBudget = needsAdaptive || baked.project.bakeQuality !== undefined || baked.particles.some(particle => activeSequence(particle.emitter) || particle.emitter.separateSizeAxes);
+    const needsBudget = needsAdaptive || baked.project.bakeQuality !== undefined || baked.particles.some(particle => activeSequence(particle.emitter) || particle.emitter.separateSizeAxes || hasTrail(particle));
     if (needsBudget && !sampleBudget) {
       let floor = 0;
       for (const particle of baked.particles) {
         const cost = timelineCost(baked, particle);
         floor += cost.lower;
+        if (hasTrail(particle)) floor += trailCost(baked, particle).lower;
         if (cost.rejected || floor > MAX_EXPORT_SAMPLES) fail('動畫匯出取樣成本超過 200 萬，請降低速度、減少粒子數，或縮短動畫。');
       }
     }
@@ -3533,8 +4202,21 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       const assets = imagePlan.byEmitter.get(e.id).map(ref => ref.asset);
       const path = assets[0].name.slice(0, -4);
       baked.particles.filter(particle => particle.emitterId === e.id).forEach(particle => {
-        const boneName = 'em_' + e.id + '_p' + particle.index, slotName = boneName + '_slot';
-        const initial = stateAt(baked, particle, 0);
+        const trail = hasTrail(particle), lanes = trail ? Trail.lanes(e.trail) : [];
+        if (trail) {
+          const part = exportTrail(baked, particle, profile, assets, sampleBudget);
+          json.bones.push(...part.bones); json.slots.push(...part.slots); Object.assign(attachments, part.attachments);
+          Object.assign(json.animations.effect.bones, part.animation.bones); Object.assign(json.animations.effect.slots, part.animation.slots);
+          ['deform', 'attachments'].forEach(group => {
+            if (!part.animation[group]) return;
+            const target = json.animations.effect[group] || (json.animations.effect[group] = {default: {}});
+            Object.assign(target.default, part.animation[group].default);
+          });
+          keyframes += part.keyframes; denseKeyframes += part.keyframes;
+        }
+        const headIndex = trail ? particle.index * (lanes.length + 1) + lanes.length : particle.index;
+        const boneName = 'em_' + e.id + '_p' + headIndex, slotName = boneName + '_slot';
+        const initial = visibleHeadState(particle, stateAt(baked, particle, 0));
         json.bones.push({name: boneName, parent: 'em_' + e.id});
         json.slots.push({name: slotName, bone: boneName, color: rgba(initial),
           attachment: initial.alive ? sequence ? sequenceAttachment(initial.sequenceFrame) : 'particle' : undefined, blend: e.blend});
@@ -3543,7 +4225,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
           sequence.frames.forEach((frame, index) => { attachments[slotName][sequenceAttachment(index)] = {type: 'region',
             path: assets[index].name.slice(0, -4), width: frame.width, height: frame.height}; });
         } else attachments[slotName] = {particle: {type: 'region', path, width: e.image ? e.image.width : 64, height: e.image ? e.image.height : 64}};
-        const dense = sampledTimeline(baked, particle, false, sampleBudget);
+        const dense = sampledTimeline(baked, particle, false, sampleBudget).map(key => ({...key, state: visibleHeadState(particle, key.state)}));
         denseKeyframes += dense.length * 4;
         const translate = reduceTimeline(dense, s => [s.x, s.y], [tolerance.position, tolerance.position]).map(key => keyframe(key, {x: key.state.x - e.x, y: key.state.y - e.y}));
         let rotationKeys = reduceTimeline(dense, s => [s.rotation], [tolerance.rotation]);
@@ -3608,6 +4290,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     for (const phase of Object.values(flowBaked.phases)) for (const particle of phase.particles) {
       const cost = timelineCost(phase, particle);
       floor += cost.lower;
+      if (hasTrail(particle)) floor += trailCost(phase, particle).lower;
       if (cost.rejected || floor > MAX_EXPORT_SAMPLES) fail('三段動畫匯出取樣成本估算超過 200 萬，可能使介面暫停。請減少粒子數、縮短 In，或增加 Loop 長度，再重新匯出。');
     }
     // Count timestamp metadata without evaluating positions, curves, or tiled
@@ -3625,8 +4308,8 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         add(at);
         if (reset) add(at <= EPS && phase.loop ? period - RESET_EPS : at - RESET_EPS);
       }
-      function lifetimeEvent(t, reset) {
-        const age = t * particle.life - (phase.loop ? particle.cycleIndex * period : 0);
+      function lifetimeEvent(t, reset, clock) {
+        const age = t * (clock === undefined ? particle.life : clock) - (phase.loop ? particle.cycleIndex * period : 0);
         if (!phase.loop || (age >= 0 && age <= period)) event(age, reset);
       }
       event(0, true);
@@ -3635,10 +4318,11 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         if (death >= 0 && death <= period) event(death, true);
       } else event(particle.life, true);
       const curves = scalarCurves(particle);
-      curves.forEach(points => points.forEach((point, index) => lifetimeEvent(point.t, index > 0 && points[index - 1].curve === 'stepped')));
+      curves.forEach(points => points.forEach((point, index) => lifetimeEvent(point.t, index > 0 && points[index - 1].curve === 'stepped', scalarDuration(particle, points))));
+      trailClockDurations(particle).forEach(clock => lifetimeEvent(1, false, clock));
       if (particle.emitter.colorGradient) particle.emitter.colorGradient.forEach(point => lifetimeEvent(point.t, false));
       compiledScalarCurves(particle).forEach(compiled => {
-        if (compiled) compiled.sampleTimes.forEach(t => lifetimeEvent(t, false));
+        if (compiled) compiled.sampleTimes.forEach(t => lifetimeEvent(t, false, scalarDuration(particle, compiled)));
       });
       return times.size;
     }
@@ -3649,9 +4333,12 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     for (let index = 0; index < loopPhase.particles.length; index++) {
       const loopKeys = timelineCount(loopPhase, loopPhase.particles[index]);
       estimatedSamples += inGrid + loopKeys * repeats + loopKeys + timelineCount(outPhase, outPhase.particles[index]);
+      if (hasTrail(loopPhase.particles[index])) {
+        for (const phase of Object.values(flowBaked.phases)) estimatedSamples += trailCost(phase, phase.particles[index]).lower;
+      }
       if (estimatedSamples > sampleLimit) fail('三段動畫匯出取樣成本估算超過 200 萬，可能使介面暫停。請減少粒子數、縮短 In，或增加 Loop 長度，再重新匯出。');
     }
-    const sampleBudget = loopPhase.particles.some(particle => needsRefinement(loopPhase, particle) || activeSequence(particle.emitter) || particle.emitter.separateSizeAxes) || flowBaked.project.bakeQuality !== undefined ? {used: 0} : undefined;
+    const sampleBudget = loopPhase.particles.some(particle => needsRefinement(loopPhase, particle) || activeSequence(particle.emitter) || particle.emitter.separateSizeAxes || hasTrail(particle)) || flowBaked.project.bakeQuality !== undefined ? {used: 0} : undefined;
     ['in', 'loop', 'out'].forEach(kind => { exported[kind] = exportSpine(flowBaked.phases[kind], targetVersion, sampleBudget); });
     const json = Object.assign({}, exported.loop.json, {animations: Object.create(null)});
     json.slots.forEach(slot => { slot.attachment = null; slot.color = 'ffffff00'; });
@@ -3794,7 +4481,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   const FORMAT = 'particle-studio-fx-library', MAX_ITEMS = 100, MAX_BYTES = 48 * 1024 * 1024, MAX_ITEM_BYTES = 16 * 1024 * 1024;
   const DATABASE_NAME = 'particle-studio-effects', STORE_NAME = 'library', RECORD_KEY = 'current', FALLBACK_KEY = 'particle-studio-effects-v1';
   const ANCHOR_KEYS = ['id', 'name', 'x', 'y', 'enabled'];
-  const EFFECT_KEYS = new Set(Object.keys(Core.createEmitter()).filter(key => !ANCHOR_KEYS.includes(key)).concat(['directionMode', 'directionSpread', 'emitFrom', 'path', 'outline', 'sequence', 'randomSeed', 'separateSizeAxes', 'sizeCurveX', 'sizeCurveY', 'startDelay', 'kind', 'lightning']));
+  const EFFECT_KEYS = new Set(Object.keys(Core.createEmitter()).filter(key => !ANCHOR_KEYS.includes(key)).concat(['directionMode', 'directionSpread', 'emitFrom', 'path', 'outline', 'sequence', 'randomSeed', 'separateSizeAxes', 'sizeCurveX', 'sizeCurveY', 'startDelay', 'kind', 'lightning', 'trail']));
   const clone = value => JSON.parse(JSON.stringify(value));
   const object = value => !!value && typeof value === 'object' && !Array.isArray(value);
   const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
@@ -5704,17 +6391,17 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   const clone = value => JSON.parse(JSON.stringify(value));
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const round = v => Math.round(v * 1000) / 1000;
-  function mount({getEmitter, onChange, math, Core, document: doc = document}) {
+  function mount({getEmitter, onChange, math, Core, document: doc = document, definitions = null, lifecycleControls = true}) {
     const $ = id => doc.getElementById(id);
     const fallback = new WeakMap();
     let currentEmitter = null;
-    const specs = [
+    const specs = (definitions || [
       {prefix: 'alpha', key: 'alphaCurve', max: 1, reset: 'resetAlpha', remove: 'deleteAlphaPoint'},
       {prefix: 'size', key: 'sizeCurve', max: 4, reset: 'resetSize', remove: 'deleteSizePoint'},
       {prefix: 'sizeX', key: 'sizeCurveX', max: 4, reset: 'resetSizeX', remove: 'deleteSizeXPoint', axis: true},
       {prefix: 'sizeY', key: 'sizeCurveY', max: 4, reset: 'resetSizeY', remove: 'deleteSizeYPoint', axis: true},
       {prefix: 'speed', key: 'speedCurve', max: 4, reset: 'resetSpeed', remove: 'deleteSpeedPoint'}
-    ].map(spec => ({...spec, selected: 0, canvas: $(spec.prefix + 'CurveCanvas'),
+    ]).map(spec => ({valueScale: 1, ...spec, selected: 0, canvas: $(spec.prefix + 'CurveCanvas'),
       time: $(spec.prefix + 'CurveTime'), value: $(spec.prefix + 'CurveValue'),
       interpolation: $(spec.prefix + 'Interpolation'), deleteButton: $(spec.remove)}));
     function points(spec, e = getEmitter()) {
@@ -5739,13 +6426,18 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       const gridLow = Math.ceil(low * 1000 - 1e-9) / 1000, gridHigh = Math.floor(high * 1000 + 1e-9) / 1000;
       return gridLow <= gridHigh ? [gridLow, gridHigh] : [low, high];
     }
+    function graphMax(spec) {
+      if (!spec.autoScale) return spec.max;
+      const values = points(spec).flatMap(p => [p.v, p.in ? p.in.y : 0, p.out ? p.out.y : 0]);
+      return Math.min(spec.max, Math.max(1, Math.ceil(Math.max(...values))));
+    }
     function geometry(spec) {
       const r = spec.canvas.getBoundingClientRect();
-      return {w: r.width, h: r.height, left: 28, top: 10,
+      return {w: r.width, h: r.height, left: 28, top: 10, max: graphMax(spec),
         width: Math.max(1, r.width - 40), height: Math.max(1, r.height - 30)};
     }
     function xy(spec, g, t, v) {
-      return {x: g.left + t * g.width, y: g.top + (1 - v / spec.max) * g.height};
+      return {x: g.left + t * g.width, y: g.top + (1 - v / g.max) * g.height};
     }
     function handle(left, right, kind) {
       return kind === 'out' ? left.out || {x: 1 / 3, y: left.v} : right.in || {x: 2 / 3, y: right.v};
@@ -5797,7 +6489,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       c.scale(dpr, dpr); c.lineWidth = 1; c.strokeStyle = '#263241'; c.beginPath();
       [0, .5, 1].forEach(t => { c.moveTo(g.left + t * g.width, g.top); c.lineTo(g.left + t * g.width, g.top + g.height); });
       [0, .5, 1].forEach(v => { c.moveTo(g.left, g.top + v * g.height); c.lineTo(g.left + g.width, g.top + v * g.height); }); c.stroke();
-      c.fillStyle = '#7f8c9f'; c.font = '10px sans-serif'; c.fillText(String(spec.max), 4, g.top + 4); c.fillText('0', 12, g.top + g.height);
+      c.fillStyle = '#7f8c9f'; c.font = '10px sans-serif'; c.fillText(String(g.max * spec.valueScale), 4, g.top + 4); c.fillText('0', 12, g.top + g.height);
       c.strokeStyle = getEmitter()[spec.key] || spec.axis ? '#edc98c' : '#687991'; c.lineWidth = 2; c.beginPath();
       const start = xy(spec, g, list[0].t, list[0].v); c.moveTo(start.x, start.y);
       for (let i = 1; i < list.length; i++) {
@@ -5829,7 +6521,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       const onGrid = n => Math.abs(n * 1000 - Math.round(n * 1000)) < 1e-7;
       spec.time.step = bounds.every(onGrid) && onGrid(p.t) ? '0.1' : 'any';
       if (doc.activeElement !== spec.time) spec.time.value = String(spec.time.step === 'any' ? p.t * 100 : round(p.t * 100));
-      if (doc.activeElement !== spec.value) spec.value.value = String(round(p.v));
+      if (doc.activeElement !== spec.value) spec.value.value = String(round(p.v * spec.valueScale));
       const mode = list[segment].curve || 'linear';
       const mixed = spec.selected > 0 && spec.selected < list.length - 1 && (list[spec.selected - 1].curve || 'linear') !== mode;
       if (mixed && !spec.mixedOption) {
@@ -5845,12 +6537,14 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     function refresh() {
       const e = getEmitter(); if (!e) return;
       if (e !== currentEmitter) { currentEmitter = e; specs.forEach(s => { s.selected = 0; }); }
+      if (lifecycleControls) {
       $('enableSpeedCurve').checked = !!e.speedCurve;
       $('legacyMotionField').querySelector('select').disabled = !!e.speedCurve;
       $('separateSizeAxes').checked = !!e.separateSizeAxes;
       $('uniformSizeCurveFields').hidden = !!e.separateSizeAxes;
       $('separateSizeCurveFields').hidden = !e.separateSizeAxes;
       $('sizeAxesHint').textContent = e.separateSizeAxes ? 'X 調整寬度，Y 調整高度。關閉後恢復統一倍率，分軸曲線會保留。' : 'X、Y 共用下方的尺寸倍率曲線；開啟後可分別調整寬度與高度。';
+      }
       specs.forEach(spec => { updateFields(spec); draw(spec); });
     }
     function change() { onChange(); refresh(); }
@@ -5878,7 +6572,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       const position = event => {
         const r = spec.canvas.getBoundingClientRect(), g = geometry(spec);
         const rawT = (event.clientX - r.left - g.left) / g.width;
-        const rawV = (1 - (event.clientY - r.top - g.top) / g.height) * spec.max;
+        const rawV = (1 - (event.clientY - r.top - g.top) / g.height) * g.max;
         return {g, x: event.clientX - r.left, y: event.clientY - r.top,
           rawT, rawV, t: clamp(rawT, 0, 1), v: clamp(rawV, 0, spec.max)};
       };
@@ -5954,7 +6648,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         const p = selected(spec);
         if (event.key === 'Escape' && dragging) finishDrag(true);
         else if (event.key === 'Delete' || event.key === 'Backspace') remove(spec);
-        else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') setValue(spec, 'v', p.v + (event.key === 'ArrowUp' ? 1 : -1) * spec.max * .02);
+        else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') setValue(spec, 'v', p.v + (event.key === 'ArrowUp' ? 1 : -1) * graphMax(spec) * .02);
         else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') setValue(spec, 't', p.t * 100 + (event.key === 'ArrowRight' ? 1 : -1));
         else return;
         event.preventDefault();
@@ -5976,17 +6670,18 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       });
       [[spec.time, 't'], [spec.value, 'v']].forEach(([input, kind]) => {
         ['input', 'change'].forEach(type => input.addEventListener(type, () => {
-          if (input.value.trim() && input.checkValidity() && Number.isFinite(input.valueAsNumber)) setValue(spec, kind, input.valueAsNumber);
+          if (input.value.trim() && input.checkValidity() && Number.isFinite(input.valueAsNumber)) setValue(spec, kind, input.valueAsNumber / (kind === 'v' ? spec.valueScale : 1));
         }));
-        input.addEventListener('blur', () => { const p = selected(spec); input.value = String(kind === 't' && input.step === 'any' ? p.t * 100 : round(kind === 't' ? p.t * 100 : p.v)); });
+        input.addEventListener('blur', () => { const p = selected(spec); input.value = String(kind === 't' && input.step === 'any' ? p.t * 100 : round(kind === 't' ? p.t * 100 : p.v * spec.valueScale)); });
       });
       spec.deleteButton.addEventListener('click', () => remove(spec));
       $(spec.reset).addEventListener('click', () => {
         if (spec.key === 'speedCurve') { fallback.delete(getEmitter()); getEmitter().inactiveSpeedCurve = null; }
-        getEmitter()[spec.key] = spec.key === 'speedCurve' ? null : clone(Core.createEmitter('temporary')[spec.axis ? 'sizeCurve' : spec.key]);
+        getEmitter()[spec.key] = spec.resetValue !== undefined ? clone(spec.resetValue) : spec.key === 'speedCurve' ? null : clone(Core.createEmitter('temporary')[spec.axis ? 'sizeCurve' : spec.key]);
         spec.selected = 0; change();
       });
     });
+    if (lifecycleControls) {
     $('enableSpeedCurve').addEventListener('change', () => {
       const e = getEmitter();
       if ($('enableSpeedCurve').checked) { e.speedCurve = clone(points(specs.find(spec => spec.key === 'speedCurve'), e)); e.inactiveSpeedCurve = null; }
@@ -6002,12 +6697,13 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       e.separateSizeAxes = enabled;
       change();
     });
+    }
     function bindingFor(input) {
       const spec = specs.find(s => s.time === input || s.value === input); if (!spec) return null;
       const e = getEmitter(), kind = spec.time === input ? 't' : 'v', before = clone(e[spec.key] || null), index = spec.selected;
       const hadOwn = Object.prototype.hasOwnProperty.call(e, spec.key);
-      return {source: {get value() { const p = points(spec, e)[index]; return kind === 't' ? p.t * 100 : p.v; },
-        set value(value) { spec.selected = index; setValue(spec, kind, value, e); }}, key: 'value',
+      return {source: {get value() { const p = points(spec, e)[index]; return kind === 't' ? p.t * 100 : p.v * spec.valueScale; },
+        set value(value) { spec.selected = index; setValue(spec, kind, value / (kind === 'v' ? spec.valueScale : 1), e); }}, key: 'value',
         restore() { if (hadOwn) e[spec.key] = before; else delete e[spec.key]; spec.selected = index; refresh(); }};
     }
     refresh(); return {refresh, bindingFor};
@@ -6449,6 +7145,8 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (root) {
   'use strict';
   const shapes = {point: '點', direction: '方向', line: '線', circle: '圓', ring: '環', box: '矩形', outline: '物件輪廓'};
+  const trailSummary = emitter => emitter.trail && emitter.trail.enabled ?
+    ' · ' + (emitter.trail.mode === 'afterimage' ? '殘影拖尾' : '沿路徑拉伸') + ' ' + emitter.trail.duration + ' 秒' : '';
   function mount(options) {
     options = options || {};
     const doc = options.document || root.document, Library = options.Library || root.ParticleEffectLibrary;
@@ -6538,7 +7236,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         ui.effectLibrarySelectedName.textContent = choice.name;
         const e = choice.emitter;
         ui.effectLibrarySelectedInfo.textContent = (shapes[e.shape] || e.shape) + ' · ' + e.count + ' 顆 · 壽命 ' + e.life + ' 秒' +
-          (e.path && e.path.enabled ? ' · 路徑移動' : '') + (e.sequence && e.sequence.enabled ? (e.sequence.mode === 'random' ? ' · ' + e.sequence.frames.length + ' 張隨機圖' : ' · ' + e.sequence.frames.length + ' 張連續圖 · ' + e.sequence.fps + ' FPS') : e.image ? ' · 自訂 PNG' : '') +
+          (e.path && e.path.enabled ? ' · 路徑移動' : '') + trailSummary(e) + (e.sequence && e.sequence.enabled ? (e.sequence.mode === 'random' ? ' · ' + e.sequence.frames.length + ' 張隨機圖' : ' · ' + e.sequence.frames.length + ' 張連續圖 · ' + e.sequence.fps + ' FPS') : e.image ? ' · 自訂 PNG' : '') +
           (e.randomSeed !== undefined ? ' · 種子 ' + e.randomSeed : '') + '。套用後仍可編輯。';
       }
       ui.effectLibraryCount.textContent = '已儲存 ' + templates.length + ' / ' + Library.MAX_ITEMS + ' 組';
@@ -6562,7 +7260,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         } else { const symbol = doc.createElement('span'); symbol.textContent = {point: '✦', direction: '↗', line: '━', circle: '●', ring: '◯', box: '▧', outline: '⬡'}[e.shape] || '✦'; art.append(symbol); }
         const info = doc.createElement('span'); info.className = 'effect-library-item-info';
         const name = doc.createElement('strong'), description = doc.createElement('span'); name.textContent = template.name;
-        description.textContent = (shapes[e.shape] || e.shape) + ' · ' + e.count + ' 顆' + (e.path && e.path.enabled ? ' · 路徑' : '') + (e.sequence && e.sequence.enabled ? (e.sequence.mode === 'random' ? ' · 隨機圖 ' + e.sequence.frames.length + ' 張' : ' · 連續圖 ' + e.sequence.fps + ' FPS') : '');
+        description.textContent = (shapes[e.shape] || e.shape) + ' · ' + e.count + ' 顆' + (e.path && e.path.enabled ? ' · 路徑' : '') + trailSummary(e) + (e.sequence && e.sequence.enabled ? (e.sequence.mode === 'random' ? ' · 隨機圖 ' + e.sequence.frames.length + ' 張' : ' · 連續圖 ' + e.sequence.fps + ' FPS') : '');
         info.append(name, description); button.append(art, info);
         button.addEventListener('click', () => {
           if (busy) return;
@@ -9898,7 +10596,10 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     const span = Math.max(1e-6, finite(duration, 1));
     const delay = clamp(finite(emitter.startDelay, 0), 0, span);
     const window = clamp(finite(emitter.emissionDuration, 0), 0, span - delay);
-    const life = Math.max(0, finite(emitter.life, 0)) + Math.max(0, finite(emitter.lifeRandom, 0));
+    const authoredLife = Math.max(0, finite(emitter.life, 0)) + Math.max(0, finite(emitter.lifeRandom, 0));
+    const stretch = emitter.trail && emitter.trail.enabled && emitter.trail.mode === 'stretch';
+    const life = Math.max(authoredLife, stretch ? finite(emitter.trail.moveDuration, 0) : 0, stretch ? finite(emitter.trail.lengthDuration, 0) : 0) +
+      (emitter.trail && emitter.trail.enabled ? Math.max(0, finite(emitter.trail.duration, 0)) : 0);
     const tailEnd = clamp(delay + window + life, delay, span);
     return {delay, window, tailEnd, start: delay / span, width: window / span, tail: (tailEnd - delay) / span};
   }
@@ -10202,6 +10903,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   const FlowPlayback = window.ParticleFlowPlayback;
   const AttachmentPreview = window.ParticleAttachmentPreview;
   const PathMath = window.ParticlePathMath;
+  const Trail = window.ParticleTrail;
   const ContourMath = window.ParticleContourMath;
   const $ = id => document.getElementById(id);
   const clone = value => JSON.parse(JSON.stringify(value));
@@ -10215,7 +10917,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   const tintCache = new Map();
   const imageIds = new WeakMap();
   let nextImageId = 1;
-  let curveEditor = null, gradientEditor = null, lookPresetsUi = null, libraryUi = null, timelineView = null, pathEditor = null, attachmentUi = null, assetsUi = null, textureUi = null;
+  let curveEditor = null, trailLengthEditor = null, gradientEditor = null, lookPresetsUi = null, libraryUi = null, timelineView = null, pathEditor = null, attachmentUi = null, assetsUi = null, textureUi = null;
   let bonePicker = null;
   let previewAttached = true, showBones = true, previewSkin = '', attachedError = '';
   const attachedCache = new Map();
@@ -10223,6 +10925,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   const outlineGizmoCache = new WeakMap();
   let outlineRequest = 0;
   let backgroundRequest = 0;
+  let backgroundJpegSession = null;
   let textureRequest = 0, projectRequest = 0;
   const inspectorScrollPositions = new Map();
   let integration = null;
@@ -10383,6 +11086,9 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
         pixels.data[offset + 3] = r >= 1 ? 0 : Math.round(255 * Math.pow(1 - r, 2.2));
       }
       c.putImageData(pixels, 0, 0);
+    } else if (kind === 'trail-arrow') {
+      c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(8, 24); c.lineTo(35, 24); c.lineTo(35, 10);
+      c.lineTo(60, 32); c.lineTo(35, 54); c.lineTo(35, 40); c.lineTo(8, 40); c.closePath(); c.fill();
     } else if (kind === 'sparks') {
       const gradient = c.createRadialGradient(32, 32, 0, 32, 32, 30);
       gradient.addColorStop(0, '#ffffff'); gradient.addColorStop(1, '#ffffff00');
@@ -10403,7 +11109,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     }
     return {name: kind + '.png', mime: 'image/png', width: 64, height: 64, dataUrl: surface.toDataURL('image/png')};
   }
-  ['glow', 'sparks', 'coins', 'bubbles'].forEach(kind => { builtinImages[kind] = makeTexture(kind); });
+  ['glow', 'sparks', 'coins', 'bubbles', 'trail-arrow'].forEach(kind => { builtinImages[kind] = makeTexture(kind); });
   // A horizontal electric streak: bright core, soft blue glow, slight grain so deform reads.
   function makeBoltTexture() {
     const surface = document.createElement('canvas'); surface.width = 256; surface.height = 64;
@@ -10692,6 +11398,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     renderEmitterSeed();
     renderBakeCheck();
     renderPathFacing();
+    renderTrailInspector();
   }
   function renderEmitters() {
     const list = $('emitterList'); list.replaceChildren();
@@ -10723,7 +11430,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       const meta = document.createElement('span'); meta.className = 'emitter-meta'; meta.textContent = item.kind === 'lightning' ? '網格閃電 · ' + item.lightning.bolts + ' 條' + (item.lightning.branches ? ' · 分岔 ' + item.lightning.branches : '') : item.count + ' 顆 · ' + (item.blend === 'additive' ? '加色' : '一般');
       const tags = document.createElement('span'); tags.className = 'emitter-tags';
       if (item.kind === 'lightning') path.setAttribute('d', 'M13 2 5 13h6l-1 9 8-12h-6l1-8Z');
-      const type = document.createElement('span'); type.className = 'emitter-type'; type.textContent = item.kind === 'lightning' ? (item.lightning.mode === 'fixed' ? '兩端固定' : '尾端擺動') : item.path && item.path.enabled ? '沿路徑移動' : (shapeNames[item.shape] || '點形') + (['box', 'circle', 'ring'].includes(item.shape) ? emitFrom(item) === 'edge' ? ' · 邊框' : ' · 區域內' : '');
+      const type = document.createElement('span'); type.className = 'emitter-type'; type.textContent = item.kind === 'lightning' ? (item.lightning.mode === 'fixed' ? '兩端固定' : '尾端擺動') : item.trail && item.trail.enabled ? item.trail.mode === 'afterimage' ? '殘影拖尾' : '沿路徑拉伸' : item.path && item.path.enabled ? '沿路徑移動' : (shapeNames[item.shape] || '點形') + (['box', 'circle', 'ring'].includes(item.shape) ? emitFrom(item) === 'edge' ? ' · 邊框' : ' · 區域內' : '');
       const color = document.createElement('span'); color.className = 'emitter-color-dot'; color.style.setProperty('--emitter-color', item.colorGradient && item.colorGradient.length ? item.colorGradient[0].color : item.colorStart); color.setAttribute('aria-hidden', 'true');
       tags.append(type, color); copy.append(name, meta, tags);
       const index = document.createElement('span'); index.className = 'emitter-index'; index.textContent = String(layerIndex + 1).padStart(2, '0'); index.setAttribute('aria-hidden', 'true');
@@ -10879,12 +11586,198 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       $('textureInfo').textContent = (e.image ? e.image.name : '內建柔光') + ' · ' + image.width + ' × ' + image.height + ' px';
     }
     renderPathInspector();
+    renderTrailInspector();
     renderOutlineInspector();
     renderLightningInspector(e);
     drawCurves();
     if (libraryUi && $('effectLibraryDialog').open) libraryUi.refresh();
   }
   function pathFor(e) { return e.path || PathMath.defaults(); }
+  function trailFor(e) { return e.trail ? Trail.normalize(e.trail) : Trail.defaults(); }
+  const trailLengthTargets = new WeakMap(), inactiveTrailLengths = new WeakMap();
+  const trailLengthPulse = () => [{t: 0, v: 0.15}, {t: 0.4, v: 1}, {t: 1, v: 0.05}];
+  function trailLengthTarget() {
+    const e = emitter();
+    if (!trailLengthTargets.has(e)) trailLengthTargets.set(e, {
+      get lengthCurve() { return e.trail && e.trail.lengthCurve || null; },
+      set lengthCurve(points) { e.trail = {...trailFor(e), lengthCurve: points}; }
+    });
+    return trailLengthTargets.get(e);
+  }
+  function renderTrailInspector() {
+    const e = emitter(), trail = trailFor(e), active = !!trail.enabled;
+    const fullPath = trail.mode === 'stretch' && trail.coverage === 'path';
+    $('enableTrail').checked = active; $('enableTrail').disabled = busy || e.kind === 'lightning';
+    $('makePathRibbon').disabled = busy || e.kind === 'lightning';
+    $('trailFields').hidden = !active;
+    $('trailMode').value = trail.mode;
+    $('trailMode').disabled = busy || !active;
+    $('enableTrailLength').checked = !!trail.lengthCurve;
+    $('enableTrailLength').disabled = busy || !active;
+    $('trailLengthFields').hidden = !trail.lengthCurve;
+    $('trailLengthPulse').disabled = $('trailLengthFull').disabled = busy || !active;
+    const independent = trail.moveDuration != null || trail.lengthDuration != null;
+    $('trailIndependentTime').checked = independent; $('trailIndependentTime').disabled = busy || !active;
+    $('trailCometPreset').disabled = busy || e.kind === 'lightning';
+    $('trailTimingFields').hidden = !independent;
+    for (const [id, key] of [['trailMoveDuration', 'moveDuration'], ['trailLengthDuration', 'lengthDuration']]) {
+      if (document.activeElement !== $(id)) $(id).value = trail[key] == null ? e.life : trail[key];
+      $(id).disabled = busy || !active || !independent;
+    }
+    $('trailTimingHint').textContent = independent ? '從每顆粒子出生計時：' + (trail.moveDuration == null ? '依生命時間前進' : trail.moveDuration + ' 秒到達') + '，' + (trail.lengthDuration == null ? '長度曲線依生命時間' : trail.lengthDuration + ' 秒完成長度曲線') + '。預覽與輸出會保留足夠的存活時間，原生命設定保持不變。' : '兩個時間都從粒子出生起計算；到達後停住，尾巴可繼續收縮。';
+    if (trail.moveDuration != null && !(e.path && e.path.enabled && e.path.mode === 'lifetime')) $('trailTimingHint').textContent += '移動到達時間需啟用路徑，並使用「生命期間走完整條」。';
+    $('trailLengthTimeLabel').textContent = trail.lengthDuration == null ? '生命位置' : '收縮進度';
+    $('trailLengthEndLabel').textContent = trail.lengthDuration == null ? '生命結束' : trail.lengthDuration + ' 秒';
+    $('trailLengthHint').textContent = '可輸入 0–1000%。' + (fullPath ? '100% 覆蓋完整路徑；超過時，開放路徑沿終點方向延伸，封閉路徑繼續繞行。' : '100% 使用設定的殘留跨度；增加比例會拉長尾巴，最多使用已走過的軌跡。') + '0% 收到消失，寬度保持獨立；' + (trail.lengthDuration == null ? '時間依每顆粒子的生命長度計算。' : '長度曲線在出生後 ' + trail.lengthDuration + ' 秒走完。');
+    for (const [id, key] of [['trailCoverage', 'coverage'], ['trailAxis', 'axis']]) {
+      $(id).value = trail[key]; $(id).disabled = busy || !active;
+    }
+    for (const [id, key] of [['trailShowHead', 'showHead'], ['trailFlipTexture', 'flipTexture']]) {
+      $(id).checked = trail[key]; $(id).disabled = busy || !active;
+    }
+    document.querySelectorAll('[data-tfield]').forEach(input => {
+      if (!(document.activeElement === input && input.type === 'number')) input.value = trail[input.dataset.tfield];
+      input.disabled = busy || !active;
+    });
+    document.querySelectorAll('[data-trail-mode]').forEach(node => { node.hidden = node.dataset.trailMode !== trail.mode; });
+    document.querySelectorAll('[data-treadout]').forEach(output => { output.textContent = Math.round(trail[output.dataset.treadout] * 100) + '%'; });
+    $('trailNoPath').hidden = !!(e.path && e.path.enabled);
+    $('trailEditPath').disabled = busy;
+    $('trailModeHint').textContent = fullPath ? '整張貼圖從路徑起點鋪到終點，彎曲成連續光帶；生命期間控制整條光帶的顯示與淡出。' : trail.mode === 'stretch' ? '貼圖沿走過的路徑彎曲拉長；寬度跟隨粒子尺寸，尾端逐漸收細。' : '保留粒子走過的影像，越舊越透明；粒子消失後，殘影仍會繼續淡出。';
+    $('trailDurationLabel').textContent = fullPath ? '結束後淡出' : '殘留時間';
+    const image = e.sequence && e.sequence.frames.length ? e.sequence.frames[0] : e.image || builtinImages.glow;
+    const axis = trail.axis === 'auto' ? (image.height > image.width ? 'y' : 'x') : trail.axis;
+    $('trailAxisHint').textContent = '目前貼圖 ' + image.width + ' × ' + image.height + '，沿' + (axis === 'y' ? '直向' : '橫向') + '自動切為 ' + Trail.segmentCount(trail) + ' 段網格。原圖保留，不必先手動切 Mesh。';
+    let text = active ? (fullPath ? '整條光帶結束後，再淡出 ' : '粒子結束後，拖尾會再淡出 ') + trail.duration + ' 秒。' : '啟用後，讓目前粒子沿移動軌跡拉伸，或留下逐漸消失的殘影。';
+    if (active && !project.loop && !project.flow.enabled) {
+      const start = Math.min(e.startDelay || 0, project.duration), count = Math.max(1, e.count);
+      const lastBirth = start + (count - 1) / count * Math.min(e.emissionDuration, project.duration - start);
+      const life = Math.max(e.life + e.lifeRandom, trail.mode === 'stretch' ? trail.moveDuration || 0 : 0, trail.mode === 'stretch' ? trail.lengthDuration || 0 : 0);
+      if (lastBirth + life + trail.duration > project.duration) text += '目前動畫末尾可能截斷拖尾，可加長動畫或縮短發射時間。';
+    }
+    $('trailStatus').textContent = text;
+  }
+  function setTrail(patch, duringInput) {
+    const e = emitter(); if (!e || busy || e.kind === 'lightning') return false;
+    const previous = {trail: e.trail, path: e.path};
+    try {
+      e.trail = Trail.normalize({...trailFor(e), ...patch});
+      if (e.trail.enabled && e.trail.mode === 'stretch') {
+        if (e.trail.moveDuration != null && e.path && e.path.enabled) e.path = {...e.path, mode: 'lifetime'};
+      }
+      Core.normalizeProject(project);
+    } catch (error) {
+      if (previous.trail === undefined) delete e.trail; else e.trail = previous.trail;
+      if (previous.path === undefined) delete e.path; else e.path = previous.path;
+      if (!duringInput) { renderTrailInspector(); notify(error.message, true); }
+      return false;
+    }
+    changed(); renderEmitters(); renderPathInspector(); renderTrailInspector(); drawCurves(); return true;
+  }
+  function trailBindingFor(input) {
+    const key = input.dataset.tfield || {trailMoveDuration: 'moveDuration', trailLengthDuration: 'lengthDuration'}[input.id];
+    if (!key) return null;
+    const e = emitter(), before = e.trail === undefined ? undefined : clone(e.trail), path = e.path === undefined ? undefined : clone(e.path);
+    return {source: trailFor(e), key, restore() {
+      if (before === undefined) delete e.trail; else e.trail = before;
+      if (path === undefined) delete e.path; else e.path = path;
+      renderPathInspector(); renderTrailInspector();
+    }};
+  }
+  function wireTrail() {
+    $('enableTrail').addEventListener('change', () => setTrail({enabled: $('enableTrail').checked}));
+    $('trailMode').addEventListener('change', () => setTrail({mode: $('trailMode').value}));
+    $('trailCoverage').addEventListener('change', () => setTrail({coverage: $('trailCoverage').value}));
+    $('trailAxis').addEventListener('change', () => setTrail({axis: $('trailAxis').value}));
+    $('trailShowHead').addEventListener('change', () => setTrail({showHead: $('trailShowHead').checked}));
+    $('trailFlipTexture').addEventListener('change', () => setTrail({flipTexture: $('trailFlipTexture').checked}));
+    $('trailIndependentTime').addEventListener('change', () => {
+      const on = $('trailIndependentTime').checked, trail = trailFor(emitter());
+      setTrail({moveDuration: on ? 0.5 : null, lengthDuration: on ? 0.65 : null,
+        ...(on && !trail.lengthCurve ? {lengthCurve: trailLengthPulse()} : {})});
+    });
+    for (const [id, key] of [['trailMoveDuration', 'moveDuration'], ['trailLengthDuration', 'lengthDuration']]) {
+      const input = $(id);
+      const apply = duringInput => {
+        if (busy || input.disabled || !input.value.trim()) return;
+        if (!input.checkValidity()) { if (!duringInput) input.reportValidity(); return; }
+        const value = Number(input.value);
+        if (Number.isFinite(value) && trailFor(emitter())[key] !== value) setTrail({[key]: value}, duringInput);
+      };
+      input.addEventListener('input', () => apply(true)); input.addEventListener('change', () => apply(false));
+      input.addEventListener('blur', renderTrailInspector);
+    }
+    $('trailCometPreset').addEventListener('click', makeCometImpact);
+    $('enableTrailLength').addEventListener('change', () => {
+      const e = emitter(), enabled = $('enableTrailLength').checked;
+      if (!enabled && trailFor(e).lengthCurve) inactiveTrailLengths.set(e, clone(trailFor(e).lengthCurve));
+      setTrail({lengthCurve: enabled ? clone(inactiveTrailLengths.get(e) || trailLengthPulse()) : null});
+    });
+    for (const [id, points] of [['trailLengthPulse', trailLengthPulse], ['trailLengthFull', () => null]]) {
+      $(id).addEventListener('click', () => {
+        if (busy) return;
+        historyBegin('command');
+        try { setTrail({lengthCurve: points()}); } finally { historyEnd(); }
+      });
+    }
+    $('makePathRibbon').addEventListener('click', makePathRibbon);
+    $('trailEditPath').addEventListener('click', () => { try { pathEditor.open(); updateHistoryStatus(); } catch (error) { notify(error.message, true); } });
+    document.querySelectorAll('[data-tfield]').forEach(input => {
+      const apply = duringInput => {
+        if (busy || input.disabled) return;
+        if (!input.checkValidity()) { if (!duringInput) input.reportValidity(); return; }
+        if (!input.value.trim()) return;
+        const value = Number(input.value), key = input.dataset.tfield;
+        if (!Number.isFinite(value) || trailFor(emitter())[key] === value) return;
+        setTrail({[key]: value}, duringInput);
+      };
+      input.addEventListener('input', () => apply(true)); input.addEventListener('change', () => apply(false));
+      input.addEventListener('blur', renderTrailInspector);
+    });
+  }
+  function makePathRibbon() {
+    const e = emitter(); if (!e || busy || e.kind === 'lightning') return;
+    const before = clone(e);
+    historyBegin('command');
+    try {
+      const path = e.path ? {...clone(e.path), enabled: true, offsets: false} : {...PathMath.defaults(), ...PathMath.preset('s', 360, 130), enabled: true};
+      PathMath.compile(path);
+      Object.assign(e, {path, count: 1, emissionDuration: 0, lifeRandom: 0, sizeRandom: 0, speedRandom: 0,
+        spin: 0, spinRandom: 0, separateSizeAxes: false, colorStart: '#ffffff', colorEnd: '#ffffff', colorGradient: null,
+        size: Math.max(48, e.size), sizeCurve: [{t: 0, v: 1}, {t: 1, v: 1}],
+        trail: {...trailFor(e), enabled: true, mode: 'stretch', coverage: 'path', showHead: false,
+          axis: 'auto', flipTexture: false, opacity: 1, taper: 0, segments: 32}});
+      Core.normalizeProject(project);
+      changed(); renderEmitters(); renderInspector(); setTab('motion'); expandSectionFor($('trailSection'));
+      $('trailSection').scrollIntoView({block: 'start'});
+      notify('已保留目前貼圖與路徑，轉成單條光帶；可調整寬度、貼圖方向與淡出時間。');
+    } catch (error) {
+      for (const key of Object.keys(e)) delete e[key]; Object.assign(e, before);
+      renderInspector(); notify(error.message, true);
+    } finally { historyEnd(); }
+  }
+  function makeCometImpact() {
+    const e = emitter(); if (!e || busy || e.kind === 'lightning') return;
+    const before = clone(e); historyBegin('command');
+    try {
+      const path = e.path ? {...clone(e.path), enabled: true, offsets: false, mode: 'lifetime'} : {...PathMath.defaults(), ...PathMath.preset('s', 360, 130), enabled: true};
+      Object.assign(e, {path, count: 1, emissionDuration: 0, life: 0.65, lifeRandom: 0,
+        size: Math.max(48, e.size), sizeRandom: 0, speedRandom: 0, spin: 0, spinRandom: 0, alignDirection: true,
+        separateSizeAxes: false, colorStart: '#ffffff', colorEnd: '#ffffff', colorGradient: null,
+        sizeCurve: [{t: 0, v: 1}, {t: 1, v: 1}], alphaCurve: [{t: 0, v: 1}, {t: 0.98, v: 1}, {t: 1, v: 0}],
+        trail: {...trailFor(e), enabled: true, mode: 'stretch', coverage: 'history', showHead: true,
+          duration: 0.2, moveDuration: 0.5, lengthDuration: 0.65,
+          lengthCurve: [{t: 0, v: 0.15}, {t: 0.5 / 0.65, v: 2.5}, {t: 1, v: 0}],
+          opacity: 1, taper: 0.8, segments: 32}});
+      Core.normalizeProject(project);
+      changed(); renderEmitters(); renderInspector(); setTab('motion'); expandSectionFor($('trailSection'));
+      $('trailIndependentTime').scrollIntoView({block: 'center'});
+      notify('已保留貼圖與路徑：0.5 秒到達，尾巴繼續收縮至 0.65 秒。');
+    } catch (error) {
+      for (const key of Object.keys(e)) delete e[key]; Object.assign(e, before);
+      renderInspector(); notify(error.message, true);
+    } finally { historyEnd(); }
+  }
   // Rigs that keep their art in named skins (Normal / Super…) look empty in
   // "default"; preview the skin that holds the most attachments instead.
   function preferredSkin(json) {
@@ -11041,7 +11934,8 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     let compiled = null, errorMessage = '';
     if (active) { try { compiled = PathMath.compile(path); } catch (error) { errorMessage = error.message; } }
     $('pathSummary').textContent = errorMessage || (active ? (path.closed ? '封閉' : '開放') + ' · ' + path.points.length + ' 個控制點 · ' + Math.round(compiled.totalLength) + ' px' + (path.reverse ? ' · 反向' : '') : e.path ? '已停用 · 保留控制點與設定' : '未啟用路徑');
-    const message = !active ? '' : (path.mode === 'lifetime' ? '每個粒子在生命期間走完整條路徑。' : '依像素速度前進；開放路徑到終點停止。') + (path.offsets ? '已疊加發射範圍與外力。' : '粒子貼合路徑。');
+    const arrival = Trail.active(e) && e.trail.mode === 'stretch' ? e.trail.moveDuration : null;
+    const message = !active ? '' : (path.mode === 'lifetime' ? arrival == null ? '每個粒子在生命期間走完整條路徑。' : '每個粒子在 ' + arrival + ' 秒到達；之後停在終點。' : '依像素速度前進；開放路徑到終點停止。') + (path.offsets ? '已疊加發射範圍與外力。' : '粒子貼合路徑。');
     $('pathMotionHint').textContent = message;
     ['speed', 'speedRandom'].forEach(field => { const input = controls.find(control => control.dataset.field === field); if (input) { input.disabled = active && path.mode === 'lifetime'; input.title = input.disabled ? '生命期間走完整條模式，以粒子生命長度決定總時間。' : '每秒移動像素；可左右拖曳調值'; } });
     ['shape', 'emitFrom', 'width', 'height', 'lineLength', 'lineRotation', 'arcAngle', 'arcRotation', 'wind', 'gravity'].forEach(field => { const input = controls.find(control => control.dataset.field === field); if (input) input.disabled = active && !path.offsets; });
@@ -11050,7 +11944,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     $('emissionPathNotice').hidden = !active;
     $('emissionPathHint').textContent = strict ? '目前粒子貼合路徑，發射範圍與發射方向暫停作用；原設定會保留。' : '目前沿路徑移動，已疊加發射範圍；發射方向由路徑決定。';
     $('speedModeHint').hidden = !(active && path.mode === 'lifetime');
-    $('speedModeHint').textContent = '目前以生命長度控制走完整條路徑的時間，像素速度暫停作用；原數值會保留。';
+    $('speedModeHint').textContent = arrival == null ? '目前以生命長度控制走完整條路徑的時間，像素速度暫停作用；原數值會保留。' : '目前以獨立移動時間 ' + arrival + ' 秒控制到達，像素速度暫停作用。';
     $('forceModeHint').hidden = !strict;
     $('forceModeHint').textContent = '目前粒子貼合路徑，風力與重力暫停作用；可在下方「更多路徑選項」啟用疊加。';
     ['shape', 'emitFrom', 'width', 'height', 'lineLength', 'lineRotation', 'arcAngle', 'arcRotation', 'wind', 'gravity', 'angle', 'spread'].forEach(field => {
@@ -11500,6 +12394,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
 
   function drawCurves() {
     if (curveEditor) curveEditor.refresh();
+    if (trailLengthEditor) trailLengthEditor.refresh();
     if (gradientEditor) gradientEditor.refresh();
     if (lookPresetsUi) lookPresetsUi.refresh();
   }
@@ -11702,6 +12597,63 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     if (result.dataUrl.length > 4 * 1024 * 1024 * 4 / 3) throw new Error('轉換後的 PNG 超過 4 MB，請縮小素材。');
     return result;
   }
+  function openBackgroundJpeg(file) {
+    if (!file) return;
+    backgroundJpegSession = {file, owner: project, request: ++backgroundRequest, conversion: 0, result: null};
+    $('backgroundJpegQuality').value = '88'; $('backgroundJpegQualityValue').textContent = '88%';
+    $('backgroundJpegMatte').value = project.background.color;
+    if (!$('backgroundJpegDialog').open) $('backgroundJpegDialog').showModal();
+    refreshBackgroundJpeg();
+  }
+  async function refreshBackgroundJpeg() {
+    const session = backgroundJpegSession; if (!session) return;
+    const conversion = ++session.conversion;
+    const stale = () => backgroundJpegSession !== session || session.owner !== project || session.request !== backgroundRequest || conversion !== session.conversion;
+    session.result = null;
+    $('backgroundJpegApply').disabled = $('backgroundJpegDownload').disabled = true;
+    $('backgroundJpegPreview').hidden = true; $('backgroundJpegStatus').textContent = '正在轉換 ' + session.file.name + '…';
+    try {
+      const result = await window.ParticleBackgroundJPEG.load(session.file, {quality: Number($('backgroundJpegQuality').value) / 100, background: $('backgroundJpegMatte').value});
+      if (stale()) return;
+      session.result = result;
+      $('backgroundJpegPreview').src = result.dataUrl; $('backgroundJpegPreview').hidden = false;
+      const size = bytes => (bytes / 1048576).toFixed(2) + ' MiB';
+      $('backgroundJpegStatus').textContent = result.width + ' × ' + result.height + ' px · ' + size(session.file.size) + ' → JPG ' + size(result.bytes) + ' · 品質 ' + Math.round(result.quality * 100) + '%';
+      $('backgroundJpegApply').disabled = $('backgroundJpegDownload').disabled = false;
+    } catch (error) { if (!stale()) $('backgroundJpegStatus').textContent = error.message; }
+  }
+  function wireBackgroundJpeg() {
+    $('backgroundJpegButton').addEventListener('click', () => $('backgroundJpegFile').click());
+    $('backgroundJpegFile').addEventListener('change', event => {
+      openBackgroundJpeg(event.target.files[0]); event.target.value = '';
+    });
+    $('backgroundJpegQuality').addEventListener('input', () => { $('backgroundJpegQualityValue').textContent = $('backgroundJpegQuality').value + '%'; });
+    $('backgroundJpegQuality').addEventListener('change', refreshBackgroundJpeg);
+    $('backgroundJpegMatte').addEventListener('change', refreshBackgroundJpeg);
+    for (const id of ['backgroundJpegCancel', 'backgroundJpegClose']) $(id).addEventListener('click', () => $('backgroundJpegDialog').close());
+    $('backgroundJpegDialog').addEventListener('close', () => {
+      backgroundJpegSession = null; backgroundRequest++;
+      $('backgroundJpegPreview').removeAttribute('src'); $('backgroundJpegPreview').hidden = true;
+    });
+    $('backgroundJpegDownload').addEventListener('click', () => {
+      const session = backgroundJpegSession, result = session && session.result;
+      if (!result || session.owner !== project || session.request !== backgroundRequest) return;
+      const binary = atob(result.dataUrl.slice(result.dataUrl.indexOf(',') + 1));
+      download(Uint8Array.from(binary, char => char.charCodeAt(0)), result.name, 'image/jpeg');
+    });
+    $('backgroundJpegApply').addEventListener('click', () => {
+      const session = backgroundJpegSession, loaded = session && session.result;
+      if (!loaded || session.owner !== project || session.request !== backgroundRequest) return;
+      try {
+        const {name, mime, width, height, dataUrl, sourceWidth, sourceHeight} = loaded;
+        const candidate = {...project, background: {...project.background, image: {name, mime, width, height, dataUrl}, sourceWidth, sourceHeight, scale: 1}};
+        const background = Core.normalizeProject(candidate).background;
+        historyBegin('command');
+        try { project.background = background; fitBackgroundView(); } finally { historyEnd(); }
+        $('backgroundJpegDialog').close(); notify('已套用 JPG 參考圖，保留 ' + width + ' × ' + height + ' 原始像素。');
+      } catch (error) { $('backgroundJpegStatus').textContent = error.message; }
+    });
+  }
   function fitBackgroundView() {
     const bg = project.background, size = Core.backgroundSize(bg); if (!size) return;
     // Change the shared camera, keeping PNG pixels and particle coordinates in one space.
@@ -11730,11 +12682,39 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     {id: 'sparks', name: '迸射火花', description: '短促爆發的火花', symbol: '✸', gradient: 'linear-gradient(135deg,#fff2b0,#f34b23 70%,#4a1420)'},
     {id: 'coins', name: '金幣噴發', description: '金幣向上噴出再落下', symbol: '◉', gradient: 'linear-gradient(135deg,#ffe58a,#e8a018 70%,#3a2a12)'},
     {id: 'bubbles', name: '漂浮氣泡', description: '緩慢上飄的氣泡', symbol: '○', gradient: 'linear-gradient(135deg,#f1fcff,#4b99ff 70%,#1b2550)'},
-    {id: 'lightning', name: '網格閃電', description: '一張貼圖切網格，隨機扭曲成閃電；可換成自己的閃電圖', symbol: 'ϟ', gradient: 'linear-gradient(135deg,#f4fbff,#6fc3ff 55%,#14234a)'}
+    {id: 'lightning', name: '網格閃電', description: '一張貼圖切網格，隨機扭曲成閃電；可換成自己的閃電圖', symbol: 'ϟ', gradient: 'linear-gradient(135deg,#f4fbff,#6fc3ff 55%,#14234a)'},
+    {id: 'path-ribbon', name: '整條路徑光帶', description: '整張貼圖沿完整曲線彎成一條光帶，自動切網格、隱藏頭部', symbol: '〰', gradient: 'linear-gradient(135deg,#e9ffff,#22d3ee 55%,#152b46)'},
+    {id: 'path-stretch', name: '沿路徑拉伸', description: '貼圖沿貝茲路徑彎曲拉長，尾端漸細淡出', symbol: '〰', gradient: 'linear-gradient(135deg,#88f4d5,#38bdf8 55%,#16243f)'},
+    {id: 'path-afterimage', name: '殘影拖尾', description: '沿移動軌跡留下多張殘影，逐漸消失', symbol: '✦', gradient: 'linear-gradient(135deg,#e9d5ff,#a78bfa 55%,#231a3e)'}
   ];
   function builtinEmitter(preset, id = freshId()) {
     const names = Object.fromEntries(BUILTIN_EFFECTS.map(item => [item.id, item.name]));
     if (!names[preset]) throw new Error('找不到內建效果：' + preset);
+    if (preset === 'path-ribbon') {
+      const e = Core.createEmitter(id, names[preset], 'glow');
+      Object.assign(e, {image: clone(builtinImages.lightning), count: 1, emissionDuration: 0,
+        life: Math.max(0.05, project.duration - 0.4), lifeRandom: 0, size: 72, sizeRandom: 0,
+        speed: 0, speedRandom: 0, spin: 0, spinRandom: 0, blend: 'additive',
+        colorStart: '#ffffff', colorEnd: '#ffffff',
+        path: {...PathMath.defaults(), ...PathMath.preset('s', 360, 130), enabled: true},
+        trail: {...Trail.defaults(), enabled: true, mode: 'stretch', coverage: 'path', showHead: false,
+          axis: 'auto', duration: 0.4, segments: 32, opacity: 1, taper: 0},
+        sizeCurve: [{t: 0, v: 1}, {t: 1, v: 1}],
+        alphaCurve: [{t: 0, v: 0}, {t: 0.08, v: 1}, {t: 0.9, v: 1}, {t: 1, v: 0}]});
+      return e;
+    }
+    if (preset === 'path-stretch' || preset === 'path-afterimage') {
+      const e = Core.createEmitter(id, names[preset], 'glow');
+      Object.assign(e, {image: clone(preset === 'path-stretch' ? builtinImages.glow : builtinImages['trail-arrow']), count: 2, emissionDuration: 0.45, life: Math.max(0.05, Math.min(1.8, project.duration * 0.6)),
+        lifeRandom: 0, size: preset === 'path-stretch' ? 24 : 32, sizeRandom: 0, speedRandom: 0, spin: 0, spinRandom: 0,
+        blend: preset === 'path-stretch' ? 'additive' : 'normal',
+        colorStart: preset === 'path-stretch' ? '#88ffe1' : '#ddc5ff', colorEnd: '#6ea8ff', alignDirection: true,
+        path: {...PathMath.defaults(), ...PathMath.preset('s', 360, 130), enabled: true},
+        trail: {...Trail.defaults(), enabled: true, mode: preset === 'path-stretch' ? 'stretch' : 'afterimage', duration: 0.5},
+        sizeCurve: [{t: 0, v: 0.8}, {t: 0.15, v: 1}, {t: 1, v: 0.7}],
+        alphaCurve: [{t: 0, v: 0}, {t: 0.06, v: 1}, {t: 0.85, v: 1}, {t: 1, v: 0}]});
+      return e;
+    }
     if (preset === 'lightning') {
       const e = Core.createEmitter(id, names[preset], 'glow');
       Object.assign(e, {kind: 'lightning', lightning: {...window.ParticleLightning.DEFAULTS, bolts: 2, branches: 1},
@@ -11757,6 +12737,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
         notes = applyPlacement(e, pendingPlacement); Core.normalizeProject(project); integrationChanged();
       }
       changed(); renderEmitters(); renderInspector(); renderGlobals();
+      if (e.trail && e.trail.enabled) { setTab('motion'); expandSectionFor($('pathSection')); expandSectionFor($('trailSection')); $('trailSection').scrollIntoView({block: 'start'}); }
       if (pendingPlacement && attachmentUi) { attachmentUi.refresh(); notify('已在 ' + pendingPlacement.slot + '（骨骼 ' + pendingPlacement.bone + '）新增「' + e.name + '」' + (pendingPlacement.at !== null ? '，' + pendingPlacement.at + ' 秒開始' : '') + (notes.length ? '；' + notes.join('；') : '') + '。'); }
     } finally { historyEnd(); }
   }
@@ -11897,6 +12878,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
         const value = input.valueAsNumber; if (!Number.isFinite(value)) return;
         let custom = null;
         if (typeof curveEditor !== 'undefined' && curveEditor) custom = curveEditor.bindingFor(input);
+        if (!custom && typeof trailLengthEditor !== 'undefined' && trailLengthEditor) custom = trailLengthEditor.bindingFor(input);
         if (!custom && typeof gradientEditor !== 'undefined' && gradientEditor) custom = gradientEditor.bindingFor(input);
         if (!custom && typeof pathEditor !== 'undefined' && pathEditor) custom = pathEditor.bindingFor(input);
         if (!custom && textureUi) custom = textureUi.bindingFor(input);
@@ -11904,6 +12886,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
         if (!custom && typeof attachmentUi !== 'undefined' && attachmentUi) custom = attachmentUi.bindingFor(input);
         if (!custom && typeof flowBindingFor === 'function') custom = flowBindingFor(input);
         if (!custom && typeof seedBindingFor === 'function') custom = seedBindingFor(input);
+        if (!custom && typeof trailBindingFor === 'function') custom = trailBindingFor(input);
         const key = custom ? custom.key : input.dataset.field || {duration: 'duration', projectSeed: 'seed'}[input.id]; if (!key) return;
         if (gesture) finish(false);
         const source = custom ? custom.source : input.dataset.field ? emitter() : project;
@@ -11961,7 +12944,9 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   }
   function wireEvents() {
     wireHistory();
+    wireBackgroundJpeg();
     wireEmitterSeed();
+    wireTrail();
     pathEditor = window.ParticlePathEditor.mount({getEmitter: emitter, getScene: pathScene, loadOutline: loadPathOutline, onApply: (path, e, reference) => {
       const prior = {path: e.path, outline: e.outline, width: e.width, height: e.height};
       try {
@@ -12120,14 +13105,19 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     $('backgroundButton').addEventListener('click', () => $('backgroundFile').click());
     $('backgroundFile').addEventListener('change', async event => {
       const request = ++backgroundRequest, owner = project;
+      const file = event.target.files[0];
       try {
-        const file = event.target.files[0]; if (!file) return;
+        if (!file) return;
+        if (file.size > 4 * 1048576) { openBackgroundJpeg(file); return; }
         const loaded = await loadImage(file, true);
         if (request !== backgroundRequest || owner !== project) return;
         const {sourceWidth, sourceHeight, ...image} = loaded;
         const candidate = {...project, background: {...project.background, image, sourceWidth, sourceHeight, scale: 1}};
         project.background = Core.normalizeProject(candidate).background; fitBackgroundView();
-      } catch (error) { notify(error.message, true); } finally { event.target.value = ''; }
+      } catch (error) {
+        if (request === backgroundRequest && owner === project && /超過 [48] MB/.test(error.message)) openBackgroundJpeg(file);
+        else notify(error.message, true);
+      } finally { event.target.value = ''; }
     });
     $('backgroundActualSize').addEventListener('click', () => {
       if (!project.background.image) return;
@@ -12150,6 +13140,10 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     $('helpButton').addEventListener('click', () => $('helpDialog').showModal()); $('closeHelp').addEventListener('click', () => $('helpDialog').close());
     const lifecycleChange = () => { changed(); renderEmitters(); drawCurves(); };
     curveEditor = window.ParticleCurveEditor.mount({getEmitter: emitter, onChange: lifecycleChange, math: window.ParticleCurveMath, Core});
+    trailLengthEditor = window.ParticleCurveEditor.mount({getEmitter: trailLengthTarget,
+      onChange: () => { changed(); renderEmitters(); renderTrailInspector(); drawCurves(); }, math: window.ParticleCurveMath, Core,
+      lifecycleControls: false, definitions: [{prefix: 'trailLength', key: 'lengthCurve', max: Trail.MAX_LENGTH, valueScale: 100, autoScale: true,
+        reset: 'resetTrailLength', remove: 'deleteTrailLengthPoint', resetValue: [{t: 0, v: 1}, {t: 1, v: 1}]}]});
     gradientEditor = window.ParticleGradientEditor.mount({getEmitter: emitter, onChange: lifecycleChange, math: window.ParticleCurveMath, Core});
     $('alphaAdvanced').addEventListener('toggle', drawCurves);
     lookPresetsUi = window.ParticleLookPresetsUI.mount({getEmitter: emitter, onApply: (kind, id) => {
@@ -12214,7 +13208,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       if (flow && phase !== 'loop') local = 0;
       return {duration, fps: project.fps, time: local, selectedId,
         emitters: project.emitters.map(e => ({id: e.id, name: e.name, enabled: e.enabled, muted: muted.has(e.id),
-          startDelay: e.startDelay || 0, emissionDuration: e.emissionDuration, life: e.life, lifeRandom: e.lifeRandom,
+          startDelay: e.startDelay || 0, emissionDuration: e.emissionDuration, life: e.life, lifeRandom: e.lifeRandom, trail: e.trail,
           color: e.colorGradient && e.colorGradient.length ? e.colorGradient[Math.floor(e.colorGradient.length / 2)].color : e.colorStart}))};
     }, onSelect: id => { if (id !== selectedId) selectEmitter(id); },
     onBegin: () => { if (!busy) historyBegin('command'); },

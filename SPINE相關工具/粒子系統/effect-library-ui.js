@@ -6,6 +6,8 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (root) {
   'use strict';
   const shapes = {point: '點', direction: '方向', line: '線', circle: '圓', ring: '環', box: '矩形', outline: '物件輪廓'};
+  const trailSummary = emitter => emitter.trail && emitter.trail.enabled ?
+    ' · ' + (emitter.trail.mode === 'afterimage' ? '殘影拖尾' : '沿路徑拉伸') + ' ' + emitter.trail.duration + ' 秒' : '';
   function mount(options) {
     options = options || {};
     const doc = options.document || root.document, Library = options.Library || root.ParticleEffectLibrary;
@@ -95,7 +97,7 @@
         ui.effectLibrarySelectedName.textContent = choice.name;
         const e = choice.emitter;
         ui.effectLibrarySelectedInfo.textContent = (shapes[e.shape] || e.shape) + ' · ' + e.count + ' 顆 · 壽命 ' + e.life + ' 秒' +
-          (e.path && e.path.enabled ? ' · 路徑移動' : '') + (e.sequence && e.sequence.enabled ? (e.sequence.mode === 'random' ? ' · ' + e.sequence.frames.length + ' 張隨機圖' : ' · ' + e.sequence.frames.length + ' 張連續圖 · ' + e.sequence.fps + ' FPS') : e.image ? ' · 自訂 PNG' : '') +
+          (e.path && e.path.enabled ? ' · 路徑移動' : '') + trailSummary(e) + (e.sequence && e.sequence.enabled ? (e.sequence.mode === 'random' ? ' · ' + e.sequence.frames.length + ' 張隨機圖' : ' · ' + e.sequence.frames.length + ' 張連續圖 · ' + e.sequence.fps + ' FPS') : e.image ? ' · 自訂 PNG' : '') +
           (e.randomSeed !== undefined ? ' · 種子 ' + e.randomSeed : '') + '。套用後仍可編輯。';
       }
       ui.effectLibraryCount.textContent = '已儲存 ' + templates.length + ' / ' + Library.MAX_ITEMS + ' 組';
@@ -119,7 +121,7 @@
         } else { const symbol = doc.createElement('span'); symbol.textContent = {point: '✦', direction: '↗', line: '━', circle: '●', ring: '◯', box: '▧', outline: '⬡'}[e.shape] || '✦'; art.append(symbol); }
         const info = doc.createElement('span'); info.className = 'effect-library-item-info';
         const name = doc.createElement('strong'), description = doc.createElement('span'); name.textContent = template.name;
-        description.textContent = (shapes[e.shape] || e.shape) + ' · ' + e.count + ' 顆' + (e.path && e.path.enabled ? ' · 路徑' : '') + (e.sequence && e.sequence.enabled ? (e.sequence.mode === 'random' ? ' · 隨機圖 ' + e.sequence.frames.length + ' 張' : ' · 連續圖 ' + e.sequence.fps + ' FPS') : '');
+        description.textContent = (shapes[e.shape] || e.shape) + ' · ' + e.count + ' 顆' + (e.path && e.path.enabled ? ' · 路徑' : '') + trailSummary(e) + (e.sequence && e.sequence.enabled ? (e.sequence.mode === 'random' ? ' · 隨機圖 ' + e.sequence.frames.length + ' 張' : ' · 連續圖 ' + e.sequence.fps + ' FPS') : '');
         info.append(name, description); button.append(art, info);
         button.addEventListener('click', () => {
           if (busy) return;

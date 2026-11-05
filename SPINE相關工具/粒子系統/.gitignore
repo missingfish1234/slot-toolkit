@@ -11,3 +11,6 @@
 /scripts/shapes-example.js
 /_backup/
 /_封存/
+
+# Local examples built with user-provided source artwork.
+/examples/hitfx-*.particle.json

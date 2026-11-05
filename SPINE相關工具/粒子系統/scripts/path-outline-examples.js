@@ -8,7 +8,7 @@ const ContourMath = require('../contour-math');
 const Storage = require('../storage');
 const Zip = require('../zip');
 const root = path.resolve(__dirname, '..');
-const editorVersion = require('../package.json').version.replace(/\.0$/, '');
+const editorVersion = require('../tool.json').version.replace(/\.0$/, '');
 function png(width, height, rgba) {
   const chunk = (name, data) => { const tag = Buffer.from(name), length = Buffer.alloc(4), crc = Buffer.alloc(4); length.writeUInt32BE(data.length); crc.writeUInt32BE(Zip.crc32(Buffer.concat([tag, data]))); return Buffer.concat([length, tag, data, crc]); };
   const header = Buffer.alloc(13); header.writeUInt32BE(width); header.writeUInt32BE(height, 4); header[8] = 8; header[9] = 6;

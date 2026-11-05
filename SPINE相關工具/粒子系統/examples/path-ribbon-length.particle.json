@@ -1,0 +1,210 @@
+{
+  "format": "particle-studio-project",
+  "schemaVersion": 1,
+  "project": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "光帶先長再短",
+    "fps": 30,
+    "spineVersion": "4.0.56",
+    "duration": 2.6,
+    "loop": false,
+    "flow": {
+      "enabled": false,
+      "in": {
+        "name": "in",
+        "duration": 1
+      },
+      "loop": {
+        "name": "loop",
+        "duration": 3
+      },
+      "out": {
+        "name": "out",
+        "duration": 1
+      }
+    },
+    "seed": 42,
+    "emitters": [
+      {
+        "id": "path_ribbon_length",
+        "name": "光帶先長再短",
+        "enabled": true,
+        "x": 0,
+        "y": 0,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 0,
+        "count": 1,
+        "emissionDuration": 0,
+        "life": 2,
+        "lifeRandom": 0,
+        "speed": 0,
+        "speedRandom": 0,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 72,
+        "sizeRandom": 0,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": true,
+        "blend": "additive",
+        "colorStart": "#ffffff",
+        "colorEnd": "#ffffff",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 1
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 1
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": null,
+        "image": {
+          "name": "path-ribbon-blue.png",
+          "mime": "image/png",
+          "width": 48,
+          "height": 112,
+          "dataUrl": "data:image/png;base64,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"
+        },
+        "emitFrom": "area",
+        "path": {
+          "enabled": true,
+          "points": [
+            {
+              "x": -210,
+              "y": 0,
+              "curve": "bezier",
+              "out": {
+                "x": 35,
+                "y": 34.033920413889426
+              }
+            },
+            {
+              "x": -105,
+              "y": 65,
+              "curve": "bezier",
+              "in": {
+                "x": -35,
+                "y": -2.0839765848652722e-15
+              },
+              "out": {
+                "x": 35,
+                "y": 2.0839765848652722e-15
+              }
+            },
+            {
+              "x": 0,
+              "y": 7.960204194457796e-15,
+              "curve": "bezier",
+              "in": {
+                "x": -35,
+                "y": 34.033920413889426
+              },
+              "out": {
+                "x": 35,
+                "y": -34.033920413889426
+              }
+            },
+            {
+              "x": 105,
+              "y": -65,
+              "curve": "bezier",
+              "in": {
+                "x": -35,
+                "y": 6.251929754595816e-15
+              },
+              "out": {
+                "x": 35,
+                "y": -6.251929754595816e-15
+              }
+            },
+            {
+              "x": 210,
+              "y": -1.592040838891559e-14,
+              "curve": "bezier",
+              "in": {
+                "x": -35,
+                "y": -34.033920413889426
+              }
+            }
+          ],
+          "closed": false,
+          "smooth": 0,
+          "reverse": false,
+          "mode": "lifetime",
+          "offsets": false
+        },
+        "trail": {
+          "enabled": true,
+          "mode": "stretch",
+          "duration": 0.4,
+          "samples": 8,
+          "segments": 32,
+          "opacity": 1,
+          "width": 1,
+          "taper": 0,
+          "coverage": "path",
+          "showHead": false,
+          "axis": "y",
+          "flipTexture": false,
+          "lengthCurve": [
+            {
+              "t": 0,
+              "v": 0.15
+            },
+            {
+              "t": 0.4,
+              "v": 1
+            },
+            {
+              "t": 1,
+              "v": 0.05
+            }
+          ],
+          "moveDuration": null,
+          "lengthDuration": null
+        }
+      }
+    ],
+    "background": {
+      "color": "#0b111c",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    },
+    "bakeQuality": "fine"
+  },
+  "bakedProject": null,
+  "view": {
+    "time": 0.8,
+    "mode": "live",
+    "zoom": 1.15,
+    "panX": 0,
+    "panY": 0
+  }
+}
