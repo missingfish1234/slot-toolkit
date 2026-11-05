@@ -15,7 +15,7 @@
     "離線網頁工具"
   ],
   "updatedAt": "2026-11-05",
-  "size": "",
+  "size": "2.7 MB（下載）",
   "changelog": [
     "v1.29.6：背景圖可原解析度轉JPG，預覽品質與透明底色，直接套用或下載；支援32MiB來源，2440×1440圖片免先外部壓縮。",
     "v1.29.5：修正反覆調整獨立時間會累積縮細，保留作者生命與尺寸曲線，預覽及輸出改按當前時間重算存活範圍。",
@@ -41,5 +41,7 @@
     "presets",
     "config.json",
     "settings.json"
-  ]
+  ],
+  "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/cfd2e531fae61c86fbb8df056c5fe2002104334f/releases/tool-spine-particle-studio-1.29.6.zip",
+  "sha256": "8de8ea377c3a3f67b97b8a984db3c9da2aff830bc8245ca2d0207afbd8448950"
 }
