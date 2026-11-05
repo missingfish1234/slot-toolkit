@@ -506,7 +506,7 @@
       "name": "SPINE 粒子系統（Particle Studio）",
       "category": "SPINE相關工具",
       "description": "離線編排粒子、整條路徑光帶、殘影拖尾與網格閃電，輸出 Spine 3.8／4.0／4.2；支援既有骨架掛接、原工程寫回與批次輸出。",
-      "version": "1.29.6",
+      "version": "1.30.0",
       "path": "SPINE相關工具/粒子系統",
       "entry": "dist/Particle-Studio.html",
       "icon": "",
@@ -520,6 +520,10 @@
       "updatedAt": "2026-11-05",
       "size": "2.7 MB（下載）",
       "changelog": [
+        "v1.30.0：輸出 KEY 大幅精簡——隱藏期間不再打 KEY、各軌道只保留自己需要的節點、不變的軌道只留 1 個 KEY、殘影拖尾也會精簡；新增「極簡」烘焙品質。",
+        "v1.29.9：分開精簡光帶的網格變形與顏色關鍵幀，隱藏頭部時省去其動畫軌。",
+        "v1.29.8：減少歷史拖尾的重複取樣與連續圖的重複網格變形，修正光帶烘焙超限。",
+        "v1.29.7：Spine、批次與掛接 ZIP 可選擇儲存位置，骨架 JSON 和粒子編輯專案以檔名前綴區分。減少路徑光帶的重複取樣，烘焙失敗時會顯示原因。",
         "v1.29.6：背景圖可原解析度轉JPG，預覽品質與透明底色，直接套用或下載；支援32MiB來源，2440×1440圖片免先外部壓縮。",
         "v1.29.5：修正反覆調整獨立時間會累積縮細，保留作者生命與尺寸曲線，預覽及輸出改按當前時間重算存活範圍。",
         "v1.29.4：移動到達與尾巴收縮可獨立計時；新增彗星撞擊預設，0.5秒到達後停住、尾巴0.65秒收完，保留0–1000%長度設定。",
@@ -536,8 +540,8 @@
         "v1.22.0：輸出保留圖片原檔名。",
         "v1.9.0：加入工具包與管理器，可離線啟動粒子工作室。"
       ],
-      "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/cfd2e531fae61c86fbb8df056c5fe2002104334f/releases/tool-spine-particle-studio-1.29.6.zip",
-      "sha256": "8de8ea377c3a3f67b97b8a984db3c9da2aff830bc8245ca2d0207afbd8448950",
+      "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/2cedc7617cac62ce0091361f42429e02eb46d322/releases/tool-spine-particle-studio-1.30.0.zip",
+      "sha256": "35b177acd49d4bfee014a33c74cb35bd41344441752646e8f2fbc4b2a867c420",
       "kind": "網頁工具",
       "preservePaths": [
         "user-data",

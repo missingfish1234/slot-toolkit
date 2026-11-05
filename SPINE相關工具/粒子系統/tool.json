@@ -15,7 +15,7 @@
     "離線網頁工具"
   ],
   "updatedAt": "2026-11-05",
-  "size": "",
+  "size": "2.7 MB（下載）",
   "changelog": [
     "v1.30.0：輸出 KEY 大幅精簡——隱藏期間不再打 KEY、各軌道只保留自己需要的節點、不變的軌道只留 1 個 KEY、殘影拖尾也會精簡；新增「極簡」烘焙品質。",
     "v1.29.9：分開精簡光帶的網格變形與顏色關鍵幀，隱藏頭部時省去其動畫軌。",
@@ -45,5 +45,7 @@
     "presets",
     "config.json",
     "settings.json"
-  ]
+  ],
+  "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/2cedc7617cac62ce0091361f42429e02eb46d322/releases/tool-spine-particle-studio-1.30.0.zip",
+  "sha256": "35b177acd49d4bfee014a33c74cb35bd41344441752646e8f2fbc4b2a867c420"
 }
