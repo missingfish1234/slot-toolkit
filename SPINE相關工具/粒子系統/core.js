@@ -20,7 +20,7 @@
   const RESET_EPS = 0.0001;
   const MAX_POOL = 1200;
   const MAX_EXPORT_SAMPLES = 2000000;
-  const BAKE_QUALITIES = Object.freeze(['fine', 'standard', 'compact']);
+  const BAKE_QUALITIES = Object.freeze(['fine', 'standard', 'compact', 'minimal']);
   const clone = value => JSON.parse(JSON.stringify(value));
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
   const mod = (value, divisor) => ((value % divisor) + divisor) % divisor;
@@ -57,13 +57,16 @@
     standard: {name: 'standard', label: '標準', tolerances: {position: 0.2, rotation: 0.25, scale: 0.002, alpha: 0.004, color: 1 / 255},
       refinement: {position: 0.08, rotation: 0.1}},
     compact: {name: 'compact', label: '精簡', tolerances: {position: 0.5, rotation: 0.5, scale: 0.004, alpha: 0.008, color: 1 / 255},
-      refinement: {position: 0.2, rotation: 0.2, scale: 0.0016, alpha: 0.0032, color: 1 / 1020}}
+      refinement: {position: 0.2, rotation: 0.2, scale: 0.0016, alpha: 0.0032, color: 1 / 1020}},
+    // A wider tolerance for fast, small or additive effects.
+      minimal: {name: 'minimal', label: '極簡', tolerances: {position: 1.5, rotation: 1.5, scale: 0.01, alpha: 0.016, color: 2 / 255},
+      refinement: {position: 0.6, rotation: 0.6, scale: 0.004, alpha: 0.0064, color: 1 / 1020}}
   });
   function qualityProfile(projectOrName) {
-    if (Array.isArray(projectOrName)) fail('烘焙品質僅支援精細、標準、精簡。');
+    if (Array.isArray(projectOrName)) fail('烘焙品質僅支援精細、標準、精簡、極簡。');
     const requested = typeof projectOrName === 'object' && projectOrName !== null ? projectOrName.bakeQuality : projectOrName;
     const name = requested === undefined ? 'standard' : requested;
-    if (!BAKE_QUALITIES.includes(name)) fail('烘焙品質僅支援精細、標準、精簡。');
+    if (!BAKE_QUALITIES.includes(name)) fail('烘焙品質僅支援精細、標準、精簡、極簡。');
     return QUALITY_PROFILES[name];
   }
 
@@ -762,12 +765,12 @@
     if (source === e.speedCurve || source === particle.lifecycle.speed) return pathDuration(particle);
     return particle.life;
   }
-  function trailClockDurations(particle) {
+  function trailClockDurations(particle, history) {
     const e = particle.emitter;
     if (!(Trail && Trail.active(e) && e.trail.mode === 'stretch')) return [];
     return Array.from(new Set([
       e.trail.moveDuration != null && particle.lifecycle.path && e.path.mode === 'lifetime' ? e.trail.moveDuration : null,
-      e.trail.lengthDuration
+      history ? null : e.trail.lengthDuration
     ].filter(value => value != null)));
   }
 
@@ -1170,9 +1173,12 @@
     const flow = baked.flowPhase;
     return flow && flow.kind === 'in' ? particleAge(flow.basis, particle, mod(time + flow.offset, flow.basis.duration)) : particleAge(baked, particle, time);
   }
-  function visibleHeadState(particle, state) {
+  function hasHiddenTrailHead(particle) {
     const settings = particle.emitter.trail;
-    return hasTrail(particle) && settings.mode === 'stretch' && settings.showHead === false ? {...state, alpha: 0} : state;
+    return hasTrail(particle) && settings.mode === 'stretch' && settings.showHead === false;
+  }
+  function visibleHeadState(particle, state) {
+    return hasHiddenTrailHead(particle) ? {...state, alpha: 0} : state;
   }
   function trailState(baked, particle, lane, time) {
     const age = trailAge(baked, particle, time), e = particle.emitter, path = particle.lifecycle.path;
@@ -1232,45 +1238,52 @@
     return {first, last};
   }
 
-  function sampledTimeline(baked, particle, metadataOnly, sampleBudget) {
+  function sampledTimeline(baked, particle, metadataOnly, sampleBudget, history) {
     const duration = baked.duration;
     const times = new Map();
-    function add(time, mandatory, stepped, rotationStepped, pathAngle) {
+    function add(time, mandatory, stepped, rotationStepped, pathAngle, marks) {
       if (time < -EPS || time > duration + EPS) return;
       const t = round(clamp(time, 0, duration));
       const current = times.get(t) || {time: t, mandatory: false, stepped: false};
       current.mandatory = current.mandatory || !!mandatory;
+      // Channel marks: authored markers that the matching exported channel keeps.
+      if (marks && marks.length) current.marks = Array.from(new Set((current.marks || []).concat(marks)));
       current.stepped = current.stepped || !!stepped;
       if (rotationStepped) current.rotationStepped = true;
       if (pathAngle !== undefined) current.pathAngle = pathAngle;
       times.set(t, current);
     }
     add(0, true); add(duration, true);
-    for (let frame = 1; frame < Math.ceil(duration * baked.fps); frame++) add(frame / baked.fps, false);
+    if (!history) {
+      for (let frame = 1; frame < Math.ceil(duration * baked.fps); frame++) add(frame / baked.fps, false);
+    }
     if (baked.flowPhase && baked.flowPhase.kind === 'in') {
       const basis = baked.flowPhase.basis, basisKeys = sampledTimeline(basis, particle, true);
       const cycles = Math.ceil(duration / basis.duration) + 1;
       if ((particle.lifecycle.path || particle.emitter.alignDirection || activeSequence(particle.emitter) || particle.emitter.separateSizeAxes) && basisKeys.length * (cycles + 1) > MAX_EXPORT_SAMPLES) fail('進場動畫取樣超過 200 萬，請縮短 In、降低速度，或加長 Loop。');
       for (let cycle = -cycles; cycle <= 0; cycle++) {
-        basisKeys.forEach(key => add(duration + cycle * basis.duration + key.time, key.mandatory, key.stepped, key.rotationStepped, key.pathAngle));
+        basisKeys.forEach(key => add(duration + cycle * basis.duration + key.time, key.mandatory, key.stepped, key.rotationStepped, key.pathAngle, key.marks));
       }
       return finish();
     }
-    function event(phase, reset, mandatory) {
+    function event(phase, reset, mandatory, marks) {
       let time = particle.birth + phase;
       if (baked.loop) time = mod(time, duration);
-      add(time, mandatory !== false);
+      add(time, mandatory !== false, false, false, undefined, marks);
       if (reset) {
         const before = time <= EPS && baked.loop ? duration - RESET_EPS : time - RESET_EPS;
         add(before, true, true);
         if (time <= EPS && baked.loop) add(duration, true);
       }
     }
-    function lifetimeEvent(t, reset, mandatory, clock) {
+    function lifetimeEvent(t, reset, mandatory, clock, marks) {
       const age = t * (clock === undefined ? particle.life : clock) - (baked.loop ? particle.cycleIndex * duration : 0);
-      if (!baked.loop || (age >= 0 && age <= duration)) event(age, reset, mandatory);
+      if (!baked.loop || (age >= 0 && age <= duration)) event(age, reset, mandatory, marks);
     }
-    const curves = scalarCurves(particle);
+    const curves = scalarCurves(particle), currentLength = history ? activeTrailLengthCurve(particle.emitter) : null;
+    const pe = particle.emitter, sizeCurveSet = new Set(activeSizeCurves(pe));
+    const curveMarks = points => sizeCurveSet.has(points) ? ['scale'] : points === pe.alphaCurve ? ['color'] :
+      points === pe.speedCurve ? (pe.alignDirection ? ['position', 'rotation'] : ['position']) : ['position', 'scale'];
     if (baked.loop) {
       event(0, true);
       const death = particle.life - particle.cycleIndex * duration;
@@ -1278,16 +1291,18 @@
     } else {
       event(0, true); event(particle.life, true);
     }
-    curves.forEach(points => points.forEach((point, index) => lifetimeEvent(point.t, index > 0 && points[index - 1].curve === 'stepped', undefined, scalarDuration(particle, points))));
-    trailClockDurations(particle).forEach(clock => lifetimeEvent(1, false, true, clock));
-    if (particle.emitter.colorGradient) particle.emitter.colorGradient.forEach(point => lifetimeEvent(point.t, false));
-    compiledScalarCurves(particle).forEach(compiled => {
-      if (compiled) compiled.sampleTimes.forEach(t => lifetimeEvent(t, false, false, scalarDuration(particle, compiled)));
-    });
-    const sequence = activeSequence(particle.emitter), sequenceRange = sequenceBoundaryRange(baked, particle);
-    for (let frame = sequenceRange.first; frame <= sequenceRange.last; frame++) {
-      const phase = frame / sequence.fps - (baked.loop ? particle.cycleIndex * duration : 0);
-      event(phase, false, false);
+    curves.filter(points => points !== currentLength).forEach(points => points.forEach((point, index) => lifetimeEvent(point.t, index > 0 && points[index - 1].curve === 'stepped', undefined, scalarDuration(particle, points), curveMarks(points))));
+    trailClockDurations(particle, history).forEach(clock => lifetimeEvent(1, false, true, clock, ['position', 'rotation', 'scale']));
+    if (particle.emitter.colorGradient) particle.emitter.colorGradient.forEach(point => lifetimeEvent(point.t, false, undefined, undefined, ['color']));
+    if (!history) {
+      compiledScalarCurves(particle).forEach(compiled => {
+        if (compiled) compiled.sampleTimes.forEach(t => lifetimeEvent(t, false, false, scalarDuration(particle, compiled)));
+      });
+      const sequence = activeSequence(particle.emitter), sequenceRange = sequenceBoundaryRange(baked, particle);
+      for (let frame = sequenceRange.first; frame <= sequenceRange.last; frame++) {
+        const phase = frame / sequence.fps - (baked.loop ? particle.cycleIndex * duration : 0);
+        event(phase, false, false);
+      }
     }
     let previousPathAge = -Infinity;
     pathEvents(baked, particle).forEach(key => {
@@ -1295,11 +1310,11 @@
       let at = particle.birth + phase;
       if (baked.loop) at = mod(at, duration);
       const resetsLane = baked.loop && key.age >= (particle.cycleIndex + 1) * duration - EPS;
-      add(at, true, false, false, resetsLane ? undefined : key.angle);
+      add(at, true, false, false, resetsLane ? undefined : key.angle, key.corner ? ['position', 'rotation'] : undefined);
       if (key.corner) {
         const delta = Math.min(RESET_EPS, (key.age - previousPathAge) / 3);
         const before = at <= EPS && baked.loop ? duration - delta : at - delta;
-        add(before, true, false, true);
+        add(before, true, false, true, undefined, ['rotation']);
       }
       previousPathAge = key.age;
     });
@@ -1308,7 +1323,7 @@
       if (baked.loop && (phase < -EPS || phase > duration + EPS)) return;
       let at = particle.birth + phase;
       if (baked.loop) at = mod(at, duration);
-      add(at, true, false, key.rotationStepped);
+      add(at, true, false, key.rotationStepped, undefined, ['rotation']);
     });
     return finish();
 
@@ -1359,21 +1374,96 @@
     const keep = new Set([0, keys.length - 1]);
     keys.forEach((key, i) => { if (key.mandatory || key.stepped) keep.add(i); if (i && keys[i - 1].stepped) keep.add(i); });
     const anchors = Array.from(keep).sort((a, b) => a - b);
-    function split(first, last) {
-      if (last - first <= 1 || keys[first].stepped) return;
+    const uniformTolerance = typeof tolerance === 'number';
+    const intervals = [];
+    for (let i = 1; i < anchors.length; i++) intervals.push([anchors[i - 1], anchors[i]]);
+    while (intervals.length) {
+      const [first, last] = intervals.pop();
+      if (last - first <= 1 || keys[first].stepped) continue;
       let greatest = 1, candidate = -1;
       const a = keys[first], b = keys[last], av = channels(a.state), bv = channels(b.state);
       for (let i = first + 1; i < last; i++) {
         const u = (keys[i].time - a.time) / (b.time - a.time);
         const values = channels(keys[i].state);
         let error = 0;
-        for (let c = 0; c < values.length; c++) error = Math.max(error, Math.abs(values[c] - (av[c] + (bv[c] - av[c]) * u)) / tolerance[c]);
+        for (let c = 0; c < values.length; c++) error = Math.max(error, Math.abs(values[c] - (av[c] + (bv[c] - av[c]) * u)) / (uniformTolerance ? tolerance : tolerance[c]));
         if (error > greatest) { greatest = error; candidate = i; }
       }
-      if (candidate !== -1) { keep.add(candidate); split(first, candidate); split(candidate, last); }
+      if (candidate !== -1) { keep.add(candidate); intervals.push([first, candidate], [candidate, last]); }
     }
-    for (let i = 1; i < anchors.length; i++) split(anchors[i - 1], anchors[i]);
     return Array.from(keep).sort((a, b) => a - b).map(i => keys[i]);
+  }
+
+  // Visibility-aware, per-channel reduction for exported bone/slot channels.
+  // Values only matter while the slot shows an attachment, so hidden spans
+  // collapse to one stepped hold. Lifetime markers of other channels are not
+  // forced into this channel, and a step whose jump is within tolerance is
+  // replaced by plain interpolation. Every visible sample stays within the
+  // tolerance; a channel that never changes exports a single key.
+  // keepHidden (used for slot color) keeps the hidden value itself (alpha 0)
+  // through hidden spans instead of holding the last visible value.
+  function reduceVisibleTimeline(keys, channels, tolerance, steppedOf, keepHidden, mark, maxSpan) {
+    if (!keys.length) return keys;
+    const marked = key => !!(mark && key.marks && key.marks.includes(mark));
+    const isStepped = steppedOf || (key => key.stepped);
+    const visible = key => !!key.state.alive;
+    const tol = c => typeof tolerance === 'number' ? tolerance : tolerance[c];
+    const values = keys.map(key => channels(key.state));
+    const within = (a, b) => a.every((value, c) => Math.abs(value - b[c]) <= tol(c));
+    const shown = [];
+    keys.forEach((key, i) => { if (visible(key)) shown.push(i); });
+    if (!shown.length) return [{...keys[0], stepped: false, rotationStepped: false}];
+    // Constant over every visible sample: one key holds the whole animation.
+    if ((!keepHidden || shown.length === keys.length) && shown.every(i => within(values[i], values[shown[0]]))) return [{...keys[shown[0]], time: 0, stepped: false, rotationStepped: false}];
+    // Build visible blocks. A block ends at its last visible key (held by a
+    // step) or, for a smooth fade-out into a hidden span, at the first hidden
+    // key so the final visible interval keeps its original interpolation.
+    const blocks = [];
+    for (let i = 0; i < keys.length;) {
+      if (!visible(keys[i])) { i++; continue; }
+      let j = i;
+      while (j + 1 < keys.length && visible(keys[j + 1])) j++;
+      let end = j;
+      if (j + 1 < keys.length && (keepHidden || !isStepped(keys[j]) && !within(values[j], values[j + 1]))) end = j + 1;
+      blocks.push([i, end, end + 1 < keys.length]);
+      i = j + 1;
+    }
+    const out = [];
+    if (keepHidden && blocks[0][0] > 0) out.push({...keys[0], stepped: true, rotationStepped: false});
+    blocks.forEach(([first, last, holds]) => {
+      // Inside a block, a step matters only when its jump exceeds tolerance.
+      const stepAt = i => i < last && isStepped(keys[i]) && visible(keys[i]) && !within(values[i], values[i + 1]);
+      const keep = new Set([first, last]);
+      for (let i = first; i < last; i++) {
+        if (stepAt(i)) { keep.add(i); keep.add(i + 1); }
+        if (i > first && marked(keys[i]) && visible(keys[i])) keep.add(i);
+      }
+      const anchors = Array.from(keep).sort((a, b) => a - b), intervals = [];
+      for (let i = 1; i < anchors.length; i++) intervals.push([anchors[i - 1], anchors[i]]);
+      while (intervals.length) {
+        const [a, b] = intervals.pop();
+        if (b - a <= 1 || stepAt(a)) continue;
+        const ta = keys[a].time, tb = keys[b].time, va = values[a], vb = values[b];
+        let greatest = 1, candidate = -1;
+        if (maxSpan !== undefined && va.some((value, c) => Math.abs(vb[c] - value) > maxSpan)) {
+          for (let i = a + 1; i < b; i++) if (visible(keys[i])) { candidate = i; if (i >= (a + b) / 2) break; }
+          if (candidate !== -1) { keep.add(candidate); intervals.push([a, candidate], [candidate, b]); continue; }
+        }
+        for (let i = a + 1; i < b; i++) {
+          if (!visible(keys[i])) continue;
+          const u = (keys[i].time - ta) / (tb - ta);
+          let error = 0;
+          for (let c = 0; c < va.length; c++) error = Math.max(error, Math.abs(values[i][c] - (va[c] + (vb[c] - va[c]) * u)) / tol(c));
+          if (error > greatest) { greatest = error; candidate = i; }
+        }
+        if (candidate !== -1) { keep.add(candidate); intervals.push([a, candidate], [candidate, b]); }
+      }
+      Array.from(keep).sort((a, b) => a - b).forEach(i => {
+        const stepped = stepAt(i) || (i === last && holds);
+        out.push({...keys[i], stepped, rotationStepped: false});
+      });
+    });
+    return out;
   }
 
   function keyframe(key, values) {
@@ -1390,48 +1480,59 @@
   function hasTrail(particle) { return !!(Trail && Trail.active(particle.emitter)); }
   function trailCost(baked, particle) {
     const settings = particle.emitter.trail, count = Trail.lanes(settings).length;
-    const sequence = activeSequence(particle.emitter), frames = sequence ? sequence.frames.length : 1;
-    const grid = Math.ceil(baked.duration * baked.fps) + 1, weight = settings.mode === 'stretch' ? (Trail.segmentCount(settings) + 1) * frames : 1;
+    const sequence = activeSequence(particle.emitter);
+    const grid = Math.ceil(baked.duration * baked.fps) + 1, weight = settings.mode === 'stretch' ? Trail.segmentCount(settings) + 1 : 1;
     const source = timelineCost({...baked, duration: particle.life, loop: false, flowPhase: undefined}, {...particle, birth: 0, cycleIndex: 0});
     const extended = settings.mode === 'stretch' && Trail.maxLength(settings) > 1;
-    const copies = settings.mode === 'stretch' ? extended && settings.coverage === 'path' ? 2 : (settings.segments + 1) * (extended ? 2 : 1) : 1;
+    let copies = 1;
+    if (settings.mode === 'stretch') copies = settings.coverage === 'path' ? 2 : (settings.segments + 1) * (extended ? 2 : 1);
     const repeats = baked.flowPhase && baked.flowPhase.kind === 'in' ? Math.ceil(baked.duration / baked.flowPhase.basis.duration) + 2 : 1;
-    return {lower: grid * count * weight, upper: (grid + source.upper * copies * repeats + 8) * count * weight,
+    const switchEndpoints = settings.mode === 'stretch' && sequence && sequence.frames.length > 1 ? 2 : 1;
+    return {lower: grid * count * weight, upper: (grid + source.upper * copies * repeats + 8) * count * weight * switchEndpoints,
       rejected: source.rejected};
   }
   // Shift authored motion/texture events by the history lag. This retains
   // precise births, deaths, step curves, path corners and sequence switches.
   function trailMetadata(baked, particle, lane) {
     const settings = particle.emitter.trail, duration = baked.duration, times = new Map();
-    function add(time, stepped) {
+    function add(time, stepped, mandatory) {
       if (time < -EPS || time > duration + EPS) return;
       const at = round(clamp(time, 0, duration)), previous = times.get(at);
-      times.set(at, {time: at, stepped: !!stepped || !!(previous && previous.stepped)});
+      times.set(at, {time: at, stepped: !!stepped || !!(previous && previous.stepped), mandatory: !!mandatory || !!(previous && previous.mandatory)});
     }
     add(0); add(duration);
     for (let frame = 1; frame < Math.ceil(duration * baked.fps); frame++) add(frame / baked.fps);
     if (baked.flowPhase && baked.flowPhase.kind === 'in') {
       const basis = baked.flowPhase.basis, source = trailMetadata(basis, particle, lane), cycles = Math.ceil(duration / basis.duration) + 1;
       if (source.length * (cycles + 1) > MAX_EXPORT_SAMPLES) fail('拖尾進場取樣超過 200 萬，請縮短 In 或增加 Loop 長度。');
-      for (let cycle = -cycles; cycle <= 0; cycle++) source.forEach(key => add(duration + cycle * basis.duration + key.time, key.stepped));
+      for (let cycle = -cycles; cycle <= 0; cycle++) source.forEach(key => add(duration + cycle * basis.duration + key.time, key.stepped, key.mandatory));
     } else {
       const virtual = {...baked, duration: particle.life, loop: false, flowPhase: undefined}, sourceParticle = {...particle, birth: 0, cycleIndex: 0};
       if (timelineCost(virtual, sourceParticle).rejected) fail('拖尾路徑取樣超過 200 萬，請減少路徑重複次數。');
       const source = sampledTimeline(virtual, sourceParticle, true);
-      let lags = lane.mode === 'stretch' ? Array.from({length: settings.segments + 1}, (_, i) => settings.duration * i / settings.segments) : [lane.delay];
-      if (lane.mode === 'stretch' && Trail.maxLength(settings) > 1) {
-        // Whole-path geometry has no history lags. Extended history retains
-        // its original width events and adds the longer sampling horizon.
-        lags = settings.coverage === 'path' ? [0, settings.duration] :
-          Array.from(new Set(lags.concat(lags.map(lag => lag * Trail.maxLength(settings)))));
+      let lags, historySource = source;
+      if (lane.mode !== 'stretch') lags = [lane.delay];
+      // A whole-path ribbon uses the current state plus its residual fade.
+      else if (settings.coverage === 'path') lags = [0, settings.duration];
+      else {
+        // The full seed timeline remains at the head. For historical samples,
+        // shift authored events and refine between them. Keep dense timing for
+        // mixed-size frames because those can cause abrupt width changes.
+        const sequence = activeSequence(particle.emitter), first = sequence && sequence.frames[0];
+        const changingSize = first && sequence.frames.some(frame => frame.width !== first.width || frame.height !== first.height);
+        if (!changingSize) historySource = sampledTimeline(virtual, sourceParticle, true, undefined, true);
+        lags = Array.from({length: settings.segments + 1}, (_, i) => settings.duration * i / settings.segments);
+        const length = Trail.maxLength(settings);
+        // Extended history retains its original width events and adds the longer sampling horizon.
+        if (length > 1) lags = Array.from(new Set(lags.concat(lags.map(lag => lag * length))));
       }
-      if (source.length * lags.length > MAX_EXPORT_SAMPLES) fail('拖尾事件取樣超過 200 萬，請降低細緻度。');
-      for (const lag of lags) for (const key of source) {
+      if (source.length + historySource.length * (lags.length - 1) > MAX_EXPORT_SAMPLES) fail('拖尾事件取樣超過 200 萬，請降低細緻度。');
+      for (const lag of lags) for (const key of lag ? historySource : source) {
         const age = key.time + lag - (baked.loop ? particle.cycleIndex * duration : 0);
         if (baked.loop && (age < -EPS || age > duration + EPS)) continue;
         let at = particle.birth + age;
         if (baked.loop) at = mod(at, duration);
-        add(at, key.stepped);
+        add(at, key.stepped, lag === 0 && key.mandatory);
       }
       if (baked.loop) {
         const at = mod(particle.birth, duration);
@@ -1440,15 +1541,15 @@
     }
     return Array.from(times.values()).sort((a, b) => a.time - b.time);
   }
+  function spendTrailSamples(sampleBudget, amount) {
+    sampleBudget.used += amount;
+    if (sampleBudget.used > MAX_EXPORT_SAMPLES) fail('拖尾匯出取樣超過 200 萬，請減少粒子／殘影數、細緻度或拖尾時間。');
+  }
   function trailTimeline(baked, particle, lane, sampleBudget) {
-    const settings = particle.emitter.trail, sequence = activeSequence(particle.emitter), frames = sequence ? sequence.frames.length : 1;
-    const weight = lane.mode === 'stretch' ? (Trail.segmentCount(settings) + 1) * frames : 1;
-    const spend = () => {
-      sampleBudget.used += weight;
-      if (sampleBudget.used > MAX_EXPORT_SAMPLES) fail('拖尾匯出取樣超過 200 萬，請減少粒子／殘影數、細緻度或拖尾時間。');
-    };
+    const settings = particle.emitter.trail;
+    const sampleWeight = lane.mode === 'stretch' ? Trail.segmentCount(settings) + 1 : 1;
     function state(time) {
-      spend();
+      spendTrailSamples(sampleBudget, sampleWeight);
       return trailState(baked, particle, lane, time);
     }
     const keys = trailMetadata(baked, particle, lane).map(key => ({...key, state: state(key.time)}));
@@ -1461,6 +1562,7 @@
       }
     }
     const result = [keys[0]], quality = qualityProfile(baked.project).refinement;
+    const alphaTolerance = lane.mode === 'stretch' ? trailAlphaRefinement(baked.project) : 0.001;
     function append(first, last, depth) {
       if (first.stepped || depth >= 12 || last.time - first.time <= .000002) { result.push(last); return; }
       const time = round((first.time + last.time) / 2);
@@ -1478,7 +1580,7 @@
       const alpha = Math.abs(middle.state.alpha - expected(first.state.alpha, last.state.alpha));
       const colors = Math.max(...middle.state.color.map((value, i) => Math.abs(value - expected(first.state.color[i], last.state.color[i]))));
       const rotationGuard = lane.mode === 'afterimage' && Math.abs(last.state.rotation - first.state.rotation) > 120;
-      if (!rotationGuard && geometry <= quality.position && alpha <= .001 && colors <= 1 / 1020) { result.push(last); return; }
+      if (!rotationGuard && geometry <= quality.position && alpha <= alphaTolerance && colors <= 1 / 1020) { result.push(last); return; }
       append(first, middle, depth + 1); append(middle, last, depth + 1);
     }
     for (let i = 1; i < keys.length; i++) append(keys[i - 1], keys[i], 0);
@@ -1487,7 +1589,7 @@
     const quantized = [];
     result.forEach(key => {
       const time = Math.fround(key.time), previous = quantized[quantized.length - 1];
-      if (previous && previous.time === time) quantized[quantized.length - 1] = {...key, time, stepped: previous.stepped || key.stepped};
+      if (previous && previous.time === time) quantized[quantized.length - 1] = {...key, time, stepped: previous.stepped || key.stepped, mandatory: previous.mandatory || key.mandatory};
       else quantized.push({...key, time});
     });
     return quantized;
@@ -1498,10 +1600,15 @@
     if (key.stepped) result.curve = 'stepped';
     return result;
   }
+  function trailAlphaRefinement(project) {
+    return Math.min(0.001, qualityProfile(project).tolerances.alpha / 2);
+  }
   function exportTrail(baked, particle, profile, assets, sampleBudget) {
     const e = particle.emitter, settings = e.trail, lanes = Trail.lanes(settings), stride = lanes.length + 1;
     const bones = [], slots = [], attachments = {}, boneTracks = {}, slotTracks = {}, deforms = {};
-    let keyframes = 0;
+    const quality = qualityProfile(baked.project), colorTolerance = quality.tolerances.color - 1 / 1020;
+    const alphaTolerance = quality.tolerances.alpha - trailAlphaRefinement(baked.project);
+    let keyframes = 0, denseKeyframes = 0;
     lanes.forEach(lane => {
       const index = particle.index * stride + lane.index, boneName = 'em_' + e.id + '_p' + index, slotName = boneName + '_slot';
       const dense = trailTimeline(baked, particle, lane, sampleBudget), initial = dense[0].state, sequence = activeSequence(e);
@@ -1524,19 +1631,52 @@
         const name = attachmentName(key.state);
         if (previous === undefined || name !== previous || key === dense[dense.length - 1]) { switches.push(trailKeyframe({time: key.time}, {name})); previous = name; }
       });
-      const colors = dense.map(key => trailKeyframe(key, {color: rgba(key.state)}));
-      slotTracks[slotName] = {[profile.colorTimeline]: colors, attachment: switches};
-      keyframes += colors.length + switches.length;
+      let colorKeys = dense;
       if (lane.mode === 'stretch') {
-        const deform = dense.map(key => trailKeyframe(key, {vertices: key.state.vertices.map((value, i) => round(value - (i % 2 ? e.y : e.x)))}));
-        const byAttachment = {};
-        Object.keys(attachments[slotName]).forEach(name => { byAttachment[name] = deform; keyframes += deform.length; });
+        // A geometry step often leaves the encoded slot color unchanged.
+        colorKeys = dense.map((key, i) => key.stepped && dense[i + 1] && rgba(key.state) === rgba(dense[i + 1].state) ? {...key, stepped: false} : key);
+        colorKeys = reduceTimeline(colorKeys, s => s.color.concat(s.alpha), [colorTolerance, colorTolerance, colorTolerance, alphaTolerance]);
+      } else colorKeys = reduceVisibleTimeline(dense, s => s.color.concat(s.alpha), [colorTolerance, colorTolerance, colorTolerance, alphaTolerance], undefined, true);
+      const colors = colorKeys.map(key => trailKeyframe(key, {color: rgba(key.state)}));
+      slotTracks[slotName] = {[profile.colorTimeline]: colors, attachment: switches};
+      keyframes += colors.length + switches.length; denseKeyframes += dense.length + switches.length;
+      if (lane.mode === 'stretch') {
+        const byAttachment = {}, deformWeight = Trail.segmentCount(settings) + 1;
+        let active;
+        dense.forEach(key => {
+          const name = sequence ? attachmentName(key.state) : 'particle';
+          if (!active && !name) return;
+          const frame = active !== name ? {...key, mandatory: true} : key;
+          // Finish the outgoing texture's interpolation at the same time as
+          // the switch. Each texture only needs deform keys while it is shown.
+          if (active && active !== name) {
+            byAttachment[active].push(frame);
+            if (name) spendTrailSamples(sampleBudget, deformWeight);
+          }
+          if (name) {
+            (byAttachment[name] ||= []).push(frame);
+          }
+          active = name;
+        });
+        const tolerance = quality.tolerances.position - quality.refinement.position;
+        for (const name of Object.keys(byAttachment)) {
+          const keys = byAttachment[name], reduced = reduceTimeline(keys, state => state.vertices, tolerance);
+          byAttachment[name] = reduced.map(key => trailKeyframe(key, {vertices: key.state.vertices.map((value, i) => round(value - (i % 2 ? e.y : e.x)))}));
+          keyframes += reduced.length; denseKeyframes += keys.length;
+        }
         deforms[slotName] = byAttachment;
       } else {
-        const translate = dense.map(key => trailKeyframe(key, {x: round(key.state.x - e.x), y: round(key.state.y - e.y)}));
-        const rotate = dense.map(key => trailKeyframe(key, {[profile.rotationKey]: round(key.state.rotation)}));
-        const scale = dense.map(key => trailKeyframe(key, {x: round(key.state.scaleX === undefined ? key.state.scale : key.state.scaleX), y: round(key.state.scaleY === undefined ? key.state.scale : key.state.scaleY)}));
-        boneTracks[boneName] = {translate, rotate, scale}; keyframes += dense.length * 3;
+        // Afterimage lanes use the same visibility-aware reduction as heads.
+        // Spine 3.8 interpolates the shortest angle, so rotation segments stay
+        // below 120 degrees there.
+        const refine = quality.refinement, budget = (name, fallback) => quality.tolerances[name] - (refine[name] === undefined ? fallback : refine[name]);
+        const positionTolerance = budget('position', 0), rotationTolerance = budget('rotation', 0), scaleTolerance = budget('scale', quality.tolerances.scale / 2);
+        const sx = s => s.scaleX === undefined ? s.scale : s.scaleX, sy = s => s.scaleY === undefined ? s.scale : s.scaleY;
+        const translate = reduceVisibleTimeline(dense, s => [s.x, s.y], positionTolerance).map(key => trailKeyframe(key, {x: round(key.state.x - e.x), y: round(key.state.y - e.y)}));
+        const rotate = reduceVisibleTimeline(dense, s => [s.rotation], rotationTolerance, undefined, false, undefined, profile.family === '3.8' ? 120 : undefined)
+          .map(key => trailKeyframe(key, {[profile.rotationKey]: round(key.state.rotation)}));
+        const scale = reduceVisibleTimeline(dense, s => [sx(s), sy(s)], scaleTolerance).map(key => trailKeyframe(key, {x: round(sx(key.state)), y: round(sy(key.state))}));
+        boneTracks[boneName] = {translate, rotate, scale}; keyframes += translate.length + rotate.length + scale.length; denseKeyframes += dense.length * 3;
       }
     });
     const animation = {bones: boneTracks, slots: slotTracks};
@@ -1544,7 +1684,7 @@
       if (profile.family === '4.2') animation.attachments = {default: Object.fromEntries(Object.entries(deforms).map(([slot, names]) => [slot, Object.fromEntries(Object.entries(names).map(([name, deform]) => [name, {deform}]))]))};
       else animation.deform = {default: deforms};
     }
-    return {bones, slots, attachments, animation, keyframes};
+    return {bones, slots, attachments, animation, keyframes, denseKeyframes};
   }
 
   function exportSpine(baked, targetVersion, sampleBudget) {
@@ -1613,23 +1753,25 @@
             const target = json.animations.effect[group] || (json.animations.effect[group] = {default: {}});
             Object.assign(target.default, part.animation[group].default);
           });
-          keyframes += part.keyframes; denseKeyframes += part.keyframes;
+          keyframes += part.keyframes; denseKeyframes += part.denseKeyframes;
         }
         const headIndex = trail ? particle.index * (lanes.length + 1) + lanes.length : particle.index;
         const boneName = 'em_' + e.id + '_p' + headIndex, slotName = boneName + '_slot';
-        const initial = visibleHeadState(particle, stateAt(baked, particle, 0));
+        const hiddenHead = hasHiddenTrailHead(particle), initial = visibleHeadState(particle, stateAt(baked, particle, 0));
         json.bones.push({name: boneName, parent: 'em_' + e.id});
         json.slots.push({name: slotName, bone: boneName, color: rgba(initial),
-          attachment: initial.alive ? sequence ? sequenceAttachment(initial.sequenceFrame) : 'particle' : undefined, blend: e.blend});
+          attachment: initial.alive && !hiddenHead ? sequence ? sequenceAttachment(initial.sequenceFrame) : 'particle' : undefined, blend: e.blend});
         if (sequence) {
           attachments[slotName] = {};
           sequence.frames.forEach((frame, index) => { attachments[slotName][sequenceAttachment(index)] = {type: 'region',
             path: assets[index].name.slice(0, -4), width: frame.width, height: frame.height}; });
         } else attachments[slotName] = {particle: {type: 'region', path, width: e.image ? e.image.width : 64, height: e.image ? e.image.height : 64}};
-        const dense = sampledTimeline(baked, particle, false, sampleBudget).map(key => ({...key, state: visibleHeadState(particle, key.state)}));
+        // Keep the head slot and its assets available for editing in Spine.
+        if (hiddenHead) return;
+        const dense = sampledTimeline(baked, particle, false, sampleBudget);
         denseKeyframes += dense.length * 4;
-        const translate = reduceTimeline(dense, s => [s.x, s.y], [tolerance.position, tolerance.position]).map(key => keyframe(key, {x: key.state.x - e.x, y: key.state.y - e.y}));
-        let rotationKeys = reduceTimeline(dense, s => [s.rotation], [tolerance.rotation]);
+        const translate = reduceVisibleTimeline(dense, s => [s.x, s.y], [tolerance.position, tolerance.position], undefined, false, 'position').map(key => keyframe(key, {x: key.state.x - e.x, y: key.state.y - e.y}));
+        let rotationKeys = reduceVisibleTimeline(dense, s => [s.rotation], [tolerance.rotation], key => key.stepped || key.rotationStepped, false, 'rotation');
         if (profile.family === '3.8') {
           // 3.8 interpolates the shortest angle between keys. Keep each visible
           // rotation segment below 180 degrees so whole turns cannot disappear.
@@ -1649,9 +1791,9 @@
           rotationKeys = guarded;
         }
         const rotate = rotationKeys.map(key => keyframe({...key, stepped: key.stepped || key.rotationStepped}, {[profile.rotationKey]: key.state.rotation}));
-        const scale = e.separateSizeAxes ? reduceTimeline(dense, s => [s.scaleX, s.scaleY], [tolerance.scale, tolerance.scale]).map(key => keyframe(key, {x: key.state.scaleX, y: key.state.scaleY})) :
-          reduceTimeline(dense, s => [s.scale], [tolerance.scale]).map(key => keyframe(key, {x: key.state.scale, y: key.state.scale}));
-        const colors = reduceTimeline(dense, s => s.color.concat(s.alpha), [tolerance.color, tolerance.color, tolerance.color, tolerance.alpha]).map(key => keyframe(key, {color: rgba(key.state)}));
+        const scale = e.separateSizeAxes ? reduceVisibleTimeline(dense, s => [s.scaleX, s.scaleY], [tolerance.scale, tolerance.scale], undefined, false, 'scale').map(key => keyframe(key, {x: key.state.scaleX, y: key.state.scaleY})) :
+          reduceVisibleTimeline(dense, s => [s.scale], [tolerance.scale], undefined, false, 'scale').map(key => keyframe(key, {x: key.state.scale, y: key.state.scale}));
+        const colors = reduceVisibleTimeline(dense, s => s.color.concat(s.alpha), [tolerance.color, tolerance.color, tolerance.color, tolerance.alpha], undefined, true, 'color').map(key => keyframe(key, {color: rgba(key.state)}));
         const switches = [];
         let previous;
         dense.forEach(key => {

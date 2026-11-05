@@ -42,7 +42,7 @@
   let selectedId = project.emitters[0].id;
   let liveBake = null, baked = null, exported = null, bakedPreview = null, liveError = '';
   let liveFlowBake = null, flowBaked = null, phase = 'loop', sequence = false, exitRequested = false;
-  let revision = 0, bakedRevision = -1;
+  let revision = 0, bakedRevision = -1, bakeError = '';
   let mode = 'live', playing = true, time = 0;
   let zoom = 1, panX = 0, panY = 40, stageW = 1, stageH = 1;
   let liveTimer = null, draftTimer = null, messageTimer = null;
@@ -110,7 +110,7 @@
       outlineRequest++; backgroundRequest++; textureRequest++; projectRequest++;
       project = nextProject; integration = nextIntegration;
       selectedId = project.emitters.some(e => e.id === state.selectedId) ? state.selectedId : project.emitters[0].id;
-      revision++; bakedRevision = -1; mode = 'live'; stopSequence();
+      revision++; bakedRevision = -1; bakeError = ''; mode = 'live'; stopSequence();
       baked = null; flowBaked = null; exported = null; bakedPreview = null;
       liveBake = null; liveFlowBake = null; attachedCache.clear(); imageCache.clear(); tintCache.clear(); pathGizmoCache.clear();
       priorAssets = integration && integration.assets; priorSource = integration && integration.json;
@@ -478,16 +478,17 @@
     refreshSpineTarget();
     refreshFlowUi();
     const status = $('bakeStatus');
-    status.classList.remove('dirty', 'baked');
+    status.classList.remove('dirty', 'baked', 'failed');
     const dot = document.createElement('span'); dot.className = 'status-dot'; dot.setAttribute('aria-hidden', 'true');
     status.replaceChildren(dot);
     const dirty = baked && revision !== bakedRevision;
     if (busy) status.append('正在烘焙…');
+    else if (bakeError) { status.append('烘焙失敗 · ' + bakeError); status.classList.add('failed'); }
     else if (!baked) status.append('尚未烘焙');
     else if (dirty) { status.append('參數已修改 · 輸出時自動烘焙'); status.classList.add('dirty'); }
     else { status.append('烘焙已更新 · 可輸出'); status.classList.add('baked'); }
     $('exportButton').disabled = busy;
-    $('exportButton').title = baked && !dirty ? '輸出目前烘焙結果（Ctrl＋E）' : '自動更新烘焙後輸出（Ctrl＋E）';
+    $('exportButton').title = bakeFresh() ? '輸出目前烘焙結果（Ctrl＋E）' : '自動更新烘焙後輸出（Ctrl＋E）';
     $('bakeButton').disabled = busy;
     $('newProject').disabled = busy || resettingProject;
     $('modeBaked').disabled = !baked;
@@ -1119,7 +1120,7 @@
   }
   function changed(updateInspector) {
     stopSequence();
-    revision++; mode = 'live';
+    revision++; bakeError = ''; mode = 'live';
     if (!liveTimer) liveTimer = setTimeout(refreshLive, 35);
     updateBakeStatus();
     if (updateInspector) renderInspector();
@@ -1511,12 +1512,66 @@
     const link = document.createElement('a'); link.href = url; link.download = name; document.body.append(link); link.click(); link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
+  let pendingExportSave = null;
+  function saveExportZip(data, fileName) {
+    if (pendingExportSave) throw new Error('請先完成目前 ZIP 的儲存。');
+    const canChoose = typeof window.showSaveFilePicker === 'function';
+    $('exportSaveName').textContent = fileName;
+    $('exportSaveChoose').hidden = !canChoose;
+    $('exportSaveDownload').classList.toggle('primary-button', !canChoose);
+    $('exportSaveDownload').classList.toggle('secondary-button', canChoose);
+    $('exportSaveStatus').textContent = canChoose ? '可選擇資料夾及檔名。' : '下載位置依瀏覽器設定。可開啟瀏覽器的「下載前詢問儲存位置」。';
+    $('exportSaveDialog').showModal();
+    return new Promise(resolve => { pendingExportSave = {data, fileName, resolve}; });
+  }
+  function wireExportSave() {
+    const dialog = $('exportSaveDialog'), choose = $('exportSaveChoose'), browserDownload = $('exportSaveDownload'),
+      cancel = $('exportSaveCancel'), status = $('exportSaveStatus');
+    let writing = false;
+    function finish(result) {
+      const pending = pendingExportSave;
+      if (!pending) return;
+      pendingExportSave = null;
+      if (dialog.open) dialog.close();
+      pending.resolve(result);
+      if (result) notify((result.downloaded ? '已開始下載「' : '已儲存「') + result.fileName + '」。');
+    }
+    cancel.addEventListener('click', () => { if (!writing) finish(null); });
+    dialog.addEventListener('cancel', event => { if (writing) event.preventDefault(); });
+    dialog.addEventListener('close', () => { if (!dialog.open) finish(null); });
+    browserDownload.addEventListener('click', () => {
+      if (!pendingExportSave || writing) return;
+      const {data, fileName} = pendingExportSave;
+      try { download(data, fileName, 'application/zip'); finish({fileName, downloaded: true}); }
+      catch (error) { status.textContent = '下載失敗。' + error.message; }
+    });
+    choose.addEventListener('click', async () => {
+      if (!pendingExportSave || writing) return;
+      const {data, fileName} = pendingExportSave;
+      writing = choose.disabled = browserDownload.disabled = cancel.disabled = true;
+      let handle, writable;
+      try {
+        handle = await window.showSaveFilePicker({id: 'particle-spine-export', startIn: 'downloads', suggestedName: fileName,
+          types: [{description: 'Spine ZIP', accept: {'application/zip': ['.zip']}}], excludeAcceptAllOption: true});
+        status.textContent = '正在儲存 ZIP…';
+        writable = await handle.createWritable();
+        await writable.write(data);
+        await writable.close();
+        finish({fileName: handle.name, downloaded: false});
+      } catch (error) {
+        if (writable) { try { await writable.abort(); } catch (_) { /* Stream may already be closed. */ } }
+        if (!handle && error.name === 'AbortError') status.textContent = '已取消位置選擇。可以重新選擇或關閉視窗。';
+        else if (!handle && error.name === 'SecurityError') status.textContent = '這個視窗無法開啟儲存選擇。可使用「下載 ZIP」，或在 Chrome／Edge 開啟工具。';
+        else status.textContent = '無法儲存 ZIP。' + error.message;
+      } finally { writing = choose.disabled = browserDownload.disabled = cancel.disabled = false; }
+    });
+  }
   function saveProject() {
     try { download(Storage.serialize(project, baked ? baked.project : null, viewState(), integration), safeName() + '.particle.json', 'application/json'); queueDraft(); notify('已開始下載專案檔，包含參數、素材與烘焙快照。'); return true; }
     catch (error) { notify(error.message, true); return false; }
   }
   async function bakeNow() {
-    if (busy) return; busy = true; updateBakeStatus();
+    if (busy) return; busy = true; bakeError = ''; updateBakeStatus();
     await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
     try {
       const nextFlow = project.flow.enabled ? Core.bakeFlow(project) : null;
@@ -1528,7 +1583,7 @@
       if (exported.stats.warnings.length) notify(exported.stats.warnings.join(' '));
       else notify('烘焙完成，可以輸出 Spine ' + nextExport.json.skeleton.spine + '。');
       queueDraft();
-    } catch (error) { notify(error.message, true); }
+    } catch (error) { bakeError = error.message; notify(bakeError, true); }
     finally { busy = false; updateBakeStatus(); }
   }
   function renderBakeCheck() {
@@ -1553,13 +1608,13 @@
       metrics('bakeCostEstimate', [['粒子骨骼', estimate.bones], ['粒子插槽', estimate.slots], ['補採樣前估算上限', estimate.estimatedSamples], ['精簡前 KEY 估算', estimate.estimatedDenseKeyframes]]);
       $('bakeCostWarning').textContent = (estimate.flow ? '三段共用粒子池。' : '') + '估算未含曲線補採樣，最終 KEY 數請看試烘焙。' + (estimate.budgetRisk ? '取樣量偏高，建議減少數量、幀率或生命長度。' : '') + (estimate.warnings || []).join(' ');
     } catch (error) { $('bakeCostEstimate').textContent = error.message; $('bakeCostWarning').textContent = ''; }
-    if (exported && baked && bakedRevision === revision) {
+    if (bakeFresh()) {
       const stats = exported.stats, reduction = stats.denseKeyframes ? (100 * (1 - stats.keyframes / stats.denseKeyframes)).toFixed(1) + '%' : '—';
       const bytes = stats.jsonBytes === undefined ? new TextEncoder().encode(JSON.stringify(exported.json)).length : stats.jsonBytes;
       metrics('bakeCostActual', [['實際 KEY 數', stats.keyframes], ['KEY 減少比例', reduction], ['粒子 JSON', bytes < 1024 * 1024 ? (bytes / 1024).toFixed(1) + ' KiB' : (bytes / (1024 * 1024)).toFixed(2) + ' MiB'], ['輸出版本 / 品質', Core.spineProfile(exported.json.skeleton.spine).family + ' / ' + (stats.qualityLabel || '標準')]]);
     } else {
       const empty = document.createElement('p'); empty.className = 'bake-cost-empty';
-      empty.textContent = busy ? '正在烘焙，完成後顯示實際數據…' : baked ? '設定已修改，請試烘焙取得本次結果。' : '試烘焙後會顯示 KEY 數與 JSON 大小。';
+      empty.textContent = busy ? '正在烘焙，完成後顯示實際數據…' : bakeError ? '烘焙失敗 · ' + bakeError : baked ? '設定已修改，請試烘焙取得本次結果。' : '試烘焙後會顯示 KEY 數與 JSON 大小。';
       $('bakeCostActual').replaceChildren(empty);
     }
   }
@@ -1567,12 +1622,12 @@
     $('bakeCheckButton').addEventListener('click', () => { $('bakeCheckDialog').showModal(); renderBakeCheck(); });
     ['bakeCheckClose', 'bakeCheckDone'].forEach(id => $(id).addEventListener('click', () => $('bakeCheckDialog').close()));
     $('bakeQuality').addEventListener('change', () => {
-      if (busy || !['fine', 'standard', 'compact'].includes($('bakeQuality').value)) return;
+      if (busy || !Core.BAKE_QUALITIES.includes($('bakeQuality').value)) return;
       project.bakeQuality = $('bakeQuality').value; changed(); renderBakeCheck();
     });
     $('bakeCheckBake').addEventListener('click', bakeNow);
   }
-  function bakeFresh() { return !!baked && revision === bakedRevision && !!exported; }
+  function bakeFresh() { return !bakeError && !!baked && revision === bakedRevision && !!exported; }
   // Exporting always uses the current parameters: bake first when anything changed.
   async function ensureBaked() {
     if (busy) return false;
@@ -1581,26 +1636,27 @@
     return bakeFresh();
   }
   async function exportZip() {
+    if (pendingExportSave) return;
     if (!(await ensureBaked())) return;
     if (integration && integration.settings.enabled !== false) { await exportMerged(); return; }
     if (!bakeFresh()) { notify('烘焙未完成，無法輸出。', true); return; }
     try {
       const name = safeName();
       const entries = standaloneEntries(name, exported, baked, flowBaked, project);
-      download(Zip.create(entries), name + '_spine' + Core.spineProfile(exported.json.skeleton.spine).family + '.zip', 'application/zip');
-      notify('已開始下載 ZIP：Spine JSON、圖片、編輯專案與匯入說明。');
+      await saveExportZip(Zip.create(entries), name + '_spine' + Core.spineProfile(exported.json.skeleton.spine).family + '.zip');
     } catch (error) { notify(error.message, true); }
   }
   // Files of one standalone Spine package; prefix places them in a sub-folder.
   function standaloneEntries(name, exp, snapshot, flowSnapshot, sourceProject, prefix = '', session = integration) {
+    const names = Folder.exportJsonNames(name);
     const animationGuide = flowSnapshot ? ['in', 'loop', 'out'].map(kind => {
       const item = exp.manifest.phases[kind];
       return kind.toUpperCase() + '：' + item.animationName + '，' + item.duration + ' 秒（' + (item.loop ? '反覆播放' : '播放一次') + '）';
     }).join('；') + '。先播 IN，再反覆 LOOP；需要結束時，等 LOOP 完整一輪結束後播放 OUT。' : '播放 effect 動畫。此動畫的循環設定：' + (snapshot.loop ? '循環；請開啟 Spine 循環播放' : '單次') + '。';
     const entries = [
-      {name: name + '.json', data: JSON.stringify(exp.json)},
-      {name: name + '.particle.json', data: Storage.serialize(sourceProject, snapshot.project, viewState(), session)},
-      {name: '匯入說明.txt', data: 'Particle Studio 原創粒子工具\n目標：Spine Editor ' + exp.json.skeleton.spine + '\n\n1. 解壓縮此 ZIP。\n2. 在 Spine ' + exp.json.skeleton.spine + ' 使用 File → Import Data，選擇 ' + name + '.json。\n3. Images 路徑指向同層 images/。\n4. ' + animationGuide + '\n5. 存為新的 .spine 專案。需合併到既有動畫時，可透過 Import Project 匯入此專案。\n\n' + name + '.particle.json 是本工具的編輯專案，不是 Spine skeleton。\n背景參考圖不匯出到 Spine；圖集請在 Spine 匯出時建立。\n\n烘焙：' + snapshot.fps + ' FPS\n骨骼：' + exp.stats.bones + '；關鍵幀：' + exp.stats.keyframes + '\n' + exp.stats.warnings.join('\n')}
+      {name: names.spine, data: JSON.stringify(exp.json)},
+      {name: names.project, data: Storage.serialize(sourceProject, snapshot.project, viewState(), session)},
+      {name: '匯入說明.txt', data: 'Particle Studio 原創粒子工具\n目標：Spine Editor ' + exp.json.skeleton.spine + '\n\n1. 解壓縮此 ZIP。\n2. 在 Spine ' + exp.json.skeleton.spine + ' 使用 File → Import Data，選擇 ' + names.spine + '。\n3. Images 路徑指向同層 images/。\n4. ' + animationGuide + '\n5. 存為新的 .spine 專案。需合併到既有動畫時，可透過 Import Project 匯入此專案。\n\n要調整粒子時，在粒子工作室選「開啟」，載入 ' + names.project + '。\n背景參考圖不匯出到 Spine；圖集請在 Spine 匯出時建立。\n\n烘焙：' + snapshot.fps + ' FPS\n骨骼：' + exp.stats.bones + '；關鍵幀：' + exp.stats.keyframes + '\n' + exp.stats.warnings.join('\n')}
     ];
     if (flowSnapshot) entries.push({name: '動畫段落.json', data: JSON.stringify(exp.manifest, null, 2)});
     exp.images.forEach(image => { entries.push({name: 'images/' + image.name, data: Zip.decodeDataUrl(image.dataUrl || builtinImages.glow.dataUrl)}); });
@@ -1627,14 +1683,13 @@
         entries.push(...standaloneEntries(stem, exp, snapshot, flow, variant, folder));
       }
       const fileName = base + '_批次' + jobs.length + '組.zip';
-      download(Zip.create(entries), fileName, 'application/zip');
-      notify('已開始下載批次 ZIP：' + jobs.length + ' 組，各自一個資料夾。');
-      return {fileName};
+      return await saveExportZip(Zip.create(entries), fileName);
     } finally { busy = false; updateBakeStatus(); }
   }
-  async function exportMerged() {
+  async function exportMerged(target = null) {
     if (!baked || revision !== bakedRevision || !exported || busy) { notify('請先更新粒子烘焙再輸出追加包。', true); return; }
     try {
+      if (target && target !== writeTarget()) throw new Error('原工程資料夾已變更，請重新輸出。');
       const options = flowBaked ? attachmentUi.validateFlowOptions(exported) : attachmentUi.validateOptions(exported, baked.duration);
       const emitterRoots = new Set(exported.json.bones.filter(bone => /^em_/.test(bone.name)).map(bone => bone.name));
       for (const field of ['emitterParents', 'emitterLayers']) if (options[field]) {
@@ -1650,45 +1705,45 @@
       let stem = integration.fileName.replace(/\.json$/i, '').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/^[. ]+|[. ]+$/g, '').slice(0, 64) || 'spine';
       if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(stem)) stem = 'spine_' + stem;
       const name = stem + '_particles';
+      const names = Folder.exportJsonNames(name);
       const text = 'Particle Studio v1.28 · 既有 Spine ' + result.json.skeleton.spine + (integration.update && integration.update.mode === 'replace' ? ' 效果更新包\n\n' : ' 追加包\n\n') +
         '1. 保留原 .spine 工程及其全部素材。此包不包含原角色的圖片或音效。\n' +
         '2. 把 new_images/ 裡的「' + result.manifest.imageDirectory + '」資料夾，複製進原工程的 Images 根目錄。\n' +
         '   原 JSON Images 設定：' + result.manifest.originalImagesPath + '\n' +
-        '3. 將 ' + name + '.json 放在原骨架 JSON 的同層，維持原 Images 相對路徑。\n' +
+        '3. 將 ' + names.spine + ' 放在原骨架 JSON 的同層，維持原 Images 相對路徑。\n' +
         '4. 用 Spine File → Import Data 匯入，或以附帶的「Spine 工程轉換」轉成新的 .spine。\n' +
         '5. 依下方動畫段落播放，檢查原角色動態與新增粒子，再另存新的工程。\n\n' + animationGuide + '\n\n' +
         '父骨骼：' + result.manifest.parentBone + '\n' +
         '新增群組：' + result.manifest.namespace + '\n新增骨骼：' + result.stats.addedBones + '；新增插槽：' + result.stats.addedSlots + '\n\n' +
         '掛接使用骨骼的局部座標，會隨父骨骼變形。工具的「掛接預覽」會播放原骨架完整動畫，並依開始時間顯示粒子；「粒子單獨」使用粒子自己的時間。\n' +
-        '原圖片或 Atlas 可在掛接設定中載入供預覽，隨 .particle.json 保存；追加包只輸出新增粒子 PNG，原角色素材沿用原 Images 目錄。\n' +
+        '要調整粒子時，在粒子工作室選「開啟」，載入 ' + names.project + '。原圖片或 Atlas 可隨粒子專案保存供預覽；原角色素材沿用原 Images 目錄。\n' +
         'JSON 往返只保留匯出的資料；未匯出的編輯器資料無法由本工具復原。\n' +
         '再次調整時，保留「效果更新記錄.json」。先開啟粒子編輯專案，再載入 Spine 修改後的骨架 JSON 與這份記錄，選擇更新此效果。新素材請覆蓋對應群組的圖片；JSON 與圖片需使用同一次輸出。\n' +
         result.warnings.join('\n');
-      const target = writeTarget();
       if (target) {
         const {assets, ...light} = integration;
         const bundle = {result, json: JSON.stringify(result.json), receipt: JSON.stringify(receipt, null, 2),
           project: Storage.serialize(project, baked.project, viewState(), light),
           images: result.images.map(asset => ({name: asset.name, data: Zip.decodeDataUrl(asset.dataUrl || builtinImages.glow.dataUrl)}))};
+        busy = true; updateBakeStatus();
         try {
-          const written = await writeBack(bundle);
+          const written = await writeBack(bundle, target);
           notify('已寫回「' + target.name + '」：' + target.jsonPath + ' 與 ' + bundle.images.length + ' 張粒子圖片（' + Folder.join(written.plan.imagesRoot, result.manifest.imageDirectory) + '）。原檔已備份到 ' + written.plan.backupDir + '。' +
             (result.manifest.phases ? '' : ' 播放「' + result.manifest.animationName + '」檢查，') + '在 Spine 用 Import Data 匯入或直接給引擎使用；使用圖集的專案請重新打包圖集。');
           refreshAttachPanel(); return;
         } catch (error) {
           notify('沒有寫回：' + error.message, true); refreshAttachPanel(); return;
-        }
+        } finally { busy = false; updateBakeStatus(); }
       }
       const entries = [
-        {name: name + '.json', data: JSON.stringify(result.json)},
-        {name: name + '.particle.json', data: Storage.serialize(project, baked.project, viewState(), integration)},
+        {name: names.spine, data: JSON.stringify(result.json)},
+        {name: names.project, data: Storage.serialize(project, baked.project, viewState(), integration)},
         {name: '追加清單.json', data: JSON.stringify(result.manifest, null, 2)},
         {name: '效果更新記錄.json', data: JSON.stringify(receipt, null, 2)},
         {name: '追加說明.txt', data: text}
       ];
       result.images.forEach(asset => entries.push({name: 'new_images/' + asset.name, data: Zip.decodeDataUrl(asset.dataUrl || builtinImages.glow.dataUrl)}));
-      download(Zip.create(entries), name + (integration.update && integration.update.mode === 'replace' ? '_update.zip' : '_append.zip'), 'application/zip');
-      notify('已開始下載：合併骨架、粒子新素材與效果更新記錄。原工程請保留並另存新版本。');
+      await saveExportZip(Zip.create(entries), name + (integration.update && integration.update.mode === 'replace' ? '_update.zip' : '_append.zip'));
     } catch (error) { notify(error.message, true); }
   }
   async function loadImage(file, includeSourceSize, maxSide = 2048) {
@@ -1885,7 +1940,7 @@
     project = parsed.project; liveFlowBake = nextLiveFlow; liveBake = nextLive; liveError = nextError; flowBaked = nextFlow; baked = nextBaked; exported = nextExport; bakedPreview = nextPreview; selectedId = project.emitters[0].id;
     preloadParticleImages();
     phase = nextPhase; stopSequence();
-    revision = 1; bakedRevision = nextBaked && simulationSignature(nextBaked.project) === simulationSignature(project) ? 1 : -1;
+    revision = 1; bakeError = ''; bakedRevision = nextBaked && simulationSignature(nextBaked.project) === simulationSignature(project) ? 1 : -1;
     const view = parsed.view || {}; time = view.time || 0; zoom = view.zoom || 1; panX = view.panX || 0; panY = view.panY || 0; mode = view.mode === 'baked' && baked ? 'baked' : 'live';
     previewAttached = view.previewAttached !== false; showBones = view.showBones !== false; previewSkin = view.skinName || '';
     renderGlobals(); renderEmitters(); renderInspector(); updateBakeStatus();
@@ -2180,6 +2235,7 @@
     });
     [['moveEmitterUp', -1], ['moveEmitterDown', 1]].forEach(([id, delta]) => { $(id).addEventListener('click', () => { const index = project.emitters.findIndex(e => e.id === selectedId), next = index + delta; if (next < 0 || next >= project.emitters.length) return; const item = project.emitters.splice(index, 1)[0]; project.emitters.splice(next, 0, item); changed(); renderEmitters(); }); });
     $('saveProject').addEventListener('click', saveProject); $('bakeButton').addEventListener('click', bakeNow); $('exportButton').addEventListener('click', exportZip);
+    wireExportSave();
     $('newProject').addEventListener('click', () => { if (!busy && !resettingProject) $('newProjectDialog').showModal(); });
     $('resetProjectCancel').addEventListener('click', () => $('newProjectDialog').close());
     $('resetProjectConfirm').addEventListener('click', resetProject);
@@ -2359,7 +2415,7 @@
         integration = value;
         if (newSource) { previewAttached = true; previewSkin = preferredSkin(value.json); time = 0; stopSequence(); }
       },
-      onChange: integrationChanged, onExport: async () => { if (await ensureBaked()) await exportMerged(); }, onBake: bakeNow, managePreviewChip: false, openPanel: openAttachPanel,
+      onChange: integrationChanged, onExport: async () => { const target = writeTarget(); if (await ensureBaked()) await exportMerged(target); }, onBake: bakeNow, managePreviewChip: false, openPanel: openAttachPanel,
       canExport: () => !busy, notify});
     assetsUi = window.ParticleSpineAssetsUI.mount({Merge: SpineMerge, getSession: () => integration,
       setSession: value => { integration = value; }, onChange: integrationChanged, imageLoader: loadImage, notify});
@@ -2482,7 +2538,7 @@
       if (attached) items.push(['ok', '時間', attached.timeline.animationName + ' · ' + round3(attached.timeline.startTime) + '–' + round3(attached.timeline.endTime) + ' 秒']);
       else items.push(['warn', '時間', attachedError || '切換到掛接預覽以檢查時間']);
       const target = writeTarget();
-      items.push(['ok', '輸出', target ? '寫回「' + folderState.name + '/' + folderState.jsonPath + '」，先自動備份' : folderState ? '唯讀資料夾 · 下載追加包 ZIP（用 Chrome／Edge 開啟資料夾可直接寫回）' : '下載追加包 ZIP']);
+      items.push(['ok', '輸出', target ? '工具列可另存 ZIP，或從此面板寫回「' + target.name + '/' + target.jsonPath + '」，先自動備份' : '另存追加包 ZIP']);
     }
     const signature = JSON.stringify(items);
     if (list.dataset.signature !== signature) {
@@ -2499,7 +2555,6 @@
       '選擇 Spine 匯出的資料夾（骨架 JSON＋images 或 atlas），會自動載入骨架與角色圖片。';
     const exportLabel = writeTarget() ? '寫回原工程' : '輸出追加包';
     $('spineExportMerge').textContent = exportLabel;
-    if (integration && integration.settings.enabled !== false) $('exportButton').querySelector('span').textContent = exportLabel;
     const flow = project.flow.enabled;
     $('spineStartAtPlayhead').disabled = !attached || flow; $('spineFitAnimation').disabled = !attached || flow;
     $('previewArtPick').disabled = !attached;
@@ -2655,8 +2710,7 @@
   }
 
   // -- Write back --
-  async function writeBack(bundle) {
-    const target = writeTarget();
+  async function writeBack(bundle, target) {
     if (!(await Folder.ensureWritable(target.handle))) throw new Error('沒有取得資料夾的寫入權限。請再按一次並允許瀏覽器編輯此資料夾。');
     const signature = await Folder.fileSignature(target.handle, target.jsonPath);
     if (signature !== target.signature) throw new Error('原骨架 JSON 在開啟後被修改過（例如在 Spine 重新匯出）。為避免覆蓋新內容，請重新「開啟原工程資料夾」再寫回。');

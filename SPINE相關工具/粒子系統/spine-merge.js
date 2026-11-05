@@ -366,6 +366,45 @@
       return result;
     });
   }
+  function linearCutoff(keys, shifted, settings) {
+    const last = shifted[shifted.length - 1], next = keys[shifted.length];
+    const end = roundedTime(settings.startTime + settings.duration);
+    if (!last || !next || last.curve !== undefined || (last.time || 0) >= end) return null;
+    const left = last.time || 0, right = roundedTime(settings.startTime + (next.time || 0));
+    return right < end ? null : {last, next, end, ratio: (end - left) / (right - left)};
+  }
+  function shiftedBoneKeys(keys, settings, profile, channel) {
+    const shifted = shiftedKeys(keys, settings, 'bones.' + channel, profile);
+    const rotation = channel === 'rotate';
+    if (!rotation && channel !== 'translate' && channel !== 'scale') return shifted;
+    const cut = linearCutoff(keys, shifted, settings);
+    if (!cut) return shifted;
+    const axes = rotation ? [profile.normalizedCurves ? 'angle' : 'value'] : ['x', 'y'];
+    const setup = channel === 'scale' ? 1 : 0;
+    const frame = {time: cut.end};
+    for (const axis of axes) {
+      const from = cut.last[axis] ?? setup;
+      let change = (cut.next[axis] ?? setup) - from;
+      if (rotation && profile.normalizedCurves) change = ((change + 180) % 360 + 360) % 360 - 180;
+      frame[axis] = roundedTime(from + change * cut.ratio);
+    }
+    shifted.push(frame);
+    return shifted;
+  }
+  function shiftedDeformKeys(keys, settings, profile, vertexCount) {
+    const shifted = shiftedKeys(keys, settings, 'deform', profile);
+    shifted.forEach(frame => { if (frame.curve !== undefined && frame.curve !== 'stepped') fail('網格變形必須是 linear 或 stepped 關鍵幀。'); });
+    const cut = linearCutoff(keys, shifted, settings);
+    if (!cut) return shifted;
+    // Keep an interpolated pose when the segment cuts through a sparse mesh interval.
+    const valueAt = (frame, i) => frame.vertices?.[i - (frame.offset || 0)] ?? 0;
+    const vertices = Array.from({length: vertexCount}, (_, i) => {
+      const from = valueAt(cut.last, i);
+      return from + (valueAt(cut.next, i) - from) * cut.ratio;
+    });
+    shifted.push({time: cut.end, vertices});
+    return shifted;
+  }
   function rgbaAt(keys, at, fallback) {
     let left = null, right = null;
     for (const key of keys) {
@@ -389,8 +428,9 @@
         key.name = attachmentMap[key.name];
       }
     });
-    const rgba = shiftedKeys(track[profile.colorChannel] || [], settings, profile.colorChannel, profile);
-    rgba.forEach(key => {
+    const sourceColor = track[profile.colorChannel] || [];
+    const rgba = shiftedKeys(sourceColor, settings, profile.colorChannel, profile);
+    sourceColor.forEach(key => {
       if (typeof key.color !== 'string' || !/^[0-9a-f]{8}$/i.test(key.color)) fail('粒子 RGBA 關鍵幀色碼格式無效。');
       if (key.curve !== undefined && key.curve !== 'stepped') fail('粒子追加的 RGBA 曲線必須先烘焙為 linear 或 stepped 關鍵幀。');
     });
@@ -398,7 +438,7 @@
     const beforeEnd = roundedTime(end - Math.min(0.0001, settings.duration / 2));
     // Read the original curve before replacing its endpoint. Replacing an alive
     // endpoint with transparent would otherwise fade the whole preceding span.
-    const tailColor = rgbaAt(rgba, beforeEnd, transparent);
+    const tailColor = rgbaAt(sourceColor, beforeEnd - settings.startTime, transparent);
     if (settings.startTime > 0) {
       attachment.unshift({name: null}); rgba.unshift({color: transparent, curve: 'stepped'});
     }
@@ -528,7 +568,8 @@
         Object.keys(sourceAnimation[group] || {}).forEach(key => {
           const mapped = group === 'bones' ? boneMap[key] : slotMap[key], track = copy(sourceAnimation[group][key]);
           Object.keys(track).forEach(channel => {
-            if (group !== 'slots' || ![profile.colorChannel, 'attachment'].includes(channel)) track[channel] = shiftedKeys(track[channel], segment, group + '.' + channel, profile);
+            if (group === 'bones') track[channel] = shiftedBoneKeys(track[channel], segment, profile, channel);
+            else if (![profile.colorChannel, 'attachment'].includes(channel)) track[channel] = shiftedKeys(track[channel], segment, group + '.' + channel, profile);
           });
           if (group === 'slots') {
             const sourceSlot = source.slots.find(slot => slot.name === key);
@@ -546,12 +587,14 @@
           const keys = deformGroup === 'deform' ? bySlot[slot][key] : bySlot[slot][key] && bySlot[slot][key].deform;
           if (!own(slotMap, slot) || !own(get(attachmentMap, slot, {}), key)) fail('網格變形指定不存在的粒子附件：' + slot + '/' + key);
           if (deformGroup === 'attachments' && Object.keys(bySlot[slot][key]).some(timeline => timeline !== 'deform')) fail('粒子追加僅支援網格 deform 軌。');
-          const shifted = shiftedKeys(keys, segment, 'deform', profile);
-          shifted.forEach(frame => { if (frame.curve !== undefined && frame.curve !== 'stepped') fail('網格變形必須是 linear 或 stepped 關鍵幀。'); });
+          const targetSlot = slotMap[slot], targetKey = attachmentMap[slot][key];
+          const mesh = defaultSkin.attachments[targetSlot][targetKey];
+          if (mesh.type !== 'mesh') fail('網格變形指定了非網格附件：' + slot + '/' + key);
+          const shifted = shiftedDeformKeys(keys, segment, profile, mesh.vertices.length);
           if (!shifted.length) return;
           if (!own(animation, deformGroup)) put(animation, deformGroup, {});
           if (!own(animation[deformGroup], 'default')) put(animation[deformGroup], 'default', {});
-          const targetSlot = slotMap[slot], targetKey = attachmentMap[slot][key], bucket = animation[deformGroup].default;
+          const bucket = animation[deformGroup].default;
           if (!own(bucket, targetSlot)) put(bucket, targetSlot, {});
           if (own(bucket[targetSlot], targetKey)) fail('粒子網格變形命名發生衝突：' + targetSlot);
           put(bucket[targetSlot], targetKey, deformGroup === 'deform' ? shifted : {deform: shifted});

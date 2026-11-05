@@ -189,6 +189,8 @@ h3 { color: #c6d6e0; font-size: 12px; font-weight: 650; letter-spacing: .03em; }
 .bake-status.success, .bake-status.baked { color: var(--accent); background: #17382c50; border-color: #3d6b534f; }
 .bake-status.success .status-dot, .bake-status.baked .status-dot { background: var(--accent); box-shadow: 0 0 8px #81e8c647; }
 .bake-status.warning, .bake-status.dirty { color: var(--amber); border-color: #675a3a6b; background: #352a1940; }
+.bake-status.failed { color: #ffc0be; border-color: #945b60; background: #452731; max-width: min(50%, 36rem); white-space: normal; overflow-wrap: anywhere; }
+.bake-status.failed .status-dot { background: #ff9d9b; }
 .workspace { display: grid; grid-template-columns: 200px minmax(0,1fr) 320px; gap: 12px; padding: 0 12px 12px; flex: 1; min-height: 0; }
 .panel { min-width: 0; background: linear-gradient(150deg,#17233066,transparent 44%), var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 6px 24px #0000001a, inset 0 1px #edf9ff04; overflow: hidden; }
 .panel-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 61px; padding: 11px 14px; border-bottom: 1px solid var(--line-soft); flex: none; }
@@ -543,6 +545,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 .dialog-header h2 { margin-top: 6px; font-size: 20px; font-weight: 650; }
 .dialog-header .icon-button { color: #adc4d1; border-color: transparent; font-size: 24px; }
 .dialog-content { padding: 21px 26px; color: #bbcedb; font-size: 12px; line-height: 1.9; }
+.export-save-name { color: var(--text); font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
 .help-steps { padding-left: 23px; margin: 20px 0; }
 .help-steps li { padding-left: 6px; margin-bottom: 15px; }
 .help-steps li::marker { color: var(--accent); font-weight: 700; }

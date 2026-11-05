@@ -130,7 +130,7 @@
       running = true; refresh();
       try {
         const result = await options.run(jobs, (done, total, label) => { summary.textContent = '正在輸出 ' + done + ' / ' + total + '：' + label + '…'; });
-        summary.textContent = '完成：已輸出 ' + jobs.length + ' 組' + (result && result.fileName ? '（' + result.fileName + '）' : '') + '。';
+        summary.textContent = result ? (result.downloaded ? '已開始下載 ' : '已儲存 ') + result.fileName + '，共 ' + jobs.length + ' 組。' : '已取消儲存批次 ZIP。';
       } catch (error) {
         summary.classList.add('is-error'); summary.textContent = error.message || '批次輸出失敗。';
         if (typeof options.notify === 'function') options.notify(summary.textContent, true);

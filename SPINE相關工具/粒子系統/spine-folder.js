@@ -13,6 +13,9 @@
   const MAX_ENTRIES = 6000;
   const IMAGE = /\.(png|jpe?g|webp)$/i;
   const BACKUP_DIR = '_particle_backup';
+  const SPINE_EXPORT_PREFIX = '匯入Spine_';
+  const PROJECT_EXPORT_PREFIX = '粒子編輯專案_';
+  const PROJECT_SUFFIX = '.particle.json';
 
   function fail(message) { throw new Error(message); }
   function normalize(path) {
@@ -29,6 +32,9 @@
   function dirname(path) { const index = path.lastIndexOf('/'); return index < 0 ? '' : path.slice(0, index); }
   function basename(path) { return path.slice(path.lastIndexOf('/') + 1); }
   function stemOf(path) { return basename(path).replace(/\.json$/i, ''); }
+  function exportJsonNames(stem) {
+    return {spine: SPINE_EXPORT_PREFIX + stem + '.json', project: PROJECT_EXPORT_PREFIX + stem + PROJECT_SUFFIX};
+  }
   function within(path, dir) { return !dir || path.startsWith(dir + '/'); }
   function relative(path, dir) { return dir ? path.slice(dir.length + 1) : path; }
   function skipped(path) { return dirname(path).split('/').some(part => SKIP_DIRS.has(part.toLowerCase())); }
@@ -87,13 +93,21 @@
     const wanted = join(dirname(jsonPath), stemOf(jsonPath) + suffix);
     return entries.find(entry => entry.path === wanted) || null;
   }
+  function findParticleProject(entries, jsonPath) {
+    const sameStem = findSidecar(entries, jsonPath, PROJECT_SUFFIX);
+    const stem = stemOf(jsonPath);
+    if (sameStem || !stem.startsWith(SPINE_EXPORT_PREFIX)) return sameStem;
+    const names = exportJsonNames(stem.slice(SPINE_EXPORT_PREFIX.length));
+    const wanted = join(dirname(jsonPath), names.project);
+    return entries.find(entry => entry.path === wanted) || null;
+  }
   function planLoad(entries, jsonPath, json, options = {}) {
     const imagesRoot = resolveImagesRoot(entries, jsonPath, json);
     const exclude = options.excludeImageDir ? join(imagesRoot.root, options.excludeImageDir) : null;
     const images = imageEntriesUnder(entries, imagesRoot.root, exclude).map(entry => ({entry, path: relative(entry.path, imagesRoot.root)}));
     const atlas = findAtlas(entries, jsonPath);
     return {jsonPath, jsonDir: dirname(jsonPath), stem: stemOf(jsonPath), imagesRoot: imagesRoot.root, imagesSource: imagesRoot.source, images, atlas,
-      receipt: findSidecar(entries, jsonPath, '.particle-receipt.json'), project: findSidecar(entries, jsonPath, '.particle.json')};
+      receipt: findSidecar(entries, jsonPath, '.particle-receipt.json'), project: findParticleProject(entries, jsonPath)};
   }
   function atlasPageEntries(entries, atlasPath, text) {
     const dir = dirname(atlasPath), found = [], missing = [];
@@ -113,7 +127,7 @@
   function planWrite({jsonPath, imagesRoot, images, imageDirectory, existing, time}) {
     if (typeof jsonPath !== 'string' || !normalize(jsonPath)) fail('原骨架 JSON 路徑無效。');
     const dir = dirname(jsonPath), stem = stemOf(jsonPath), root = imagesRoot === null || imagesRoot === undefined ? join(dir, 'images') : imagesRoot;
-    const writes = [{path: jsonPath, kind: 'json'}, {path: join(dir, stem + '.particle-receipt.json'), kind: 'receipt'}, {path: join(dir, stem + '.particle.json'), kind: 'project'}];
+    const writes = [{path: jsonPath, kind: 'json'}, {path: join(dir, stem + '.particle-receipt.json'), kind: 'receipt'}, {path: join(dir, stem + PROJECT_SUFFIX), kind: 'project'}];
     const imagePaths = new Set();
     (images || []).forEach(name => {
       const path = join(root, name);
@@ -231,7 +245,7 @@
   }
   const supportsWrite = () => typeof globalThis.showDirectoryPicker === 'function';
 
-  return {normalize, join, dirname, declaredImagesRoot, basename, stemOf, ownArtifact, isSkeleton, skeletonCandidates, resolveImagesRoot, atlasPages, findAtlas,
+  return {normalize, join, dirname, declaredImagesRoot, basename, stemOf, exportJsonNames, ownArtifact, isSkeleton, skeletonCandidates, resolveImagesRoot, atlasPages, findAtlas,
     planLoad, atlasPageEntries, planWrite, stamp, BACKUP_DIR,
     collectFromDirectory, fromDataTransfer, fromFileList, readText, fileSignature, writeFile, executeWrite, ensureWritable, supportsWrite};
 });

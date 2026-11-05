@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0b1119">
   <meta name="author" content="小魚骨頭">
-  <title>粒子工作室 · Particle Studio 1.29.6</title>
+  <title>粒子工作室 · Particle Studio 1.30.0</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
     <header class="app-header">
       <div class="brand" aria-label="粒子工作室 Particle Studio">
         <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 36 36"><ellipse class="brand-orbit" cx="18" cy="18" rx="15" ry="9" transform="rotate(-38 18 18)"/><path class="brand-spark" d="m18 6 3.1 8.9L30 18l-8.9 3.1L18 30l-3.1-8.9L6 18l8.9-3.1Z"/><circle class="brand-particle" cx="29" cy="8" r="3"/><circle class="brand-particle-small" cx="7" cy="26" r="1.8"/></svg></span>
-        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.29.6</span></span><span class="brand-author">開發者：小魚骨頭</span></div>
+        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.30.0</span></span><span class="brand-author">開發者：小魚骨頭</span></div>
         <label class="version-control"><span id="spineTargetMode">輸出版本</span><select id="spineVersion" aria-label="Spine 輸出版本" title="選擇 Spine JSON 輸出版本"><option value="3.8.99">SPINE 3.8</option><option value="4.0.56" selected>SPINE 4.0</option><option value="4.2.43">SPINE 4.2</option></select></label>
       </div>
       <div class="project-heading"><span class="project-caption"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h5l2 2h7v10H3Z"/></svg>目前專案</span><label class="sr-only" for="projectName">專案名稱</label><input id="projectName" type="text" value="金色光塵" maxlength="80" spellcheck="false" aria-label="專案名稱"></div>
@@ -27,7 +27,7 @@
         <span class="action-divider" aria-hidden="true"></span>
         <button id="bakeCheckButton" type="button" class="quiet-button" aria-haspopup="dialog">烘焙檢查</button><button id="batchExportButton" type="button" class="quiet-button" aria-haspopup="dialog" title="一次輸出多個 Spine 版本與配色變體">批次輸出</button>
         <button id="bakeButton" type="button" class="secondary-button"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m10 2 1.9 5.7L18 10l-6.1 2.3L10 18l-1.9-5.7L2 10l6.1-2.3Z"/></svg><span>更新烘焙</span></button>
-        <button id="exportButton" type="button" class="primary-button" disabled><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M10 2v10 M6 8l4 4 4-4 M3 13v4h14v-4"/></svg><span>輸出 Spine</span></button>
+        <button id="exportButton" type="button" class="primary-button" aria-haspopup="dialog" disabled><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M10 2v10 M6 8l4 4 4-4 M3 13v4h14v-4"/></svg><span>輸出 Spine</span></button>
         <button id="helpButton" type="button" class="icon-button help-button" aria-label="操作說明" title="操作說明">?</button>
       </nav>
     </header>
@@ -277,7 +277,7 @@
     </main>
 
     <div id="message" class="app-message" role="alert" hidden></div>
-    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.29.6</span> · 開發者：小魚骨頭</span></footer>
+    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.29.9</span> · 開發者：小魚骨頭</span></footer>
   </div>
 
   <dialog id="backgroundJpegDialog" class="help-dialog background-jpeg-dialog" aria-labelledby="backgroundJpegTitle">
@@ -288,7 +288,12 @@
       <p class="field-hint">支援原始檔案至 32 MiB；超過 4 MiB 時會降低 JPG 品質，維持原解析度。粒子貼圖仍使用保留透明度的 PNG。</p>
     </div><div class="spine-merge-footer"><button id="backgroundJpegCancel" type="button" class="quiet-button">取消</button><button id="backgroundJpegDownload" type="button" class="secondary-button" disabled>下載 JPG</button><button id="backgroundJpegApply" type="button" class="primary-button" disabled>套用為參考圖</button></div>
   </dialog>
-  <dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle"><div class="dialog-header"><div><span class="section-eyebrow">PARTICLE STUDIO</span><h2 id="helpTitle">從粒子到 Spine 動畫</h2></div><button id="closeHelp" type="button" class="icon-button" aria-label="關閉操作說明">×</button></div><div class="dialog-content"><p>這是獨立開發的本機粒子編輯器。介面與模擬程式都存放在本機，操作時不需要連線。</p><ol class="help-steps"><li><strong>建立效果</strong><p>按左側「新增效果」開啟效果庫，雙擊內建或自己的效果加成圖層；也可以直接把 PNG、連續圖或專案檔拖進視窗。</p></li><li><strong>安排時間</strong><p>時間軸下方的「圖層時間」可拖曳每層的開始時間，拖右端調整發射長度。S 單獨顯示、H 預覽隱藏，不影響輸出。</p></li><li><strong>輸出</strong><p>直接按「輸出 Spine」，參數有修改時會自動重新烘焙。要一次產生多個版本或配色，用「批次輸出」。</p></li><li><strong>匯入對應版本 Spine</strong><p>解開輸出套件，保留 JSON 與 images 資料夾的位置。在 Spine 選擇「檔案 → 匯入資料（Import Data）」載入 JSON，確認 Images 路徑指向素材資料夾。</p></li></ol><div class="help-shortcuts"><strong>快捷鍵</strong><dl><dt>Space</dt><dd>播放／暫停</dd><dt>← →</dt><dd>逐幀</dd><dt>Ctrl＋Z／Y</dt><dd>復原／重做</dd><dt>Ctrl＋S／O</dt><dd>儲存／開啟專案</dd><dt>Ctrl＋B</dt><dd>更新烘焙</dd><dt>Ctrl＋E</dt><dd>輸出 Spine</dd><dt>Ctrl＋D</dt><dd>複製圖層</dd><dt>Ctrl＋C／V</dt><dd>複製／貼上圖層（可跨專案）</dd><dt>Delete</dt><dd>刪除圖層</dd><dt>[ ]</dt><dd>上／下一個圖層</dd><dt>S／H</dt><dd>單獨顯示／預覽隱藏</dd><dt>F</dt><dd>畫面對焦目前發射器</dd><dt>A</dt><dd>點角色加效果（掛接預覽時）</dd><dt>0</dt><dd>縮放回 100%</dd><dt>滾輪</dt><dd>以游標為中心縮放（5%–800%）</dd></dl></div><div class="help-callout"><strong>記得儲存編輯專案</strong><p>「儲存專案」包含發射器參數與粒子貼圖，可用「開啟」接續編輯。Spine 輸出是動畫交付資料。Atlas 圖集可在 Spine 匯出時產生。</p></div></div><div class="dialog-footer">Particle Studio · Spine 3.8 / 4.0 / 4.2</div></dialog>
+  <dialog id="exportSaveDialog" class="help-dialog" aria-labelledby="exportSaveTitle" aria-describedby="exportSaveStatus">
+    <div class="dialog-header"><div><span class="section-eyebrow">SPINE EXPORT</span><h2 id="exportSaveTitle">儲存 Spine ZIP</h2></div></div>
+    <div class="dialog-content"><p id="exportSaveName" class="export-save-name"></p><p id="exportSaveStatus" class="field-hint" role="status"></p></div>
+    <div class="spine-merge-footer"><button id="exportSaveCancel" type="button" class="quiet-button">取消</button><button id="exportSaveDownload" type="button" class="secondary-button">下載 ZIP</button><button id="exportSaveChoose" type="button" class="primary-button" autofocus>選擇儲存位置</button></div>
+  </dialog>
+  <dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle"><div class="dialog-header"><div><span class="section-eyebrow">PARTICLE STUDIO</span><h2 id="helpTitle">從粒子到 Spine 動畫</h2></div><button id="closeHelp" type="button" class="icon-button" aria-label="關閉操作說明">×</button></div><div class="dialog-content"><p>這是獨立開發的本機粒子編輯器。介面與模擬程式都存放在本機，操作時不需要連線。</p><ol class="help-steps"><li><strong>建立效果</strong><p>按左側「新增效果」開啟效果庫，雙擊內建或自己的效果加成圖層；也可以直接把 PNG、連續圖或專案檔拖進視窗。</p></li><li><strong>安排時間</strong><p>時間軸下方的「圖層時間」可拖曳每層的開始時間，拖右端調整發射長度。S 單獨顯示、H 預覽隱藏，不影響輸出。</p></li><li><strong>輸出</strong><p>按「輸出 Spine」，工具會在需要時先烘焙。ZIP 準備好後按「選擇儲存位置」，或依瀏覽器設定下載。批次與掛接 ZIP 也可選擇位置。</p></li><li><strong>匯入對應版本 Spine</strong><p>解開輸出套件，保留 JSON 與 images 資料夾的位置。在 Spine 選擇「檔案 → 匯入資料（Import Data）」載入「匯入Spine_」開頭的 JSON。若要接續編輯，回粒子工作室開啟「粒子編輯專案_」檔。</p></li></ol><div class="help-shortcuts"><strong>快捷鍵</strong><dl><dt>Space</dt><dd>播放／暫停</dd><dt>← →</dt><dd>逐幀</dd><dt>Ctrl＋Z／Y</dt><dd>復原／重做</dd><dt>Ctrl＋S／O</dt><dd>儲存／開啟專案</dd><dt>Ctrl＋B</dt><dd>更新烘焙</dd><dt>Ctrl＋E</dt><dd>輸出 Spine</dd><dt>Ctrl＋D</dt><dd>複製圖層</dd><dt>Ctrl＋C／V</dt><dd>複製／貼上圖層（可跨專案）</dd><dt>Delete</dt><dd>刪除圖層</dd><dt>[ ]</dt><dd>上／下一個圖層</dd><dt>S／H</dt><dd>單獨顯示／預覽隱藏</dd><dt>F</dt><dd>畫面對焦目前發射器</dd><dt>A</dt><dd>點角色加效果（掛接預覽時）</dd><dt>0</dt><dd>縮放回 100%</dd><dt>滾輪</dt><dd>以游標為中心縮放（5%–800%）</dd></dl></div><div class="help-callout"><strong>記得儲存編輯專案</strong><p>「儲存專案」包含發射器參數與粒子貼圖，可用「開啟」接續編輯。Spine 輸出是動畫交付資料。Atlas 圖集可在 Spine 匯出時產生。</p></div></div><div class="dialog-footer">Particle Studio · Spine 3.8 / 4.0 / 4.2</div></dialog>
   <dialog id="newProjectDialog" class="help-dialog new-project-dialog" aria-labelledby="newProjectTitle" aria-describedby="newProjectDescription">
     <div class="dialog-header"><div><span class="section-eyebrow">NEW PROJECT</span><h2 id="newProjectTitle">重設並建立新專案</h2></div></div>
     <div class="dialog-content"><p id="newProjectDescription">粒子圖層、圖片、背景、Spine 掛接、時間軸與介面設定都會回到初始值。</p><p>目前尚未儲存的修改會被清除。已儲存的專案檔與「我的效果」會保留。</p></div>
@@ -297,7 +302,7 @@
   <dialog id="effectLibraryDialog" class="help-dialog effect-library-dialog"></dialog>
   <dialog id="bakeCheckDialog" class="help-dialog bake-check-dialog" aria-labelledby="bakeCheckTitle">
     <div class="dialog-header"><div><span class="section-eyebrow">BAKE QUALITY</span><h2 id="bakeCheckTitle">烘焙品質與成本</h2></div><button id="bakeCheckClose" type="button" class="icon-button" aria-label="關閉烘焙檢查">×</button></div>
-    <div class="dialog-content"><label class="field"><span>烘焙品質</span><select id="bakeQuality"><option value="fine">精細 · 優先保留動態細節</option><option value="standard" selected>標準 · 日常製作</option><option value="compact">精簡 · 優先減少關鍵幀</option></select></label><p id="bakeQualityHint" class="field-hint">調整骨骼曲線的精簡容許誤差，保留粒子生命週期與循環銜接。</p><section class="bake-cost-section"><h3>目前效果</h3><div id="bakeCostEstimate" class="bake-cost-grid" role="status"></div><p id="bakeCostWarning" class="field-hint"></p></section><section class="bake-cost-section"><h3>實際烘焙結果</h3><div id="bakeCostActual" class="bake-cost-grid" role="status"></div><p class="field-hint">此處為粒子 JSON 的實際數據。追加包另含原骨架；PNG 與圖集也會影響交付大小。</p></section></div>
+    <div class="dialog-content"><label class="field"><span>烘焙品質</span><select id="bakeQuality"><option value="fine">精細 · 優先保留動態細節</option><option value="standard" selected>標準 · 日常製作</option><option value="compact">精簡 · 優先減少關鍵幀</option><option value="minimal">極簡 · 關鍵幀最少（快速／細小特效）</option></select></label><p id="bakeQualityHint" class="field-hint">調整骨骼曲線的精簡容許誤差，保留粒子生命週期與循環銜接。</p><section class="bake-cost-section"><h3>目前效果</h3><div id="bakeCostEstimate" class="bake-cost-grid" role="status"></div><p id="bakeCostWarning" class="field-hint"></p></section><section class="bake-cost-section"><h3>實際烘焙結果</h3><div id="bakeCostActual" class="bake-cost-grid" role="status"></div><p class="field-hint">此處為粒子 JSON 的實際數據。追加包另含原骨架；PNG 與圖集也會影響交付大小。</p></section></div>
     <div class="spine-merge-footer"><button id="bakeCheckDone" type="button" class="quiet-button">關閉</button><button id="bakeCheckBake" type="button" class="primary-button">試烘焙並檢查</button></div>
   </dialog>
   <dialog id="spineMergeDialog" class="help-dialog spine-merge-dialog" aria-labelledby="spineMergeTitle">
