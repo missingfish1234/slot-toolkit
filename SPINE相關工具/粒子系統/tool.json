@@ -15,7 +15,7 @@
     "離線網頁工具"
   ],
   "updatedAt": "2026-11-10",
-  "size": "",
+  "size": "2.7 MB（下載）",
   "changelog": [
     "v1.32.3：左側圖層列表可直接重新命名：雙擊圖層名稱、按圖層上的鉛筆按鈕，或選取後按 F2；Enter 或點別處儲存，Esc 取消，可 Ctrl+Z 復原。",
     "v1.32.2：每個動畫各自控制粒子：有多個動畫時，左側圖層列表的勾選改為「在目前動畫分頁播放」（切到 BURN 就是勾選 BURN 要播的粒子），和上方那一列開關同步，只影響目前這個動畫。勾選停用中的圖層、新增／複製／貼上的圖層，都只加入目前這個動畫，其他動畫不受影響。修正主要動畫排除的圖層在 LOOP 等單段開啟後輸出仍不出現的問題。",
@@ -50,5 +50,7 @@
     "presets",
     "config.json",
     "settings.json"
-  ]
+  ],
+  "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/5c9195e81de13191e8218b07c8127716193cff06/releases/tool-spine-particle-studio-1.32.3.zip",
+  "sha256": "28ddcd0678e49382da28e1a8abb5bb45768d63d6ba4745f2a1d235274dce1413"
 }

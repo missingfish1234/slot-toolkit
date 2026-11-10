@@ -506,7 +506,7 @@
       "name": "SPINE 粒子系統（Particle Studio）",
       "category": "SPINE相關工具",
       "description": "離線編排粒子、整條路徑光帶、殘影拖尾與網格閃電，輸出 Spine 3.8／4.0／4.2；支援既有骨架掛接、原工程寫回與批次輸出。",
-      "version": "1.30.0",
+      "version": "1.32.3",
       "path": "SPINE相關工具/粒子系統",
       "entry": "dist/Particle-Studio.html",
       "icon": "",
@@ -517,9 +517,14 @@
         "特效",
         "離線網頁工具"
       ],
-      "updatedAt": "2026-11-05",
+      "updatedAt": "2026-11-10",
       "size": "2.7 MB（下載）",
       "changelog": [
+        "v1.32.3：左側圖層列表可直接重新命名：雙擊圖層名稱、按圖層上的鉛筆按鈕，或選取後按 F2；Enter 或點別處儲存，Esc 取消，可 Ctrl+Z 復原。",
+        "v1.32.2：每個動畫各自控制粒子：有多個動畫時，左側圖層列表的勾選改為「在目前動畫分頁播放」（切到 BURN 就是勾選 BURN 要播的粒子），和上方那一列開關同步，只影響目前這個動畫。勾選停用中的圖層、新增／複製／貼上的圖層，都只加入目前這個動畫，其他動畫不受影響。修正主要動畫排除的圖層在 LOOP 等單段開啟後輸出仍不出現的問題。",
+        "v1.32.1：複製（D）、貼上（Ctrl+V）的圖層也會加入目前預覽中的動畫（過去只有新增的圖層會）；沒有加入任何動畫的圖層，在圖層列表會以橘色標示「⚠ 未加入任何動畫」。",
+        "v1.32.0：粒子開關——IN、LOOP、OUT 每段各自決定播放哪些圖層，在動畫分頁下方一鍵開關；輸出時關掉的圖層在該段隱藏且不殘留；時間軸新增動畫切換列。",
+        "v1.31.0：新增其他動畫（例如 BURN）——每個動畫自己的名稱、長度、循環與圖層，從空白開始獨立播放，和 IN／LOOP／OUT 輸出在同一個骨架；支援預覽切換、批次輸出與既有骨架掛接。",
         "v1.30.0：輸出 KEY 大幅精簡——隱藏期間不再打 KEY、各軌道只保留自己需要的節點、不變的軌道只留 1 個 KEY、殘影拖尾也會精簡；新增「極簡」烘焙品質。",
         "v1.29.9：分開精簡光帶的網格變形與顏色關鍵幀，隱藏頭部時省去其動畫軌。",
         "v1.29.8：減少歷史拖尾的重複取樣與連續圖的重複網格變形，修正光帶烘焙超限。",
@@ -540,8 +545,8 @@
         "v1.22.0：輸出保留圖片原檔名。",
         "v1.9.0：加入工具包與管理器，可離線啟動粒子工作室。"
       ],
-      "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/2cedc7617cac62ce0091361f42429e02eb46d322/releases/tool-spine-particle-studio-1.30.0.zip",
-      "sha256": "35b177acd49d4bfee014a33c74cb35bd41344441752646e8f2fbc4b2a867c420",
+      "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/5c9195e81de13191e8218b07c8127716193cff06/releases/tool-spine-particle-studio-1.32.3.zip",
+      "sha256": "28ddcd0678e49382da28e1a8abb5bb45768d63d6ba4745f2a1d235274dce1413",
       "kind": "網頁工具",
       "preservePaths": [
         "user-data",
