@@ -462,9 +462,15 @@
     const sourceInfo = inspect(exported.json), source = exported.json;
     const profile = versionProfile(sourceInfo.version), targetProfile = versionProfile(baseInfo.version);
     if (profile.minor !== targetProfile.minor) fail('粒子與原骨架版本不同：粒子 Spine ' + sourceInfo.version + '、原骨架 Spine ' + baseInfo.version + '。請重新輸出與原骨架相同版本的粒子；不可只修改骨架版本號。');
-    const animationNames = sourceInfo.animations.map(item => item.name);
+    const allNames = sourceInfo.animations.map(item => item.name);
+    // Extra animations (BURN …) travel in manifest.extras and become their own
+    // animation in the target skeleton (appended when the name already exists).
+    const extras = exported.manifest && Array.isArray(exported.manifest.extras) ? exported.manifest.extras : [];
+    const extraNames = new Set(extras.map(item => object(item) ? item.animationName : null));
+    if (extraNames.size !== extras.length || extras.some(item => !object(item) || !allNames.includes(item.animationName))) fail('其他動畫記錄與粒子匯出不一致，請重新輸出。');
+    const animationNames = allNames.filter(animationName => !extraNames.has(animationName));
     if (animationNames.length !== (isFlow ? 3 : 1)) fail(isFlow ? '三段粒子匯出必須包含 IN、LOOP、OUT 三段動畫。' : '粒子匯出必須包含一段動畫。');
-    animationNames.forEach(animationName => {
+    allNames.forEach(animationName => {
       const sourceAnimation = source.animations[animationName];
       if (Object.keys(sourceAnimation).some(key => !['bones', 'slots', profile.minor === '4.2' ? 'attachments' : 'deform'].includes(key)) || ['ik', 'transform', 'path', 'physics'].some(key => own(source, key))) fail('粒子追加僅支援烘焙後的骨骼、插槽與網格變形動畫。');
       Object.values(sourceAnimation.slots || {}).forEach(track => {
@@ -475,6 +481,14 @@
     if (roots.length !== 1) fail('粒子匯出必須有唯一的根骨骼。');
     const settings = optionsFor(baseJson, options, exported.stats && exported.stats.duration !== undefined ? exported.stats.duration : sourceInfo.animations[0].duration);
     const segments = isFlow ? flowSegments(baseJson, exported, settings, sourceInfo) : [{phase: null, sourceAnimationName: animationNames[0], ...settings, loop: false}];
+    extras.forEach(item => {
+      const sourceAnimationName = name(item.animationName, '其他動畫名稱');
+      const duration = time(item.duration, undefined, sourceAnimationName + ' 長度', true);
+      const keyed = sourceInfo.animations.find(animation => animation.name === sourceAnimationName).duration;
+      if (duration === undefined || typeof item.loop !== 'boolean' || Math.abs(keyed - duration) > .000001) fail('其他動畫「' + sourceAnimationName + '」的長度或循環設定無效，請重新輸出。');
+      segments.push({phase: 'extra', extraId: item.id, sourceAnimationName, animationName: sourceAnimationName,
+        animationMode: own(baseJson.animations || {}, sourceAnimationName) ? 'existing' : 'new', startTime: 0, duration, loop: item.loop});
+    });
     segments.forEach(segment => {
       if (segment.duration === undefined || !segment.duration) fail('粒子烘焙長度必須大於 0 秒。');
       if (segment.startTime + segment.duration > MAX_TIME) fail('粒子追加結束時間不可超過 86400 秒。');
@@ -573,7 +587,7 @@
           });
           if (group === 'slots') {
             const sourceSlot = source.slots.find(slot => slot.name === key);
-            hideSlot(track, segment, sourceSlot.color, get(attachmentMap, key, {}), profile, isFlow && segment.phase !== 'out');
+            hideSlot(track, segment, sourceSlot.color, get(attachmentMap, key, {}), profile, segment.phase === 'extra' ? segment.loop : isFlow && segment.phase !== 'out');
           }
           if (own(animation[group], mapped)) fail('粒子動畫命名發生衝突：' + mapped);
           put(animation[group], mapped, track);
@@ -620,6 +634,7 @@
     if (isFlow) {
       manifest.phases = {}; stats.phases = {};
       segments.forEach((segment, index) => {
+        if (segment.phase === 'extra') return;
         manifest.phases[segment.phase] = {sourceAnimationName: segment.sourceAnimationName, animationName: segment.animationName,
           animationMode: segment.animationMode, startTime: segment.startTime, duration: segment.duration,
           endTime: segmentStats[index].endTime, loop: segment.loop};
@@ -629,6 +644,16 @@
       delete manifest.animationName; delete manifest.startTime; delete manifest.endTime;
       delete stats.animationName; delete stats.animationCreated; delete stats.startTime; delete stats.endTime;
       warnings.push('IN → LOOP → OUT 共用同一組粒子骨骼；請在 LOOP 完整循環的邊界切換到 OUT，並以 0 混合時間播放三段動畫。');
+    }
+    if (extras.length) {
+      manifest.extras = []; stats.extras = [];
+      segments.forEach((segment, index) => {
+        if (segment.phase !== 'extra') return;
+        manifest.extras.push({id: segment.extraId, sourceAnimationName: segment.sourceAnimationName, animationName: segment.animationName,
+          animationMode: segment.animationMode, startTime: 0, duration: segment.duration, endTime: segmentStats[index].endTime, loop: segment.loop});
+        stats.extras.push(segmentStats[index]);
+      });
+      warnings.push('其他動畫（' + manifest.extras.map(item => item.animationName).join('、') + '）各自從空白開始播放；已存在同名動畫時會追加到該動畫的 0 秒。');
     }
     return {json: result, images, stats, warnings, manifest};
   }

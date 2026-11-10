@@ -41,6 +41,8 @@
   let project = createInitialProject();
   let selectedId = project.emitters[0].id;
   let liveBake = null, baked = null, exported = null, bakedPreview = null, liveError = '';
+  // Extra animations (BURN …): exportedMain is the IN/LOOP/OUT or single export used by previews.
+  let exportedMain = null, bakedExtras = null, liveExtraBake = null, previewExtraId = null, enableOnApply = null;
   let liveFlowBake = null, flowBaked = null, phase = 'loop', sequence = false, exitRequested = false;
   let revision = 0, bakedRevision = -1, bakeError = '';
   let mode = 'live', playing = true, time = 0;
@@ -111,7 +113,7 @@
       project = nextProject; integration = nextIntegration;
       selectedId = project.emitters.some(e => e.id === state.selectedId) ? state.selectedId : project.emitters[0].id;
       revision++; bakedRevision = -1; bakeError = ''; mode = 'live'; stopSequence();
-      baked = null; flowBaked = null; exported = null; bakedPreview = null;
+      baked = null; flowBaked = null; exported = null; exportedMain = null; bakedExtras = null; bakedPreview = null;
       liveBake = null; liveFlowBake = null; attachedCache.clear(); imageCache.clear(); tintCache.clear(); pathGizmoCache.clear();
       priorAssets = integration && integration.assets; priorSource = integration && integration.json;
       refreshLive(); renderGlobals(); renderEmitters(); renderInspector();
@@ -251,8 +253,10 @@
   function emitter() { return project.emitters.find(item => item.id === selectedId) || project.emitters[0]; }
   function emitFrom(e) { return e.emitFrom || (e.shape === 'ring' ? 'edge' : 'area'); }
   function directionMode(e) { return e.directionMode || 'fixed'; }
-  function currentFlowBake() { return mode === 'baked' && baked ? flowBaked : liveFlowBake; }
+  function previewExtra() { return previewExtraId && (project.extraAnimations || []).find(item => item.id === previewExtraId) || null; }
+  function currentFlowBake() { if (previewExtra()) return null; return mode === 'baked' && baked ? flowBaked : liveFlowBake; }
   function activeBake() {
+    if (previewExtra()) return mode === 'baked' && baked && bakedExtras && bakedExtras[previewExtraId] || liveExtraBake;
     const group = currentFlowBake();
     return group ? group.phases[phase] : mode === 'baked' && baked ? baked : liveBake;
   }
@@ -261,12 +265,17 @@
     if (!attachedMode()) return null;
     const group = currentFlowBake(), snapshot = group ? group.phases[kind || phase] : activeBake();
     if (!snapshot) return null;
-    const key = group ? kind || phase : 'single';
+    const extra = previewExtra(), key = extra ? 'extra:' + extra.id : group ? kind || phase : 'single';
     const cached = attachedCache.get(key);
-    if (cached && cached.session === integration && cached.snapshot === snapshot && cached.exported === exported && cached.mode === mode && cached.skin === previewSkin) return cached.value;
-    const record = {session: integration, snapshot, exported, mode, skin: previewSkin, value: null, error: ''};
-    try { record.value = AttachmentPreview.compile({session: effectiveIntegration(), localBake: snapshot, phase: group ? key : null,
-      baked: mode === 'baked', exported, fallbackImage: builtinImages.glow, skinName: previewSkin, getProject: () => project}); }
+    if (cached && cached.session === integration && cached.snapshot === snapshot && cached.exported === exportedMain && cached.mode === mode && cached.skin === previewSkin && cached.extraName === (extra && extra.name)) return cached.value;
+    const record = {session: integration, snapshot, exported: exportedMain, mode, skin: previewSkin, extraName: extra && extra.name, value: null, error: ''};
+    try {
+      let session = effectiveIntegration();
+      // An extra animation goes to the same-named animation (or a new one), from 0 s.
+      if (extra) session = {...session, settings: {...session.settings, animationName: extra.name, startTime: 0,
+        animationMode: session.json.animations && Object.prototype.hasOwnProperty.call(session.json.animations, extra.name) ? 'existing' : 'new'}};
+      record.value = AttachmentPreview.compile({session, localBake: snapshot, phase: group ? key : null,
+      baked: mode === 'baked' && !extra, exported: exportedMain, fallbackImage: builtinImages.glow, skinName: previewSkin, getProject: () => project}); }
     catch (error) { record.error = error.message; }
     attachedCache.set(key, record); return record.value;
   }
@@ -277,7 +286,7 @@
     $('previewAttached').classList.toggle('active', previewAttached); $('previewAttached').setAttribute('aria-pressed', String(previewAttached));
     $('previewLocal').classList.toggle('active', !previewAttached); $('previewLocal').setAttribute('aria-pressed', String(!previewAttached));
     $('previewBones').checked = showBones;
-    const attached = attachedFor(), key = currentFlowBake() ? phase : 'single';
+    const attached = attachedFor(), key = previewExtra() ? 'extra:' + previewExtraId : currentFlowBake() ? phase : 'single';
     attachedError = attachedMode() && !attached ? (attachedCache.get(key) || {}).error || '正在準備掛接預覽…' : '';
     const status = $('attachmentPreviewStatus'); status.classList.toggle('error', !!attachedError);
     status.textContent = !enabled ? '' : attachedError || (attached ? attached.timeline.animationName + ' · 粒子 ' + attached.timeline.startTime + '–' + attached.timeline.endTime + ' 秒' + (attached.timeline.holdsEnd ? ' · 末態保留到 IN 結束' : '') : '發射器局部座標');
@@ -364,9 +373,9 @@
       $('spineTargetMode').textContent = picker.disabled ? '跟隨骨架' : '輸出版本';
     }
     if (baked && exported && exported.json.skeleton.spine !== version) {
-      const nextExport = flowBaked ? Core.exportFlow(flowBaked, version) : Core.exportSpine(baked, version);
-      const nextPreview = compileBakedPreview(nextExport, baked, flowBaked);
-      exported = nextExport; bakedPreview = nextPreview;
+      const nextMain = flowBaked ? Core.exportFlow(flowBaked, version) : Core.exportSpine(baked, version);
+      const nextPreview = compileBakedPreview(nextMain, baked, flowBaked);
+      exported = Core.exportWithExtras(nextMain, (flowBaked || baked).project, version, bakedExtras || undefined); exportedMain = nextMain; bakedPreview = nextPreview;
     }
   }
   function safeName() {
@@ -382,9 +391,13 @@
   function stopSequence() { sequence = false; exitRequested = false; }
   function refreshFlowUi() {
     const config = currentFlowBake() ? currentFlowBake().project.flow : project.flow;
-    const enabled = !!currentFlowBake() || (mode === 'live' && project.flow.enabled);
-    $('flowPreviewBar').hidden = !enabled;
-    $('flowSettingsButton').querySelector('span').textContent = project.flow.enabled ? 'In / Loop / Out' : '動畫段落';
+    const enabled = !previewExtra() && (!!currentFlowBake() || (mode === 'live' && project.flow.enabled));
+    // The animation tab bar is always visible; IN/LOOP/OUT tabs only with three-phase flow.
+    const flowTabs = !!currentFlowBake() || project.flow.enabled;
+    ['In', 'Loop', 'Out'].forEach(cap => { $('previewFlow' + cap).hidden = !flowTabs; });
+    $('previewMainTab').hidden = flowTabs;
+    $('previewMainTab').classList.toggle('active', !previewExtra()); $('previewMainTab').setAttribute('aria-pressed', String(!previewExtra()));
+    $('flowPreviewStatus').hidden = !enabled; document.querySelector('.flow-preview-actions').hidden = !enabled;
     $('flowEnabled').checked = project.flow.enabled;
     ['in', 'loop', 'out'].forEach(kind => {
       const cap = kind[0].toUpperCase() + kind.slice(1);
@@ -392,22 +405,27 @@
         const input = $('flow' + cap + field); input.disabled = !project.flow.enabled;
         if (document.activeElement !== input) input.value = project.flow[kind][field.toLowerCase()];
       });
-      const button = $('previewFlow' + cap); button.classList.toggle('active', phase === kind); button.setAttribute('aria-pressed', String(phase === kind));
+      const on = phase === kind && !previewExtra(), button = $('previewFlow' + cap); button.classList.toggle('active', on); button.setAttribute('aria-pressed', String(on));
       button.title = config[kind].name + ' · ' + config[kind].duration + ' 秒';
     });
     $('flowPreviewStatus').textContent = !enabled ? '' : exitRequested ? '本輪結束後進入 OUT' : sequence && phase === 'loop' ? 'LOOP 持續播放' : phase.toUpperCase() + ' · ' + previewDuration() + ' 秒' + (attachedMode() ? '（原動畫時間）' : '');
     $('flowRequestOut').disabled = !enabled || phase !== 'loop' || !playing || exitRequested;
     $('flowPlaySequence').disabled = !enabled || !activeBake();
-    $('duration').disabled = project.flow.enabled; $('loop').disabled = project.flow.enabled;
-    $('duration').value = project.flow.enabled ? config[phase].duration : project.duration;
-    $('loop').checked = project.flow.enabled ? phase === 'loop' : project.loop;
+    const extra = previewExtra();
+    $('duration').disabled = project.flow.enabled || !!extra; $('loop').disabled = project.flow.enabled || !!extra;
+    $('duration').value = extra ? extra.duration : project.flow.enabled ? config[phase].duration : project.duration;
+    $('loop').checked = extra ? extra.loop : project.flow.enabled ? phase === 'loop' : project.loop;
+    $('duration').title = extra ? '「' + extra.name + '」的長度在畫布上方的動畫列設定' : '';
+    const extraCount = (project.extraAnimations || []).length;
+    $('flowSettingsButton').querySelector('span').textContent = (project.flow.enabled ? 'In / Loop / Out' : '動畫段落') + (extraCount ? ' ＋' + extraCount : '');
     $('flowBake').textContent = project.flow.enabled ? '更新三段烘焙' : '更新烘焙';
+    renderPreviewAnimSelect();
   }
   function selectPhase(kind, keepPlaying) {
     phase = kind; time = 0;
     if (!keepPlaying) { stopSequence(); playing = false; }
-    if (baked && exported) bakedPreview = compileBakedPreview(exported, baked, flowBaked);
-    refreshFlowUi(); refreshAttachmentPreview(); updatePlayButton(); syncTimeline(); queueDraft();
+    if (baked && exportedMain) bakedPreview = compileBakedPreview(exportedMain, baked, flowBaked);
+    refreshFlowUi(); refreshAttachmentPreview(); updatePlayButton(); syncTimeline(); queueDraft(); renderEmitters();
   }
   function flowBindingFor(input) {
     const match = /^flow(In|Loop|Out)Duration$/.exec(input.id); if (!match) return null;
@@ -510,6 +528,12 @@
   }
   function renderEmitters() {
     const list = $('emitterList'); list.replaceChildren();
+    const note = $('layerListNote');
+    if (note) {
+      note.replaceChildren();
+      if (multiAnimation()) note.append('勾選＝在目前的 ' + currentAnimationLabel() + ' 播放。', document.createElement('br'), '切換上方動畫分頁可分別設定。');
+      else note.append('每個發射器可獨立調整。', document.createElement('br'), '輸出時依圖層順序疊加。');
+    }
     const shapeNames = {point: '點形', direction: '定向', line: '線形', circle: '圓形', ring: '圓環', box: '矩形', outline: '物件輪廓'};
     const shapeIcons = {
       point: 'M12 8v8M8 12h8M5 5h.01M19 5h.01M5 19h.01M19 19h.01',
@@ -524,9 +548,16 @@
     };
     project.emitters.forEach((item, layerIndex) => {
       const row = document.createElement('div'); row.className = 'emitter-item'; row.classList.toggle('selected', item.id === selectedId);
-      row.classList.toggle('disabled', !item.enabled);
-      const check = document.createElement('input'); check.type = 'checkbox'; check.checked = item.enabled; check.setAttribute('aria-label', '啟用 ' + item.name);
-      check.addEventListener('change', () => { item.enabled = check.checked; changed(); renderEmitters(); });
+      // With several animations the checkbox means "plays in the animation on screen".
+      const perAnim = multiAnimation(), here = perAnim ? playsHere(item) : item.enabled;
+      row.classList.toggle('disabled', !here);
+      const check = document.createElement('input'); check.type = 'checkbox'; check.checked = here;
+      check.setAttribute('aria-label', (perAnim ? '在 ' + currentAnimationLabel() + ' 播放 ' : '啟用 ') + item.name);
+      check.title = perAnim ? '勾選＝在目前的 ' + currentAnimationLabel() + ' 播放這個圖層' : '啟用這個圖層';
+      check.addEventListener('change', () => {
+        if (perAnim) { setPlaysHere(item, check.checked); return; }
+        item.enabled = check.checked; changed(); renderEmitters();
+      });
       const button = document.createElement('button'); button.type = 'button'; button.className = 'emitter-info'; button.setAttribute('aria-pressed', String(item.id === selectedId)); button.setAttribute('aria-label', '選擇 ' + item.name);
       const icon = document.createElement('span'); icon.className = 'emitter-icon'; icon.setAttribute('aria-hidden', 'true');
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('fill', 'none'); svg.setAttribute('stroke', 'currentColor'); svg.setAttribute('stroke-width', '1.5'); svg.setAttribute('stroke-linecap', 'round'); svg.setAttribute('stroke-linejoin', 'round');
@@ -535,7 +566,11 @@
       path.setAttribute('d', shapeIcons[textureKind] || shapeIcons[item.shape] || shapeIcons.point); svg.append(path); icon.append(svg);
       const copy = document.createElement('span'); copy.className = 'emitter-copy';
       const name = document.createElement('span'); name.className = 'emitter-name'; name.textContent = item.name;
-      const meta = document.createElement('span'); meta.className = 'emitter-meta'; meta.textContent = item.kind === 'lightning' ? '網格閃電 · ' + item.lightning.bolts + ' 條' + (item.lightning.branches ? ' · 分岔 ' + item.lightning.branches : '') : item.count + ' 顆 · ' + (item.blend === 'additive' ? '加色' : '一般');
+      const anims = animationsOf(item);
+      const meta = document.createElement('span'); meta.className = 'emitter-meta'; meta.title = anims ? '用於：' + anims : ''; meta.textContent = item.kind === 'lightning' ? '網格閃電 · ' + item.lightning.bolts + ' 條' + (item.lightning.branches ? ' · 分岔 ' + item.lightning.branches : '') : item.count + ' 顆 · ' + (item.blend === 'additive' ? '加色' : '一般');
+      if (anims) meta.textContent += ' · ' + anims;
+      row.classList.toggle('layer-unused', anims === UNUSED_LAYER);
+      if (anims === UNUSED_LAYER) meta.title = '這個圖層沒有加入任何動畫，輸出和播放都看不到。切到要用的動畫分頁，在下方一列勾選它。';
       const tags = document.createElement('span'); tags.className = 'emitter-tags';
       if (item.kind === 'lightning') path.setAttribute('d', 'M13 2 5 13h6l-1 9 8-12h-6l1-8Z');
       const type = document.createElement('span'); type.className = 'emitter-type'; type.textContent = item.kind === 'lightning' ? (item.lightning.mode === 'fixed' ? '兩端固定' : '尾端擺動') : item.trail && item.trail.enabled ? item.trail.mode === 'afterimage' ? '殘影拖尾' : '沿路徑拉伸' : item.path && item.path.enabled ? '沿路徑移動' : (shapeNames[item.shape] || '點形') + (['box', 'circle', 'ring'].includes(item.shape) ? emitFrom(item) === 'edge' ? ' · 邊框' : ' · 區域內' : '');
@@ -557,7 +592,13 @@
       solo.title = soloId === item.id ? '取消單獨顯示 · S' : '預覽只顯示此層（不影響輸出）· S';
       solo.setAttribute('aria-label', (soloId === item.id ? '取消單獨顯示 ' : '單獨顯示 ') + item.name);
       solo.addEventListener('click', event => { event.stopPropagation(); toggleSolo(item.id); });
-      tools.append(solo, eye);
+      const rename = document.createElement('button'); rename.type = 'button'; rename.className = 'emitter-tool emitter-rename-tool';
+      rename.title = '重新命名 · F2（或雙擊名稱）'; rename.setAttribute('aria-label', '重新命名 ' + item.name);
+      rename.innerHTML = '<svg aria-hidden="true" viewBox="0 0 20 20"><path d="M12.5 4.5l3 3L7 16H4v-3Z M11 6l3 3"/></svg>';
+      rename.addEventListener('click', event => { event.stopPropagation(); startRename(item.id); });
+      name.addEventListener('dblclick', event => { event.preventDefault(); event.stopPropagation(); startRename(item.id); });
+      tools.append(rename, solo, eye);
+      row.dataset.emitterId = item.id;
       row.append(check, button, tools); list.append(row);
     });
     const index = project.emitters.findIndex(item => item.id === selectedId);
@@ -1115,7 +1156,10 @@
     try {
       liveFlowBake = project.flow.enabled ? Core.bakeFlow(project) : null;
       liveBake = liveFlowBake ? liveFlowBake.phases.loop : Core.bake(project); liveError = '';
-    } catch (error) { liveBake = null; liveFlowBake = null; liveError = error.message; notify(error.message, true); }
+      if (previewExtraId && !previewExtra()) previewExtraId = null;
+      liveExtraBake = previewExtra() ? Core.bakeExtra(project, previewExtraId) : null;
+    } catch (error) { liveBake = null; liveFlowBake = null; liveExtraBake = null; liveError = error.message; notify(error.message, true); }
+    renderExtraUi();
     refreshFlowUi(); refreshAttachmentPreview();
   }
   function changed(updateInspector) {
@@ -1313,7 +1357,7 @@
       ctx.translate(e.x, -e.y); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = .75;
       ctx.drawImage(bitmap, -e.width / 2, -e.height / 2, e.width, e.height); ctx.restore();
     });
-    const particles = attached ? attached.sample(time) : mode === 'baked' && bakedPreview ? bakedPreview.sample(time) : Core.sample(snapshot, time); let visible = 0;
+    const particles = attached ? attached.sample(time) : mode === 'baked' && bakedPreview && !previewExtra() ? bakedPreview.sample(time) : Core.sample(snapshot, time); let visible = 0;
     const offsets = new Map(), hiddenEmitters = new Set(), previewMuted = previewMutedIds();
     if (mode === 'live') snapshot.project.emitters.forEach(old => {
       const current = project.emitters.find(e => e.id === old.id);
@@ -1485,7 +1529,7 @@
         const next = FlowPlayback.advance({phase, time, playing, sequence, exitRequested}, delta, durations);
         const switched = next.phase !== phase, wasPlaying = playing;
         phase = next.phase; time = next.time; playing = next.playing; sequence = next.sequence; exitRequested = next.exitRequested;
-        if (switched && baked && exported) bakedPreview = compileBakedPreview(exported, baked, flowBaked);
+        if (switched && baked && exportedMain) bakedPreview = compileBakedPreview(exportedMain, baked, flowBaked);
         if (switched || wasPlaying !== playing) { refreshFlowUi(); refreshAttachmentPreview(); updatePlayButton(); queueDraft(); }
       } else {
         time += delta;
@@ -1576,9 +1620,12 @@
     try {
       const nextFlow = project.flow.enabled ? Core.bakeFlow(project) : null;
       const nextBake = nextFlow ? nextFlow.phases.loop : Core.bake(project);
-      const nextExport = nextFlow ? Core.exportFlow(nextFlow, effectiveSpineVersion()) : Core.exportSpine(nextBake, effectiveSpineVersion());
-      const nextPreview = compileBakedPreview(nextExport, nextBake, nextFlow);
-      flowBaked = nextFlow; baked = nextBake; exported = nextExport; bakedPreview = nextPreview; bakedRevision = revision; mode = 'baked';
+      const nextMain = nextFlow ? Core.exportFlow(nextFlow, effectiveSpineVersion()) : Core.exportSpine(nextBake, effectiveSpineVersion());
+      const nextExtras = {};
+      (project.extraAnimations || []).forEach(extra => { nextExtras[extra.id] = Core.bakeExtra(project, extra.id); });
+      const nextExport = Core.exportWithExtras(nextMain, project, effectiveSpineVersion(), nextExtras);
+      const nextPreview = compileBakedPreview(nextMain, nextBake, nextFlow);
+      flowBaked = nextFlow; baked = nextBake; exported = nextExport; exportedMain = nextMain; bakedExtras = nextExtras; bakedPreview = nextPreview; bakedRevision = revision; mode = 'baked';
       $('appStatus').textContent = '已烘焙 ' + exported.stats.bones + ' 根骨骼 · ' + exported.stats.keyframes.toLocaleString() + ' KEY';
       if (exported.stats.warnings.length) notify(exported.stats.warnings.join(' '));
       else notify('烘焙完成，可以輸出 Spine ' + nextExport.json.skeleton.spine + '。');
@@ -1653,12 +1700,13 @@
       const item = exp.manifest.phases[kind];
       return kind.toUpperCase() + '：' + item.animationName + '，' + item.duration + ' 秒（' + (item.loop ? '反覆播放' : '播放一次') + '）';
     }).join('；') + '。先播 IN，再反覆 LOOP；需要結束時，等 LOOP 完整一輪結束後播放 OUT。' : '播放 effect 動畫。此動畫的循環設定：' + (snapshot.loop ? '循環；請開啟 Spine 循環播放' : '單次') + '。';
+    const extraGuide = exp.manifest && exp.manifest.extras && exp.manifest.extras.length ? '\n   其他動畫：' + exp.manifest.extras.map(item => item.animationName + '，' + item.duration + ' 秒（' + (item.loop ? '反覆播放' : '播放一次') + '）').join('；') + '。各自從空白開始，可在任何時候切換播放。' : '';
     const entries = [
       {name: names.spine, data: JSON.stringify(exp.json)},
       {name: names.project, data: Storage.serialize(sourceProject, snapshot.project, viewState(), session)},
-      {name: '匯入說明.txt', data: 'Particle Studio 原創粒子工具\n目標：Spine Editor ' + exp.json.skeleton.spine + '\n\n1. 解壓縮此 ZIP。\n2. 在 Spine ' + exp.json.skeleton.spine + ' 使用 File → Import Data，選擇 ' + names.spine + '。\n3. Images 路徑指向同層 images/。\n4. ' + animationGuide + '\n5. 存為新的 .spine 專案。需合併到既有動畫時，可透過 Import Project 匯入此專案。\n\n要調整粒子時，在粒子工作室選「開啟」，載入 ' + names.project + '。\n背景參考圖不匯出到 Spine；圖集請在 Spine 匯出時建立。\n\n烘焙：' + snapshot.fps + ' FPS\n骨骼：' + exp.stats.bones + '；關鍵幀：' + exp.stats.keyframes + '\n' + exp.stats.warnings.join('\n')}
+      {name: '匯入說明.txt', data: 'Particle Studio 原創粒子工具\n目標：Spine Editor ' + exp.json.skeleton.spine + '\n\n1. 解壓縮此 ZIP。\n2. 在 Spine ' + exp.json.skeleton.spine + ' 使用 File → Import Data，選擇 ' + names.spine + '。\n3. Images 路徑指向同層 images/。\n4. ' + animationGuide + extraGuide + '\n5. 存為新的 .spine 專案。需合併到既有動畫時，可透過 Import Project 匯入此專案。\n\n要調整粒子時，在粒子工作室選「開啟」，載入 ' + names.project + '。\n背景參考圖不匯出到 Spine；圖集請在 Spine 匯出時建立。\n\n烘焙：' + snapshot.fps + ' FPS\n骨骼：' + exp.stats.bones + '；關鍵幀：' + exp.stats.keyframes + '\n' + exp.stats.warnings.join('\n')}
     ];
-    if (flowSnapshot) entries.push({name: '動畫段落.json', data: JSON.stringify(exp.manifest, null, 2)});
+    if (flowSnapshot || exp.manifest && exp.manifest.extras) entries.push({name: '動畫段落.json', data: JSON.stringify(exp.manifest, null, 2)});
     exp.images.forEach(image => { entries.push({name: 'images/' + image.name, data: Zip.decodeDataUrl(image.dataUrl || builtinImages.glow.dataUrl)}); });
     return prefix ? entries.map(entry => ({...entry, name: prefix + entry.name})) : entries;
   }
@@ -1677,7 +1725,7 @@
         variant.spineVersion = Core.spineProfile(job.version).version;
         const flow = variant.flow.enabled ? Core.bakeFlow(variant) : null;
         const snapshot = flow ? flow.phases.loop : Core.bake(variant);
-        const exp = flow ? Core.exportFlow(flow, variant.spineVersion) : Core.exportSpine(snapshot, variant.spineVersion);
+        const exp = Core.exportWithExtras(flow ? Core.exportFlow(flow, variant.spineVersion) : Core.exportSpine(snapshot, variant.spineVersion), variant, variant.spineVersion);
         const stem = jobs.some(other => other.variant !== job.variant) || job.variant.kind !== 'original' ? base + '_' + Batch.variantSlug(job.variant) : base;
         const folder = stem + '_spine' + Core.spineProfile(job.version).family + '/';
         entries.push(...standaloneEntries(stem, exp, snapshot, flow, variant, folder));
@@ -1888,12 +1936,298 @@
     if (preset !== 'glow') e.image = clone(builtinImages[preset]);
     return e;
   }
+  // ---- Extra animations (BURN …) ----
+  function mainAnimationLabel() { return project.flow.enabled ? 'IN／LOOP／OUT' : '主要動畫'; }
+  function inMain(e) { return !Array.isArray(project.mainLayers) || project.mainLayers.includes(e.id); }
+  const PHASE_LABEL = {in: 'IN', loop: 'LOOP', out: 'OUT'}, UNUSED_LAYER = '⚠ 未加入任何動畫';
+  // Per-phase particle switch; a phase without its own list follows the main layers.
+  function inPhase(e, kind) {
+    const list = project.flow.layers && project.flow.layers[kind];
+    return Array.isArray(list) ? list.includes(e.id) : inMain(e);
+  }
+  function hasPhaseSwitches() { return !!(project.flow.enabled && project.flow.layers && Object.keys(project.flow.layers).length); }
+  // Which animations use a layer; empty when every animation uses every layer.
+  function animationsOf(e) {
+    const extras = project.extraAnimations || [];
+    if (!extras.length && !hasPhaseSwitches() && !Array.isArray(project.mainLayers)) return '';
+    const names = [];
+    if (project.flow.enabled) {
+      const phases = ['in', 'loop', 'out'].filter(kind => inPhase(e, kind));
+      if (phases.length === 3) names.push('IN/LOOP/OUT'); else phases.forEach(kind => names.push(PHASE_LABEL[kind]));
+    } else if (inMain(e)) names.push('主要');
+    extras.forEach(extra => { if (extra.layers.includes(e.id)) names.push(extra.name); });
+    return names.length ? names.join('·') : UNUSED_LAYER;
+  }
+  function multiAnimation() { return project.flow.enabled || !!(project.extraAnimations && project.extraAnimations.length); }
+  function currentAnimationLabel() { const extra = previewExtra(); return extra ? extra.name.toUpperCase() : project.flow.enabled ? PHASE_LABEL[phase] : '主要動畫'; }
+  function memberHere(e) { const extra = previewExtra(); return extra ? extra.layers.includes(e.id) : project.flow.enabled ? inPhase(e, phase) : inMain(e); }
+  function playsHere(e) { return e.enabled && memberHere(e); }
+  // Left-list checkbox in multi-animation projects: switch the layer in the
+  // animation on screen; switching on also re-enables a disabled layer.
+  function setPlaysHere(e, on) {
+    const extra = previewExtra(), label = currentAnimationLabel();
+    if (on) enableOnApply = e;
+    try {
+      if (on && memberHere(e)) return applyExtras(() => {}, '已在 ' + label + ' 開啟「' + e.name + '」。');
+      if (extra) return applyExtras(() => {
+        const target = project.extraAnimations.find(item => item.id === extra.id);
+        target.layers = on ? target.layers.concat(e.id) : target.layers.filter(id => id !== e.id);
+      }, (on ? '已在 ' : '已從 ') + label + (on ? ' 開啟' : ' 關閉') + '「' + e.name + '」。');
+      if (project.flow.enabled) return setPhaseLayer(phase, e, on);
+      return applyExtras(() => {
+        const current = project.emitters.filter(inMain).map(item => item.id);
+        project.mainLayers = on ? current.concat(e.id) : current.filter(id => id !== e.id);
+      }, (on ? '已在 ' : '已從 ') + label + (on ? ' 開啟' : ' 關閉') + '「' + e.name + '」。');
+    } finally { enableOnApply = null; }
+  }
+  // Turn one layer on or off inside IN, LOOP or OUT only.
+  function setPhaseLayer(kind, e, on) {
+    return applyExtras(() => {
+      const current = project.emitters.filter(item => inPhase(item, kind)).map(item => item.id);
+      const next = on ? current.concat(e.id) : current.filter(id => id !== e.id);
+      const layers = Object.assign({}, project.flow.layers || {});
+      const fallback = project.emitters.filter(inMain).map(item => item.id);
+      if (next.length === fallback.length && next.every(id => fallback.includes(id))) delete layers[kind]; else layers[kind] = next;
+      const flow = Object.assign({}, project.flow);
+      if (Object.keys(layers).length) flow.layers = layers; else delete flow.layers;
+      project.flow = flow;
+    }, (on ? '已開啟' : '已關閉') + '「' + e.name + '」在 ' + PHASE_LABEL[kind] + ' 的粒子表演。');
+  }
+  function setPreviewExtra(id) {
+    const next = id && (project.extraAnimations || []).some(item => item.id === id) ? id : null;
+    if (next === previewExtraId) return;
+    previewExtraId = next; time = 0; playing = false; stopSequence();
+    liveExtraBake = null; attachedCache.clear();
+    try { if (next) liveExtraBake = Core.bakeExtra(project, next); } catch (error) { notify(error.message, true); }
+    refreshFlowUi(); refreshAttachmentPreview(); renderExtraUi(); renderEmitters(); updatePlayButton(); syncTimeline(); queueDraft();
+  }
+  function uniqueExtraName(base) {
+    const used = new Set((project.extraAnimations || []).map(item => item.name).concat(project.flow.enabled ? ['in', 'loop', 'out'].map(kind => project.flow[kind].name) : ['effect']));
+    if (!used.has(base)) return base;
+    for (let n = 2; ; n++) if (!used.has(base + n)) return base + n;
+  }
+  function applyExtras(mutator, message) {
+    const before = clone({extras: project.extraAnimations, main: project.mainLayers, flow: project.flow}), enabledBefore = project.emitters.map(e => e.enabled);
+    historyBegin('command');
+    try {
+      mutator();
+      // Re-enabling a stopped layer turns it on only in the animation on screen.
+      if (enableOnApply && !enableOnApply.enabled) { onlyHere(enableOnApply); enableOnApply.enabled = true; }
+      if (project.extraAnimations && !project.extraAnimations.length) delete project.extraAnimations;
+      if (Array.isArray(project.mainLayers) && project.mainLayers.length === project.emitters.length && project.emitters.every(e => project.mainLayers.includes(e.id))) delete project.mainLayers;
+      Core.normalizeProject(project);
+      changed(); renderEmitters(); renderExtraUi();
+      if (message) notify(message);
+      return true;
+    } catch (error) {
+      if (before.extras) project.extraAnimations = before.extras; else delete project.extraAnimations;
+      if (before.main) project.mainLayers = before.main; else delete project.mainLayers;
+      project.flow = before.flow;
+      project.emitters.forEach((e, index) => { if (index < enabledBefore.length) e.enabled = enabledBefore[index]; });
+      notify(error.message, true); renderExtraUi(); return false;
+    } finally { historyEnd(); }
+  }
+  function layerChecks(host, isChecked, onToggle) {
+    host.replaceChildren();
+    project.emitters.forEach(e => {
+      const label = document.createElement('label'); label.className = 'layer-check' + (e.enabled ? '' : ' disabled-layer');
+      const box = document.createElement('input'); box.type = 'checkbox'; box.checked = e.enabled && isChecked(e);
+      // Checking a disabled layer switches it back on, so what is ticked always plays.
+      box.addEventListener('change', () => {
+        const on = box.checked;
+        if (on) enableOnApply = e;
+        try {
+          if (on && isChecked(e)) applyExtras(() => {}, '已啟用「' + e.name + '」。');
+          else onToggle(e, on);
+        } finally { enableOnApply = null; }
+      });
+      if (!e.enabled) label.title = '這個圖層目前停用；勾選會重新啟用它。';
+      const text = document.createElement('span'); text.textContent = e.name + (e.enabled ? '' : '（停用中）');
+      label.append(box, text); host.append(label);
+    });
+  }
+  function renderPreviewAnimSelect() {
+    const extras = project.extraAnimations || [], host = $('extraTabs'), extra = previewExtra();
+    const signature = JSON.stringify(extras.map(item => [item.id, item.name, item.duration, item.loop])) + '|' + previewExtraId;
+    if (host.dataset.signature !== signature) {
+      host.dataset.signature = signature; host.replaceChildren();
+      extras.forEach(item => {
+        const tab = document.createElement('button'); tab.type = 'button'; tab.className = 'anim-tab extra-tab' + (item.id === previewExtraId ? ' active' : '');
+        tab.setAttribute('aria-pressed', String(item.id === previewExtraId));
+        tab.textContent = item.name.toUpperCase(); tab.title = item.name + ' · ' + item.duration + ' 秒' + (item.loop ? ' · 循環' : '') + ' · 點一下預覽並編輯';
+        tab.addEventListener('click', () => setPreviewExtra(item.id));
+        host.append(tab);
+      });
+    }
+    $('animTabAdd').disabled = extras.length >= 8;
+    // Editor row: the selected extra's settings, the current IN/LOOP/OUT phase's
+    // particle switches, or the main animation's layers when extras exist.
+    const editor = $('extraEditor'), flowKind = !extra && project.flow.enabled ? phase : null;
+    editor.hidden = !extra && !extras.length && !flowKind;
+    if (editor.hidden) return;
+    editor.classList.toggle('main-layers', !extra);
+    $('extraEditorBadge').textContent = extra ? extra.name.toUpperCase().slice(0, 16) : flowKind ? PHASE_LABEL[flowKind] : mainAnimationLabel();
+    $('extraEditorLayersLabel').textContent = flowKind ? PHASE_LABEL[flowKind] + ' 播放的粒子（點一下開／關）' : extra ? '播放的粒子（點一下開／關）' : '使用圖層';
+    ['extraEditorName', 'extraEditorDuration'].forEach(id => { $(id).closest('label').hidden = !extra; });
+    $('extraEditorLoop').closest('label').hidden = !extra; $('extraEditorDelete').hidden = !extra;
+    if (extra) {
+      if (document.activeElement !== $('extraEditorName')) $('extraEditorName').value = extra.name;
+      if (document.activeElement !== $('extraEditorDuration')) $('extraEditorDuration').value = extra.duration;
+      $('extraEditorLoop').checked = extra.loop;
+    }
+    const layerSignature = JSON.stringify([previewExtraId, flowKind, project.emitters.map(e => [e.id, e.name, e.enabled]), extra ? extra.layers : project.mainLayers || null, project.flow.layers || null]);
+    const layers = $('extraEditorLayers');
+    if (layers.dataset.signature !== layerSignature) {
+      layers.dataset.signature = layerSignature;
+      if (extra) layerChecks(layers, e => extra.layers.includes(e.id), (e, on) => applyExtras(() => {
+        const target = project.extraAnimations.find(item => item.id === extra.id);
+        target.layers = on ? target.layers.concat(e.id) : target.layers.filter(id => id !== e.id);
+      }));
+      else if (flowKind) layerChecks(layers, e => inPhase(e, flowKind), (e, on) => setPhaseLayer(flowKind, e, on));
+      else layerChecks(layers, inMain, (e, on) => applyExtras(() => {
+        const current = project.emitters.filter(inMain).map(item => item.id);
+        project.mainLayers = on ? current.concat(e.id) : current.filter(id => id !== e.id);
+      }));
+    }
+  }
+  function renderExtraUi() {
+    const extras = project.extraAnimations || [];
+    renderPreviewAnimSelect();
+    if (!$('flowDialog').open) return;
+    // Main layers
+    const host = $('mainLayerList');
+    if (project.flow.enabled) {
+      // One row of switches per phase.
+      host.replaceChildren(); host.classList.add('phase-layer-rows');
+      $('mainLayerSummary').textContent = ['in', 'loop', 'out'].map(kind => PHASE_LABEL[kind] + ' ' + project.emitters.filter(e => inPhase(e, kind)).length).join('　') + '　／ ' + project.emitters.length + ' 個圖層';
+      ['in', 'loop', 'out'].forEach(kind => {
+        const row = document.createElement('div'); row.className = 'phase-layer-row';
+        const badge = document.createElement('span'); badge.className = 'flow-phase-badge'; badge.textContent = PHASE_LABEL[kind];
+        const list = document.createElement('div'); list.className = 'layer-check-list'; list.setAttribute('role', 'group'); list.setAttribute('aria-label', PHASE_LABEL[kind] + ' 播放的粒子');
+        layerChecks(list, e => inPhase(e, kind), (e, on) => setPhaseLayer(kind, e, on));
+        row.append(badge, list); host.append(row);
+      });
+    } else {
+      host.classList.remove('phase-layer-rows');
+      const mainCount = project.emitters.filter(inMain).length;
+      $('mainLayerSummary').textContent = mainAnimationLabel() + ' 使用 ' + mainCount + '／' + project.emitters.length + ' 個圖層';
+      layerChecks(host, inMain, (e, on) => applyExtras(() => {
+        const current = project.emitters.filter(inMain).map(item => item.id);
+        project.mainLayers = on ? current.concat(e.id) : current.filter(id => id !== e.id);
+      }));
+    }
+    // Extra cards
+    const list = $('extraList'); list.replaceChildren();
+    if (!extras.length) { const empty = document.createElement('p'); empty.className = 'extra-empty'; empty.textContent = '還沒有其他動畫。按「＋ 新增動畫」建立 BURN 之類的獨立動畫。'; list.append(empty); }
+    extras.forEach(extra => {
+      const card = document.createElement('section'); card.className = 'extra-card' + (previewExtraId === extra.id ? ' previewing' : '');
+      const head = document.createElement('div'); head.className = 'extra-card-head';
+      const badge = document.createElement('span'); badge.className = 'extra-badge'; badge.textContent = extra.name.toUpperCase().slice(0, 16);
+      const actions = document.createElement('div'); actions.className = 'extra-card-actions';
+      const preview = document.createElement('button'); preview.type = 'button'; preview.className = 'text-button';
+      preview.textContent = previewExtraId === extra.id ? '預覽中' : '預覽'; preview.disabled = previewExtraId === extra.id;
+      preview.addEventListener('click', () => { setPreviewExtra(extra.id); $('flowDialog').close(); });
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'text-button muted'; remove.textContent = '刪除';
+      remove.addEventListener('click', () => {
+        if (previewExtraId === extra.id) setPreviewExtra(null);
+        applyExtras(() => { project.extraAnimations = project.extraAnimations.filter(item => item.id !== extra.id); }, '已刪除動畫「' + extra.name + '」。');
+      });
+      actions.append(preview, remove); head.append(badge, actions);
+      const row = document.createElement('div'); row.className = 'field-row';
+      const nameField = document.createElement('label'); nameField.className = 'field'; nameField.innerHTML = '<span>動畫名稱</span>';
+      const nameInput = document.createElement('input'); nameInput.type = 'text'; nameInput.maxLength = 80; nameInput.spellcheck = false; nameInput.value = extra.name;
+      nameInput.addEventListener('change', () => { const value = nameInput.value.trim(); if (!value || value === extra.name) { nameInput.value = extra.name; return; } if (!applyExtras(() => { project.extraAnimations.find(item => item.id === extra.id).name = value; })) nameInput.value = extra.name; });
+      nameField.append(nameInput);
+      const durationField = document.createElement('label'); durationField.className = 'field'; durationField.innerHTML = '<span>長度 <small>秒</small></span>';
+      const durationInput = document.createElement('input'); durationInput.type = 'number'; durationInput.min = '0.05'; durationInput.max = '30'; durationInput.step = '0.01'; durationInput.value = extra.duration;
+      durationInput.addEventListener('change', () => { const value = Number(durationInput.value); if (!Number.isFinite(value) || !applyExtras(() => { project.extraAnimations.find(item => item.id === extra.id).duration = value; })) durationInput.value = extra.duration; });
+      durationField.append(durationInput);
+      const loopField = document.createElement('label'); loopField.className = 'checkbox-label';
+      const loopInput = document.createElement('input'); loopInput.type = 'checkbox'; loopInput.checked = extra.loop;
+      loopInput.addEventListener('change', () => applyExtras(() => { project.extraAnimations.find(item => item.id === extra.id).loop = loopInput.checked; }));
+      loopField.append(loopInput, document.createTextNode('循環播放'));
+      row.append(nameField, durationField, loopField);
+      const layers = document.createElement('div'); layers.className = 'layer-check-list'; layers.setAttribute('role', 'group'); layers.setAttribute('aria-label', extra.name + ' 使用的圖層');
+      layerChecks(layers, e => extra.layers.includes(e.id), (e, on) => applyExtras(() => {
+        const target = project.extraAnimations.find(item => item.id === extra.id);
+        target.layers = on ? target.layers.concat(e.id) : target.layers.filter(id => id !== e.id);
+      }));
+      const hint = document.createElement('p'); hint.className = 'field-hint'; hint.textContent = '勾選這個動畫要用的圖層。從 0 秒空白開始，各圖層的開始時間照常生效。';
+      card.append(head, row, layers, hint); list.append(card);
+    });
+    $('extraAdd').disabled = extras.length >= 8;
+  }
+  function addExtra(fromTab) {
+    if ((project.extraAnimations || []).length >= 8) { notify('其他動畫最多 8 個。', true); return; }
+    const id = 'x' + Date.now().toString(36), name = uniqueExtraName('burn');
+    const ok = applyExtras(() => {
+      project.extraAnimations = (project.extraAnimations || []).concat({id, name, duration: 1.5, loop: false, layers: [emitter().id]});
+    }, '已新增動畫「' + name + '」，先放入目前圖層「' + emitter().name + '」。在動畫列下方勾選要用的圖層；現在新增的圖層只會屬於「' + name + '」。');
+    if (!ok) return null;
+    renderExtraUi();
+    if (fromTab) return id;
+    // Bring the new card into view and let the name be typed right away.
+    const cards = $('extraList').querySelectorAll('.extra-card'), card = cards[cards.length - 1];
+    if (card) { card.scrollIntoView({block: 'center'}); const input = card.querySelector('input[type=text]'); if (input) { input.focus(); input.select(); } }
+    return id;
+  }
+  function wireExtraUi() {
+    $('previewMainTab').addEventListener('click', () => setPreviewExtra(null));
+    ['In', 'Loop', 'Out'].forEach(cap => $('previewFlow' + cap).addEventListener('click', () => { if (previewExtraId) setPreviewExtra(null); }, true));
+    $('animTabAdd').addEventListener('click', () => { const id = addExtra(true); if (id) setPreviewExtra(id); });
+    const extraField = (input, apply) => input.addEventListener('change', () => {
+      const extra = previewExtra(); if (!extra) return;
+      if (!applyExtras(() => apply(project.extraAnimations.find(item => item.id === extra.id)))) renderPreviewAnimSelect();
+      refreshFlowUi();
+    });
+    extraField($('extraEditorName'), target => { const value = $('extraEditorName').value.trim(); if (!value) throw new Error('請輸入動畫名稱。'); target.name = value; });
+    extraField($('extraEditorDuration'), target => { const value = Number($('extraEditorDuration').value); if (!Number.isFinite(value)) throw new Error('長度必須是 0.05–30 秒。'); target.duration = value; });
+    extraField($('extraEditorLoop'), target => { target.loop = $('extraEditorLoop').checked; });
+    $('extraEditorDelete').addEventListener('click', () => {
+      const extra = previewExtra(); if (!extra) return;
+      setPreviewExtra(null);
+      applyExtras(() => { project.extraAnimations = project.extraAnimations.filter(item => item.id !== extra.id); }, '已刪除動畫「' + extra.name + '」，可按 Ctrl+Z 復原。');
+      refreshFlowUi();
+    });
+    $('extraAdd').addEventListener('click', () => addExtra(false));
+    $('flowDialog').addEventListener('close', () => renderExtraUi());
+  }
+  // Make a layer play in the animation on screen and nowhere else. Used for
+  // layers that played nowhere before (new, duplicated, pasted, or re-enabled),
+  // so every other animation keeps exactly the particles it had.
+  function onlyHere(e) {
+    const extra = previewExtra();
+    (project.extraAnimations || []).forEach(item => {
+      item.layers = item === extra ? (item.layers.includes(e.id) ? item.layers : item.layers.concat(e.id)) : item.layers.filter(id => id !== e.id);
+    });
+    if (extra) {
+      project.mainLayers = project.emitters.filter(item => item !== e && inMain(item)).map(item => item.id);
+      if (project.flow.layers) {
+        const layers = {};
+        Object.keys(project.flow.layers).forEach(kind => { layers[kind] = project.flow.layers[kind].filter(id => id !== e.id); });
+        project.flow = Object.assign({}, project.flow, {layers});
+      }
+      return extra.name;
+    }
+    if (project.flow.enabled) {
+      const layers = {};
+      ['in', 'loop', 'out'].forEach(kind => {
+        layers[kind] = project.emitters.filter(item => kind === phase && item === e || item !== e && inPhase(item, kind)).map(item => item.id);
+      });
+      project.flow = Object.assign({}, project.flow, {layers});
+      return PHASE_LABEL[phase];
+    }
+    if (Array.isArray(project.mainLayers) && !project.mainLayers.includes(e.id)) project.mainLayers = project.mainLayers.concat(e.id);
+    return null;
+  }
+  function claimNewLayer(e) { return onlyHere(e); }
   function insertEmitter(e) {
     if (project.emitters.length >= 8) throw new Error('每個專案最多 8 個發射器。');
     historyBegin('command');
     try {
       const index = Math.max(0, project.emitters.findIndex(item => item.id === selectedId));
       project.emitters.splice(index, 0, e); selectedId = e.id;
+      claimNewLayer(e);
       let notes = [];
       if (pendingPlacement && pendingPlacement.owner === project && integration && pendingPlacement.json === integration.json) {
         notes = applyPlacement(e, pendingPlacement); Core.normalizeProject(project); integrationChanged();
@@ -1925,19 +2259,22 @@
     let nextLive = null, nextLiveFlow = null, nextError = '';
     const nextPhase = parsed.view && ['in', 'loop', 'out'].includes(parsed.view.phase) ? parsed.view.phase : 'loop';
     try { nextLiveFlow = parsed.project.flow.enabled ? Core.bakeFlow(parsed.project) : null; nextLive = nextLiveFlow ? nextLiveFlow.phases.loop : Core.bake(parsed.project); } catch (error) { nextError = error.message; }
-    let nextBaked = null, nextFlow = null, nextExport = null, nextPreview = null;
+    let nextBaked = null, nextFlow = null, nextExport = null, nextPreview = null, nextMainExport = null;
+    const nextExtras = {};
     if (parsed.bakedProject) {
       nextFlow = parsed.bakedProject.flow.enabled ? Core.bakeFlow(parsed.bakedProject) : null;
       nextBaked = nextFlow ? nextFlow.phases.loop : Core.bake(parsed.bakedProject);
       const version = effectiveSpineVersion(parsed.project, parsed.integration || null);
-      nextExport = nextFlow ? Core.exportFlow(nextFlow, version) : Core.exportSpine(nextBaked, version);
-      nextPreview = compileBakedPreview(nextExport, nextBaked, nextFlow, nextPhase);
+      nextMainExport = nextFlow ? Core.exportFlow(nextFlow, version) : Core.exportSpine(nextBaked, version);
+      (parsed.bakedProject.extraAnimations || []).forEach(extra => { nextExtras[extra.id] = Core.bakeExtra(parsed.bakedProject, extra.id); });
+      nextExport = Core.exportWithExtras(nextMainExport, parsed.bakedProject, version, nextExtras);
+      nextPreview = compileBakedPreview(nextMainExport, nextBaked, nextFlow, nextPhase);
     }
     integration = parsed.integration || null;
     previewHidden.clear(); soloId = null;
     imageCache.clear(); tintCache.clear();
     attachedCache.clear();
-    project = parsed.project; liveFlowBake = nextLiveFlow; liveBake = nextLive; liveError = nextError; flowBaked = nextFlow; baked = nextBaked; exported = nextExport; bakedPreview = nextPreview; selectedId = project.emitters[0].id;
+    project = parsed.project; liveFlowBake = nextLiveFlow; liveBake = nextLive; liveError = nextError; flowBaked = nextFlow; baked = nextBaked; exported = nextExport; exportedMain = nextMainExport; bakedExtras = nextExtras; previewExtraId = null; liveExtraBake = null; bakedPreview = nextPreview; selectedId = project.emitters[0].id;
     preloadParticleImages();
     phase = nextPhase; stopSequence();
     revision = 1; bakeError = ''; bakedRevision = nextBaked && simulationSignature(nextBaked.project) === simulationSignature(project) ? 1 : -1;
@@ -2152,7 +2489,7 @@
     $('outlineShowImage').addEventListener('change', () => {
       const e = emitter(); if (!e.outline) return; e.outline = Object.assign({}, e.outline, {showImage: $('outlineShowImage').checked}); changed(); renderOutlineInspector();
     });
-    $('flowSettingsButton').addEventListener('click', () => { refreshFlowUi(); $('flowFeedback').hidden = true; $('flowDialog').showModal(); });
+    $('flowSettingsButton').addEventListener('click', () => { refreshFlowUi(); $('flowFeedback').hidden = true; $('flowDialog').showModal(); renderExtraUi(); });
     ['closeFlow', 'flowCloseFooter'].forEach(id => $(id).addEventListener('click', () => $('flowDialog').close()));
     $('flowAttach').addEventListener('click', () => { $('flowDialog').close(); $('spineMergeButton').click(); });
     $('flowBake').addEventListener('click', async () => { $('flowDialog').close(); await bakeNow(); });
@@ -2223,7 +2560,13 @@
       if (integration) for (const field of ['emitterParents', 'emitterLayers']) {
         const map = integration.settings[field]; if (map && map['em_' + source.id] !== undefined) map['em_' + e.id] = clone(map['em_' + source.id]);
       }
-      project.emitters.unshift(e); selectedId = e.id; changed(); renderEmitters(); renderInspector();
+      historyBegin('command');
+      try {
+        project.emitters.unshift(e); selectedId = e.id;
+        const owner = claimNewLayer(e);
+        changed(); renderEmitters(); renderInspector(); renderExtraUi();
+        notify('已複製「' + source.name + '」' + (owner ? '，複本只加入「' + owner + '」。' : '。'));
+      } finally { historyEnd(); }
     });
     $('deleteEmitter').addEventListener('click', () => {
       if (project.emitters.length <= 1) return;
@@ -2353,24 +2696,29 @@
       }});
     timelineView = window.ParticleTimelineView.mount({host: $('timelineTracks'), getContext: () => {
       const group = currentFlowBake(), attached = attachedFor();
-      return {flow: group ? group.project.flow : mode === 'live' && project.flow.enabled ? project.flow : null,
+      return {flow: group ? group.project.flow : mode === 'live' && project.flow.enabled && !previewExtra() ? project.flow : null,
         phase, time, duration: previewDuration(), fps: activeFps(), attached: !!attached, timeline: attached && attached.timeline,
-        markers: timelineMarkers(attached), canMoveFx: !!attached && !!startTarget() && !busy};
-    }, onMoveFxBegin, onMoveFx, onMoveFxEnd, onSeek: seconds => {
+        markers: timelineMarkers(attached), canMoveFx: !!attached && !!startTarget() && !busy,
+        showStrip: true, stripFlow: project.flow.enabled ? project.flow : null, mainLabel: '主要動畫', mainDuration: project.duration,
+        extras: project.extraAnimations || [], extraId: previewExtraId, canAddExtra: (project.extraAnimations || []).length < 8 && !busy};
+    }, onSelectMain: () => setPreviewExtra(null), onSelectExtra: id => setPreviewExtra(id),
+    onAddExtra: () => { const id = addExtra(true); if (id) setPreviewExtra(id); },
+    onMoveFxBegin, onMoveFx, onMoveFxEnd, onSeek: seconds => {
       if (busy) return;
       stopSequence(); playing = false;
       const duration = previewDuration();
       time = seconds >= duration ? duration : clamp(Math.round(seconds * activeFps()) / activeFps(), 0, duration);
       refreshFlowUi(); updatePlayButton(); syncTimeline(); queueDraft();
-    }, onSelectPhase: kind => { if (!busy) selectPhase(kind, false); }});
+    }, onSelectPhase: kind => { if (busy) return; if (previewExtraId) setPreviewExtra(null); selectPhase(kind, false); }});
     document.querySelector('.timeline-panel').classList.add('timeline-upgraded');
     emitterLanes = window.ParticleEmitterLanes.mount({host: document.querySelector('.timeline-panel'), getContext: () => {
-      const muted = previewMutedIds(), attached = attachedFor(), flow = project.flow.enabled;
-      const duration = flow ? project.flow.loop.duration : project.duration;
+      const muted = previewMutedIds(), attached = attachedFor(), extra = previewExtra(), flow = project.flow.enabled && !extra;
+      const duration = extra ? extra.duration : flow ? project.flow.loop.duration : project.duration;
       let local = attached ? time - attached.timeline.startTime : time;
       if (flow && phase !== 'loop') local = 0;
       return {duration, fps: project.fps, time: local, selectedId,
-        emitters: project.emitters.map(e => ({id: e.id, name: e.name, enabled: e.enabled, muted: muted.has(e.id),
+        emitters: project.emitters.map(e => ({id: e.id, name: e.name, enabled: e.enabled,
+          muted: muted.has(e.id) || (extra ? !extra.layers.includes(e.id) : project.flow.enabled ? !inPhase(e, phase) : !inMain(e)),
           startDelay: e.startDelay || 0, emissionDuration: e.emissionDuration, life: e.life, lifeRandom: e.lifeRandom, trail: e.trail,
           color: e.colorGradient && e.colorGradient.length ? e.colorGradient[Math.floor(e.colorGradient.length / 2)].color : e.colorStart}))};
     }, onSelect: id => { if (id !== selectedId) selectEmitter(id); },
@@ -2431,7 +2779,7 @@
     }));
     $('previewBones').addEventListener('change', () => { showBones = $('previewBones').checked; queueDraft(); });
     $('previewSkin').addEventListener('change', () => { previewSkin = $('previewSkin').value; attachedCache.clear(); refreshAttachmentPreview(); queueDraft(); });
-    wireBonePicker(); wireAttachAssist(); wireLightningInspector(); wireNumberScrub(); wireShortcuts(); wireDropZone(); wireSectionCollapse();
+    wireBonePicker(); wireAttachAssist(); wireExtraUi(); wireLightningInspector(); wireNumberScrub(); wireShortcuts(); wireDropZone(); wireSectionCollapse();
     batchUi = window.ParticleBatchExport.mount({run: runBatchExport, notify, getVersion: () => effectiveSpineVersion(),
       blockedReason: () => integration && integration.settings.enabled !== false ? '目前掛接既有骨架，版本跟隨原骨架；請用「輸出追加包」，或先移除掛接再批次輸出。' : busy ? '正在烘焙，請稍候。' : ''});
     window.addEventListener('pagehide', () => { try { saveDraftSnapshot(JSON.parse(Storage.serialize(project, baked ? baked.project : null, viewState(), integration))).catch(() => {}); } catch (_) {} });
@@ -2514,6 +2862,7 @@
   function startTarget() {
     if (!integration) return null;
     const settings = integration.settings;
+    if (previewExtra()) return null;
     if (project.flow.enabled) return settings.flowTargets && phase !== 'loop' ? settings.flowTargets[phase] : null;
     return settings;
   }
@@ -2538,6 +2887,8 @@
       if (attached) items.push(['ok', '時間', attached.timeline.animationName + ' · ' + round3(attached.timeline.startTime) + '–' + round3(attached.timeline.endTime) + ' 秒']);
       else items.push(['warn', '時間', attachedError || '切換到掛接預覽以檢查時間']);
       const target = writeTarget();
+      const extras = project.extraAnimations || [], baseAnimations = effectiveIntegration().json.animations || {};
+      if (extras.length) items.push(['ok', '其他動畫', extras.map(extra => extra.name + (Object.prototype.hasOwnProperty.call(baseAnimations, extra.name) ? ' → 追加到同名動畫 0 秒' : ' → 新增動畫')).join('；')]);
       items.push(['ok', '輸出', target ? '工具列可另存 ZIP，或從此面板寫回「' + target.name + '/' + target.jsonPath + '」，先自動備份' : '另存追加包 ZIP']);
     }
     const signature = JSON.stringify(items);
@@ -2747,7 +3098,10 @@
     setOwn(settings.emitterParents, key, placement.bone);
     if (!settings.emitterLayers) settings.emitterLayers = {};
     setOwn(settings.emitterLayers, key, {drawOrder: placement.layer.drawOrder, afterSlot: placement.layer.afterSlot || ''});
-    if (placement.at !== null) {
+    if (placement.at !== null && previewExtra()) {
+      // Extra animations start at 0 s: the playhead is simply this layer's start.
+      e.startDelay = placement.at; if (!e.startDelay) delete e.startDelay;
+    } else if (placement.at !== null) {
       const delays = {}; project.emitters.forEach(other => { if (other !== e) delays[other.id] = other.startDelay || 0; });
       const plan = Assist.placeAtTime({sessionStart: settings.startTime || 0, at: placement.at, delays});
       settings.startTime = plan.sessionStart;
@@ -2903,10 +3257,46 @@
       historyBegin('command');
       try {
         const index = Math.max(0, project.emitters.findIndex(e => e.id === selectedId));
-        project.emitters.splice(index, 0, next); selectedId = next.id; changed(); renderEmitters(); renderInspector();
+        project.emitters.splice(index, 0, next); selectedId = next.id;
+        const owner = claimNewLayer(next);
+        changed(); renderEmitters(); renderInspector(); renderExtraUi();
+        notify('已貼上「' + next.name + '」' + (owner ? '，只加入「' + owner + '」。' : '。'));
       } finally { historyEnd(); }
-      notify('已貼上「' + next.name + '」。');
     } catch (error) { notify('無法貼上發射器：' + error.message, true); }
+  }
+  // Inline rename in the layer list: Enter or leaving the field saves, Esc cancels.
+  function startRename(id) {
+    const e = project.emitters.find(item => item.id === id);
+    const row = Array.from(document.querySelectorAll('#emitterList .emitter-item')).find(item => item.dataset.emitterId === id);
+    if (!e || !row || busy || row.querySelector('.emitter-rename')) return;
+    if (id !== selectedId) selectEmitter(id);
+    const fresh = Array.from(document.querySelectorAll('#emitterList .emitter-item')).find(item => item.dataset.emitterId === id) || row;
+    const input = document.createElement('input'); input.type = 'text'; input.className = 'emitter-rename'; input.maxLength = 60; input.spellcheck = false;
+    input.value = e.name; input.setAttribute('aria-label', '圖層名稱');
+    fresh.classList.add('renaming'); fresh.append(input); input.focus(); input.select();
+    let done = false;
+    // The canvas cancels pointerdown, so focus never leaves: save on any outside press too.
+    const outside = event => { if (event.target !== input) finish(true); };
+    const finish = save => {
+      if (done) return; done = true;
+      document.removeEventListener('pointerdown', outside, true);
+      const value = input.value.trim();
+      input.remove(); fresh.classList.remove('renaming');
+      if (save && value && value !== e.name) {
+        historyBegin('command');
+        try { e.name = value; changed(); } finally { historyEnd(); }
+        renderInspector(); renderExtraUi(); notify('已重新命名為「' + value + '」。');
+      } else if (save && !value) notify('名稱不能是空白。', true);
+      renderEmitters();
+    };
+    input.addEventListener('keydown', event => {
+      event.stopPropagation();
+      if (event.key === 'Enter') { event.preventDefault(); finish(true); }
+      else if (event.key === 'Escape') { event.preventDefault(); finish(false); }
+    });
+    ['click', 'dblclick', 'pointerdown'].forEach(type => input.addEventListener(type, event => event.stopPropagation()));
+    input.addEventListener('blur', () => finish(true));
+    document.addEventListener('pointerdown', outside, true);
   }
   function selectAdjacentEmitter(delta) {
     const index = project.emitters.findIndex(e => e.id === selectedId), next = project.emitters[index + delta];
@@ -2937,6 +3327,7 @@
       } else if (key === 'f') { event.preventDefault(); focusSelectedEmitter(); }
       else if (key === '0') { event.preventDefault(); zoomAt(1, stageW / 2, stageH / 2); }
       else if (key === 'h') { event.preventDefault(); togglePreviewHidden(selectedId); }
+      else if (key === 'f2') { event.preventDefault(); startRename(selectedId); }
       else if (key === 's' && !event.shiftKey) { event.preventDefault(); toggleSolo(selectedId); }
       else if (key === '[') { event.preventDefault(); selectAdjacentEmitter(-1); }
       else if (key === ']') { event.preventDefault(); selectAdjacentEmitter(1); }

@@ -168,6 +168,19 @@
       names.add(name);
       result[kind] = {name, duration: round(number(phase, 'duration', kind === 'loop' ? fallback : 1, 0.05, 30, false, kind + ' 動畫長度'))};
     });
+    // Optional per-phase layer switches: {in: [ids], loop: [ids], out: [ids]}.
+    // A missing phase uses the main layer selection (all layers by default).
+    if (source.layers !== undefined) {
+      if (!source.layers || typeof source.layers !== 'object' || Array.isArray(source.layers)) fail('In / Loop / Out 圖層開關格式不正確。');
+      const layers = {};
+      ['in', 'loop', 'out'].forEach(kind => {
+        const list = source.layers[kind];
+        if (list === undefined) return;
+        if (!Array.isArray(list) || list.length > 64 || list.some(id => typeof id !== 'string')) fail(kind + ' 圖層開關格式不正確。');
+        layers[kind] = Array.from(new Set(list));
+      });
+      if (Object.keys(layers).length) result.layers = layers;
+    }
     return result;
   }
 
@@ -347,6 +360,14 @@
     };
   }
 
+  // Layers baked into the current animation: enabled, and listed when the
+  // project limits its main animation (or an extra animation) to some layers.
+  function included(project, e) { return e.enabled && (!Array.isArray(project.mainLayers) || project.mainLayers.includes(e.id)); }
+  // Emitter IDs that play in one In / Loop / Out phase.
+  function phaseLayers(project, kind) {
+    const list = project.flow && project.flow.layers && project.flow.layers[kind];
+    return project.emitters.filter(e => Array.isArray(list) ? e.enabled && list.includes(e.id) : included(project, e)).map(e => e.id);
+  }
   function activeSequence(emitter) { return emitter.sequence && emitter.sequence.enabled ? emitter.sequence : null; }
   function sequenceSuffix(index) { return 'f' + String(index + 1).padStart(4, '0'); }
   function sequenceAttachment(index) { return 'particle_' + sequenceSuffix(index); }
@@ -364,7 +385,7 @@
   const fileKey = value => value.normalize('NFC').toLowerCase();
   function planImages(project) {
     const references = [], byEmitter = new Map(), folders = new Map(), folderKeys = new Set();
-    const enabled = project.emitters.filter(e => e.enabled);
+    const enabled = project.emitters.filter(e => included(project, e));
     // IDs may differ only by case. Allocate Windows-safe folders in sorted ID
     // order so changing visual layer order cannot rename their image paths.
     enabled.map(e => e.id).sort().forEach(id => {
@@ -546,7 +567,42 @@
       (e.sequence ? e.sequence.frames.reduce((bytes, frame) => bytes + frame.dataUrl.length, 0) : 0) +
       (e.outline && e.outline.image ? e.outline.image.dataUrl.length : 0), 0) + (result.background.image ? result.background.image.dataUrl.length : 0);
     if (totalImages > 16 * 1024 * 1024) fail('內嵌素材總量超過 16 MiB，請縮小圖片後重試。');
+    const emitterIds = result.emitters.map(e => e.id);
+    if (raw.mainLayers !== undefined) result.mainLayers = layerList(raw.mainLayers, emitterIds, '主要動畫圖層');
+    if (result.flow.layers) {
+      const layers = {};
+      Object.keys(result.flow.layers).forEach(kind => { layers[kind] = layerList(result.flow.layers[kind], emitterIds, kind + ' 圖層開關'); });
+      result.flow = Object.assign({}, result.flow, {layers});
+    }
+    if (raw.extraAnimations !== undefined) {
+      const extras = normalizeExtras(raw.extraAnimations, emitterIds, result.flow.enabled ? ['in', 'loop', 'out'].map(kind => result.flow[kind].name) : ['effect']);
+      if (extras.length) result.extraAnimations = extras;
+    }
     return result;
+  }
+  // Emitter IDs in project order; unknown IDs (deleted layers) are dropped.
+  function layerList(raw, emitterIds, label) {
+    if (!Array.isArray(raw) || raw.length > 64 || raw.some(id => typeof id !== 'string')) fail(label + '格式不正確。');
+    return emitterIds.filter(id => raw.includes(id));
+  }
+  const EXTRA_ID = /^[A-Za-z0-9_-]{1,40}$/;
+  // Extra one-shot (or looping) animations such as BURN: each starts blank,
+  // uses its own layers and length, and shares the project's particle setup.
+  function normalizeExtras(raw, emitterIds, mainNames) {
+    if (!Array.isArray(raw) || raw.length > 8) fail('其他動畫最多 8 個。');
+    const ids = new Set(), names = new Set(mainNames);
+    return raw.map((item, index) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) fail('其他動畫設定格式不正確。');
+      const id = item.id === undefined ? 'extra' + (index + 1) : item.id;
+      if (typeof id !== 'string' || !EXTRA_ID.test(id) || ids.has(id)) fail('其他動畫 ID 格式不正確或重複。');
+      ids.add(id);
+      const name = text(item, 'name', 'burn', 80, '動畫名稱');
+      if (/[\u0000-\u001f\u007f]/.test(name) || Array.from(name).some(c => c.length === 1 && c.charCodeAt(0) >= 0xd800 && c.charCodeAt(0) <= 0xdfff)) fail('動畫名稱不可含控制字元或不完整的 Unicode 字元。');
+      if (names.has(name)) fail('動畫名稱「' + name + '」重複；每個動畫（含 ' + mainNames.join('／') + '）名稱必須不同。');
+      names.add(name);
+      return {id, name, duration: round(number(item, 'duration', 1.5, 0.05, 30, false, '「' + name + '」長度')),
+        loop: boolean(item, 'loop', false, '「' + name + '」循環'), layers: layerList(item.layers === undefined ? [] : item.layers, emitterIds, '「' + name + '」圖層')};
+    });
   }
 
   function seedHash(value) {
@@ -781,7 +837,7 @@
     const warnings = [];
     const lightning = [];
     project.emitters.forEach(e => {
-      if (!e.enabled) return;
+      if (!included(project, e)) return;
       if (e.kind === 'lightning') { lightning.push({emitterId: e.id, seed: emitterSeed(project, e)}); return; }
       const rand = random(emitterSeed(project, e));
       const signed = amplitude => (rand() * 2 - 1) * amplitude;
@@ -883,7 +939,7 @@
     if (!particles.length && !lightning.length) warnings.push('所有發射器都已停用，輸出動畫只包含 root。');
     const lightningLanes = lightning.reduce((sum, item) => sum + Lightning.lanes(project.emitters.find(e => e.id === item.emitterId).lightning).length, 0);
     if (longLived) warnings.push('壽命超過循環週期的粒子使用分段粒子池；循環畫面連續，部分骨骼在交接點交換角色。動畫混合與中斷尚未驗證。');
-    const enabledEmitters = project.emitters.filter(e => e.enabled).length;
+    const enabledEmitters = project.emitters.filter(e => included(project, e)).length;
     const result = {project, particles, duration: project.duration, fps: project.fps, loop: project.loop,
       stats: Object.assign({particles: particles.length, generatedParticles, bones: particles.length + lightningLanes + trailLanes + enabledEmitters + 1,
         slots: particles.length + lightningLanes + trailLanes, enabledEmitters, poolCycles: maxPoolCycles, fps: project.fps,
@@ -905,15 +961,21 @@
 
   function bakeFlow(raw) {
     const project = normalizeProject(raw), flow = project.flow;
-    const basis = bake(Object.assign({}, project, {duration: flow.loop.duration, loop: true}));
+    const playing = {in: phaseLayers(project, 'in'), loop: phaseLayers(project, 'loop'), out: phaseLayers(project, 'out')};
+    const union = project.emitters.map(e => e.id).filter(id => playing.in.includes(id) || playing.loop.includes(id) || playing.out.includes(id));
+    // Phases bake and export every layer any phase plays; each phase then hides the rest.
+    const shared = flow.layers ? Object.assign({}, project, {mainLayers: union}) : project;
+    const basis = bake(Object.assign({}, shared, {duration: flow.loop.duration, loop: true}));
     const phases = {};
     ['in', 'loop', 'out'].forEach(kind => {
       const duration = flow[kind].duration;
       const particles = kind === 'out' ? basis.particles.map(particle => Object.assign({}, particle, {birth: -particleAge(basis, particle, 0)})) : basis.particles;
       const flowPhase = kind === 'in' ? {kind, basis, offset: -duration} : {kind};
-      phases[kind] = {project, particles, duration, fps: project.fps, loop: kind === 'loop', flowPhase,
+      phases[kind] = {project: shared, particles, duration, fps: project.fps, loop: kind === 'loop', flowPhase,
         stats: Object.assign({}, basis.stats, {duration, phase: kind})};
       if (basis.lightning) phases[kind].lightning = basis.lightning;
+      const hidden = union.filter(id => !playing[kind].includes(id));
+      if (hidden.length) phases[kind].hiddenEmitters = hidden;
     });
     const stats = Object.assign({}, basis.stats, {duration: round(flow.in.duration + flow.loop.duration + flow.out.duration),
       phaseDurations: {in: flow.in.duration, loop: flow.loop.duration, out: flow.out.duration}});
@@ -1166,6 +1228,10 @@
     if (baked.particles.some(hasTrail)) {
       const order = new Map(baked.project.emitters.map((e, index) => [e.id, index]));
       states.sort((a, b) => order.get(b.emitterId) - order.get(a.emitterId));
+    }
+    if (baked.hiddenEmitters) {
+      const hidden = new Set(baked.hiddenEmitters);
+      return states.map(state => hidden.has(state.emitterId) && state.alpha > 0 ? Object.assign({}, state, {alpha: 0}) : state);
     }
     return states;
   }
@@ -1717,7 +1783,7 @@
     };
     const imagePlan = planImages(baked.project), images = imagePlan.images, attachments = json.skins[0].attachments;
     let keyframes = 0, denseKeyframes = 0;
-    const enabled = baked.project.emitters.filter(e => e.enabled);
+    const enabled = baked.project.emitters.filter(e => included(baked.project, e));
     enabled.forEach(e => json.bones.push({name: 'em_' + e.id, parent: 'root', x: e.x, y: e.y}));
     // The first emitter in the editor is the front layer; Spine draws the final slot last.
     let lightningSlots = 0;
@@ -1882,7 +1948,10 @@
       if (estimatedSamples > sampleLimit) fail('三段動畫匯出取樣成本估算超過 200 萬，可能使介面暫停。請減少粒子數、縮短 In，或增加 Loop 長度，再重新匯出。');
     }
     const sampleBudget = loopPhase.particles.some(particle => needsRefinement(loopPhase, particle) || activeSequence(particle.emitter) || particle.emitter.separateSizeAxes || hasTrail(particle)) || flowBaked.project.bakeQuality !== undefined ? {used: 0} : undefined;
-    ['in', 'loop', 'out'].forEach(kind => { exported[kind] = exportSpine(flowBaked.phases[kind], targetVersion, sampleBudget); });
+    ['in', 'loop', 'out'].forEach(kind => {
+      exported[kind] = exportSpine(flowBaked.phases[kind], targetVersion, sampleBudget);
+      if (flowBaked.phases[kind].hiddenEmitters) hidePhaseEmitters(exported[kind], flowBaked.phases[kind].hiddenEmitters);
+    });
     const json = Object.assign({}, exported.loop.json, {animations: Object.create(null)});
     json.slots.forEach(slot => { slot.attachment = null; slot.color = 'ffffff00'; });
     ['in', 'loop', 'out'].forEach(kind => { Object.defineProperty(json.animations, flow[kind].name, {
@@ -1896,5 +1965,147 @@
     return {json, images: exported.loop.images, stats, manifest: {phases: descriptors, transition: 'loop-boundary'}};
   }
 
-  return {createProject, createEmitter, normalizeProject, normalizeFlow, backgroundSize, emitterSeed, bake, bakeFlow, sample, exportSpine, exportFlow, spineProfile, qualityProfile, estimateCost, BAKE_QUALITIES, SPINE_TARGETS};
+  // Switch emitters off inside one exported phase: drop their particle keys and
+  // key every particle slot of theirs to "no attachment" at time 0, so the
+  // phase stays blank for them even right after another phase showed them.
+  function hidePhaseEmitters(part, hiddenIds) {
+    const owners = new Set(hiddenIds.map(id => 'em_' + id)), json = part.json, animation = json.animations.effect;
+    const hiddenBones = new Set(json.bones.filter(bone => owners.has(bone.parent)).map(bone => bone.name));
+    const hiddenSlots = json.slots.filter(slot => hiddenBones.has(slot.bone) || owners.has(slot.bone)).map(slot => slot.name);
+    if (animation.bones) hiddenBones.forEach(bone => { delete animation.bones[bone]; });
+    ['deform', 'attachments'].forEach(group => {
+      if (!animation[group]) return;
+      Object.keys(animation[group]).forEach(skin => {
+        hiddenSlots.forEach(slot => { delete animation[group][skin][slot]; });
+        if (!Object.keys(animation[group][skin]).length) delete animation[group][skin];
+      });
+      if (!Object.keys(animation[group]).length) delete animation[group];
+    });
+    if (hiddenSlots.length && !animation.slots) animation.slots = {};
+    hiddenSlots.forEach(slot => { animation.slots[slot] = {attachment: [{name: null}]}; });
+    if (animation.bones && !Object.keys(animation.bones).length) delete animation.bones;
+  }
+
+  // ---- Extra animations (BURN …) ----
+  function extraProject(project, extra) {
+    const copy = Object.assign({}, project, {duration: extra.duration, loop: extra.loop, mainLayers: extra.layers.slice(),
+      flow: Object.assign({}, project.flow, {enabled: false})});
+    delete copy.extraAnimations;
+    return copy;
+  }
+  function findExtra(project, id) {
+    const extra = (project.extraAnimations || []).find(item => item.id === id);
+    if (!extra) fail('找不到其他動畫：' + id);
+    return extra;
+  }
+  function bakeExtra(raw, id) {
+    const project = normalizeProject(raw), extra = findExtra(project, id);
+    return bake(extraProject(project, extra));
+  }
+  const PARTICLE_BONE = /^(.*)_p(\d+)$/;
+  function cloneJson(value) { return JSON.parse(JSON.stringify(value)); }
+  // Combine the main export (single or In/Loop/Out) with every extra
+  // animation into one skeleton. Extra particle bones continue each emitter's
+  // index range, so the same emitter can appear in several animations without
+  // sharing (and fighting over) bones. Every animation hides the particle
+  // slots it does not use, so switching animations never leaves stray art.
+  function exportWithExtras(mainExported, raw, targetVersion, bakedExtras) {
+    const project = normalizeProject(raw), extras = project.extraAnimations || [];
+    if (!extras.length) return mainExported;
+    const json = cloneJson(mainExported.json), images = mainExported.images.map(image => Object.assign({}, image));
+    const imageByName = new Map(images.map(image => [image.name, image]));
+    const emitterBones = new Set(project.emitters.map(e => 'em_' + e.id));
+    const boneParent = new Map(json.bones.map(bone => [bone.name, bone.parent]));
+    const nextIndex = new Map();
+    json.bones.forEach(bone => {
+      const match = PARTICLE_BONE.exec(bone.name);
+      if (match && emitterBones.has(bone.parent) && match[1] === bone.parent) nextIndex.set(bone.parent, Math.max(nextIndex.get(bone.parent) || 0, Number(match[2]) + 1));
+    });
+    // Front-to-back editor order; Spine draws later slots on top.
+    const drawRank = new Map(project.emitters.slice().reverse().map((e, index) => ['em_' + e.id, index]));
+    const emitterOfSlot = slot => { const parent = boneParent.get(slot.bone); return emitterBones.has(slot.bone) ? slot.bone : parent; };
+    const extraStats = [];
+    let keyframes = mainExported.stats.keyframes || 0, denseKeyframes = mainExported.stats.denseKeyframes || 0;
+    const warnings = new Set(mainExported.stats.warnings || []);
+    extras.forEach(extra => {
+      const baked = bakedExtras && bakedExtras[extra.id] || bakeExtra(project, extra.id);
+      const part = exportSpine(baked, targetVersion);
+      const source = part.json, animation = cloneJson(source.animations.effect), rename = new Map();
+      source.bones.forEach(bone => {
+        if (bone.name === 'root') return;
+        if (emitterBones.has(bone.name)) {
+          if (!boneParent.has(bone.name)) { json.bones.push(cloneJson(bone)); boneParent.set(bone.name, bone.parent); }
+          return;
+        }
+        const match = PARTICLE_BONE.exec(bone.name);
+        if (!match || match[1] !== bone.parent || !emitterBones.has(bone.parent)) fail('其他動畫的粒子骨骼名稱無法辨識：' + bone.name);
+        const start = nextIndex.get(bone.parent) || 0;
+        rename.set(bone.name, bone.parent + '_p' + (start + Number(match[2])));
+      });
+      source.bones.forEach(bone => {
+        const mapped = rename.get(bone.name);
+        if (!mapped) return;
+        const added = cloneJson(bone); added.name = mapped; json.bones.push(added); boneParent.set(mapped, bone.parent);
+        const match = PARTICLE_BONE.exec(mapped); nextIndex.set(bone.parent, Math.max(nextIndex.get(bone.parent) || 0, Number(match[2]) + 1));
+      });
+      const slotName = name => { const bone = name.replace(/_slot$/, ''); if (!rename.has(bone)) fail('其他動畫的插槽名稱無法辨識：' + name); return rename.get(bone) + '_slot'; };
+      // Images: same name and same pixels share; a different picture under a taken name gets a suffix.
+      const pathMap = new Map();
+      part.images.forEach(image => {
+        const existing = imageByName.get(image.name);
+        if (existing && existing.dataUrl === image.dataUrl) { pathMap.set(image.name, image.name); return; }
+        let name = image.name, serial = 2;
+        while (imageByName.has(name)) name = image.name.replace(/(\.png)$/i, '_' + serial++ + '$1');
+        const copy = Object.assign({}, image, {name}); images.push(copy); imageByName.set(name, copy); pathMap.set(image.name, name);
+      });
+      const pathOf = path => { const mapped = pathMap.get(path + '.png'); return mapped ? mapped.slice(0, -4) : path; };
+      const attachments = json.skins[0].attachments;
+      source.slots.forEach(slot => {
+        const added = Object.assign(cloneJson(slot), {name: slotName(slot.name), bone: rename.get(slot.bone)});
+        const owner = slot.bone && boneParent.get(added.bone), rank = drawRank.get(owner);
+        let at = -1;
+        json.slots.forEach((existing, index) => { const other = drawRank.get(emitterOfSlot(existing)); if (other !== undefined && other <= rank) at = index; });
+        json.slots.splice(at + 1, 0, added);
+        const skin = source.skins[0].attachments[slot.name];
+        if (skin) {
+          const copy = cloneJson(skin);
+          Object.values(copy).forEach(attachment => { if (attachment && typeof attachment.path === 'string') attachment.path = pathOf(attachment.path); });
+          attachments[added.name] = copy;
+        }
+      });
+      const renamed = {};
+      if (animation.bones) renamed.bones = Object.fromEntries(Object.entries(animation.bones).map(([bone, track]) => [rename.get(bone) || bone, track]));
+      if (animation.slots) renamed.slots = Object.fromEntries(Object.entries(animation.slots).map(([slot, track]) => [slotName(slot), track]));
+      ['deform', 'attachments'].forEach(group => {
+        if (!animation[group]) return;
+        renamed[group] = {};
+        Object.keys(animation[group]).forEach(skin => {
+          renamed[group][skin] = Object.fromEntries(Object.entries(animation[group][skin]).map(([slot, map]) => [slotName(slot), map]));
+        });
+      });
+      Object.defineProperty(json.animations, extra.name, {value: renamed, enumerable: true, writable: true, configurable: true});
+      keyframes += part.stats.keyframes || 0; denseKeyframes += part.stats.denseKeyframes || 0;
+      (part.stats.warnings || []).forEach(message => warnings.add('「' + extra.name + '」' + message));
+      if (!extra.layers.length) warnings.add('「' + extra.name + '」沒有勾選任何圖層，動畫只會隱藏粒子。');
+      extraStats.push({id: extra.id, animationName: extra.name, duration: extra.duration, loop: extra.loop, layers: extra.layers.slice(),
+        particles: baked.stats.particles, keyframes: part.stats.keyframes || 0});
+    });
+    // Setup pose hides every particle; each animation hides the slots it never keys.
+    json.slots.forEach(slot => { if (emitterBones.has(boneParent.get(slot.bone)) || emitterBones.has(slot.bone)) { slot.attachment = null; slot.color = (slot.color || 'ffffffff').slice(0, 6) + '00'; } });
+    const particleSlots = json.slots.filter(slot => emitterBones.has(boneParent.get(slot.bone))).map(slot => slot.name);
+    let hideKeys = 0;
+    Object.keys(json.animations).forEach(name => {
+      const animation = json.animations[name];
+      if (!animation.slots) animation.slots = {};
+      particleSlots.forEach(slot => { if (!animation.slots[slot]) { animation.slots[slot] = {attachment: [{name: null}]}; hideKeys++; } });
+    });
+    keyframes += hideKeys; denseKeyframes += hideKeys;
+    const manifest = Object.assign({}, mainExported.manifest || {}, {extras: extraStats.map(item => ({id: item.id, animationName: item.animationName, duration: item.duration, loop: item.loop, layers: item.layers}))});
+    const stats = Object.assign({}, mainExported.stats, {keyframes, denseKeyframes, keyReduction: denseKeyframes ? round(1 - keyframes / denseKeyframes) : 0,
+      bones: json.bones.length, slots: json.slots.length, imageCount: images.length, extras: extraStats, warnings: Array.from(warnings),
+      jsonBytes: typeof TextEncoder === 'function' ? new TextEncoder().encode(JSON.stringify(json)).length : JSON.stringify(json).length});
+    return {json, images, stats, manifest};
+  }
+
+  return {createProject, createEmitter, normalizeProject, normalizeFlow, phaseLayers, bakeExtra, exportWithExtras, backgroundSize, emitterSeed, bake, bakeFlow, sample, exportSpine, exportFlow, spineProfile, qualityProfile, estimateCost, BAKE_QUALITIES, SPINE_TARGETS};
 });

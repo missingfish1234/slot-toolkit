@@ -46,13 +46,17 @@
     return result;
   }
   function targets(manifest) {
+    let names;
     if (manifest.phases !== undefined) {
       if (!object(manifest.phases) || PHASES.some(phase => !object(manifest.phases[phase]))) fail('IN／LOOP／OUT 動畫記錄不完整。');
-      const names = PHASES.map(phase => name(manifest.phases[phase].animationName, '動畫'));
+      names = PHASES.map(phase => name(manifest.phases[phase].animationName, '動畫'));
       if (new Set(names).size !== 3) fail('IN／LOOP／OUT 動畫記錄重複。');
-      return names;
+    } else names = [name(manifest.animationName, '動畫')];
+    if (manifest.extras !== undefined) {
+      if (!Array.isArray(manifest.extras) || manifest.extras.length > 8 || manifest.extras.some(item => !object(item))) fail('其他動畫記錄不完整。');
+      manifest.extras.forEach(item => { const value = name(item.animationName, '動畫'); if (!names.includes(value)) names.push(value); });
     }
-    return [name(manifest.animationName, '動畫')];
+    return names;
   }
   function particleAliases(entries) {
     const keys = Object.keys(entries).sort();

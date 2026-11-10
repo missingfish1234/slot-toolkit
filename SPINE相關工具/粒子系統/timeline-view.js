@@ -33,15 +33,27 @@
       return {phase: key, label: labels[key], name: typeof segment.name === 'string' ? segment.name : labels[key],
         duration: length, weight: relativeTotal > 0 ? .15 + .55 * (length / longest) / relativeTotal : 1 / 3, active: key === phase};
     }) : [];
+    // Animation strip: IN/LOOP/OUT (or one main animation) plus extra animations such as BURN.
+    const extraId = typeof context.extraId === 'string' ? context.extraId : null;
+    const stripFlow = context.stripFlow && typeof context.stripFlow === 'object' ? context.stripFlow : null;
+    const strip = {
+      phases: stripFlow ? phases.map(key => ({phase: key, label: labels[key], name: stripFlow[key] && stripFlow[key].name || labels[key],
+        duration: nonnegative(stripFlow[key] && stripFlow[key].duration), active: !extraId && key === (phases.includes(context.phase) ? context.phase : 'loop')})) : [],
+      main: stripFlow ? null : {label: typeof context.mainLabel === 'string' ? context.mainLabel : '主要動畫', duration: nonnegative(context.mainDuration), active: !extraId},
+      extras: Array.isArray(context.extras) ? context.extras.filter(item => item && typeof item.id === 'string').map(item => ({id: item.id,
+        name: String(item.name), duration: nonnegative(item.duration), loop: !!item.loop, active: item.id === extraId})) : [],
+      canAdd: context.canAddExtra === true
+    };
+    const showStrip = context.showStrip === true;
     const markers = attached && Array.isArray(context.markers) ? context.markers.filter(marker => marker && Number.isFinite(marker.time) && marker.time >= 0 && marker.time <= duration) : [];
     const movable = attached && context.canMoveFx === true;
-    return {phase, flow, segments, attached, duration, time, fps, progress: duration ? time / duration : 0, markers, movable,
+    return {phase, flow, segments, strip, showStrip, attached, duration, time, fps, progress: duration ? time / duration : 0, markers, movable,
       startTime, endTime, fxDuration, holdsEnd, holdEnd,
       startProgress: duration ? startTime / duration : 0, endProgress: duration ? endTime / duration : 0,
       animationName: attached && typeof timeline.animationName === 'string' ? timeline.animationName : '粒子動畫'};
   }
 
-  function mount({host, getContext, onSeek, onSelectPhase, onMoveFx, onMoveFxBegin, onMoveFxEnd, document: documentOverride} = {}) {
+  function mount({host, getContext, onSeek, onSelectPhase, onSelectMain, onSelectExtra, onAddExtra, onMoveFx, onMoveFxBegin, onMoveFxEnd, document: documentOverride} = {}) {
     if (!host) return {refresh: () => null, destroy() {}};
     const doc = documentOverride || host.ownerDocument || globalThis.document;
     const listeners = [];
@@ -64,10 +76,21 @@
       button.append(title, duration); phaseStrip.append(button); phaseButtons.set(key, {button, duration});
       listen(button, 'click', () => {
         const current = compute(typeof getContext === 'function' ? getContext() : {});
-        const segment = current.segments.find(item => item.phase === key);
+        const list = current.showStrip ? current.strip.phases : current.segments, segment = list.find(item => item.phase === key);
         if (segment && segment.duration > 0 && !segment.active && typeof onSelectPhase === 'function') onSelectPhase(key);
       });
     }
+    // Extra-animation strip (shown whenever the app asks for it): main / IN·LOOP·OUT, BURN …, ＋.
+    const mainButton = element('button', 'timeline-phase timeline-main-anim'); mainButton.type = 'button';
+    const mainLabel = element('strong', 'timeline-phase-label'), mainDuration = element('span', 'timeline-phase-duration');
+    mainButton.append(mainLabel, mainDuration);
+    if (typeof phaseStrip.insertBefore === 'function' && phaseStrip.firstChild) phaseStrip.insertBefore(mainButton, phaseStrip.firstChild); else phaseStrip.append(mainButton);
+    listen(mainButton, 'click', () => { if (typeof onSelectMain === 'function') onSelectMain(); });
+    const extraHost = element('div', 'timeline-extra-strip'); phaseStrip.append(extraHost);
+    const addButton = element('button', 'timeline-add-anim', '＋ 新增動畫'); addButton.type = 'button';
+    addButton.title = '新增 BURN 之類的獨立動畫';
+    listen(addButton, 'click', () => { if (typeof onAddExtra === 'function') onAddExtra(); });
+    phaseStrip.append(addButton);
     phaseSection.append(phaseTitle, phaseStrip);
     const heading = element('div', 'timeline-track-heading');
     const summary = element('span', 'timeline-track-summary'); summary.id = 'timelineTrackSummary';
@@ -123,18 +146,36 @@
     function refresh() {
       if (destroyed) return null;
       model = compute(typeof getContext === 'function' ? getContext() : {});
-      const key = JSON.stringify([model.flow, model.segments, model.attached, model.duration, model.fps, model.startTime,
+      const key = JSON.stringify([model.flow, model.segments, model.strip, model.showStrip, model.attached, model.duration, model.fps, model.startTime,
         model.endTime, model.holdsEnd, model.animationName, model.markers, model.movable]);
       if (key !== structuralKey) {
-        structuralKey = key; phaseSection.hidden = !model.flow;
-        for (const segment of model.segments) {
+        structuralKey = key;
+        const strip = model.showStrip ? model.strip : null;
+        phaseSection.hidden = !model.flow && !strip;
+        phaseTitle.textContent = strip ? '動畫 · 點一下切換預覽' : '三段表演 · 粒子長度';
+        mainButton.hidden = !strip || !strip.main; addButton.hidden = !strip; addButton.disabled = !strip || !strip.canAdd;
+        if (strip && strip.main) {
+          mainLabel.textContent = strip.main.label; mainDuration.textContent = seconds(strip.main.duration) + ' 秒';
+          mainButton.classList.toggle('active', strip.main.active); mainButton.setAttribute('aria-pressed', String(strip.main.active));
+        }
+        if (typeof extraHost.replaceChildren === 'function') extraHost.replaceChildren(); else while (extraHost.firstChild) extraHost.removeChild(extraHost.firstChild);
+        if (strip) strip.extras.forEach(item => {
+          const button = element('button', 'timeline-phase timeline-extra-anim' + (item.active ? ' active' : '')); button.type = 'button';
+          button.setAttribute('aria-pressed', String(item.active)); button.title = item.name + ' · ' + seconds(item.duration) + ' 秒' + (item.loop ? ' · 循環' : '') + ' · 點一下預覽並編輯';
+          button.append(element('strong', 'timeline-phase-label', item.name.toUpperCase()), element('span', 'timeline-phase-duration', seconds(item.duration) + ' 秒'));
+          listen(button, 'click', () => { if (!item.active && typeof onSelectExtra === 'function') onSelectExtra(item.id); });
+          extraHost.append(button);
+        });
+        const phaseList = strip ? strip.phases : model.segments;
+        phaseButtons.forEach(nodes => { nodes.button.hidden = !phaseList.length; });
+        for (const segment of phaseList) {
           const nodes = phaseButtons.get(segment.phase);
           nodes.button.classList.toggle('active', segment.active);
           nodes.button.setAttribute('aria-pressed', String(segment.active));
           nodes.button.setAttribute('aria-label', segment.label + ' · ' + segment.name + ' · 粒子 ' + seconds(segment.duration) + ' 秒');
           nodes.button.title = segment.name + ' · 粒子長度 ' + seconds(segment.duration) + ' 秒';
           nodes.button.disabled = segment.duration <= 0;
-          nodes.button.style.flexGrow = String(segment.weight);
+          nodes.button.style.flexGrow = String(segment.weight || 1);
           nodes.duration.textContent = seconds(segment.duration) + ' 秒';
         }
         summary.textContent = (model.attached ? '掛接動畫「' + model.animationName + '」' : '粒子動畫') + ' · 粒子 ' +
