@@ -28,18 +28,14 @@ from spine_turn_preview import render_pose
 from spine_turn_preview_worker import LatestPreviewWorker
 from spine_turn_ui import StudioWorkspace
 from spine_turn_ui_actions import StudioActions
+from spine_turn_ui_style import PALETTE, StudioButton, FeedbackToast, attach_tooltip, configure_theme
 from spine_native import discover_spine, convert_project
 from spine_turn_sequence import export_sequence
 from spine_turn_project import save_project as save_editable_project, load_project as load_editable_project
 
-BG = "#10141d"
-PANEL = "#181e2a"
-CARD = "#222b3b"
-TEXT = "#edf2fa"
-MUTED = "#96a5bd"
-ACCENT = "#94adff"
-LINE = "#30394a"
-APP_VERSION = "1.11.0"
+BG, PANEL, CARD, TEXT, MUTED, ACCENT, LINE = (
+    PALETTE[key] for key in ("BG", "PANEL", "CARD", "TEXT", "MUTED", "ACCENT", "LINE"))
+APP_VERSION = "1.12.0"
 ANIMATIONS = {"整圈旋轉": "rotate_loop", "正面 → 背面": "flip_to_back", "背面 → 正面": "flip_to_front"}
 EDGE_DIRECTIONS = {"橫向長條": "horizontal", "直向長條": "vertical", "自動依長寬判斷": "auto"}
 MODELS = {"一般物件": "extrusion", "鑽石": "diamond"}
@@ -155,6 +151,10 @@ class App(StudioActions):
         self.profile_expanded = tk.BooleanVar(value=False)
         self._settings_scrollareas = []
         self._build()
+        self._feedback_toast = FeedbackToast(self._workspace.feedback_host)
+        self._feedback_last_text = ""
+        self.status.trace_add("write", self._update_status_feedback)
+        self._update_status_feedback()
         self.update_model_controls()
         self._rebuild_job = None
         self._render_job = None
@@ -192,39 +192,43 @@ class App(StudioActions):
         root.after(33, self.tick)
 
     def label(self, parent, text=None, **kwargs):
-        return tk.Label(parent, text=text, bg=parent.cget("bg"), fg=TEXT,
-                        font=("Microsoft JhengHei UI", 10), **kwargs)
+        options = dict(bg=parent.cget("bg"), fg=TEXT, font=("Microsoft JhengHei UI", 10))
+        options.update(kwargs)
+        return tk.Label(parent, text=text, **options)
 
     def button(self, parent, text, command, primary=False, **kwargs):
-        return tk.Button(parent, text=text, command=command,
-                         bg=ACCENT if primary else CARD,
-                         fg=BG if primary else TEXT, activebackground="#a6bbff",
-                         activeforeground=BG, bd=0, relief="flat", cursor="hand2",
-                         font=("Microsoft JhengHei UI", 10, "bold"), padx=12, pady=7,
-                         **kwargs)
+        return StudioButton(parent, text=text, command=command, primary=primary, **kwargs)
+
+    def _update_status_feedback(self, *_):
+        """Show status changes once; preview frames never schedule extra effects."""
+        text = self.status.get()
+        if text == self._feedback_last_text:
+            return
+        self._feedback_last_text = text
+        if self.busy:
+            kind = "busy"
+        elif any(word in text for word in ("失敗", "無法", "發生問題", "請檢查", "需為有效")):
+            kind = "error"
+        elif text.startswith(("編輯檔已", "已交換", "已移除", "已選擇")) or "已建立" in text or "已完成" in text:
+            kind = "success"
+        else:
+            kind = "ready"
+        self._workspace.set_status_kind(kind)
+        self._workspace.refresh_asset_states()
+        if kind == "success":
+            if text.startswith("編輯檔已儲存"):
+                message = "編輯檔已儲存"
+            elif text.startswith("編輯檔已開啟"):
+                message = "編輯檔已開啟，已還原素材與設定"
+            else:
+                message = text.split("：", 1)[0]
+            self._feedback_toast.show(message, kind="success")
+        elif kind == "error":
+            self._feedback_toast.show(text[:130], kind="error", duration=4200)
 
     def _build(self):
-        style = ttk.Style()
-        style.theme_use("clam")
-        style.configure("TCombobox", fieldbackground=CARD, background=CARD,
-                        foreground=TEXT, arrowcolor=TEXT, borderwidth=0, padding=6)
-        style.map("TCombobox", fieldbackground=[("readonly", CARD)],
-                  foreground=[("readonly", TEXT)], selectbackground=[("readonly", CARD)],
-                  selectforeground=[("readonly", TEXT)])
-        style.configure("TSpinbox", fieldbackground=CARD, background=CARD,
-                        foreground=TEXT, arrowcolor=TEXT, borderwidth=0, padding=6)
-        style.configure("Studio.Horizontal.TScale", background=ACCENT, troughcolor=CARD,
-                        bordercolor=LINE, lightcolor=ACCENT, darkcolor=ACCENT,
-                        sliderlength=18)
-        style.configure("Turn.TNotebook", background=PANEL, borderwidth=0)
-        style.configure("Turn.TNotebook.Tab", background=CARD, foreground=MUTED,
-                        padding=(12, 8), font=("Microsoft JhengHei UI", 9))
-        style.map("Turn.TNotebook.Tab", background=[("selected", ACCENT)],
-                  foreground=[("selected", BG)])
-        self.root.option_add("*TCombobox*Listbox.background", CARD)
-        self.root.option_add("*TCombobox*Listbox.foreground", TEXT)
-        self._workspace = StudioWorkspace(self, APP_VERSION,
-            dict(BG=BG, PANEL=PANEL, CARD=CARD, TEXT=TEXT, MUTED=MUTED, ACCENT=ACCENT, LINE=LINE),
+        configure_theme(self.root)
+        self._workspace = StudioWorkspace(self, APP_VERSION, PALETTE,
             MODELS, SPINE_TARGETS, ANIMATIONS, DND_FILES)
         common = self._workspace.common
         numbers = tk.Frame(common, bg=PANEL)
@@ -242,6 +246,11 @@ class App(StudioActions):
             control.pack(fill="x")
             if column == 0:
                 self.thickness_control = control
+            attach_tooltip(control, (
+                "正面與背面之間的厚度；設為 0 可製作平面翻轉。",
+                "完成一整圈旋轉的秒數；半圈動畫使用一半時間。",
+                "輸出動畫的基礎大小，不影響預覽視窗的檢視縮放。",
+            )[column])
         ttk.Combobox(common, textvariable=self.axis,
             values=["左右翻轉 · Y 軸", "上下翻轉 · X 軸"], state="readonly").pack(fill="x", pady=(0, 10))
         basic = self.settings_page("外形")
@@ -285,9 +294,8 @@ class App(StudioActions):
         tk.Label(profile, textvariable=self.region_summary, bg=PANEL, fg=MUTED,
                  anchor="w", wraplength=229, justify="left",
                  font=("Microsoft JhengHei UI", 9)).pack(fill="x", pady=(0, 4))
-        self.reset_region_button = tk.Button(profile, text="恢復自動範圍", command=self.reset_raised_region,
-                  bg=CARD, fg=TEXT, bd=0, pady=5,
-                  font=("Microsoft JhengHei UI", 9))
+        self.reset_region_button = self.button(profile, "恢復自動範圍", self.reset_raised_region,
+                  variant="ghost", pady=5, font=("Microsoft JhengHei UI", 9))
         self.reset_region_button.pack(fill="x", pady=(0, 8))
         self.label(profile, textvariable=self.bevel_width_title).pack(anchor="w", pady=(0, 3))
         self.bevel_width_control = ttk.Spinbox(profile, from_=0, to=20, increment=1, textvariable=self.bevel_width)
@@ -454,8 +462,8 @@ class App(StudioActions):
             self.profile_settings.pack_forget()
 
     def field(self, parent, label, widget):
-        title = self.label(parent, label)
-        title.pack(anchor="w", pady=(0, 3))
+        title = self.label(parent, label, fg=MUTED, font=("Microsoft JhengHei UI", 9))
+        title.pack(anchor="w", pady=(3, 4))
         widget.pack(fill="x", ipady=1, pady=(0, 7))
         return title
 
@@ -476,8 +484,9 @@ class App(StudioActions):
 
     def check(self, parent, text, variable):
         tk.Checkbutton(parent, text=text, variable=variable, bg=PANEL, fg=TEXT,
-                       selectcolor=CARD, activebackground=PANEL, activeforeground=TEXT,
-                       font=("Microsoft JhengHei UI", 10), anchor="w").pack(fill="x", pady=(0, 10))
+                       selectcolor=CARD, activebackground=CARD, activeforeground=ACCENT,
+                       highlightcolor=ACCENT, highlightbackground=PANEL, highlightthickness=1,
+                       cursor="hand2", font=("Microsoft JhengHei UI", 10), anchor="w").pack(fill="x", pady=(0, 10))
 
     def hint(self, parent, text):
         label = tk.Label(parent, text=text, bg=PANEL, fg=MUTED, justify="left", wraplength=280,
@@ -643,6 +652,7 @@ class App(StudioActions):
             self.update_project_title()
             self.status.set(f"編輯檔已儲存（包含素材、範圍與動畫設定）：{self.project_path}")
         except Exception as exc:
+            self.status.set(f"無法儲存編輯檔：{exc}")
             messagebox.showerror("無法儲存編輯檔", str(exc), parent=self.root)
 
     def open_project(self):
@@ -804,6 +814,8 @@ class App(StudioActions):
             preview, filename = self.cards[kind]
             preview.configure(image=photo, text="", height=height, width=width)
             filename.configure(text=Path(path).name)
+            if workspace := getattr(self, "_workspace", None):
+                workspace.refresh_asset_states()
             return True
         except Exception as exc:
             self.status.set(f"無法讀取圖片：{exc}")
@@ -814,7 +826,9 @@ class App(StudioActions):
         self.thumbs.pop(kind, None)
         preview, filename = self.cards[kind]
         preview.configure(image="", text="＋", height=3, width=7)
-        filename.configure(text="空白時沿用正面" if kind == "back" else "空白時使用金色側邊")
+        filename.configure(text={"front": "拖入正面圖片開始", "back": "空白時沿用正面", "edge": "空白時使用金色側邊"}[kind])
+        if workspace := getattr(self, "_workspace", None):
+            workspace.refresh_asset_states()
 
     def clear_optional(self):
         for kind in ("back", "edge"):
@@ -1358,8 +1372,19 @@ class App(StudioActions):
         if not self.prepared:
             self._preview_view_key = None
             self.preview.delete("all")
-            self.preview.create_text(width/2, height/2, text="放入正面圖片開始製作", fill=MUTED,
-                                     font=("Microsoft JhengHei UI", 16))
+            self.preview_image_id = None
+            center_x, center_y = width / 2, height / 2
+            if height >= 180:
+                self.preview.create_rectangle(center_x - 26, center_y - 66, center_x + 26, center_y - 20,
+                    outline=LINE, width=2, fill=CARD)
+                self.preview.create_line(center_x - 10, center_y - 43, center_x + 10, center_y - 43,
+                    fill=ACCENT, width=2)
+                self.preview.create_line(center_x, center_y - 53, center_x, center_y - 33,
+                    fill=ACCENT, width=2)
+            self.preview.create_text(center_x, center_y + 3, text="從一張圖片，開始製作動態", fill=TEXT,
+                                     font=("Microsoft JhengHei UI", 14, "bold"))
+            self.preview.create_text(center_x, center_y + 34, text="將透明 PNG 拖到正面素材卡，或點選「替換」",
+                                     fill=MUTED, font=("Microsoft JhengHei UI", 9), width=max(220, width - 40))
             return
         try:
             zoom = self.preview_zoom.get()/100
@@ -1568,6 +1593,7 @@ class App(StudioActions):
         self.busy = True
         self.export_button.configure(state="disabled")
         self.sequence_button.configure(state="disabled", text="正在輸出 PNG…")
+        self.status.set("正在準備透明 PNG 序列，完成後會顯示輸出位置。")
         self.sequence_cancel = threading.Event()
         progress_window = tk.Toplevel(self.root)
         progress_window.title("正在匯出透明 PNG 序列")
@@ -1595,8 +1621,8 @@ class App(StudioActions):
         def finish(result=None, error=None):
             progress_window.destroy()
             self.busy = False
-            self.export_button.configure(state="normal", text="匯出可編輯專案")
-            self.sequence_button.configure(state="normal", text="匯出透明 PNG 序列")
+            self.export_button.configure(state="normal", text="匯出 Spine 專案…")
+            self.sequence_button.configure(state="normal", text="透明 PNG 序列…")
             if error:
                 self.status.set(f"序列圖輸出失敗：{error}")
                 messagebox.showerror("序列圖輸出失敗", error)

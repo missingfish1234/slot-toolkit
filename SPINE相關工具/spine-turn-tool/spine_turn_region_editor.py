@@ -7,8 +7,9 @@ import tkinter as tk
 from tkinter import ttk
 
 from PIL import Image, ImageDraw, ImageTk
+from spine_turn_ui_style import PALETTE, StudioButton
 
-BG, PANEL, TEXT, MUTED = '#101722', '#1c2738', '#edf3fc', '#9cacc2'
+BG, PANEL, TEXT, MUTED = (PALETTE[key] for key in ('BG', 'PANEL', 'TEXT', 'MUTED'))
 AMBER, CYAN, ERROR = '#ffc05a', '#69d8e8', '#ff8585'
 
 
@@ -239,9 +240,8 @@ class _RegionEditor:
         return tk.Label(parent, **settings)
 
     def button(self, parent, text, command, *, primary=False):
-        return tk.Button(parent, text=text, command=command, bg=AMBER if primary else PANEL,
-            fg=BG if primary else TEXT, activebackground='#b7c8e0', bd=0, padx=10, pady=8,
-            cursor='hand2', font=('Microsoft JhengHei UI', 9), disabledforeground='#64748b')
+        return StudioButton(parent, text=text, command=command, primary=primary,
+            padx=10, pady=8, font=('Microsoft JhengHei UI', 9))
 
     def _build(self):
         header = tk.Frame(self.window, bg=BG, padx=18, pady=12)

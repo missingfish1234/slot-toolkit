@@ -5,6 +5,7 @@ import math
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageDraw, ImageTk
+from spine_turn_ui_style import PALETTE, StudioButton
 
 from spine_turn_region_editor import CanvasTransform
 
@@ -19,7 +20,7 @@ GUIDE_LABELS = {
     'diamond_tip_y': '底尖位置（上 ＋／下 −）',
     'diamond_table_width': '頂台寬度', 'diamond_waist_width': '腰部寬度',
 }
-BG, PANEL, TEXT, MUTED = '#101722', '#1c2738', '#edf3fc', '#9cacc2'
+BG, PANEL, TEXT, MUTED = (PALETTE[key] for key in ('BG', 'PANEL', 'TEXT', 'MUTED'))
 TABLE, WAIST, TIP, ERROR = '#ffca70', '#71e2ed', '#db9cff', '#ff8585'
 
 
@@ -179,9 +180,8 @@ class _DiamondEditor:
         return tk.Label(parent, **settings)
 
     def button(self, parent, text, command, primary=False):
-        return tk.Button(parent, text=text, command=command, bg=TABLE if primary else PANEL,
-            fg=BG if primary else TEXT, activebackground='#b7c8e0', bd=0, padx=15, pady=9,
-            cursor='hand2', font=('Microsoft JhengHei UI', 10), disabledforeground='#64748b')
+        return StudioButton(parent, text=text, command=command, primary=primary,
+            padx=15, pady=9, font=('Microsoft JhengHei UI', 10))
 
     def _build(self):
         header = tk.Frame(self.window, bg=BG, padx=18, pady=12)

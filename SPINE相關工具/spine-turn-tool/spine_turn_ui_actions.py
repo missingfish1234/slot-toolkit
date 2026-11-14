@@ -36,6 +36,16 @@ def _focus(app):
         return None
 
 
+def _shortcut_modifier_mask(root):
+    # Tk on Windows uses Mod1 (0x8) for NumLock, rather than Alt.
+    mask = 0x4 | 0x80 | 0x20000
+    try:
+        windows = root.tk.call('tk', 'windowingsystem') == 'win32'
+    except Exception:
+        windows = False
+    return mask if windows else mask | 0x8
+
+
 def _verify_artwork(path):
     if not path or not Path(path).is_file():
         raise ValueError('請先放入有效的正面與背面圖片。')
@@ -251,7 +261,7 @@ class StudioActions:
                              'text', 'listbox', 'treeview', 'ttreeview', 'tnotebook'}
                         or kind.endswith(('button', 'scale'))):
                     return None
-            if int(getattr(event, 'state', 0)) & (0x4 | 0x8 | 0x80 | 0x20000):
+            if int(getattr(event, 'state', 0)) & _shortcut_modifier_mask(root):
                 return None
         except Exception:
             return None

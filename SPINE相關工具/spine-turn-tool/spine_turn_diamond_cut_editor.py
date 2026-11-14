@@ -6,10 +6,11 @@ import tkinter as tk
 from tkinter import ttk
 
 from PIL import Image, ImageDraw, ImageTk
+from spine_turn_ui_style import PALETTE, StudioButton
 
 from spine_turn_region_editor import CanvasTransform
 
-BG, PANEL, TEXT, MUTED = '#101722', '#1c2738', '#edf3fc', '#9cacc2'
+BG, PANEL, TEXT, MUTED = (PALETTE[key] for key in ('BG', 'PANEL', 'TEXT', 'MUTED'))
 AMBER, ERROR = '#ffca70', '#ff8585'
 COLORS = ('#71e2ed', '#ffca70', '#db9cff', '#8de2b0', '#ff9eb8', '#91baff')
 DRAWING_MODES = {'upper4': ('上方四點', 4), 'lower3': ('下方三點', 3), 'free': ('自由畫線', None)}
@@ -267,9 +268,8 @@ class _DiamondCutEditor:
         return tk.Label(parent, **settings)
 
     def button(self, parent, text, command, primary=False):
-        return tk.Button(parent, text=text, command=command, bg=AMBER if primary else PANEL,
-            fg=BG if primary else TEXT, activebackground='#b7c8e0', bd=0, padx=12, pady=8,
-            cursor='hand2', font=('Microsoft JhengHei UI', 10), disabledforeground='#64748b')
+        return StudioButton(parent, text=text, command=command, primary=primary,
+            padx=12, pady=8, font=('Microsoft JhengHei UI', 10))
 
     def _build(self):
         header = tk.Frame(self.window, bg=BG, padx=18, pady=10)

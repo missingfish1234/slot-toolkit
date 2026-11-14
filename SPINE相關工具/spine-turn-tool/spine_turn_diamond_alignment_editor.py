@@ -7,13 +7,14 @@ import tkinter as tk
 from tkinter import ttk
 
 from PIL import Image, ImageDraw, ImageTk
+from spine_turn_ui_style import PALETTE, StudioButton
 
 from spine_turn_diamond_editor import GUIDE_DEFAULTS
 from spine_turn_region_editor import CanvasTransform
 
 ALIGNMENT_DEFAULTS = {**GUIDE_DEFAULTS, 'diamond_table_depth': 0., 'diamond_waist_depth': 0.,
                       'diamond_ring_phase': 0., 'diamond_view_tilt': 12.}
-BG, PANEL, TEXT, MUTED = '#101722', '#1c2738', '#edf3fc', '#9cacc2'
+BG, PANEL, TEXT, MUTED = (PALETTE[key] for key in ('BG', 'PANEL', 'TEXT', 'MUTED'))
 TABLE, WAIST, TIP, ERROR = '#ffca70', '#71e2ed', '#db9cff', '#ff8585'
 FIELD_LABELS = {
     'diamond_center_x': '中心左右位置（%）', 'diamond_table_y': '頂台中心高度（%）',
@@ -168,9 +169,8 @@ class _AlignmentEditor:
         return tk.Label(parent, **settings)
 
     def button(self, parent, text, command, primary=False):
-        return tk.Button(parent, text=text, command=command, bg=TABLE if primary else PANEL,
-            fg=BG if primary else TEXT, activebackground='#b7c8e0', bd=0, padx=12, pady=8,
-            cursor='hand2', font=('Microsoft JhengHei UI', 10), disabledforeground='#64748b')
+        return StudioButton(parent, text=text, command=command, primary=primary,
+            padx=12, pady=8, font=('Microsoft JhengHei UI', 10))
 
     def _build(self):
         header = tk.Frame(self.window, bg=BG, padx=18, pady=11)
