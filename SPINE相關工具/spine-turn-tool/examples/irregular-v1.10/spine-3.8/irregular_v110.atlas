@@ -1,0 +1,26 @@
+irregular_v110.png
+size: 520,514
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+front
+  rotate: false
+  xy: 4, 4
+  size: 229, 229
+  orig: 229, 229
+  offset: 0, 0
+  index: -1
+back
+  rotate: false
+  xy: 4, 241
+  size: 229, 229
+  orig: 229, 229
+  offset: 0, 0
+  index: -1
+edge
+  rotate: false
+  xy: 4, 478
+  size: 512, 32
+  orig: 512, 32
+  offset: 0, 0
+  index: -1

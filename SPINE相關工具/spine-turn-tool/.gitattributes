@@ -1,0 +1,8 @@
+# Source SHA bindings and generated Spine/atlas fixtures require exact bytes.
+# Keep the verified mixed line endings instead of checkout-time conversion.
+* -text
+* whitespace=blank-at-eol,space-before-tab,cr-at-eol,-blank-at-eof
+*.png binary
+*.gif binary
+*.spine binary
+*.spturn binary

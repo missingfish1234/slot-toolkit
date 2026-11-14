@@ -1,0 +1,1220 @@
+{
+  "format": "spine-turn-tool-package-v1.10",
+  "spine_version": "4.0.56",
+  "model": "extrusion",
+  "spine_family": "4.0",
+  "canonical_authoring_version": "4.0.56",
+  "authoring_fps": 30,
+  "authoring_fps_policy": "Canonical authoring FPS retained",
+  "format_conversion": "Canonical native schema; no conversion",
+  "native_project_created": true,
+  "generator": "native unweighted mesh + deform and attachment timelines",
+  "options": {
+    "name": "irregular_v110",
+    "width": 0,
+    "height": 0,
+    "thickness": 24,
+    "segments": 32,
+    "duration": 2.0,
+    "axis": "y",
+    "shape": "irregular",
+    "key_step_degrees": 15,
+    "trim_transparent": true,
+    "edge_color": "#c99535",
+    "shade_edge": true,
+    "edge_orientation": "horizontal",
+    "base_scale": 1.0,
+    "bounce_enabled": false,
+    "bounce_height": 100,
+    "peak_scale": 1.15,
+    "landing_squash": 0.12,
+    "shade_faces": false,
+    "min_brightness": 0.4,
+    "shade_curve": 1.0,
+    "light_angle": 0.0,
+    "z_scale": 1.0,
+    "peak_z_scale": 1.0,
+    "z_bounce_enabled": false,
+    "z_bounce_depth": 150.0,
+    "z_offset": 0.0,
+    "camera_distance": 1000.0,
+    "bounce_start": 0.08,
+    "bounce_apex": 0.4,
+    "bounce_land": 0.8,
+    "bounce_end": 1.0,
+    "z_bounce_start": 0.08,
+    "z_bounce_apex": 0.4,
+    "z_bounce_end": 0.8,
+    "contour_points": [],
+    "bevel_width": 0.0,
+    "bevel_depth": 0.25,
+    "raised_contour_points": [],
+    "side_mode": "strip",
+    "spine_version": "4.0.56",
+    "model": "extrusion",
+    "diamond_facets": 8,
+    "diamond_center_x": 0.0,
+    "diamond_table_y": 0.35,
+    "diamond_waist_y": 0.1,
+    "diamond_tip_y": -0.48,
+    "diamond_table_width": 0.5,
+    "diamond_waist_width": 0.96,
+    "diamond_girdle_height": 0.015,
+    "diamond_view_tilt": 12.0,
+    "diamond_shading": 0.65,
+    "diamond_shine_enabled": true,
+    "diamond_shine_strength": 0.35,
+    "diamond_sparkles_enabled": true,
+    "diamond_sparkle_strength": 0.65,
+    "diamond_front_uv_points": [],
+    "diamond_back_uv_points": [],
+    "diamond_cut_regions": [],
+    "diamond_table_depth": 0.0,
+    "diamond_waist_depth": 0.0,
+    "diamond_ring_phase": 0.0,
+    "coin_shine_enabled": false,
+    "coin_shine_strength": 0.4,
+    "coin_shine_width": 0.5,
+    "coin_shine_angle": -25.0,
+    "coin_shine_start": 0.0,
+    "coin_shine_end": 0.25,
+    "coin_shine_repeat": 1,
+    "irregular_contours": [
+      [
+        [
+          -0.006550218340611369,
+          0.4912663755458515
+        ],
+        [
+          -0.015283842794759805,
+          0.4737991266375546
+        ],
+        [
+          -0.03711790393013098,
+          0.45633187772925765
+        ],
+        [
+          -0.03711790393013098,
+          0.44759825327510916
+        ],
+        [
+          -0.05895196506550221,
+          0.43013100436681223
+        ],
+        [
+          -0.05895196506550221,
+          0.42139737991266374
+        ],
+        [
+          -0.08078602620087338,
+          0.39956331877729256
+        ],
+        [
+          -0.18995633187772926,
+          0.45633187772925765
+        ],
+        [
+          -0.22052401746724892,
+          0.36899563318777295
+        ],
+        [
+          -0.22489082969432317,
+          0.3384279475982533
+        ],
+        [
+          -0.3384279475982533,
+          0.35152838427947597
+        ],
+        [
+          -0.35152838427947597,
+          0.3471615720524017
+        ],
+        [
+          -0.3384279475982533,
+          0.22489082969432317
+        ],
+        [
+          -0.45633187772925765,
+          0.18995633187772926
+        ],
+        [
+          -0.4344978165938865,
+          0.14192139737991266
+        ],
+        [
+          -0.425764192139738,
+          0.13755458515283842
+        ],
+        [
+          -0.39956331877729256,
+          0.07641921397379914
+        ],
+        [
+          -0.40829694323144106,
+          0.07641921397379914
+        ],
+        [
+          -0.42139737991266374,
+          0.05895196506550221
+        ],
+        [
+          -0.43013100436681223,
+          0.05895196506550221
+        ],
+        [
+          -0.44759825327510916,
+          0.03711790393013098
+        ],
+        [
+          -0.45633187772925765,
+          0.03711790393013098
+        ],
+        [
+          -0.4737991266375546,
+          0.015283842794759805
+        ],
+        [
+          -0.4912663755458515,
+          0.006550218340611369
+        ],
+        [
+          -0.4912663755458515,
+          -0.0021834061135370675
+        ],
+        [
+          -0.4781659388646288,
+          -0.015283842794759805
+        ],
+        [
+          -0.46943231441048033,
+          -0.015283842794759805
+        ],
+        [
+          -0.4519650655021834,
+          -0.037117903930131035
+        ],
+        [
+          -0.4432314410480349,
+          -0.037117903930131035
+        ],
+        [
+          -0.43013100436681223,
+          -0.05458515283842791
+        ],
+        [
+          -0.42139737991266374,
+          -0.05458515283842791
+        ],
+        [
+          -0.40829694323144106,
+          -0.07205240174672489
+        ],
+        [
+          -0.39956331877729256,
+          -0.07205240174672489
+        ],
+        [
+          -0.425764192139738,
+          -0.13318777292576423
+        ],
+        [
+          -0.4344978165938865,
+          -0.13755458515283847
+        ],
+        [
+          -0.45633187772925765,
+          -0.18122270742358082
+        ],
+        [
+          -0.4519650655021834,
+          -0.1899563318777293
+        ],
+        [
+          -0.3384279475982533,
+          -0.22052401746724892
+        ],
+        [
+          -0.35152838427947597,
+          -0.334061135371179
+        ],
+        [
+          -0.3471615720524017,
+          -0.3471615720524017
+        ],
+        [
+          -0.22489082969432317,
+          -0.334061135371179
+        ],
+        [
+          -0.22052401746724892,
+          -0.3646288209606987
+        ],
+        [
+          -0.18995633187772926,
+          -0.4519650655021834
+        ],
+        [
+          -0.08078602620087338,
+          -0.3951965065502183
+        ],
+        [
+          -0.05895196506550221,
+          -0.41703056768558955
+        ],
+        [
+          -0.05895196506550221,
+          -0.42576419213973804
+        ],
+        [
+          -0.041484716157205226,
+          -0.43886462882096067
+        ],
+        [
+          -0.041484716157205226,
+          -0.44759825327510916
+        ],
+        [
+          -0.01965065502183405,
+          -0.46506550218340614
+        ],
+        [
+          -0.01965065502183405,
+          -0.47379912663755464
+        ],
+        [
+          -0.006550218340611369,
+          -0.48689956331877726
+        ],
+        [
+          0.0021834061135370675,
+          -0.48689956331877726
+        ],
+        [
+          0.07641921397379914,
+          -0.3951965065502183
+        ],
+        [
+          0.18558951965065507,
+          -0.4519650655021834
+        ],
+        [
+          0.21615720524017468,
+          -0.3646288209606987
+        ],
+        [
+          0.22052401746724892,
+          -0.334061135371179
+        ],
+        [
+          0.334061135371179,
+          -0.3471615720524017
+        ],
+        [
+          0.3471615720524017,
+          -0.3427947598253275
+        ],
+        [
+          0.334061135371179,
+          -0.22052401746724892
+        ],
+        [
+          0.4519650655021834,
+          -0.18558951965065507
+        ],
+        [
+          0.4301310043668122,
+          -0.13755458515283847
+        ],
+        [
+          0.4213973799126638,
+          -0.13318777292576423
+        ],
+        [
+          0.3951965065502183,
+          -0.07205240174672489
+        ],
+        [
+          0.4039301310043668,
+          -0.07205240174672489
+        ],
+        [
+          0.43886462882096067,
+          -0.037117903930131035
+        ],
+        [
+          0.44759825327510916,
+          -0.037117903930131035
+        ],
+        [
+          0.4606986899563319,
+          -0.01965065502183405
+        ],
+        [
+          0.4694323144104804,
+          -0.01965065502183405
+        ],
+        [
+          0.482532751091703,
+          -0.0021834061135370675
+        ],
+        [
+          0.4912663755458515,
+          -0.0021834061135370675
+        ],
+        [
+          0.4912663755458515,
+          0.002183406113537123
+        ],
+        [
+          0.47379912663755464,
+          0.01965065502183405
+        ],
+        [
+          0.46506550218340614,
+          0.01965065502183405
+        ],
+        [
+          0.4519650655021834,
+          0.03711790393013098
+        ],
+        [
+          0.4432314410480349,
+          0.03711790393013098
+        ],
+        [
+          0.42576419213973804,
+          0.05895196506550221
+        ],
+        [
+          0.41703056768558955,
+          0.05895196506550221
+        ],
+        [
+          0.4039301310043668,
+          0.07641921397379914
+        ],
+        [
+          0.3951965065502183,
+          0.07641921397379914
+        ],
+        [
+          0.4213973799126638,
+          0.13755458515283842
+        ],
+        [
+          0.4301310043668122,
+          0.14192139737991266
+        ],
+        [
+          0.4519650655021834,
+          0.185589519650655
+        ],
+        [
+          0.44759825327510916,
+          0.1943231441048035
+        ],
+        [
+          0.334061135371179,
+          0.22489082969432317
+        ],
+        [
+          0.3471615720524017,
+          0.3384279475982533
+        ],
+        [
+          0.3427947598253275,
+          0.35152838427947597
+        ],
+        [
+          0.22052401746724892,
+          0.3384279475982533
+        ],
+        [
+          0.21615720524017468,
+          0.36899563318777295
+        ],
+        [
+          0.18558951965065507,
+          0.45633187772925765
+        ],
+        [
+          0.07641921397379914,
+          0.39956331877729256
+        ],
+        [
+          0.05458515283842791,
+          0.42139737991266374
+        ],
+        [
+          0.05458515283842791,
+          0.43013100436681223
+        ],
+        [
+          0.037117903930131035,
+          0.4432314410480349
+        ],
+        [
+          0.037117903930131035,
+          0.4519650655021834
+        ],
+        [
+          0.015283842794759805,
+          0.46943231441048033
+        ],
+        [
+          0.015283842794759805,
+          0.4781659388646288
+        ],
+        [
+          0.0021834061135370675,
+          0.4912663755458515
+        ]
+      ]
+    ],
+    "outline_alpha_threshold": 16,
+    "outline_tolerance": 1
+  },
+  "width": 229.0,
+  "height": 229.0,
+  "animations": {
+    "rotate_loop": {
+      "duration": 2.0,
+      "loop": true,
+      "timing_seconds": {
+        "bounce_start": 0.16,
+        "bounce_apex": 0.8,
+        "bounce_land": 1.6,
+        "bounce_end": 2.0,
+        "z_bounce_start": 0.16,
+        "z_bounce_apex": 0.8,
+        "z_bounce_end": 1.6
+      }
+    },
+    "flip_to_back": {
+      "duration": 1.0,
+      "loop": false,
+      "timing_seconds": {
+        "bounce_start": 0.08,
+        "bounce_apex": 0.4,
+        "bounce_land": 0.8,
+        "bounce_end": 1.0,
+        "z_bounce_start": 0.08,
+        "z_bounce_apex": 0.4,
+        "z_bounce_end": 0.8
+      }
+    },
+    "flip_to_front": {
+      "duration": 1.0,
+      "loop": false,
+      "timing_seconds": {
+        "bounce_start": 0.08,
+        "bounce_apex": 0.4,
+        "bounce_land": 0.8,
+        "bounce_end": 1.0,
+        "z_bounce_start": 0.08,
+        "z_bounce_apex": 0.4,
+        "z_bounce_end": 0.8
+      }
+    }
+  },
+  "pivot": [
+    0,
+    0
+  ],
+  "projection": "orthographic with optional uniform virtual-Z magnification",
+  "axis": "y",
+  "side_mode": "strip",
+  "side_geometry": {
+    "mode": "strip",
+    "active": true,
+    "body_wall_enabled": true,
+    "edge_texture_used": false,
+    "effective_height_fraction_per_end": 0.25,
+    "stored_height_fraction_per_end": 0.25,
+    "total_thickness_pixels": 24.0,
+    "outer_meeting_z": null,
+    "automatic_region_fallback": false,
+    "material_guide": "Side-strip artwork forms the central wall between front and back bevels."
+  },
+  "edge_uv_convention": "U: counterclockwise circumference, V: front to back thickness",
+  "irregular": {
+    "active": true,
+    "alpha_threshold": 16,
+    "simplification_tolerance_pixels": 1,
+    "analysis": {
+      "loops": [
+        [
+          [
+            -0.006550218340611369,
+            0.4912663755458515
+          ],
+          [
+            -0.015283842794759805,
+            0.4737991266375546
+          ],
+          [
+            -0.03711790393013098,
+            0.45633187772925765
+          ],
+          [
+            -0.03711790393013098,
+            0.44759825327510916
+          ],
+          [
+            -0.05895196506550221,
+            0.43013100436681223
+          ],
+          [
+            -0.05895196506550221,
+            0.42139737991266374
+          ],
+          [
+            -0.08078602620087338,
+            0.39956331877729256
+          ],
+          [
+            -0.18995633187772926,
+            0.45633187772925765
+          ],
+          [
+            -0.22052401746724892,
+            0.36899563318777295
+          ],
+          [
+            -0.22489082969432317,
+            0.3384279475982533
+          ],
+          [
+            -0.3384279475982533,
+            0.35152838427947597
+          ],
+          [
+            -0.35152838427947597,
+            0.3471615720524017
+          ],
+          [
+            -0.3384279475982533,
+            0.22489082969432317
+          ],
+          [
+            -0.45633187772925765,
+            0.18995633187772926
+          ],
+          [
+            -0.4344978165938865,
+            0.14192139737991266
+          ],
+          [
+            -0.425764192139738,
+            0.13755458515283842
+          ],
+          [
+            -0.39956331877729256,
+            0.07641921397379914
+          ],
+          [
+            -0.40829694323144106,
+            0.07641921397379914
+          ],
+          [
+            -0.42139737991266374,
+            0.05895196506550221
+          ],
+          [
+            -0.43013100436681223,
+            0.05895196506550221
+          ],
+          [
+            -0.44759825327510916,
+            0.03711790393013098
+          ],
+          [
+            -0.45633187772925765,
+            0.03711790393013098
+          ],
+          [
+            -0.4737991266375546,
+            0.015283842794759805
+          ],
+          [
+            -0.4912663755458515,
+            0.006550218340611369
+          ],
+          [
+            -0.4912663755458515,
+            -0.0021834061135370675
+          ],
+          [
+            -0.4781659388646288,
+            -0.015283842794759805
+          ],
+          [
+            -0.46943231441048033,
+            -0.015283842794759805
+          ],
+          [
+            -0.4519650655021834,
+            -0.037117903930131035
+          ],
+          [
+            -0.4432314410480349,
+            -0.037117903930131035
+          ],
+          [
+            -0.43013100436681223,
+            -0.05458515283842791
+          ],
+          [
+            -0.42139737991266374,
+            -0.05458515283842791
+          ],
+          [
+            -0.40829694323144106,
+            -0.07205240174672489
+          ],
+          [
+            -0.39956331877729256,
+            -0.07205240174672489
+          ],
+          [
+            -0.425764192139738,
+            -0.13318777292576423
+          ],
+          [
+            -0.4344978165938865,
+            -0.13755458515283847
+          ],
+          [
+            -0.45633187772925765,
+            -0.18122270742358082
+          ],
+          [
+            -0.4519650655021834,
+            -0.1899563318777293
+          ],
+          [
+            -0.3384279475982533,
+            -0.22052401746724892
+          ],
+          [
+            -0.35152838427947597,
+            -0.334061135371179
+          ],
+          [
+            -0.3471615720524017,
+            -0.3471615720524017
+          ],
+          [
+            -0.22489082969432317,
+            -0.334061135371179
+          ],
+          [
+            -0.22052401746724892,
+            -0.3646288209606987
+          ],
+          [
+            -0.18995633187772926,
+            -0.4519650655021834
+          ],
+          [
+            -0.08078602620087338,
+            -0.3951965065502183
+          ],
+          [
+            -0.05895196506550221,
+            -0.41703056768558955
+          ],
+          [
+            -0.05895196506550221,
+            -0.42576419213973804
+          ],
+          [
+            -0.041484716157205226,
+            -0.43886462882096067
+          ],
+          [
+            -0.041484716157205226,
+            -0.44759825327510916
+          ],
+          [
+            -0.01965065502183405,
+            -0.46506550218340614
+          ],
+          [
+            -0.01965065502183405,
+            -0.47379912663755464
+          ],
+          [
+            -0.006550218340611369,
+            -0.48689956331877726
+          ],
+          [
+            0.0021834061135370675,
+            -0.48689956331877726
+          ],
+          [
+            0.07641921397379914,
+            -0.3951965065502183
+          ],
+          [
+            0.18558951965065507,
+            -0.4519650655021834
+          ],
+          [
+            0.21615720524017468,
+            -0.3646288209606987
+          ],
+          [
+            0.22052401746724892,
+            -0.334061135371179
+          ],
+          [
+            0.334061135371179,
+            -0.3471615720524017
+          ],
+          [
+            0.3471615720524017,
+            -0.3427947598253275
+          ],
+          [
+            0.334061135371179,
+            -0.22052401746724892
+          ],
+          [
+            0.4519650655021834,
+            -0.18558951965065507
+          ],
+          [
+            0.4301310043668122,
+            -0.13755458515283847
+          ],
+          [
+            0.4213973799126638,
+            -0.13318777292576423
+          ],
+          [
+            0.3951965065502183,
+            -0.07205240174672489
+          ],
+          [
+            0.4039301310043668,
+            -0.07205240174672489
+          ],
+          [
+            0.43886462882096067,
+            -0.037117903930131035
+          ],
+          [
+            0.44759825327510916,
+            -0.037117903930131035
+          ],
+          [
+            0.4606986899563319,
+            -0.01965065502183405
+          ],
+          [
+            0.4694323144104804,
+            -0.01965065502183405
+          ],
+          [
+            0.482532751091703,
+            -0.0021834061135370675
+          ],
+          [
+            0.4912663755458515,
+            -0.0021834061135370675
+          ],
+          [
+            0.4912663755458515,
+            0.002183406113537123
+          ],
+          [
+            0.47379912663755464,
+            0.01965065502183405
+          ],
+          [
+            0.46506550218340614,
+            0.01965065502183405
+          ],
+          [
+            0.4519650655021834,
+            0.03711790393013098
+          ],
+          [
+            0.4432314410480349,
+            0.03711790393013098
+          ],
+          [
+            0.42576419213973804,
+            0.05895196506550221
+          ],
+          [
+            0.41703056768558955,
+            0.05895196506550221
+          ],
+          [
+            0.4039301310043668,
+            0.07641921397379914
+          ],
+          [
+            0.3951965065502183,
+            0.07641921397379914
+          ],
+          [
+            0.4213973799126638,
+            0.13755458515283842
+          ],
+          [
+            0.4301310043668122,
+            0.14192139737991266
+          ],
+          [
+            0.4519650655021834,
+            0.185589519650655
+          ],
+          [
+            0.44759825327510916,
+            0.1943231441048035
+          ],
+          [
+            0.334061135371179,
+            0.22489082969432317
+          ],
+          [
+            0.3471615720524017,
+            0.3384279475982533
+          ],
+          [
+            0.3427947598253275,
+            0.35152838427947597
+          ],
+          [
+            0.22052401746724892,
+            0.3384279475982533
+          ],
+          [
+            0.21615720524017468,
+            0.36899563318777295
+          ],
+          [
+            0.18558951965065507,
+            0.45633187772925765
+          ],
+          [
+            0.07641921397379914,
+            0.39956331877729256
+          ],
+          [
+            0.05458515283842791,
+            0.42139737991266374
+          ],
+          [
+            0.05458515283842791,
+            0.43013100436681223
+          ],
+          [
+            0.037117903930131035,
+            0.4432314410480349
+          ],
+          [
+            0.037117903930131035,
+            0.4519650655021834
+          ],
+          [
+            0.015283842794759805,
+            0.46943231441048033
+          ],
+          [
+            0.015283842794759805,
+            0.4781659388646288
+          ],
+          [
+            0.0021834061135370675,
+            0.4912663755458515
+          ]
+        ]
+      ],
+      "loop_roles": [
+        "outer"
+      ],
+      "loop_parents": [
+        null
+      ],
+      "components": 1,
+      "holes": 0,
+      "source_size": [
+        229,
+        229
+      ],
+      "source_alpha_bounds": [
+        2,
+        2,
+        227,
+        226
+      ],
+      "source_nonzero_alpha_bounds": [
+        0,
+        0,
+        229,
+        229
+      ],
+      "alpha_threshold": 16,
+      "pixel_area": 32618,
+      "raw_edge_count": 1162,
+      "raw_vertex_count": 710,
+      "vertex_count": 97,
+      "loop_vertex_counts": [
+        97
+      ],
+      "max_vertices_per_loop": 256,
+      "max_total_vertices": 512,
+      "requested_simplify_tolerance": 1.0,
+      "used_simplify_tolerance": 1.0,
+      "protected_notch_count": 41,
+      "simplified_area_px": 32683.5,
+      "shared_grid_corner_count": 0,
+      "winding": "outer CCW, holes CW; normalized world-up about original canvas centre"
+    },
+    "statistics": {
+      "slabs": 54,
+      "interval_pieces": 218,
+      "lateral_ranks": 7,
+      "surfaces": 243,
+      "vertices": 2224,
+      "cap_meshes": 62,
+      "wall_meshes": 181
+    },
+    "back_mode": "supplied",
+    "geometry": "Axis-invariant slabs and noncrossing material intervals; welded connected rank components with true boundary-first topology",
+    "ordering": "Fixed slot names; per-cell lateral painter rank; standard Spine draw-order keys at half-turn boundaries",
+    "cap_alpha": "Original RGBA spans material and air intervals; air caps keep AA fringes without adding physical walls",
+    "physical_boundary_limit": "Walls follow the selected alpha threshold and simplified loops; soft fringes remain a visual approximation",
+    "back_input_requirement": "Supplied back artwork should match the mirrored physical outline; absent back mirrors front only in irregular mode",
+    "unsupported": [
+      "bevel",
+      "raised region",
+      "ridge stone"
+    ]
+  },
+  "coin_shine": {
+    "active": false,
+    "strength": 0.4,
+    "width_fraction_of_image_width": 0.5,
+    "width_definition": "Full finite support width of a raised-cosine band",
+    "angle_degrees_clockwise_from_vertical": -25.0,
+    "start_progress_per_clip": 0.0,
+    "end_progress_per_clip": 0.25,
+    "repeat_per_clip": 1,
+    "surfaces": "Flat front/back caps only; side walls, bevel slopes and Diamond are excluded",
+    "geometry": "32 fixed UV stripe positions per cap; irregular caps clip to actual connected triangle pieces; fixed parent weights preserve containment",
+    "alpha_guard": "White texture uses source A==255 eroded by one pixel; semitransparent edges and holes remain untouched",
+    "textures": [],
+    "blend": "normal",
+    "shader_or_clipping_attachment": false
+  },
+  "edge_orientation": {
+    "requested": "horizontal",
+    "original": "horizontal",
+    "resolved": "horizontal",
+    "canonical": "horizontal",
+    "source_size": [
+      512,
+      32
+    ],
+    "vertical_normalization": "counterclockwise 90 degrees; original top to bottom maps left to right"
+  },
+  "motion": {
+    "bone": "turn",
+    "root_fixed": true,
+    "base_scale": 1.0,
+    "bounce_enabled": false,
+    "peak_scale_semantics": "multiplier relative to base_scale",
+    "key_progress": [
+      0,
+      1
+    ],
+    "depth_bone": null,
+    "depth_key_progress": [
+      0,
+      1
+    ],
+    "timeline_key_progress": [
+      0.0,
+      1.0
+    ],
+    "anticipation_start": 0,
+    "airborne_start": 0.08,
+    "apex_progress": 0.4,
+    "landing_progress": 0.8,
+    "recovery_end": 1.0,
+    "squash_progress": 0.86,
+    "ground_y": -114.5,
+    "ground_compensation": "Y y += height * (physical_scale_y-base_scale) / 2 * initial_projection",
+    "interpolation": "Spine 4.x absolute-control Bezier timelines, nine interior samples"
+  },
+  "virtual_z": {
+    "z_scale": 1.0,
+    "peak_z_scale": 1.0,
+    "z_bounce_enabled": false,
+    "z_bounce_depth": 150.0,
+    "z_offset": 0.0,
+    "camera_distance": 1000.0,
+    "independent_from_y": true,
+    "projection_formula": "camera_distance / (camera_distance-current_z)",
+    "projection_interpolation": "15 sparse Bezier keys approximate the ideal camera formula; a separate uniform child bone preserves independent Y proportions exactly",
+    "timing": {
+      "start": 0.08,
+      "apex": 0.4,
+      "end": 0.8
+    },
+    "initial": {
+      "z_offset": 0.0,
+      "z": 0.0,
+      "static_z_offset": 0.0,
+      "z_scale": 1.0,
+      "projection_scale": 1.0,
+      "progress_factor": 0.0,
+      "ideal_projection_scale": 1.0
+    },
+    "apex": {
+      "z_offset": 0.0,
+      "z": 0.0,
+      "static_z_offset": 0.0,
+      "z_scale": 1.0,
+      "projection_scale": 1.0,
+      "progress_factor": 0.0,
+      "ideal_projection_scale": 1.0
+    },
+    "representation": "Independent uniform depth child-bone scale; Y motion on parent turn bone; virtual thickness on mesh deform",
+    "perspective_limit": "This is a 2.5D approximation, not per-vertex perspective or native 3D Spine coordinates"
+  },
+  "lighting": {
+    "shade_faces": false,
+    "shade_edge": true,
+    "min_brightness": 0.4,
+    "curve": 1.0,
+    "light_angle_degrees": 0.0,
+    "face_formula": "min+(1-min)*max(0,cos(theta-light_angle)*face_sign)^curve",
+    "hue_preserved": true,
+    "slot_alpha": 1
+  },
+  "animation_bounds": {
+    "x": -126.5,
+    "y": -126.5,
+    "width": 253.0,
+    "height": 253.0
+  },
+  "contour": {
+    "shape": "irregular",
+    "points": [],
+    "actual_rim_segments": 0,
+    "analysis": null,
+    "representation": "irregular"
+  },
+  "bevel": {
+    "enabled": false,
+    "width_fraction": 0.0,
+    "region_mode": "off",
+    "width_pixels": 0.0,
+    "effective_width_pixels": 0.0,
+    "depth_fraction_per_end": 0.25,
+    "stored_depth_fraction_per_end": 0.25,
+    "uv_outer_inset_px": 0.0,
+    "uv_outer_inset_scope": "Only outer-boundary bevel UV vertices; cap UVs and physical geometry unchanged",
+    "body_thickness_fraction": 0.5,
+    "inner_points": [],
+    "bevel_facets": 0,
+    "texture_source": "Original front/back artwork; cap/inner UVs use physical XY, outer bevel UVs sample up to one pixel inward",
+    "visibility": "Rotated 3D facet normals; dynamic zero-crossing events are bisected and cached",
+    "cap_topology": "Inset convex hull vertices first; center last; triangle fan",
+    "geometry_keys": {
+      "rotate_loop": 25,
+      "flip_to_back": 13,
+      "flip_to_front": 13
+    }
+  },
+  "raised_region": {
+    "mode": "automatic",
+    "active": true,
+    "manual_points": [],
+    "height_fraction_per_end": 0.25,
+    "height_pixels_per_end": 6.0,
+    "outer_vertex_count": 0,
+    "inner_input_vertex_count": 0,
+    "paired_sector_count": null,
+    "center": null,
+    "minimum_outer_gap_pixels": null,
+    "paired_outer_points": [],
+    "paired_inner_points": [],
+    "representation": "Radial sector union retaining both outlines; independent planar triangle facets with true 3D normals",
+    "manual_overrides_automatic_width": false
+  },
+  "diamond": {
+    "active": false,
+    "facets": 8,
+    "guides": null,
+    "ring_alignment": null,
+    "girdle_height_fraction": 0.015,
+    "camera_tilt_degrees": 12.0,
+    "facet_shading_strength": 0.65,
+    "geometry": "Closed parametric table/crown/girdle/pavilion lathe with one lower tip",
+    "view_order": "Rotate model around selected axis, then apply fixed camera-X tilt",
+    "source_projection": "Initial visible projection; unseen faces reuse a mirrored back/front source projection",
+    "uv_safety": "UV-only sampling inside source-alpha hull by one pixel; geometry remains parametric",
+    "base_surface_count": 0,
+    "fx_surface_count": 0,
+    "generated_textures": [],
+    "shine_enabled": true,
+    "shine_strength": 0.35,
+    "cut_region_count": 0,
+    "cut_regions": [],
+    "cut_region_model": "Artwork-aligned material patches; optical normal offsets change shading, physical normals and closed volume stay unchanged",
+    "sparkles_enabled": true,
+    "sparkle_strength": 0.65
+  },
+  "back_reuses_front": false,
+  "edge_is_placeholder": false,
+  "crop_bounds": {
+    "front": [
+      6,
+      6,
+      235,
+      235
+    ],
+    "back": [
+      5,
+      6,
+      234,
+      235
+    ]
+  },
+  "limits": [
+    "Supports flat elliptical, rectangular, convex polygonal, or opt-in concave alpha-extruded objects; not arbitrary 3D reconstruction.",
+    "Irregular mode supports concave loops, holes and islands using axis-specific painter order, without bevel or ridge geometry.",
+    "Alpha polygon mode uses a convex silhouette; concave outlines are approximated by their convex hull.",
+    "A manual raised region must be convex, contain 3 to 32 corners, and keep at least one image pixel from the outer boundary.",
+    "Virtual Z uses uniform center-distance magnification, not per-vertex perspective.",
+    "Front and back artwork should use matching silhouette and centering.",
+    "Mesh editing requires a Spine edition that supports meshes.",
+    "JSON is import data; a true .spine file must be saved by the native Spine editor/CLI."
+  ],
+  "source_documentation": [
+    "https://esotericsoftware.com/spine-import",
+    "https://esotericsoftware.com/spine-command-line-interface",
+    "https://github.com/EsotericSoftware/spine-runtimes/blob/4.0/spine-ts/spine-core/src/SkeletonJson.ts"
+  ],
+  "files": {
+    "skeleton": "irregular_v110.json",
+    "atlas": "irregular_v110.atlas",
+    "atlas_page": "irregular_v110.png",
+    "images": "images/"
+  },
+  "native_project": "irregular_v110.spine",
+  "native_roundtrip_verified": true,
+  "native_runtime_verification_format": "binary",
+  "native_editor_version": "4.0.56",
+  "official_runtime_verified": true,
+  "official_runtime_family": "4.0",
+  "input_back_image_supplied": true,
+  "original_artwork": true
+}

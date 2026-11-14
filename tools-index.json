@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-03",
+  "updatedAt": "2026-11-14",
   "tools": [
     {
       "id": "cocos-creator-38-rolling-score-tester",
@@ -966,6 +966,35 @@
         "presets",
         "config.json",
         "settings.json"
+      ]
+    },
+    {
+      "id": "spine-turn-tool",
+      "name": "Spine 圖片翻轉製作器",
+      "category": "SPINE相關工具",
+      "description": "將 PNG 正反面與側邊材質製作成可編輯的 Spine 翻轉動畫或透明 PNG 序列。此 Git 版本提供原始碼，需 Windows 與 Python 3.12，首次啟動會準備所需套件。",
+      "version": "1.11.0",
+      "path": "SPINE相關工具/spine-turn-tool",
+      "entry": "啟動圖片翻轉工具.bat",
+      "documentation": "使用指南.md",
+      "kind": "Python桌面工具",
+      "tags": [
+        "Spine",
+        "圖片翻轉",
+        "不規則輪廓",
+        "PNG序列",
+        "動畫"
+      ],
+      "updatedAt": "2026-11-14",
+      "changelog": [
+        "將現行 1.11.0 原始碼加入工具包，使用專案內的啟動與打包設定。"
+      ],
+      "preservePaths": [
+        "output",
+        "outputs",
+        "user-data",
+        "presets",
+        ".build"
       ]
     }
   ],
