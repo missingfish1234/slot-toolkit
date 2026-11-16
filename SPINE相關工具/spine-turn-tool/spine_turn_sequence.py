@@ -63,6 +63,7 @@ def _union_progresses(plan, options, animation_name):
     for name in ('MOTION_KEY_PROGRESS', 'MOTION_Z_KEY_PROGRESS'):
         samples.update(getattr(core, name, ()))
     samples.update(core.motion_key_progress(options))
+    samples.update(core.z_spin_key_progress(options))
     start, end, _ = ANIMATION_ARCS[animation_name]
     step = _finite_number(options.key_step_degrees, '旋轉關鍵格間隔')
     if step <= 0:
@@ -86,10 +87,9 @@ def _fit_camera(prepared, options, size, padding, plan, animation_name, cancel_e
         for surface in surfaces:
             if not surface.get('visible', True):
                 continue
-            vertices = surface['vertices']
+            vertices = core.transform_vertices_for_motion(surface['vertices'], movement, progress, options)
             for index in range(0, len(vertices), 2):
-                x = vertices[index] * movement['scale_x'] + movement['x']
-                y = vertices[index + 1] * movement['scale_y'] + movement['y']
+                x, y = vertices[index], vertices[index + 1]
                 if not math.isfinite(x) or not math.isfinite(y):
                     raise ValueError('動畫包含無效的網格座標。')
                 min_x, max_x = min(min_x, x), max(max_x, x)

@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 import numpy as np
 from PIL import Image, ImageDraw, ImageChops
-from spine_turn_core import animation_pose_at, motion_at, ordered_surfaces
+from spine_turn_core import animation_pose_at, motion_at, ordered_surfaces, transform_vertices_for_motion
 
 
 def _surface_tint(surface):
@@ -422,7 +422,8 @@ def _sample_encode(source,uv,factors):
     return out
 
 
-def _render_planar_scene(canvas,prepared,surfaces,movement,scale,origin_x,origin_y,size):
+def _render_planar_scene(canvas,prepared,surfaces,movement,scale,origin_x,origin_y,size,
+                         *, progress=0., options=None):
     """Batch exact PMA sampling; retain slot order and reference fallbacks."""
     templates=prepared.setdefault('_preview_planar_templates',{})
     texture_cache=_texture_cache(prepared)
@@ -434,8 +435,8 @@ def _render_planar_scene(canvas,prepared,surfaces,movement,scale,origin_x,origin
         values=surface['vertices'];uv=surface['uvs']
         if len(values)!=len(uv) or len(values)%2 or len(values)<6:
             raise ValueError('Mesh positions and UVs must contain matching XY pairs.')
-        points=[(origin_x+(values[i]*movement['scale_x']+movement['x'])*scale,
-                 origin_y-(values[i+1]*movement['scale_y']+movement['y'])*scale) for i in range(0,len(values),2)]
+        world=transform_vertices_for_motion(values,movement,progress,options)
+        points=[(origin_x+world[i]*scale,origin_y-world[i+1]*scale) for i in range(0,len(world),2)]
         texture=prepared[surface['path']]
         if (surface.get('kind')=='edge' and surface.get('irregular') and len(points)==4 and
                 surface.get('hull')==4 and surface.get('triangles')==[0,1,2,2,3,0]):
@@ -501,6 +502,38 @@ def _render_planar_scene(canvas,prepared,surfaces,movement,scale,origin_x,origin
     return canvas
 
 
+def _spin_reference_scene(options, width, height):
+    """A fixed, unit-scale envelope for the extra in-plane turn.
+
+    The full diagonal must fit even for a very wide or tall picture. Keep
+    exported base scale and virtual camera magnification visibly adjustable,
+    just as the existing preview does, instead of refitting every frame.
+    """
+    if getattr(options, "model", "extrusion") == "diamond":
+        from spine_turn_diamond import diamond_rotation_bounds
+        bounds = diamond_rotation_bounds(options, width, height)
+        radius = math.hypot(max(abs(bounds["left"]), abs(bounds["right"])),
+                            max(abs(bounds["bottom"]), abs(bounds["top"])))
+        if options.diamond_sparkles_enabled:
+            radius += math.sqrt(2) * min(width, height) * .075
+    else:
+        depth = options.thickness * options.z_scale
+        if options.z_bounce_enabled:
+            depth *= max(1, options.peak_z_scale)
+        radius = math.sqrt(width * width + height * height + depth * depth) / 2
+    radius = max(1., radius)
+    if not options.bounce_enabled:
+        return 2 * radius, -radius, radius
+    anticipation = min(.06, options.landing_squash * .5)
+    scale_x = max(1 + options.landing_squash, options.peak_scale)
+    scale_y = max(1 + anticipation, 1 + options.landing_squash * .3, options.peak_scale)
+    # Y translation stays above the rotating child. Ground compensation uses
+    # the original image height, while the rotated geometry uses its diagonal.
+    bottom = -radius * scale_y - height * options.landing_squash / 2
+    top = options.bounce_height + radius * scale_y + height * max(0., scale_y - 1) / 2
+    return 2 * radius * scale_x, bottom, top
+
+
 def render_pose(prepared, options, angle, size=(720, 600), background="checker", *,
                 progress=None, animation_name="rotate_loop", zoom=1.0, show_ground=True, camera=None,
                 raster_mode='auto'):
@@ -538,6 +571,8 @@ def render_pose(prepared, options, angle, size=(720, 600), background="checker",
         if options.bounce_enabled:
             top = max(top, options.bounce_height + top * max(1, air_scale) + object_height * max(0, air_scale - 1) / 2)
             bottom *= max(1, air_scale)
+    if getattr(options, "z_spin_enabled", False) and camera is None:
+        reference_width, bottom, top = _spin_reference_scene(options, object_width, object_height)
     scale = min(width*.82/max(1, reference_width), height*.82/max(1, top-bottom)) * zoom
     origin_x, origin_y = width/2, height/2 + (top+bottom)/2*scale
     if camera is not None:
@@ -551,7 +586,8 @@ def render_pose(prepared, options, angle, size=(720, 600), background="checker",
     surfaces = ordered_surfaces(animation_pose_at(progress, options, object_width, object_height, animation_name,
                                                   cull_hidden_effects=True))
     if raster_mode=='fast' or (raster_mode=='auto' and any(surface.get('irregular') for surface in surfaces)):
-        return _render_planar_scene(canvas,prepared,surfaces,movement,scale,origin_x,origin_y,size)
+        return _render_planar_scene(canvas,prepared,surfaces,movement,scale,origin_x,origin_y,size,
+                                    progress=progress,options=options)
     texture_cache = _texture_cache(prepared)
     # A beveled solid joins several materials along the same projected edges.
     # Use one pixel-center coverage convention for the entire solid, including
@@ -568,9 +604,9 @@ def render_pose(prepared, options, angle, size=(720, 600), background="checker",
         uv = surface["uvs"]
         if len(vertices) != len(uv) or len(vertices) % 2 or len(vertices) < 6:
             raise ValueError('Mesh positions and UVs must contain matching XY pairs.')
-        points = [(origin_x + (vertices[i] * movement["scale_x"] + movement["x"]) * scale,
-                   origin_y - (vertices[i+1] * movement["scale_y"] + movement["y"]) * scale)
-                  for i in range(0, len(vertices), 2)]
+        world = transform_vertices_for_motion(vertices, movement, progress, options)
+        points = [(origin_x + world[i] * scale, origin_y - world[i+1] * scale)
+                  for i in range(0, len(world), 2)]
         triangles = _triangles(surface, len(points))
         if triangle_scene or not _affine_quad(points, uv, triangles):
             rendered = _triangle_patch(texture, points, uv, triangles, size, tint, texture_cache)

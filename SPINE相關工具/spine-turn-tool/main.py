@@ -35,10 +35,11 @@ from spine_turn_project import save_project as save_editable_project, load_proje
 
 BG, PANEL, CARD, TEXT, MUTED, ACCENT, LINE = (
     PALETTE[key] for key in ("BG", "PANEL", "CARD", "TEXT", "MUTED", "ACCENT", "LINE"))
-APP_VERSION = "1.12.0"
+APP_VERSION = "1.13.0"
 ANIMATIONS = {"整圈旋轉": "rotate_loop", "正面 → 背面": "flip_to_back", "背面 → 正面": "flip_to_front"}
 EDGE_DIRECTIONS = {"橫向長條": "horizontal", "直向長條": "vertical", "自動依長寬判斷": "auto"}
 MODELS = {"一般物件": "extrusion", "鑽石": "diamond"}
+SPIN_DIRECTIONS = {"順時針": "clockwise", "逆時針": "counterclockwise"}
 SHAPES = {"圓形／橢圓硬幣": "ellipse", "矩形卡片": "rectangle",
           "依透明外框／凸多邊形": "polygon", "不規則透明輪廓": "irregular"}
 SHAPE_ALIASES = {"矩形／卡片": "rectangle"}
@@ -104,6 +105,11 @@ class App(StudioActions):
         self.duration = tk.DoubleVar(value=2)
         self.segments = tk.IntVar(value=32)
         self.axis = tk.StringVar(value="左右翻轉 · Y 軸")
+        self.z_spin_enabled = tk.BooleanVar(value=False)
+        self.z_spin_direction = tk.StringVar(value="順時針")
+        self.z_spin_start = tk.DoubleVar(value=0)
+        self.z_spin_end = tk.DoubleVar(value=1)
+        self.z_spin_summary = tk.StringVar(value="關閉時保留原本的翻轉表演")
         self.shape = tk.StringVar(value="圓形／橢圓硬幣")
         self.outline_alpha_threshold = tk.StringVar(value="16")
         self.outline_tolerance = tk.DoubleVar(value=1)
@@ -173,8 +179,11 @@ class App(StudioActions):
                          self.bounce_start, self.bounce_apex, self.bounce_land, self.bounce_end,
                          self.z_bounce_start, self.z_bounce_apex, self.z_bounce_end,
                          self.shade_faces, self.min_brightness, self.shade_curve,
-                         self.light_angle, self.shade_edge):
+                         self.light_angle, self.shade_edge,
+                         self.z_spin_enabled, self.z_spin_direction, self.z_spin_start, self.z_spin_end):
             variable.trace_add("write", lambda *_: self.schedule_rebuild())
+        for variable in (self.z_spin_enabled, self.z_spin_direction, self.z_spin_start, self.z_spin_end, self.duration):
+            variable.trace_add("write", lambda *_: self.update_z_spin_display())
         self.animation.trace_add("write", lambda *_: self.change_animation())
         self.shape.trace_add("write", lambda *_: self.on_shape_change())
         self.spine_version.trace_add("write", lambda *_: self.update_target_display())
@@ -215,6 +224,7 @@ class App(StudioActions):
             kind = "ready"
         self._workspace.set_status_kind(kind)
         self._workspace.refresh_asset_states()
+        self.update_z_spin_display()
         if kind == "success":
             if text.startswith("編輯檔已儲存"):
                 message = "編輯檔已儲存"
@@ -253,6 +263,25 @@ class App(StudioActions):
             )[column])
         ttk.Combobox(common, textvariable=self.axis,
             values=["左右翻轉 · Y 軸", "上下翻轉 · X 軸"], state="readonly").pack(fill="x", pady=(0, 10))
+        spin = tk.Frame(common, bg=PANEL, highlightbackground=LINE, highlightthickness=1, padx=7, pady=6)
+        spin.pack(fill="x", pady=(0, 4))
+        self.z_spin_toggle = tk.Checkbutton(spin, text="同時平面旋轉一圈（Z 軸）", variable=self.z_spin_enabled,
+            bg=PANEL, fg=TEXT, selectcolor=CARD, activebackground=CARD, activeforeground=ACCENT,
+            highlightbackground=PANEL, highlightcolor=ACCENT, cursor="hand2", anchor="w",
+            font=("Microsoft JhengHei UI", 9))
+        self.z_spin_toggle.pack(fill="x")
+        attach_tooltip(self.z_spin_toggle, "保留原有的立體翻轉，再讓整個物件在畫面內轉 360°；可和 Y／Z 彈跳一起使用。")
+        spin_row = tk.Frame(spin, bg=PANEL)
+        spin_row.pack(fill="x", pady=(4, 3))
+        self.z_spin_direction_control = ttk.Combobox(spin_row, textvariable=self.z_spin_direction,
+            values=list(SPIN_DIRECTIONS), width=7, state="disabled")
+        self.z_spin_direction_control.pack(side="left", fill="x", expand=True)
+        self.z_spin_timing_button = self.button(spin_row, "時間…", self.z_spin_timing_dialog,
+            variant="ghost", padx=7, pady=4, font=("Microsoft JhengHei UI", 9))
+        self.z_spin_timing_button.pack(side="right", padx=(5, 0))
+        self.label(spin, textvariable=self.z_spin_summary, fg=MUTED, anchor="w",
+            font=("Microsoft JhengHei UI", 8)).pack(fill="x")
+        self.update_z_spin_display()
         basic = self.settings_page("外形")
         diamond = self.settings_page("鑽石")
         self.diamond_page = self.settings_tabs.tabs()[-1]
@@ -558,6 +587,19 @@ class App(StudioActions):
             coin_values["coin_shine_enabled"] = bool(self.coin_shine_enabled.get())
         if coin_values.get("coin_shine_start", base_options.coin_shine_start) >= coin_values.get("coin_shine_end", base_options.coin_shine_end):
             raise ValueError("掃光時間需為：開始 < 結束。")
+        spin_values = {}
+        if hasattr(self, "z_spin_enabled"):
+            spin_values["z_spin_enabled"] = bool(self.z_spin_enabled.get())
+        if hasattr(self, "z_spin_direction"):
+            direction = self.z_spin_direction.get()
+            if direction not in SPIN_DIRECTIONS:
+                raise ValueError("請選擇平面旋轉的順時針或逆時針方向。")
+            spin_values["z_spin_direction"] = SPIN_DIRECTIONS[direction]
+        for field, label in (("z_spin_start", "平面旋轉開始時間比例"), ("z_spin_end", "平面旋轉結束時間比例")):
+            if hasattr(self, field):
+                spin_values[field] = self.number(getattr(self, field), label, 0, 1)
+        if spin_values.get("z_spin_start", base_options.z_spin_start) >= spin_values.get("z_spin_end", base_options.z_spin_end):
+            raise ValueError("平面旋轉時間需為：開始 < 結束。")
         model = MODELS[self.model_choice.get()] if hasattr(self, "model_choice") else base_options.model
         shape = self.selected_shape()
         irregular = model == "extrusion" and shape == "irregular"
@@ -569,7 +611,7 @@ class App(StudioActions):
                              if hasattr(self, "outline_tolerance") else base_options.outline_tolerance)
         return replace(getattr(self, "extra_options", TurnOptions()),
                            name=name, thickness=thickness, duration=duration, segments=segments,
-                           model=model, **diamond_values, **coin_values,
+                           model=model, **diamond_values, **coin_values, **spin_values,
                            spine_version=self.selected_target_version(),
                            axis="x" if "X" in self.axis.get() else "y",
                            shape=shape, outline_alpha_threshold=int(outline_threshold),
@@ -697,6 +739,9 @@ class App(StudioActions):
             "name": options.name, "thickness": options.thickness, "duration": options.duration,
             "segments": options.segments, "spine_version": ".".join(options.spine_version.split(".")[:2]),
             "axis": "上下翻轉 · X 軸" if options.axis == "x" else "左右翻轉 · Y 軸",
+            "z_spin_enabled": options.z_spin_enabled,
+            "z_spin_direction": next(label for label, value in SPIN_DIRECTIONS.items() if value == options.z_spin_direction),
+            "z_spin_start": options.z_spin_start, "z_spin_end": options.z_spin_end,
             "shape": next(label for label, value in SHAPES.items() if value == options.shape),
             "outline_alpha_threshold": options.outline_alpha_threshold,
             "outline_tolerance": options.outline_tolerance,
@@ -838,6 +883,10 @@ class App(StudioActions):
     def load_demo(self, mode="y"):
         if self.busy:
             return
+        for field, value in (("z_spin_enabled", False), ("z_spin_direction", "順時針"), ("z_spin_start", 0), ("z_spin_end", 1)):
+            variable = getattr(self, field, None)
+            if variable is not None:
+                variable.set(value)
         self.raised_contour_points = ()
         self.region_summary.set("自動範圍 · 依斜面寬度決定")
         for kind in self.paths:
@@ -1212,11 +1261,80 @@ class App(StudioActions):
         self.slider.set(0)
         self.last_tick = time.perf_counter()
         self.update_timing_summary()
+        self.update_z_spin_display()
         self.draw()
 
     def clip_duration(self):
         duration = self.number(self.duration, "動畫時間", .2, 30)
         return duration if ANIMATIONS[self.animation.get()] == "rotate_loop" else duration/2
+
+    def update_z_spin_display(self):
+        if not hasattr(self, "z_spin_enabled"):
+            return
+        try:
+            enabled = bool(self.z_spin_enabled.get())
+            duration = self.clip_duration()
+            if enabled:
+                text = (f"{self.z_spin_start.get() * duration:.2f}–{self.z_spin_end.get() * duration:.2f} 秒"
+                        f"  ·  {self.z_spin_direction.get()} 360°")
+            else:
+                text = "關閉時保留原本的翻轉表演"
+        except (tk.TclError, ValueError, KeyError, TypeError):
+            enabled, text = False, "請先輸入有效的動畫時間"
+        if hasattr(self, "z_spin_summary") and self.z_spin_summary.get() != text:
+            self.z_spin_summary.set(text)
+        available = enabled and not getattr(self, "busy", False)
+        if control := getattr(self, "z_spin_direction_control", None):
+            control.configure(state="readonly" if available else "disabled")
+        if button := getattr(self, "z_spin_timing_button", None):
+            button.configure(state="normal" if available else "disabled")
+
+    def set_z_spin_times(self, start, end, duration):
+        start, end, duration = float(start), float(end), float(duration)
+        if not all(math.isfinite(value) for value in (start, end, duration)) or duration <= 0:
+            raise ValueError("平面旋轉時間必須是有效秒數。")
+        if not 0 <= start < end <= duration:
+            raise ValueError("平面旋轉時間需為：0 ≤ 開始 < 結束 ≤ 動畫長度。")
+        self.z_spin_start.set(start / duration)
+        self.z_spin_end.set(end / duration)
+        self.update_z_spin_display()
+
+    def z_spin_timing_dialog(self):
+        if self.busy:
+            return
+        try:
+            duration = self.clip_duration()
+        except (tk.TclError, ValueError) as exc:
+            messagebox.showerror("請先設定動畫時間", str(exc), parent=self.root)
+            return
+        dialog = tk.Toplevel(self.root)
+        dialog.title("平面旋轉時間 · 畫面內轉一圈")
+        dialog.configure(bg=PANEL, padx=20, pady=18)
+        dialog.transient(self.root)
+        dialog.resizable(False, False)
+        self.place_dialog(dialog, 500, 350)
+        dialog.grab_set()
+        self.label(dialog, f"{self.animation.get()} · 動畫長度 {duration:g} 秒").pack(anchor="w", pady=(0, 14))
+        starts = tk.DoubleVar(dialog, value=round(self.z_spin_start.get() * duration, 5))
+        ends = tk.DoubleVar(dialog, value=round(self.z_spin_end.get() * duration, 5))
+        self.field(dialog, "開始平面旋轉（秒）", ttk.Spinbox(dialog, from_=0, to=duration,
+            increment=.05, textvariable=starts))
+        self.field(dialog, "完成一圈（秒）", ttk.Spinbox(dialog, from_=0, to=duration,
+            increment=.05, textvariable=ends))
+        self.hint(dialog, "在指定時間內於畫面中轉滿 360°，可與原有翻轉、Y／Z 彈跳及縮放疊加。修改動畫長度或切換半圈時，起訖時間依比例調整。")
+        def apply():
+            try:
+                self.set_z_spin_times(self.number(starts, "開始旋轉", 0, duration),
+                    self.number(ends, "完成一圈", 0, duration), duration)
+                self.change_animation()
+                self.rebuild()
+                dialog.destroy()
+            except (tk.TclError, ValueError) as exc:
+                messagebox.showerror("請檢查平面旋轉時間", str(exc), parent=dialog)
+        buttons = tk.Frame(dialog, bg=PANEL)
+        buttons.pack(fill="x", pady=(14, 0))
+        self.button(buttons, "套用時間", apply, primary=True).pack(side="left", fill="x", expand=True, padx=(0, 6))
+        self.button(buttons, "取消", dialog.destroy).pack(side="left", fill="x", expand=True)
 
     def update_timing_summary(self):
         try:

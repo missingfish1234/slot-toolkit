@@ -1,8 +1,10 @@
-# Spine Turn Studio v1.12｜圖片翻轉製作器
+# Spine Turn Studio v1.13｜圖片翻轉製作器
+
+**1.13.0 新增平面旋轉一圈（Z 軸）**：右側常用設定勾選後，整個物件會在畫面內轉滿 360°，並保留原有的立體翻轉、獨立 Y／Z 彈跳及縮放。支援順／逆時針、獨立起訖時間、編輯檔保存、三版 Spine 匯出及透明 PNG 序列。
 
 **1.12.0** 採用深色青綠工作區、分層素材卡與設定欄。按鈕具備滑入、按下、鍵盤焦點與選取回饋；滑鼠停留可顯示操作說明。儲存、開啟、素材操作與錯誤會在預覽角落提示，下方保留完整訊息。清除正面後重新放入圖片，可正常恢復預覽；Windows 數字鎖定不再影響播放與 F8 快捷鍵。
 
-工具包管理器現可直接下載 **1.12.0 Windows 64 位元免安裝版**，不必另裝 Python；也可至 [GitHub 發行頁](https://github.com/missingfish1234/slot-toolkit/releases/tag/spine-turn-studio-v1.12.0) 下載 `tool-spine-turn-tool-1.12.0-win64.zip`，完整解壓縮後執行最外層的 `啟動圖片翻轉工具.bat`。Git 倉庫本身提供原始碼，原始碼啟動另需 Python 3.12。詳見 [使用指南](使用指南.md)。
+工具包管理器現可直接下載 **1.13.0 Windows 64 位元免安裝版**，不必另裝 Python；也可至 [GitHub 發行頁](https://github.com/missingfish1234/slot-toolkit/releases/tag/spine-turn-studio-v1.13.0) 下載 `tool-spine-turn-tool-1.13.0-win64.zip`，完整解壓縮後執行最外層的 `啟動圖片翻轉工具.bat`。Git 倉庫本身提供原始碼，原始碼啟動另需 Python 3.12。詳見 [使用指南](使用指南.md)。
 
 用單張透明圖片製作 **Spine 3.8／4.0／4.2 可編輯的鑽石、石塊、硬幣與不規則厚片翻轉動畫**。v1.10 新增「不規則透明輪廓」，沿圖片的凹口、凸瓣與真正透明的孔建立厚度側壁。支援正反面掃光、鑽石切線對齊、圈選凸起、Y／Z 彈跳、明暗及透明 PNG 序列。可將原圖和設定儲存成可重新開啟的 `.spturn` 編輯檔。所有圖片均在本機處理。
 
@@ -10,7 +12,7 @@
 
 若使用完整原始碼資料夾，雙擊 `啟動圖片翻轉工具.bat` 會以此資料夾的 `main.py` 啟動。執行環境位於 `.build/venv`，第一次使用會準備所需套件；也可手動執行 `準備執行環境.bat`。啟動失敗會停止並留下 `.build/launch.log`，不會改用其他位置的舊程式。
 
-解壓縮 `SpineTurnStudio-1.12.0-win64.zip` 後，開啟 `SpineTurnStudio` 資料夾並雙擊 `SpineTurnStudio.exe`。若使用原始碼專案，v1.12 免安裝版位於 `dist/v1.12/SpineTurnStudio/`。請保留整個資料夾；只複製 EXE 會缺少必要檔案。此版本已包含 Python、Pillow、NumPy、Tk 與圖片拖放元件。
+解壓縮 `SpineTurnStudio-1.13.0-win64.zip` 後，開啟 `SpineTurnStudio` 資料夾並雙擊 `SpineTurnStudio.exe`。若使用原始碼專案，v1.13 免安裝版位於 `dist/v1.13/SpineTurnStudio/`。請保留整個資料夾；只複製 EXE 會缺少必要檔案。此版本已包含 Python、Pillow、NumPy、Tk 與圖片拖放元件。
 
 v1.11 重新整理工作區：素材改為上方三張卡，可分別替換、清除及互換正反面；厚度、時間、輸出大小和旋轉方向固定在右上方。右側設定依目前模式顯示，凸起與斜面可展開；匯出固定在底部。收合素材、拖曳右側分隔線，或按 F8「專注預覽」可放大檢查畫面。舊編輯檔和既有動畫設定可繼續使用。
 

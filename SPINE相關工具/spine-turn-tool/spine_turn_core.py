@@ -103,6 +103,10 @@ class TurnOptions:
     irregular_contours: tuple = ()
     outline_alpha_threshold: int = 16
     outline_tolerance: float = 1.0
+    z_spin_enabled: bool = False
+    z_spin_direction: str = "clockwise"
+    z_spin_start: float = 0.0
+    z_spin_end: float = 1.0
 
 
 def _options(options: TurnOptions | dict | None) -> TurnOptions:
@@ -110,6 +114,20 @@ def _options(options: TurnOptions | dict | None) -> TurnOptions:
     if not isinstance(opts, TurnOptions):
         raise TypeError("options must be TurnOptions or dict")
     target_version = normalize_spine_version(opts.spine_version)
+    if not isinstance(opts.z_spin_enabled, bool):
+        raise ValueError("畫面內旋轉的啟用設定必須是開關值。")
+    spin_direction = str(opts.z_spin_direction).lower()
+    if spin_direction not in ("clockwise", "counterclockwise"):
+        raise ValueError("畫面內旋轉方向需為 clockwise 或 counterclockwise。")
+    if any(isinstance(getattr(opts, name), bool) for name in ("z_spin_start", "z_spin_end")):
+        raise ValueError("畫面內旋轉時間需為有效數值。")
+    try:
+        spin_start, spin_end = float(opts.z_spin_start), float(opts.z_spin_end)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError("畫面內旋轉時間需為有效數值。") from None
+    if not (math.isfinite(spin_start) and math.isfinite(spin_end) and
+            0 <= spin_start < spin_end <= 1):
+        raise ValueError("畫面內旋轉開始時間需早於結束時間，並位於動畫範圍內。")
     model = str(opts.model).lower()
     if model not in ("extrusion", "diamond"):
         raise ValueError("模型需為厚片或鑽石模式。")
@@ -272,7 +290,9 @@ def _options(options: TurnOptions | dict | None) -> TurnOptions:
                    diamond_ring_phase=((opts.diamond_ring_phase + 180) % 360 - 180),
                    coin_shine_angle=((opts.coin_shine_angle + 180) % 360 - 180),
                    coin_shine_repeat=int(opts.coin_shine_repeat), irregular_contours=irregular,
-                   outline_alpha_threshold=int(opts.outline_alpha_threshold), **uv_points)
+                   outline_alpha_threshold=int(opts.outline_alpha_threshold),
+                   z_spin_direction=spin_direction, z_spin_start=spin_start, z_spin_end=spin_end,
+                   **uv_points)
 
 
 def normalize_options(options: TurnOptions | dict | None = None) -> TurnOptions:
@@ -806,10 +826,106 @@ def timeline_motion_at(progress: float, options: TurnOptions | dict | None = Non
     return motion_at(progress, options, height)
 
 
+def _z_spin_angle_resolved(progress: float, opts: TurnOptions) -> float:
+    progress = float(progress)
+    if not math.isfinite(progress):
+        raise ValueError("progress must be finite")
+    if not opts.z_spin_enabled:
+        return 0.0
+    fraction = min(1.0, max(0.0, (progress - opts.z_spin_start) /
+                                  (opts.z_spin_end - opts.z_spin_start)))
+    return fraction * (-360.0 if opts.z_spin_direction == "clockwise" else 360.0)
+
+
+def z_spin_angle(progress: float, options: TurnOptions | dict | None = None) -> float:
+    """Additional local screen-plane turn in Spine's counterclockwise degrees."""
+    return _z_spin_angle_resolved(progress, _options(options))
+
+
+def z_spin_key_progress(options: TurnOptions | dict | None = None) -> tuple[float, ...]:
+    """Quarter turns plus clip/window boundaries; an empty tuple when disabled."""
+    opts = _options(options)
+    if not opts.z_spin_enabled:
+        return ()
+    span = opts.z_spin_end - opts.z_spin_start
+    return tuple(sorted({0.0, 1.0, *(opts.z_spin_start + span * index / 4 for index in range(5))}))
+
+
+def transform_vertices_for_motion(vertices: list[float], movement: dict[str, float],
+                                  progress: float, options: TurnOptions | dict | None = None) -> list[float]:
+    """Apply object-local Z rotation before the existing parent scale/translation.
+
+    Repeated surface callers pass already-resolved TurnOptions, avoiding a full
+    contour/settings validation for every mesh. The disabled arithmetic is the
+    same order used by the original preview and PNG camera fitter.
+    """
+    opts = options if isinstance(options, TurnOptions) else _options(options)
+    if len(vertices) % 2:
+        raise ValueError("Mesh positions must contain matching XY pairs.")
+    sx, sy, tx, ty = (movement[name] for name in ("scale_x", "scale_y", "x", "y"))
+    if not opts.z_spin_enabled:
+        return [value for index in range(0, len(vertices), 2)
+                for value in (vertices[index] * sx + tx, vertices[index + 1] * sy + ty)]
+    # The endpoint is physically the initial orientation. Reducing before trig
+    # avoids a tiny sine residue changing coverage on a loop's boundary pixels.
+    angle = math.radians(_z_spin_angle_resolved(progress, opts) % 360.0)
+    sine, cosine = math.sin(angle), math.cos(angle)
+    return [value for index in range(0, len(vertices), 2)
+            for value in ((vertices[index] * cosine - vertices[index + 1] * sine) * sx + tx,
+                          (vertices[index] * sine + vertices[index + 1] * cosine) * sy + ty)]
+
+
+def z_spin_bounds(options: TurnOptions | dict | None, width: float, height: float) -> dict[str, float]:
+    """Conservative all-angle world bounds, including sparse motion-curve handles.
+
+    Orthographic turn/tilt cannot exceed a model's 3D radius. Rotation preserves
+    that radius, and linear deform interpolation lies inside endpoint bounds.
+    Bezier values stay in their control-point hull, so this also covers motion
+    between authored keys without sampling or rotating the bounce trajectory.
+    """
+    opts = _options(options)
+    depth = opts.thickness * opts.z_scale * (max(1.0, opts.peak_z_scale) if opts.z_bounce_enabled else 1.0)
+    if opts.model == "diamond":
+        from spine_turn_diamond import diamond_geometry
+        center = opts.diamond_center_x * width
+        scale = opts.z_scale * (max(1.0, opts.peak_z_scale) if opts.z_bounce_enabled else 1.0)
+        radius = abs(center) + max(math.sqrt((x - center) ** 2 + y ** 2 + (z * scale) ** 2)
+            for spec in diamond_geometry(opts, width, height) for x, y, z in spec["model"])
+        if opts.diamond_sparkles_enabled:
+            radius += math.sqrt(2.0) * min(width, height) * .075
+    else:
+        radius = math.sqrt(width ** 2 + height ** 2 + depth ** 2) / 2
+
+    def interval(frames):
+        values = [frame["value"] for frame in frames]
+        values.extend(value for frame in frames if "curve" in frame
+                      for value in (frame["curve"][1], frame["curve"][3]))
+        return min(values), max(values)
+
+    tracks = _motion_tracks(opts, height)
+    projection = max(abs(value) for value in interval(_projection_track(opts)))
+    rx = radius * max(abs(value) for value in interval(tracks["scalex"])) * projection
+    ry = radius * max(abs(value) for value in interval(tracks["scaley"])) * projection
+    lower, upper = interval(tracks["translatey"])
+    return {"left": -rx, "right": rx, "bottom": lower - ry, "top": upper + ry,
+            "local_radius": radius}
+
+
+def _export_z_spin(duration: float, opts: TurnOptions) -> dict:
+    keys = z_spin_key_progress(opts)
+    if not keys:
+        return {}
+    frames = [{"time": round(progress * duration, 7),
+               "value": round(_z_spin_angle_resolved(progress, opts), 7)} for progress in keys]
+    if any(first["time"] >= second["time"] for first, second in zip(frames, frames[1:])):
+        raise ValueError("畫面內旋轉時間過短，無法在目前動畫長度內保留完整旋轉關鍵格。")
+    return {"spin": {"rotate": frames}}
+
+
 def _export_motion(duration: float, opts: TurnOptions, height: float) -> dict:
     if (not opts.bounce_enabled and opts.base_scale == 1 and
             not opts.z_bounce_enabled and opts.z_offset == 0):
-        return {}
+        return _export_z_spin(duration, opts) if opts.z_spin_enabled else {}
     bone_tracks = {"turn": _motion_tracks(opts, height)}
     if opts.z_bounce_enabled or opts.z_offset != 0:
         projection = _projection_track(opts)
@@ -827,6 +943,8 @@ def _export_motion(duration: float, opts: TurnOptions, height: float) -> dict:
                     cx1, cy1, cx2, cy2 = frame["curve"]
                     frame["curve"] = [round(cx1 * duration, 7), round(cy1, 7),
                                       round(cx2 * duration, 7), round(cy2, 7)]
+    if opts.z_spin_enabled:
+        bone_tracks.update(_export_z_spin(duration, opts))
     return bone_tracks
 
 
@@ -1727,7 +1845,8 @@ def _build_canonical_skeleton(images: dict[str, Any], options: TurnOptions | dic
     slots, attachments = [], {}
     for mesh in setup_pose:
         name = mesh["name"]
-        slot = {"name": name, "bone": "depth" if z_active else "turn", "color": mesh["color"]}
+        slot = {"name": name, "bone": ("spin" if opts.z_spin_enabled else "depth" if z_active else "turn"),
+                "color": mesh["color"]}
         if mesh["visible"] and mesh["kind"] != "edge":
             slot["attachment"] = name
         slots.append(slot)
@@ -1785,6 +1904,8 @@ def _build_canonical_skeleton(images: dict[str, Any], options: TurnOptions | dic
     bones = [{"name": "root"}, {"name": "turn", "parent": "root"}]
     if z_active:
         bones.append({"name": "depth", "parent": "turn"})
+    if opts.z_spin_enabled:
+        bones.append({"name": "spin", "parent": "depth" if z_active else "turn"})
     if opts.model == "diamond":
         from spine_turn_diamond import diamond_geometry
         center = opts.diamond_center_x * width
@@ -1804,6 +1925,9 @@ def _build_canonical_skeleton(images: dict[str, Any], options: TurnOptions | dic
         minimum_x = -(abs(center) + radius + margin) * ranges["scalex"][1] * projection
         minimum_y = ranges["translatey"][0] - (radius + margin) * ranges["scaley"][1] * projection
         maximum_y = ranges["translatey"][1] + (radius + margin) * ranges["scaley"][1] * projection
+    if opts.z_spin_enabled:
+        bounds = z_spin_bounds(opts, width, height)
+        minimum_x, minimum_y, maximum_y = bounds["left"], bounds["bottom"], bounds["top"]
     return {
         "skeleton": {"spine": SPINE_VERSION, "x": minimum_x,
                      "y": minimum_y,
@@ -1824,7 +1948,7 @@ def build_skeleton(images: dict[str, Any], options: TurnOptions | dict | None = 
     """Build the real selected-family schema from the stable 4.0 authoring model."""
     opts = _options(options)
     canonical = _build_canonical_skeleton(images, opts)
-    if (opts.model == "diamond" or coin_shine_active(opts)) and spine_family(opts.spine_version) == "4.0":
+    if (opts.model == "diamond" or coin_shine_active(opts) or opts.z_spin_enabled) and spine_family(opts.spine_version) == "4.0":
         # Tightly sampled effect timelines can amplify even a single Float32
         # frame/time ULP. Power-of-two FPS avoids that rounding
         # round-trip while still rejecting the editor's near-frame snap zone.
@@ -1905,7 +2029,7 @@ def build_package(front_path: str | Path, back_path: str | Path | None,
         "canonical_authoring_version": SPINE_VERSION,
         "authoring_fps": skeleton["skeleton"].get("fps", 30),
         "authoring_fps_policy": (f"Native-safe {spine_family(opts.spine_version)} frame labels selected without changing any key time, duration, curve or geometry"
-                                 if opts.model == "diamond" or coin_shine_active(opts) or spine_family(opts.spine_version) in ("3.8", "4.2")
+                                 if opts.model == "diamond" or coin_shine_active(opts) or opts.z_spin_enabled or spine_family(opts.spine_version) in ("3.8", "4.2")
                                  else "Canonical authoring FPS retained"),
         "format_conversion": {"3.8": "Combined XY timelines, color timelines and normalized numeric Bezier controls; legacy-compatible atlas header",
                               "4.0": "Canonical native schema; no conversion",

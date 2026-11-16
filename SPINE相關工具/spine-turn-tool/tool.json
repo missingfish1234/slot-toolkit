@@ -3,7 +3,7 @@
   "name": "Spine 圖片翻轉製作器",
   "category": "SPINE相關工具",
   "description": "將 PNG 正反面與側邊材質製作成可編輯的 Spine 翻轉動畫或透明 PNG 序列。工具包下載為 Windows 免安裝版，已包含執行環境；Git 原始碼另需 Python 3.12。",
-  "version": "1.12.0",
+  "version": "1.13.0",
   "path": "SPINE相關工具/spine-turn-tool",
   "entry": "啟動圖片翻轉工具.bat",
   "documentation": "使用指南.md",
@@ -15,11 +15,11 @@
     "PNG序列",
     "動畫"
   ],
-  "updatedAt": "2026-11-14",
+  "updatedAt": "2026-11-16",
   "changelog": [
-    "美化深色工作區、素材卡與設定欄，加入滑入、按下、鍵盤焦點及選取回饋。",
-    "新增操作說明、預覽角落通知及完成／錯誤狀態，清除素材後可正常恢復預覽。",
-    "修正 Windows 開啟數字鎖定時，播放與 F8 快捷鍵無反應的問題。"
+    "新增畫面內 Z 軸完整旋轉，可與原有翻轉、Y／Z 彈跳及縮放同時播放。",
+    "支援順／逆時針與獨立起訖時間，設定會保存至編輯檔並輸出至三版 Spine 與 PNG 序列。",
+    "附可直接開啟的平面旋轉公開範例；舊編輯檔與關閉狀態保留原本表演。"
   ],
   "preservePaths": [
     "output",
@@ -32,7 +32,7 @@
     "SpineTurnStudio/user-data",
     "SpineTurnStudio/presets"
   ],
-  "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/spine-turn-studio-v1.12.0/tool-spine-turn-tool-1.12.0-win64.zip",
-  "sha256": "ec627ce238eda2e335bacadf140ad328b9119f2e51f446b59ba4b519a12fa78f",
-  "size": "52.6 MB（下載）"
+  "downloadUrl": "https://github.com/missingfish1234/slot-toolkit/releases/download/spine-turn-studio-v1.13.0/tool-spine-turn-tool-1.13.0-win64.zip",
+  "sha256": "639f5cf0bd8bb6d9f5b22c8a4af0946c3438e25e4b3fcef86f26da729f745295",
+  "size": "52.7 MB（下載）"
 }
