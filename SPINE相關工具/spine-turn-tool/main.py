@@ -12,7 +12,7 @@ import threading
 import time
 from types import SimpleNamespace
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, simpledialog
 
 APP_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 sys.path.insert(0, str(APP_DIR / "vendor"))
@@ -24,6 +24,9 @@ except ImportError:
     Root = tk.Tk
     DND_FILES = None
 from spine_turn_core import TurnOptions, SPINE_TARGETS, normalize_options, prepare_images, build_package, resolve_options
+from spine_turn_coin_fx import coin_shine_active
+from spine_turn_core import (ANIMATION_FIELDS, LOOP_CLIPS, MAX_ANIMATIONS, animation_effective_options, animation_overrides,
+                             clip_angle_at, validate_animation_name)
 from spine_turn_preview import render_pose
 from spine_turn_preview_worker import LatestPreviewWorker
 from spine_turn_ui import StudioWorkspace
@@ -35,8 +38,14 @@ from spine_turn_project import save_project as save_editable_project, load_proje
 
 BG, PANEL, CARD, TEXT, MUTED, ACCENT, LINE = (
     PALETTE[key] for key in ("BG", "PANEL", "CARD", "TEXT", "MUTED", "ACCENT", "LINE"))
-APP_VERSION = "1.13.0"
-ANIMATIONS = {"整圈旋轉": "rotate_loop", "正面 → 背面": "flip_to_back", "背面 → 正面": "flip_to_front"}
+APP_VERSION = "1.14.0"
+ANIMATIONS = {"整圈旋轉": "rotate_loop", "整圈旋轉（反轉）": "rotate_loop_reverse",
+              "正面 → 背面": "flip_to_back", "正面 → 背面（反轉）": "flip_to_back_reverse",
+              "背面 → 正面": "flip_to_front", "背面 → 正面（反轉）": "flip_to_front_reverse",
+              "來回搖擺": "swing_loop"}
+ANIMATION_LABELS = {value: label for label, value in ANIMATIONS.items()}
+LOOP_ANIMATIONS = LOOP_CLIPS
+ALL_ANIMATIONS_CHOICE = "全部動畫"
 EDGE_DIRECTIONS = {"橫向長條": "horizontal", "直向長條": "vertical", "自動依長寬判斷": "auto"}
 MODELS = {"一般物件": "extrusion", "鑽石": "diamond"}
 SPIN_DIRECTIONS = {"順時針": "clockwise", "逆時針": "counterclockwise"}
@@ -110,6 +119,13 @@ class App(StudioActions):
         self.z_spin_start = tk.DoubleVar(value=0)
         self.z_spin_end = tk.DoubleVar(value=1)
         self.z_spin_summary = tk.StringVar(value="關閉時保留原本的翻轉表演")
+        self.swing_angle = tk.DoubleVar(value=30)
+        # The animation set: each record holds a name, an action and its own
+        # motion settings. The record being edited lives in the controls.
+        self.current_animation = tk.StringVar(value="rotate_loop")
+        self.animation_entries = [{"name": "rotate_loop", "action": "rotate_loop", "options": None}]
+        self._animation_index = 0
+        self._switching_animation = False
         self.shape = tk.StringVar(value="圓形／橢圓硬幣")
         self.outline_alpha_threshold = tk.StringVar(value="16")
         self.outline_tolerance = tk.DoubleVar(value=1)
@@ -180,8 +196,10 @@ class App(StudioActions):
                          self.z_bounce_start, self.z_bounce_apex, self.z_bounce_end,
                          self.shade_faces, self.min_brightness, self.shade_curve,
                          self.light_angle, self.shade_edge,
-                         self.z_spin_enabled, self.z_spin_direction, self.z_spin_start, self.z_spin_end):
+                         self.z_spin_enabled, self.z_spin_direction, self.z_spin_start, self.z_spin_end,
+                         self.swing_angle):
             variable.trace_add("write", lambda *_: self.schedule_rebuild())
+        self.current_animation.trace_add("write", lambda *_: self.on_animation_choice())
         for variable in (self.z_spin_enabled, self.z_spin_direction, self.z_spin_start, self.z_spin_end, self.duration):
             variable.trace_add("write", lambda *_: self.update_z_spin_display())
         self.animation.trace_add("write", lambda *_: self.change_animation())
@@ -282,8 +300,19 @@ class App(StudioActions):
         self.label(spin, textvariable=self.z_spin_summary, fg=MUTED, anchor="w",
             font=("Microsoft JhengHei UI", 8)).pack(fill="x")
         self.update_z_spin_display()
+        swing = tk.Frame(common, bg=PANEL, highlightbackground=LINE, highlightthickness=1, padx=7, pady=4)
+        swing.pack(fill="x", pady=(0, 4))
+        self.label(swing, "來回搖擺擺幅", fg=MUTED, font=("Microsoft JhengHei UI", 9)).pack(side="left")
+        self.label(swing, "°", fg=MUTED, font=("Microsoft JhengHei UI", 9)).pack(side="right")
+        self.swing_angle_control = ttk.Spinbox(swing, from_=1, to=180, increment=1,
+                                               textvariable=self.swing_angle, width=5, state="disabled")
+        self.swing_angle_control.pack(side="right", padx=(4, 2))
+        attach_tooltip(self.swing_angle_control, "動作選「來回搖擺」時使用：往單側擺動的最大角度（1–180°）。"
+                                                 "一個循環：擺向一側 → 回正 → 擺向另一側 → 回正，時間與「一圈 秒」相同。")
         basic = self.settings_page("外形")
+        self.hint(basic, "此分頁與厚度為所有動畫共用；其他設定各動畫獨立。")
         diamond = self.settings_page("鑽石")
+        self.hint(diamond, "鑽石設定為所有動畫共用。")
         self.diamond_page = self.settings_tabs.tabs()[-1]
         self.basic_page = self.settings_tabs.tabs()[0]
         motion = self.settings_page("彈跳")
@@ -600,6 +629,10 @@ class App(StudioActions):
                 spin_values[field] = self.number(getattr(self, field), label, 0, 1)
         if spin_values.get("z_spin_start", base_options.z_spin_start) >= spin_values.get("z_spin_end", base_options.z_spin_end):
             raise ValueError("平面旋轉時間需為：開始 < 結束。")
+        # The action of each animation decides its clip; these two only apply to old option sets.
+        swing_values = {"export_animations": (), "swing_enabled": False}
+        if hasattr(self, "swing_angle"):
+            swing_values["swing_angle"] = self.number(self.swing_angle, "來回搖擺擺幅（度）", 1, 180)
         model = MODELS[self.model_choice.get()] if hasattr(self, "model_choice") else base_options.model
         shape = self.selected_shape()
         irregular = model == "extrusion" and shape == "irregular"
@@ -611,7 +644,7 @@ class App(StudioActions):
                              if hasattr(self, "outline_tolerance") else base_options.outline_tolerance)
         return replace(getattr(self, "extra_options", TurnOptions()),
                            name=name, thickness=thickness, duration=duration, segments=segments,
-                           model=model, **diamond_values, **coin_values, **spin_values,
+                           model=model, **diamond_values, **coin_values, **spin_values, **swing_values,
                            spine_version=self.selected_target_version(),
                            axis="x" if "X" in self.axis.get() else "y",
                            shape=shape, outline_alpha_threshold=int(outline_threshold),
@@ -660,7 +693,15 @@ class App(StudioActions):
 
     def project_ui_state(self):
         state = dict(self._loaded_project.ui_state) if self._loaded_project is not None else {}
-        state.update({"animation": ANIMATIONS[self.animation.get()], "background": self.background.get(),
+        state.pop("current_animation", None)
+        action = ANIMATIONS[self.animation.get()]
+        entries = getattr(self, "animation_entries", [])
+        index = getattr(self, "_animation_index", 0)
+        # The name is only needed when the action alone would open another animation.
+        if entries and next((position for position, entry in enumerate(entries)
+                             if entry["action"] == action), None) != index:
+            state["current_animation"] = entries[index]["name"]
+        state.update({"animation": action, "background": self.background.get(),
                 "preview_zoom": self.number(self.preview_zoom, "預覽縮放", 25, 250),
                 "show_ground": bool(self.show_ground.get()), "native_export": bool(self.native_export.get()),
                 "progress": self.progress, "playing": bool(self.playing)})
@@ -689,7 +730,7 @@ class App(StudioActions):
                     initialfile=previous.name if previous else f"{options.name}.spturn")
             if not path:
                 return
-            save_editable_project(path, self.paths, options, ui_state)
+            save_editable_project(path, self.paths, options, ui_state, self.animation_set())
             self.project_path = str(Path(path).resolve())
             self.update_project_title()
             self.status.set(f"編輯檔已儲存（包含素材、範圍與動畫設定）：{self.project_path}")
@@ -719,8 +760,26 @@ class App(StudioActions):
             messagebox.showerror("無法開啟編輯檔", str(exc), parent=self.root)
 
     def apply_loaded_project(self, loaded, path):
-        options, ui = normalize_options(loaded.options), loaded.ui_state
+        shared, ui = normalize_options(loaded.options), loaded.ui_state
+        entries = [dict(record, options=dict(record["options"])) for record in loaded.animations]
+        names = [entry["name"] for entry in entries]
+        index = (names.index(ui["current_animation"]) if ui.get("current_animation") in names else
+                 next((position for position, entry in enumerate(entries)
+                       if entry["action"] == ui.get("animation")), 0))
+        options = normalize_options(animation_effective_options(shared, entries[index]["options"]))
         values = {
+            **self.option_values(options),
+            "animation": ANIMATION_LABELS[entries[index]["action"]],
+            "current_animation": entries[index]["name"],
+            "background": ui.get("background", "checker"), "preview_zoom": ui.get("preview_zoom", 100),
+            "show_ground": ui.get("show_ground", True), "native_export": ui.get("native_export", bool(self.native))}
+        self.validate_project_controls(values, options)
+        self._apply_loaded_values(loaded, path, options, ui, values, entries, index)
+
+    @staticmethod
+    def option_values(options):
+        """Control values that show an option set."""
+        return {
             "model_choice": next(key for key, value in MODELS.items() if value == options.model),
             "diamond_facets": options.diamond_facets, "diamond_view_tilt": options.diamond_view_tilt,
             "diamond_girdle_height": options.diamond_girdle_height * 100,
@@ -742,6 +801,7 @@ class App(StudioActions):
             "z_spin_enabled": options.z_spin_enabled,
             "z_spin_direction": next(label for label, value in SPIN_DIRECTIONS.items() if value == options.z_spin_direction),
             "z_spin_start": options.z_spin_start, "z_spin_end": options.z_spin_end,
+            "swing_angle": options.swing_angle,
             "shape": next(label for label, value in SHAPES.items() if value == options.shape),
             "outline_alpha_threshold": options.outline_alpha_threshold,
             "outline_tolerance": options.outline_tolerance,
@@ -758,11 +818,9 @@ class App(StudioActions):
             "z_bounce_start": options.z_bounce_start, "z_bounce_apex": options.z_bounce_apex,
             "z_bounce_end": options.z_bounce_end, "shade_faces": options.shade_faces,
             "min_brightness": options.min_brightness * 100, "shade_curve": options.shade_curve,
-            "light_angle": options.light_angle, "shade_edge": options.shade_edge,
-            "animation": next(key for key, value in ANIMATIONS.items() if value == ui.get("animation", "rotate_loop")),
-            "background": ui.get("background", "checker"), "preview_zoom": ui.get("preview_zoom", 100),
-            "show_ground": ui.get("show_ground", True), "native_export": ui.get("native_export", bool(self.native))}
-        self.validate_project_controls(values, options)
+            "light_angle": options.light_angle, "shade_edge": options.shade_edge}
+
+    def _apply_loaded_values(self, loaded, path, options, ui, values, entries, index):
         previous = self._loaded_project
         self._loading_project = True
         if self._rebuild_job:
@@ -777,8 +835,13 @@ class App(StudioActions):
                     self.clear_image(kind)
             self.extra_options = options
             self.diamond_guides = {key: getattr(options, key) for key in DIAMOND_GUIDE_FIELDS}
-            for name, value in values.items():
-                getattr(self, name).set(value)
+            self.animation_entries, self._animation_index = entries, index
+            self._switching_animation = True
+            try:
+                for name, value in values.items():
+                    getattr(self, name).set(value)
+            finally:
+                self._switching_animation = False
             self.raised_contour_points = tuple(tuple(point) for point in options.raised_contour_points)
             self.region_summary.set(f"手動畫線 · {len(self.raised_contour_points)} 點 · 自動寬度暫停使用"
                                     if self.raised_contour_points else "自動範圍 · 依斜面寬度決定")
@@ -790,6 +853,8 @@ class App(StudioActions):
         self.update_model_controls(select=True)
         self.update_diamond_summary()
         self.update_target_display()
+        self.refresh_animation_choices()
+        self.update_swing_control()
         self.rebuild()
         self.progress = float(ui.get("progress", 0))
         self.playing = bool(ui.get("playing", False))
@@ -883,10 +948,12 @@ class App(StudioActions):
     def load_demo(self, mode="y"):
         if self.busy:
             return
-        for field, value in (("z_spin_enabled", False), ("z_spin_direction", "順時針"), ("z_spin_start", 0), ("z_spin_end", 1)):
+        for field, value in (("z_spin_enabled", False), ("z_spin_direction", "順時針"), ("z_spin_start", 0), ("z_spin_end", 1),
+                             ("swing_angle", 30)):
             variable = getattr(self, field, None)
             if variable is not None:
                 variable.set(value)
+        self.reset_animation_set()
         self.raised_contour_points = ()
         self.region_summary.set("自動範圍 · 依斜面寬度決定")
         for kind in self.paths:
@@ -1246,13 +1313,183 @@ class App(StudioActions):
 
     def angle_at_progress(self):
         action = ANIMATIONS[self.animation.get()]
-        if action == "flip_to_back":
-            return self.progress * 180
-        if action == "flip_to_front":
-            return 180 + self.progress * 180
-        return self.progress * 360
+        if action == "swing_loop":
+            # Signed lean: one side, back to rest, the other side, back to rest.
+            return self.swing_amplitude() * math.sin(2 * math.pi * self.progress)
+        return clip_angle_at(self.progress, action)
+
+    def swing_amplitude(self):
+        try:
+            return float(self.options.swing_angle)
+        except (AttributeError, TypeError, ValueError):
+            pass
+        try:
+            return float(self.swing_angle.get())
+        except (AttributeError, tk.TclError, TypeError, ValueError):
+            return TurnOptions().swing_angle
+
+    # ----- animation set -------------------------------------------------
+    def reset_animation_set(self):
+        """A single animation, edited by the current controls (new work and examples)."""
+        self.animation_entries = [{"name": "rotate_loop", "action": "rotate_loop", "options": None}]
+        self._animation_index = 0
+        if hasattr(self, "animation"):
+            self.animation.set(ANIMATION_LABELS["rotate_loop"])
+        self.refresh_animation_choices()
+
+    def refresh_animation_choices(self):
+        names = [entry["name"] for entry in self.animation_entries]
+        if control := getattr(self, "animation_choice_control", None):
+            control.configure(values=names)
+        if button := getattr(self, "delete_animation_button", None):
+            button.configure(state="normal" if len(names) > 1 else "disabled")
+        if self.current_animation.get() != names[self._animation_index]:
+            self._switching_animation = True
+            try:
+                self.current_animation.set(names[self._animation_index])
+            finally:
+                self._switching_animation = False
+
+    def sync_current_animation(self):
+        """Store the controls into the animation being edited; returns its options."""
+        options = self.get_options()
+        entry = self.animation_entries[self._animation_index]
+        entry["options"] = animation_overrides(options)
+        entry["action"] = ANIMATIONS[self.animation.get()]
+        return options
+
+    def animation_set(self):
+        """Every animation with its own settings, ready to save or export."""
+        self.sync_current_animation()
+        return [{"name": entry["name"], "action": entry["action"], "options": dict(entry["options"])}
+                for entry in self.animation_entries]
+
+    def on_animation_choice(self):
+        if self._switching_animation or self._loading_project:
+            return
+        names = [entry["name"] for entry in self.animation_entries]
+        name = self.current_animation.get()
+        if name in names and names.index(name) != self._animation_index:
+            self.select_animation(names.index(name))
+
+    def select_animation(self, index, *, store=True):
+        """Show another animation's settings; the shared settings stay as they are."""
+        if getattr(self, "busy", False):
+            self.refresh_animation_choices()
+            return False
+        try:
+            if store:
+                self.sync_current_animation()
+            target = self.animation_entries[index]
+            options = animation_effective_options(self.get_options(), target["options"])
+            values = {name: value for name, value in self.option_values(options).items() if name in ANIMATION_FIELDS}
+        except ValueError as exc:
+            self.refresh_animation_choices()
+            messagebox.showerror("請先修正目前動畫的設定", str(exc), parent=self.root)
+            return False
+        self._animation_index = index
+        self._loading_project = True
+        if self._rebuild_job:
+            self.root.after_cancel(self._rebuild_job)
+            self._rebuild_job = None
+        try:
+            for name, value in values.items():
+                getattr(self, name).set(value)
+            self.animation.set(ANIMATION_LABELS[target["action"]])
+        finally:
+            self._loading_project = False
+        self.refresh_animation_choices()
+        self.update_swing_control()
+        self.update_z_spin_display()
+        self.update_timing_summary()
+        self.progress = 0.0
+        self._preview_revision = getattr(self, '_preview_revision', 0) + 1
+        self.angle = self.angle_at_progress()
+        self.slider.set(0)
+        self.last_tick = time.perf_counter()
+        self.rebuild()
+        self.status.set(f"正在編輯動畫「{target['name']}」。外形與厚度所有動畫共用，其他設定只影響這個動畫。")
+        return True
+
+    def _free_animation_name(self, base):
+        names = {entry["name"].casefold() for entry in self.animation_entries}
+        candidate, serial = base, 2
+        while candidate.casefold() in names:
+            candidate, serial = f"{base}_{serial}", serial + 1
+        return candidate
+
+    def ask_animation_name(self, title, initial, exclude=None):
+        existing = [entry["name"] for position, entry in enumerate(self.animation_entries) if position != exclude]
+        while True:
+            name = simpledialog.askstring(title, "動畫名稱（也就是 Spine 裡的動畫名稱）：",
+                                          initialvalue=initial, parent=self.root)
+            if name is None:
+                return None
+            try:
+                return validate_animation_name(name, existing)
+            except ValueError as exc:
+                messagebox.showerror(title, str(exc), parent=self.root)
+                initial = name
+
+    def add_animation(self, copy=False):
+        if getattr(self, "busy", False):
+            return False
+        title = "複製動畫" if copy else "新增動畫"
+        if len(self.animation_entries) >= MAX_ANIMATIONS:
+            messagebox.showerror(title, f"最多可建立 {MAX_ANIMATIONS} 個動畫。", parent=self.root)
+            return False
+        try:
+            self.sync_current_animation()
+        except ValueError as exc:
+            messagebox.showerror("請先修正目前動畫的設定", str(exc), parent=self.root)
+            return False
+        source = self.animation_entries[self._animation_index]
+        if copy:
+            action, options = source["action"], dict(source["options"])
+            suggestion = self._free_animation_name(f"{source['name']}_copy")
+        else:
+            action, options = "rotate_loop", animation_overrides(TurnOptions())
+            suggestion = self._free_animation_name("animation")
+        name = self.ask_animation_name(title, suggestion)
+        if not name:
+            return False
+        self.animation_entries.insert(self._animation_index + 1, {"name": name, "action": action, "options": options})
+        return self.select_animation(self._animation_index + 1, store=False)
+
+    def rename_animation(self):
+        if getattr(self, "busy", False):
+            return False
+        entry = self.animation_entries[self._animation_index]
+        name = self.ask_animation_name("重新命名動畫", entry["name"], exclude=self._animation_index)
+        if not name or name == entry["name"]:
+            return False
+        entry["name"] = name
+        self.refresh_animation_choices()
+        self.status.set(f"動畫已改名為「{name}」。")
+        return True
+
+    def delete_animation(self):
+        if getattr(self, "busy", False) or len(self.animation_entries) <= 1:
+            return False
+        entry = self.animation_entries[self._animation_index]
+        if not messagebox.askyesno("刪除動畫", f"要刪除動畫「{entry['name']}」嗎？此動作無法復原。", parent=self.root):
+            return False
+        del self.animation_entries[self._animation_index]
+        target = min(self._animation_index, len(self.animation_entries) - 1)
+        return self.select_animation(target, store=False)
+
+    def update_swing_control(self):
+        control = getattr(self, "swing_angle_control", None)
+        if control is None:
+            return
+        try:
+            swing = ANIMATIONS.get(self.animation.get()) == "swing_loop"
+        except (AttributeError, tk.TclError):
+            swing = False
+        control.configure(state="normal" if swing and not getattr(self, "busy", False) else "disabled")
 
     def change_animation(self):
+        self.update_swing_control()
         if self._loading_project:
             return
         self.progress = 0.0
@@ -1266,7 +1503,7 @@ class App(StudioActions):
 
     def clip_duration(self):
         duration = self.number(self.duration, "動畫時間", .2, 30)
-        return duration if ANIMATIONS[self.animation.get()] == "rotate_loop" else duration/2
+        return duration if ANIMATIONS[self.animation.get()] in LOOP_ANIMATIONS else duration/2
 
     def update_z_spin_display(self):
         if not hasattr(self, "z_spin_enabled"):
@@ -1473,7 +1710,7 @@ class App(StudioActions):
         elapsed = max(0., now - self.last_tick)
         self.last_tick = now
         if self.playing and self.prepared and not self.busy:
-            clip_duration = self.options.duration if ANIMATIONS[self.animation.get()] == "rotate_loop" else self.options.duration/2
+            clip_duration = self.options.duration if ANIMATIONS[self.animation.get()] in LOOP_ANIMATIONS else self.options.duration/2
             self.progress = (self.progress + elapsed / clip_duration) % 1
             self.angle = self.angle_at_progress()
             self.slider.set(self.progress * 360)
@@ -1556,6 +1793,7 @@ class App(StudioActions):
             return
         try:
             options = self.get_options()
+            animations = self.animation_set()
             if not self.paths["front"]:
                 raise ValueError("請先放入正面圖片。")
         except Exception as exc:
@@ -1579,7 +1817,8 @@ class App(StudioActions):
 
         def worker():
             try:
-                result = build_package(paths["front"], paths["back"], paths["edge"], folder, options)
+                result = build_package(paths["front"], paths["back"], paths["edge"], folder, options,
+                                       animations=animations)
                 native_result = None
                 if make_native:
                     native_result = convert_project(result["json_path"], folder / f"{options.name}.spine", executable=native, version=options.spine_version)
@@ -1602,12 +1841,17 @@ class App(StudioActions):
         self.sequence_button.configure(state="normal")
         native_exists = list(folder.glob("*.spine"))
         version = target_version or self.selected_target_version()
+        names = list((result or {}).get("animation_names") or ())
+        actions = {entry["name"]: entry["action"] for entry in getattr(self, "animation_entries", [])}
+        listing = "\n".join(f"・{name}（{ANIMATION_LABELS.get(actions.get(name, name), '')}）" for name in names)
         if native_exists:
             title = f"Spine {version} 專案已建立"
-            text = f"已匯出至：\n{folder}\n\n請用 Spine {version} 開啟 {native_exists[0].name}，在 Animate 模式選擇 rotate_loop。\n其他動畫：flip_to_back、flip_to_front。"
+            text = (f"已匯出至：\n{folder}\n\n請用 Spine {version} 開啟 {native_exists[0].name}，"
+                    f"在 Animate 模式可選擇這 {len(names)} 個動畫：\n{listing}")
         else:
             title = "Spine 匯入資料已建立"
-            text = f"已匯出至：\n{folder}\n\n在 Spine {version} 使用「Import Data／匯入資料」選擇 JSON，之後另存為 .spine。"
+            text = (f"已匯出至：\n{folder}\n\n在 Spine {version} 使用「Import Data／匯入資料」選擇 JSON，之後另存為 .spine。"
+                    f"\n包含 {len(names)} 個動畫：\n{listing}")
             if make_message := (native_result or {}).get("message"):
                 text += f"\n\n原生轉檔：{make_message}"
         text += "\n\n請與編輯器版本一致；跨版本匯入 JSON 可能遺失翻轉動畫。版本不同時，請在工具選擇對應版本後重新匯出。"
@@ -1646,6 +1890,11 @@ class App(StudioActions):
         if not self.paths["front"]:
             messagebox.showerror("請先放入圖片", "請先放入正面圖片，再匯出序列圖。")
             return
+        try:
+            records = self.animation_set()
+        except ValueError as exc:
+            messagebox.showerror("請檢查設定", str(exc), parent=self.root)
+            return
         dialog = tk.Toplevel(self.root)
         dialog.title("匯出透明 PNG 序列")
         dialog.configure(bg=PANEL, padx=22, pady=18)
@@ -1653,13 +1902,15 @@ class App(StudioActions):
         dialog.transient(self.root)
         self.place_dialog(dialog, 440, 650)
         dialog.grab_set()
-        action_var = tk.StringVar(value=self.animation.get())
+        names = [record["name"] for record in records]
+        choices = names + ([f"{ALL_ANIMATIONS_CHOICE}（{len(names)} 個）"] if len(names) > 1 else [])
+        action_var = tk.StringVar(value=names[self._animation_index])
         fps_var = tk.IntVar(value=30)
         width_var, height_var = tk.IntVar(value=512), tk.IntVar(value=512)
         count_var = tk.StringVar()
         self.label(dialog, "輸出目前的素材與動畫設定").pack(anchor="w", pady=(0, 14))
         self.field(dialog, "動畫", ttk.Combobox(dialog, textvariable=action_var,
-                   values=list(ANIMATIONS), state="readonly"))
+                   values=choices, state="readonly"))
         self.field(dialog, "影格率（FPS）", ttk.Spinbox(dialog, from_=1, to=120, increment=1,
                                                    textvariable=fps_var))
         self.field(dialog, "畫布寬度（像素）", ttk.Spinbox(dialog, from_=64, to=4096, increment=64,
@@ -1672,15 +1923,27 @@ class App(StudioActions):
                  bg=PANEL, fg=MUTED, justify="left", wraplength=390,
                  font=("Microsoft JhengHei UI", 9)).pack(anchor="w", pady=(0, 15))
 
+        def chosen():
+            selected = action_var.get()
+            return records if selected not in names else [records[names.index(selected)]]
+
+        def frames(record, fps):
+            loop = record["action"] in LOOP_ANIMATIONS
+            duration = record["options"]["duration"] * (1 if loop else .5)
+            return duration, max(1, round(duration * fps)) + (not loop)
+
         def update_count(*_):
             try:
-                duration = self.duration.get() if ANIMATIONS[action_var.get()] == "rotate_loop" else self.duration.get()/2
                 fps = int(fps_var.get())
-                count = max(1, round(duration*fps))
-                if ANIMATIONS[action_var.get()] != "rotate_loop":
-                    count += 1
-                count_var.set(f"約 {duration:g} 秒 · {count} 張 PNG\n整圈循環不重複最後一張；半圈會保留結束姿勢。")
-            except (tk.TclError, ValueError):
+                selected = chosen()
+                if len(selected) > 1:
+                    total = sum(frames(record, fps)[1] for record in selected)
+                    count_var.set(f"{len(selected)} 個動畫 · 共 {total} 張 PNG\n"
+                                  "每個動畫各放在一個以動畫名稱命名的子資料夾。")
+                    return
+                duration, count = frames(selected[0], fps)
+                count_var.set(f"約 {duration:g} 秒 · {count} 張 PNG\n整圈與來回搖擺循環不重複最後一張；半圈會保留結束姿勢。")
+            except (tk.TclError, ValueError, KeyError):
                 count_var.set("請輸入有效的影格率。")
         action_var.trace_add("write", update_count)
         fps_var.trace_add("write", update_count)
@@ -1688,26 +1951,35 @@ class App(StudioActions):
 
         def begin():
             try:
-                options = self.get_options()
+                shared = self.get_options()
                 fps = int(self.number(fps_var, "影格率", 1, 120))
                 size = (int(self.number(width_var, "畫布寬度", 64, 4096)),
                         int(self.number(height_var, "畫布高度", 64, 4096)))
-                prepared = prepare_images(self.paths["front"], self.paths["back"], self.paths["edge"], options)
-                options = resolve_options(prepared, options)
+                jobs, prepared_by_key = [], {}
+                for record in chosen():
+                    options = animation_effective_options(shared, record["options"])
+                    # Artwork depends only on the flip axis (irregular backs) and the light textures.
+                    key = (options.axis, coin_shine_active(options))
+                    if key not in prepared_by_key:
+                        prepared_by_key[key] = prepare_images(
+                            self.paths["front"], self.paths["back"], self.paths["edge"], options)
+                    prepared = prepared_by_key[key]
+                    jobs.append((record["name"], record["action"], prepared, resolve_options(prepared, options)))
             except Exception as exc:
                 messagebox.showerror("請檢查輸出設定", str(exc), parent=dialog)
                 return
             destination = filedialog.askdirectory(parent=dialog, title="選擇 PNG 序列輸出位置")
             if not destination:
                 return
-            action = ANIMATIONS[action_var.get()]
-            folder = self.unique_output(destination, f"{options.name}_{action}_png")
+            label = jobs[0][0] if len(jobs) == 1 else None
+            folder = self.unique_output(destination, f"{shared.name}_{label}_png" if label else f"{shared.name}_png")
             dialog.destroy()
-            self.start_sequence(prepared, options, folder, action, fps, size)
+            self.start_sequence(jobs, folder, fps, size)
         self.button(dialog, "選擇位置並匯出", begin, primary=True).pack(fill="x", pady=(4, 6))
         self.button(dialog, "返回", dialog.destroy).pack(fill="x")
 
-    def start_sequence(self, prepared, options, folder, action, fps, size):
+    def start_sequence(self, jobs, folder, fps, size):
+        """`jobs` lists (animation name, action, prepared artwork, options)."""
         self.busy = True
         self.export_button.configure(state="disabled")
         self.sequence_button.configure(state="disabled", text="正在輸出 PNG…")
@@ -1730,11 +2002,12 @@ class App(StudioActions):
         self.button(progress_window, "取消輸出", cancel).pack(fill="x")
         progress_window.protocol("WM_DELETE_WINDOW", cancel)
 
-        def update(completed, total):
+        def update(completed, total, index=0):
             if progress_window.winfo_exists() and not self.sequence_cancel.is_set():
-                progress_label.set(f"正在輸出 {completed} / {total} 張 PNG")
-                progress_bar.configure(value=100 * completed / max(1, total))
-                self.status.set(f"透明 PNG 序列：{completed} / {total} 張")
+                prefix = f"動畫 {index + 1}/{len(jobs)}（{jobs[index][0]}）：" if len(jobs) > 1 else ""
+                progress_label.set(f"{prefix}正在輸出 {completed} / {total} 張 PNG")
+                progress_bar.configure(value=100 * (index + completed / max(1, total)) / len(jobs))
+                self.status.set(f"透明 PNG 序列：{prefix}{completed} / {total} 張")
 
         def finish(result=None, error=None):
             progress_window.destroy()
@@ -1748,15 +2021,25 @@ class App(StudioActions):
                 self.status.set(f"已取消；已輸出 {result['frame_count']} 張，資料夾已標示為未完成：{folder}")
             else:
                 self.status.set(f"透明 PNG 序列已完成：{folder}")
-                messagebox.showinfo("透明 PNG 序列已完成", f"已輸出 {result['frame_count']} 張透明 PNG。\n尺寸：{size[0]} × {size[1]}\n\n{folder}")
+                summary = (f"已輸出 {len(jobs)} 個動畫、共 {result['frame_count']} 張透明 PNG，各在自己的子資料夾。"
+                           if len(jobs) > 1 else f"已輸出 {result['frame_count']} 張透明 PNG。")
+                messagebox.showinfo("透明 PNG 序列已完成", f"{summary}\n尺寸：{size[0]} × {size[1]}\n\n{folder}")
                 if os.name == "nt":
                     os.startfile(folder)
 
         def worker():
             try:
-                result = export_sequence(prepared, options, folder, animation_name=action, fps=fps,
-                                         size=size, cancel_event=self.sequence_cancel,
-                                         progress_callback=lambda done, total: self.root.after(0, update, done, total))
+                results = []
+                for index, (name, action, prepared, options) in enumerate(jobs):
+                    target = folder if len(jobs) == 1 else Path(folder) / name
+                    results.append(export_sequence(prepared, options, target, animation_name=action, fps=fps,
+                        size=size, cancel_event=self.sequence_cancel,
+                        progress_callback=lambda done, total, index=index: self.root.after(0, update, done, total, index)))
+                    if results[-1]["status"] != "complete":
+                        break
+                complete = len(results) == len(jobs) and all(item["status"] == "complete" for item in results)
+                result = {"status": "complete" if complete else results[-1]["status"],
+                          "frame_count": sum(item["frame_count"] for item in results)}
                 self.root.after(0, finish, result)
             except Exception as exc:
                 self.root.after(0, finish, None, str(exc))

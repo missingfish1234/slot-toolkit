@@ -14,11 +14,8 @@ import spine_turn_core as core
 from spine_turn_preview import render_pose
 
 
-ANIMATION_ARCS = {
-    'rotate_loop': (0., 360., True),
-    'flip_to_back': (0., 180., False),
-    'flip_to_front': (180., 360., False),
-}
+ANIMATION_ARCS = {name: (float(start), float(end), name in core.LOOP_CLIPS)
+                  for name, (start, end) in core.CLIP_ARCS.items()}
 
 
 def _finite_number(value, label):
@@ -57,7 +54,7 @@ def _frame_plan(options, animation_name, fps):
     }
 
 
-def _union_progresses(plan, options, animation_name):
+def _union_progresses(plan, options, animation_name, prepared_size=(None, None)):
     samples = {index / plan['intervals'] for index in range(plan['frame_count'])}
     samples.update((0., 1.))
     for name in ('MOTION_KEY_PROGRESS', 'MOTION_Z_KEY_PROGRESS'):
@@ -72,13 +69,20 @@ def _union_progresses(plan, options, animation_name):
     samples.update(index / keys for index in range(keys + 1))
     samples.update((angle - start) / (end - start)
         for angle in (0., 90., 180., 270., 360.) if start <= angle <= end)
+    if animation_name == 'swing_loop':
+        samples.update((.25, .75))
+    if animation_name not in core.DEFAULT_ANIMATIONS:
+        # Swing turning points and reverse quarter turns are authored keys.
+        samples.update((key - start) / (end - start) for key in core._animation_angles(
+            start, end, options, prepared_size[0], prepared_size[1]))
     return sorted(samples)
 
 
 def _fit_camera(prepared, options, size, padding, plan, animation_name, cancel_event):
     min_x = min_y = math.inf
     max_x = max_y = -math.inf
-    for progress in _union_progresses(plan, options, animation_name):
+    for progress in _union_progresses(plan, options, animation_name,
+                                      (prepared['width'], prepared['height'])):
         if _cancelled(cancel_event):
             return None, None
         movement = core.motion_at(progress, options, prepared['height'])

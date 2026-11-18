@@ -13,7 +13,11 @@ _ANGLE_RANGES = {
     '整圈旋轉': (0., 360.), 'rotate_loop': (0., 360.),
     '正面 → 背面': (0., 180.), 'flip_to_back': (0., 180.),
     '背面 → 正面': (180., 360.), 'flip_to_front': (180., 360.),
+    '整圈旋轉（反轉）': (360., 0.), 'rotate_loop_reverse': (360., 0.),
+    '正面 → 背面（反轉）': (360., 180.), 'flip_to_back_reverse': (360., 180.),
+    '背面 → 正面（反轉）': (180., 0.), 'flip_to_front_reverse': (180., 0.),
 }
+_SWING_NAMES = ('來回搖擺', 'swing_loop')
 _ASSET_LABELS = {'front': '正面', 'back': '背面', 'edge': '側邊'}
 _MISSING = object()
 
@@ -197,6 +201,18 @@ class StudioActions:
         if getattr(self, 'busy', False):
             return False
         selected = _value(getattr(self, 'animation', None))
+        if selected in _SWING_NAMES:
+            # A lean angle occurs twice per loop; seek its first occurrence.
+            try:
+                amplitude = float(self.swing_amplitude())
+                angle = float(_value(getattr(self, 'angle_input', None)))
+                if not (math.isfinite(angle) and math.isfinite(amplitude) and amplitude > 0
+                        and -amplitude <= angle <= amplitude):
+                    raise ValueError
+            except (AttributeError, TypeError, ValueError, OverflowError):
+                _status(self, '來回搖擺的角度需介於正負擺幅之間。')
+                return False
+            return self.seek_progress((math.degrees(math.asin(angle / amplitude)) / 360.) % 1.)
         bounds = _ANGLE_RANGES.get(selected)
         if bounds is None:
             _status(self, '請先選擇有效的旋轉動畫。')
@@ -204,10 +220,10 @@ class StudioActions:
         start, end = bounds
         try:
             angle = float(_value(getattr(self, 'angle_input', None)))
-            if not math.isfinite(angle) or not start <= angle <= end:
+            if not math.isfinite(angle) or not min(start, end) <= angle <= max(start, end):
                 raise ValueError
         except (TypeError, ValueError, OverflowError):
-            _status(self, f'目前動畫的角度需介於 {start:g}° 與 {end:g}°。')
+            _status(self, f'目前動畫的角度需介於 {min(start, end):g}° 與 {max(start, end):g}°。')
             return False
         return self.seek_progress((angle - start) / (end - start))
 

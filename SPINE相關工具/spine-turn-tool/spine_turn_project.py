@@ -5,7 +5,7 @@ No archive paths are extracted directly and no executable project data is used.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, field, fields
 import hashlib
 import io
 import json
@@ -21,7 +21,7 @@ import spine_turn_core as core
 
 PROJECT_FORMAT = 'spine-turn-studio-project'
 SCHEMA_VERSION = 1
-APPLICATION_VERSION = '1.13.0'
+APPLICATION_VERSION = '1.14.0'
 MAX_ASSET_BYTES = 64 * 1024 * 1024
 MAX_TOTAL_ASSET_BYTES = 192 * 1024 * 1024
 MAX_MANIFEST_BYTES = 512 * 1024
@@ -44,10 +44,12 @@ def _ui_snapshot(value):
     if not isinstance(value, dict):
         raise ValueError('畫面設定必須是設定物件。')
     result = _json_copy(value, '畫面設定')
-    for key, choices in {'animation': {'rotate_loop', 'flip_to_back', 'flip_to_front'},
+    for key, choices in {'animation': set(core.CLIP_ARCS),
                          'background': {'checker', 'dark', 'light'}}.items():
         if key in result and (not isinstance(result[key], str) or result[key] not in choices):
             raise ValueError(f'編輯檔的畫面設定「{key}」無效。')
+    if 'current_animation' in result and not isinstance(result['current_animation'], str):
+        raise ValueError('編輯檔的畫面設定「current_animation」必須是文字。')
     for key in ('show_ground', 'native_export', 'playing'):
         if key in result and not isinstance(result[key], bool):
             raise ValueError(f'編輯檔的畫面設定「{key}」必須是開關值。')
@@ -115,13 +117,33 @@ def _inspect_image(data, kind):
         raise ValueError(f'{ASSET_LABELS[kind]}素材不是可讀取的圖片。') from None
 
 
-def _validate_content(paths, options):
+def _validate_content(paths, options, animations=None):
     try:
-        normalized = core.normalize_options(options)
-        prepared = core.prepare_images(paths['front'], paths['back'], paths['edge'], normalized)
-        core.resolve_options(prepared, normalized)
+        checked = set()
+        for record in animations or [{'options': {}}]:
+            normalized = core.normalize_options(core.animation_effective_options(options, record['options'])
+                                                if animations else options)
+            # Only the flip axis changes how artwork is prepared; check each one once.
+            if normalized.axis in checked:
+                continue
+            checked.add(normalized.axis)
+            prepared = core.prepare_images(paths['front'], paths['back'], paths['edge'], normalized)
+            core.resolve_options(prepared, normalized)
     except (OSError, ValueError, TypeError, KeyError) as error:
         raise ValueError(f'編輯檔的圖片或設定無法使用：{error}') from None
+
+
+def _animation_snapshot(value, options):
+    """Validated animation records; missing means a project saved before animation sets."""
+    if value is None:
+        return core.legacy_animation_set(options)
+    try:
+        records = core.normalize_animation_set(_json_copy(value, '動畫清單'))
+        for record in records:
+            core.normalize_options(core.animation_effective_options(options, record['options']))
+    except (TypeError, ValueError, OverflowError) as error:
+        raise ValueError(f'編輯檔的動畫清單無效：{error}') from None
+    return records
 
 
 def _collect_sources(paths):
@@ -173,18 +195,24 @@ def _materialize(assets, payloads, destination):
     return paths
 
 
-def save_project(path, paths, options, ui_state=None):
-    """Atomically snapshot raw artwork/settings; earlier files survive failures."""
+def save_project(path, paths, options, ui_state=None, animations=None):
+    """Atomically snapshot raw artwork/settings; earlier files survive failures.
+
+    `animations` is the animation set; without it the clips chosen by
+    `options` are stored as one animation each.
+    """
     options = _option_snapshot(options)
     state = _ui_snapshot(ui_state)
+    records = _animation_snapshot(animations, options)
     assets, payloads = _collect_sources(paths)
     # Validate exactly the bytes being archived, rather than rereading source
     # paths that could be moved or changed during the save operation.
     with tempfile.TemporaryDirectory(prefix='spturn-validate-') as temporary:
         staged_paths = _materialize(assets, payloads, temporary)
-        _validate_content(staged_paths, options)
+        _validate_content(staged_paths, options, records)
     manifest = {'format': PROJECT_FORMAT, 'schema_version': SCHEMA_VERSION,
-        'application_version': APPLICATION_VERSION, 'options': asdict(options), 'ui_state': state, 'assets': assets}
+        'application_version': APPLICATION_VERSION, 'options': asdict(options), 'ui_state': state,
+        'animations': records, 'assets': assets}
     encoded = json.dumps(manifest, ensure_ascii=False, allow_nan=False, indent=2).encode('utf-8')
     if len(encoded) > MAX_MANIFEST_BYTES:
         raise ValueError('編輯檔的設定資料過大。')
@@ -250,6 +278,7 @@ def _read_archive(path):
                 raise ValueError('此編輯檔版本尚未支援，請更新工具後再開啟。')
             options = _option_snapshot(manifest.get('options'))
             state = _ui_snapshot(manifest.get('ui_state'))
+            animations = _animation_snapshot(manifest.get('animations'), options)
             assets = manifest.get('assets')
             if not isinstance(assets, dict) or not assets.get('front') or set(assets) != set(ASSET_LABELS):
                 raise ValueError('編輯檔缺少完整的素材清單或正面圖片。')
@@ -278,7 +307,7 @@ def _read_archive(path):
                 used.add(member)
             if names != used:
                 raise ValueError('編輯檔包含未列入素材清單的檔案。')
-            return source, manifest, assets, payloads, options, state
+            return source, manifest, assets, payloads, options, state, animations
     except (zipfile.BadZipFile, UnicodeError, json.JSONDecodeError, RecursionError):
         raise ValueError('工具編輯檔內容不完整或已損毀。') from None
     except OSError:
@@ -294,6 +323,7 @@ class LoadedProject:
     workspace_dir: str
     _temporary: tempfile.TemporaryDirectory
     closed: bool = False
+    animations: list = field(default_factory=list)
 
     def close(self):
         if not self.closed:
@@ -313,14 +343,15 @@ class LoadedProject:
 
 def load_project(path, workspace_dir=None):
     """Validate then open an owned temporary image workspace; caller keeps it alive."""
-    source, manifest, assets, payloads, options, state = _read_archive(path)
+    source, manifest, assets, payloads, options, state, animations = _read_archive(path)
     temporary = tempfile.TemporaryDirectory(prefix='spturn-project-', dir=workspace_dir, ignore_cleanup_errors=True)
     try:
         paths = _materialize(assets, payloads, temporary.name)
-        _validate_content(paths, options)
+        _validate_content(paths, options, animations)
         metadata = _json_copy(manifest, '編輯檔資訊')
         metadata['project_path'] = str(source)
-        return LoadedProject(paths, options, state, metadata, temporary.name, temporary)
+        return LoadedProject(paths, options, state, metadata, temporary.name, temporary,
+                             animations=animations)
     except BaseException:
         temporary.cleanup()
         raise

@@ -107,6 +107,9 @@ class TurnOptions:
     z_spin_direction: str = "clockwise"
     z_spin_start: float = 0.0
     z_spin_end: float = 1.0
+    swing_enabled: bool = False
+    swing_angle: float = 30.0
+    export_animations: tuple = ()
 
 
 def _options(options: TurnOptions | dict | None) -> TurnOptions:
@@ -128,6 +131,28 @@ def _options(options: TurnOptions | dict | None) -> TurnOptions:
     if not (math.isfinite(spin_start) and math.isfinite(spin_end) and
             0 <= spin_start < spin_end <= 1):
         raise ValueError("畫面內旋轉開始時間需早於結束時間，並位於動畫範圍內。")
+    if not isinstance(opts.swing_enabled, bool):
+        raise ValueError("來回搖擺的啟用設定必須是開關值。")
+    try:
+        if isinstance(opts.swing_angle, bool):
+            raise TypeError
+        swing_angle = float(opts.swing_angle)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError("來回搖擺的擺幅需為有效數值。") from None
+    if not (math.isfinite(swing_angle) and 1 <= swing_angle <= 180):
+        raise ValueError("來回搖擺的擺幅需介於 1° 到 180°。")
+    requested = opts.export_animations
+    if isinstance(requested, str) or not isinstance(requested, (tuple, list)):
+        raise ValueError("輸出動畫清單格式無效。")
+    unknown = [name for name in requested if name not in CLIP_ORDER]
+    if unknown:
+        raise ValueError("不支援的輸出動畫：" + "、".join(map(str, unknown)))
+    # Empty keeps the original three clips (plus a swing when enabled); a list
+    # is exported exactly, in the fixed order. The swing switch follows it.
+    if requested:
+        export_animations, swing_enabled = canonical_export_animations(requested)
+    else:
+        export_animations, swing_enabled = (), opts.swing_enabled
     model = str(opts.model).lower()
     if model not in ("extrusion", "diamond"):
         raise ValueError("模型需為厚片或鑽石模式。")
@@ -292,6 +317,8 @@ def _options(options: TurnOptions | dict | None) -> TurnOptions:
                    coin_shine_repeat=int(opts.coin_shine_repeat), irregular_contours=irregular,
                    outline_alpha_threshold=int(opts.outline_alpha_threshold),
                    z_spin_direction=spin_direction, z_spin_start=spin_start, z_spin_end=spin_end,
+                   swing_angle=swing_angle, export_animations=export_animations,
+                   swing_enabled=swing_enabled,
                    **uv_points)
 
 
@@ -1452,15 +1479,153 @@ def _canonical_vertices(mesh: dict[str, Any], width: float, height: float,
             length / 2, -depth / 2, -length / 2, -depth / 2]
 
 
+# Every clip is authored along a clip parameter that rises linearly with
+# time. For the turning clips the parameter is the turn angle itself. The
+# swing clip uses a phase (offset to its own range so the clips can never be
+# confused): its geometric angle is amplitude * sin(phase), so the object
+# leans one way, returns, leans the other way and returns within one loop.
+#
+# The reverse clips turn the other way. Each also has a parameter range of
+# its own; its angle falls from the clip's first angle as the parameter rises.
+SWING_ARC = (720.0, 1080.0)
+_REVERSE_FIRST_ANGLE = {(1440.0, 1800.0): 360.0, (2160.0, 2340.0): 360.0, (2520.0, 2700.0): 180.0}
+CLIP_ARCS = {"rotate_loop": (0, 360), "rotate_loop_reverse": (1440.0, 1800.0),
+             "flip_to_back": (0, 180), "flip_to_back_reverse": (2160.0, 2340.0),
+             "flip_to_front": (180, 360), "flip_to_front_reverse": (2520.0, 2700.0),
+             "swing_loop": SWING_ARC}
+CLIP_ORDER = tuple(CLIP_ARCS)
+DEFAULT_ANIMATIONS = ("rotate_loop", "flip_to_back", "flip_to_front")
+LOOP_CLIPS = ("rotate_loop", "rotate_loop_reverse", "swing_loop")
+_PARAMETRIC_ARCS = {SWING_ARC, *_REVERSE_FIRST_ANGLE}
+_SWING_BACKSTEP = math.degrees(2e-9)
+
+
+def clip_duration(options: "TurnOptions", animation_name: str) -> float:
+    """Full duration for the looping clips, half for the half turns."""
+    return options.duration if animation_name in LOOP_CLIPS else options.duration / 2
+
+
+def canonical_export_animations(names) -> tuple[tuple[str, ...], bool]:
+    """Stored form of a clip selection, and the matching swing switch.
+
+    The original three clips (with or without the swing) are stored as an
+    empty list, exactly as projects saved before clip selection existed.
+    """
+    chosen = tuple(name for name in CLIP_ORDER if name in names)
+    swing = "swing_loop" in chosen
+    if chosen in (DEFAULT_ANIMATIONS, DEFAULT_ANIMATIONS + ("swing_loop",)):
+        return (), swing
+    return chosen, swing
+
+
+def exported_animations(options: "TurnOptions | dict | None" = None) -> tuple[str, ...]:
+    """Clip names written to the Spine skeleton, in export order."""
+    opts = _options(options)
+    if opts.export_animations:
+        return opts.export_animations
+    return DEFAULT_ANIMATIONS + (("swing_loop",) if opts.swing_enabled else ())
+
+
+def clip_angle_at(progress: float, animation_name: str,
+                  options: "TurnOptions | dict | None" = None) -> float:
+    """Displayed turn angle of a clip at normalized progress (signed for the swing)."""
+    if animation_name not in CLIP_ARCS:
+        raise ValueError(f"Unknown animation: {animation_name}")
+    progress = float(progress)
+    if not math.isfinite(progress):
+        raise ValueError("progress must be finite")
+    start, end = CLIP_ARCS[animation_name]
+    value = start + min(1.0, max(0.0, progress)) * (end - start)
+    return _clip_angle(value, start, end, _options(options))
+
+
+def _swing_degrees(phase: float, amplitude: float) -> float:
+    phase %= 360.0
+    quarter = {0.0: 0.0, 90.0: 1.0, 180.0: 0.0, 270.0: -1.0}.get(phase)
+    return amplitude * (math.sin(math.radians(phase)) if quarter is None else quarter)
+
+
+def swing_angle_at(progress: float, options: "TurnOptions | dict | None" = None) -> float:
+    """Signed lean angle of `swing_loop` at normalized progress (0 at rest)."""
+    opts = _options(options)
+    progress = float(progress)
+    if not math.isfinite(progress):
+        raise ValueError("progress must be finite")
+    return _swing_degrees(min(1.0, max(0.0, progress)) * 360.0, opts.swing_angle)
+
+
+def _clip_angle(value: float, start: float, end: float, opts: "TurnOptions") -> float:
+    """Geometric angle in degrees at a clip parameter."""
+    first = _REVERSE_FIRST_ANGLE.get((start, end))
+    if first is not None:
+        return first - (value - start)
+    if (start, end) != SWING_ARC:
+        return value
+    return _swing_degrees(value - start, opts.swing_angle)
+
+
+def _clip_pose_angle(value: float, start: float, end: float, opts: "TurnOptions") -> float:
+    """Angle handed to `pose_at` for the key at a clip parameter.
+
+    `pose_at` decides which side is visible with a microscopic look ahead in
+    the direction of increasing angle. While a swing travels back, its keys
+    are taken the same microscopic distance behind instead, so each key shows
+    the faces of the stretch that follows it. Reverse clips always travel back.
+    """
+    first = _REVERSE_FIRST_ANGLE.get((start, end))
+    if first is not None:
+        return (first - (value - start) - _SWING_BACKSTEP) % 360.0
+    if (start, end) != SWING_ARC:
+        return value
+    phase = (value - start) % 360.0
+    angle = _swing_degrees(phase, opts.swing_angle)
+    if 90.0 <= phase < 270.0:
+        angle -= _SWING_BACKSTEP
+    return angle % 360.0
+
+
+def _clip_step(step: float, start: float, end: float, opts: "TurnOptions") -> float:
+    """Key spacing along the clip parameter.
+
+    A swing keeps neighbouring keys no further apart in real angle than a
+    turning clip would, and never coarser than 15 degrees of phase, so linear
+    key interpolation follows the eased motion closely.
+    """
+    if (start, end) != SWING_ARC:
+        return step
+    return min(step, 15.0, step * 180.0 / (math.pi * opts.swing_angle))
+
+
+def _swing_critical_keys(start: float, opts: "TurnOptions") -> list[float]:
+    """Parameters where a swing passes a quarter-turn angle or turns around."""
+    phases = {0.0, 90.0, 180.0, 270.0, 360.0}
+    for critical in (-180.0, -90.0, 90.0, 180.0):
+        if abs(critical) <= opts.swing_angle:
+            phase = math.degrees(math.asin(critical / opts.swing_angle))
+            phases.update((phase % 360.0, (180.0 - phase) % 360.0))
+    return [start + phase for phase in phases]
+
+
+def _merge_keys(keys, extra) -> list[float]:
+    merged = sorted(keys)
+    for value in extra:
+        if all(abs(value - existing) > 1e-7 for existing in merged):
+            merged.append(value)
+    return sorted(merged)
+
+
 def _angles(start: float, end: float, step: float) -> list[float]:
     count = math.ceil((end - start) / step)
     keys = {start + (end - start) * i / count for i in range(count + 1)}
     keys.update(float(a) for a in range(0, 361, 90) if start <= a <= end)
+    if (start, end) in _PARAMETRIC_ARCS:
+        # Quarter turns of these clips lie at whole quarters of their parameter.
+        keys.update(start + 90.0 * quarter for quarter in range(5) if start + 90.0 * quarter <= end)
     return sorted(keys)
 
 
 def _legacy_animation_angles(start: float, end: float, opts: TurnOptions) -> list[float]:
-    keys = set(_angles(start, end, opts.key_step_degrees))
+    keys = set(_angles(start, end, _clip_step(opts.key_step_degrees, start, end, opts)))
     if opts.z_bounce_enabled and opts.peak_z_scale != 1:
         keys.update(start + progress * (end - start) for progress in _z_key_progress(opts))
     return sorted(keys)
@@ -1472,7 +1637,7 @@ def _cached_diamond_animation_angles(start: float, end: float, width: float, hei
     from spine_turn_diamond import diamond_geometry, view_normal
     opts = TurnOptions(**dict(option_values))
     effects_on = opts.diamond_shine_enabled or opts.diamond_sparkles_enabled
-    step = min(opts.key_step_degrees, 3.0 if effects_on else 7.5)
+    step = _clip_step(min(opts.key_step_degrees, 3.0 if effects_on else 7.5), start, end, opts)
     keys = set(_angles(start, end, step))
     if opts.z_bounce_enabled and opts.peak_z_scale != 1:
         keys.update(start + progress * (end - start) for progress in _z_key_progress(opts))
@@ -1487,7 +1652,8 @@ def _cached_diamond_animation_angles(start: float, end: float, width: float, hei
         def facing(angle: float) -> float:
             progress = (angle - start) / (end - start)
             scale = _depth_at_resolved(progress, opts, envelope)["z_scale"]
-            return view_normal((nx * scale, ny * scale, nz), angle, opts.axis, opts.diamond_view_tilt)[2]
+            return view_normal((nx * scale, ny * scale, nz), _clip_angle(angle, start, end, opts),
+                               opts.axis, opts.diamond_view_tilt)[2]
 
         for first, second in zip(scan, scan[1:]):
             left_value, right_value = facing(first), facing(second)
@@ -1518,7 +1684,7 @@ def _cached_bevel_animation_angles(start: float, end: float, width: float, heigh
     profile = _bevel_profile(opts, width, height, opts.thickness * opts.z_scale)
     if not profile:
         return tuple(_legacy_animation_angles(start, end, opts))
-    keys = set(_angles(start, end, min(7.5, opts.key_step_degrees / 2)))
+    keys = set(_angles(start, end, _clip_step(min(7.5, opts.key_step_degrees / 2), start, end, opts)))
     if opts.z_bounce_enabled and opts.peak_z_scale != 1:
         keys.update(start + progress * (end - start) for progress in _z_key_progress(opts))
     scan = sorted(keys)
@@ -1536,7 +1702,7 @@ def _cached_bevel_animation_angles(start: float, end: float, width: float, heigh
                 progress = (angle - start) / (end - start)
                 depth_scale = _depth_at_resolved(progress, opts, envelope_frames)["z_scale"]
                 depth = opts.thickness * depth_scale * _rise_fraction(opts)
-                radians = math.radians(angle)
+                radians = math.radians(_clip_angle(angle, start, end, opts))
                 return component * depth * math.sin(radians) + nz * math.cos(radians)
 
             for first, second in zip(scan, scan[1:]):
@@ -1572,7 +1738,7 @@ def _cached_bevel_animation_angles(start: float, end: float, width: float, heigh
                 progress = (angle - start) / (end - start)
                 depth_scale = _depth_at_resolved(progress, opts, envelope_frames)["z_scale"]
                 depth = opts.thickness * depth_scale * _rise_fraction(opts)
-                radians = math.radians(angle)
+                radians = math.radians(_clip_angle(angle, start, end, opts))
                 return component * depth * math.sin(radians) + sign * profile["distance"] * math.cos(radians)
 
             for first, second in zip(scan, scan[1:]):
@@ -1610,6 +1776,9 @@ def _animation_angles(start: float, end: float, opts: TurnOptions,
         width, height = float(width or opts.width or 512), float(height or opts.height or 512)
         option_values = tuple((field.name, getattr(opts, field.name)) for field in fields(TurnOptions))
         keys = list(_cached_bevel_animation_angles(start, end, width, height, option_values))
+    if (start, end) == SWING_ARC:
+        # Added before the light keys so geometry keys are the same with or without a light.
+        keys = _merge_keys(keys, _swing_critical_keys(start, opts))
     if coin_shine_active(opts):
         from spine_turn_coin_fx import shine_key_progress
         width, height = float(width or opts.width or 512), float(height or opts.height or 512)
@@ -1624,15 +1793,15 @@ def _animation_projection(angle: float, start: float, end: float, opts: TurnOpti
         # Opacity samples must not resample the original turn's cosine curve.
         # New keys lie on the existing authored parent segments exactly.
         plain = replace(opts, coin_shine_enabled=False)
-        clip = {(0, 360): "rotate_loop", (0, 180): "flip_to_back", (180, 360): "flip_to_front"}[(start, end)]
+        clip = {arc: name for name, arc in CLIP_ARCS.items()}[(start, end)]
         if angle in _animation_angles(start, end, plain, width, height):
             # Preserve original critical-edge visibility and byte colors at
             # authored keys; progress round-trips can fall just before a key.
             thickness_scale = _depth_at_resolved(progress, plain)["z_scale"]
             lookahead = min(1.0, progress + math.degrees(1e-9) / (end-start))
             visibility_scale = _depth_at_resolved(lookahead, plain)["z_scale"]
-            meshes = pose_at(angle, plain, width, height, _depth_scale=thickness_scale,
-                             _visibility_depth_scale=visibility_scale)
+            meshes = pose_at(_clip_pose_angle(angle, start, end, plain), plain, width, height,
+                             _depth_scale=thickness_scale, _visibility_depth_scale=visibility_scale)
         else:
             meshes = _animation_pose_plain(progress, plain, width, height, clip)
         from spine_turn_coin_fx import coin_effect_surfaces
@@ -1642,7 +1811,7 @@ def _animation_projection(angle: float, start: float, end: float, opts: TurnOpti
     thickness_scale = _depth_at_resolved(progress, opts)["z_scale"]
     lookahead_progress = min(1.0, progress + math.degrees(1e-9) / (end - start))
     visibility_depth_scale = _depth_at_resolved(lookahead_progress, opts)["z_scale"]
-    return pose_at(angle, opts, width, height, _depth_scale=thickness_scale,
+    return pose_at(_clip_pose_angle(angle, start, end, opts), opts, width, height, _depth_scale=thickness_scale,
                    _visibility_depth_scale=visibility_depth_scale, _effect_progress=progress)
 
 
@@ -1686,11 +1855,9 @@ def _animation_pose_plain(progress: float, options: TurnOptions | dict | None = 
     opts = _options(options)
     if not math.isfinite(float(progress)):
         raise ValueError("progress must be finite")
-    starts_ends = {"rotate_loop": (0, 360), "flip_to_back": (0, 180),
-                   "flip_to_front": (180, 360)}
-    if animation_name not in starts_ends:
+    if animation_name not in CLIP_ARCS:
         raise ValueError(f"Unknown animation: {animation_name}")
-    start, end = starts_ends[animation_name]
+    start, end = CLIP_ARCS[animation_name]
     progress = max(0.0, min(1.0, float(progress)))
     angle = start + progress * (end - start)
     angles = _animation_angles(start, end, opts, width, height)
@@ -1699,7 +1866,7 @@ def _animation_pose_plain(progress: float, options: TurnOptions | dict | None = 
         # supported runtimes. Match those exported times, not raw angles:
         # tiny culling/grid intervals can otherwise amplify hidden FX anchor
         # differences even though their opacity is essentially zero.
-        duration = opts.duration if animation_name == "rotate_loop" else opts.duration / 2
+        duration = clip_duration(opts, animation_name)
         float32 = lambda value: struct.unpack("f", struct.pack("f", value))[0]
         times = [float32(round((value - start) / (end - start) * duration, 7)) for value in angles]
         time = progress * float32(round(duration, 7))
@@ -1724,7 +1891,7 @@ def _animation_pose_plain(progress: float, options: TurnOptions | dict | None = 
                                for a, b in zip(first["vertices"], second["vertices"])]
         if surface.get('irregular'):
             depths = [a + (b-a)*fraction for a,b in zip(first['view_depths'],second['view_depths'])]
-            radians = math.radians(angle)
+            radians = math.radians(_clip_angle(angle, start, end, opts))
             sine, cosine = math.sin(radians), math.cos(radians)
             model = []
             for x,y,z in zip(surface['vertices'][::2],surface['vertices'][1::2],depths):
@@ -1764,9 +1931,9 @@ def animation_pose_at(progress: float, options: TurnOptions | dict | None = None
     meshes = _animation_pose_plain(progress, plain, width, height, animation_name)
     progress = max(0.0, min(1.0, float(progress)))
     width, height = float(width or opts.width or 512), float(height or opts.height or 512)
-    start, end = {"rotate_loop": (0, 360), "flip_to_back": (0, 180), "flip_to_front": (180, 360)}[animation_name]
+    start, end = CLIP_ARCS[animation_name]
     angles = _animation_angles(start, end, opts, width, height)
-    duration = opts.duration if animation_name == "rotate_loop" else opts.duration / 2
+    duration = clip_duration(opts, animation_name)
     float32 = lambda value: struct.unpack("f", struct.pack("f", value))[0]
     times = [float32(round((angle-start)/(end-start)*duration, 7)) for angle in angles]
     time = progress * float32(round(duration, 7))
@@ -1937,9 +2104,8 @@ def _build_canonical_skeleton(images: dict[str, Any], options: TurnOptions | dic
         "slots": slots,
         "skins": [{"name": "default", "attachments": attachments}],
         "animations": {
-            "rotate_loop": _animation(0, 360, opts.duration, opts, width, height, bases),
-            "flip_to_back": _animation(0, 180, opts.duration / 2, opts, width, height, bases),
-            "flip_to_front": _animation(180, 360, opts.duration / 2, opts, width, height, bases),
+            name: _animation(*CLIP_ARCS[name], clip_duration(opts, name), opts, width, height, bases)
+            for name in exported_animations(opts)
         },
     }
 
@@ -1948,19 +2114,385 @@ def build_skeleton(images: dict[str, Any], options: TurnOptions | dict | None = 
     """Build the real selected-family schema from the stable 4.0 authoring model."""
     opts = _options(options)
     canonical = _build_canonical_skeleton(images, opts)
-    if (opts.model == "diamond" or coin_shine_active(opts) or opts.z_spin_enabled) and spine_family(opts.spine_version) == "4.0":
+    return _finalize_skeleton(canonical, _needs_safe_fps(opts), opts.spine_version,
+                              native_safe_42=opts.swing_enabled)
+
+
+# ---------------------------------------------------------------------------
+# Animation sets: several named animations, each with its own motion settings,
+# written into one skeleton. Shape, artwork and thickness stay shared, because
+# every animation of a Spine skeleton uses the same images and meshes.
+# ---------------------------------------------------------------------------
+ANIMATION_FIELDS = (
+    "duration", "axis", "base_scale", "swing_angle",
+    "bounce_enabled", "bounce_height", "peak_scale", "landing_squash",
+    "bounce_start", "bounce_apex", "bounce_land", "bounce_end",
+    "z_scale", "peak_z_scale", "z_bounce_enabled", "z_bounce_depth", "z_offset", "camera_distance",
+    "z_bounce_start", "z_bounce_apex", "z_bounce_end",
+    "shade_faces", "min_brightness", "shade_curve", "light_angle", "shade_edge",
+    "coin_shine_enabled", "coin_shine_strength", "coin_shine_width", "coin_shine_angle",
+    "coin_shine_start", "coin_shine_end", "coin_shine_repeat",
+    "z_spin_enabled", "z_spin_direction", "z_spin_start", "z_spin_end",
+)
+MAX_ANIMATIONS = 32
+_IDENTITY_BONE_VALUES = {"rotate": 0.0, "translatex": 0.0, "translatey": 0.0,
+                         "scalex": 1.0, "scaley": 1.0, "shearx": 0.0, "sheary": 0.0}
+_BONE_CHAIN = ("root", "turn", "depth", "spin")
+
+
+def validate_animation_name(name: Any, existing=()) -> str:
+    """Return a trimmed animation name, or raise a readable error."""
+    if not isinstance(name, str):
+        raise ValueError("動畫名稱必須是文字。")
+    name = name.strip()
+    if not 1 <= len(name) <= 64:
+        raise ValueError("動畫名稱需為 1 到 64 個字。")
+    if name in (".", "..") or any(character in name for character in '<>:"/\\|?*') or \
+            any(ord(character) < 32 for character in name):
+        raise ValueError("動畫名稱不可包含 < > : \" / \\ | ? * 等符號。")
+    # Animation names are also PNG subfolder names. Win32 silently removes a
+    # trailing dot ("turn." aliases "turn"), and device names are unsuitable
+    # for portable folders even when a particular filesystem permits them.
+    windows_stem = name.partition(".")[0].rstrip(" ").upper()
+    reserved = {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
+    reserved.update(prefix + digit for prefix in ("COM", "LPT") for digit in "123456789¹²³")
+    if name.endswith(".") or windows_stem in reserved:
+        raise ValueError("動畫名稱不可使用 Windows 保留名稱，或以句點結尾。")
+    if name.casefold() in {str(other).casefold() for other in existing}:
+        raise ValueError(f"已經有名為「{name}」的動畫。")
+    return name
+
+
+def animation_overrides(options: TurnOptions | dict | None) -> dict:
+    """The per-animation part of a full option set."""
+    opts = _options(options)
+    return {field: getattr(opts, field) for field in ANIMATION_FIELDS}
+
+
+def animation_effective_options(base: TurnOptions | dict | None, overrides: dict | None) -> TurnOptions:
+    """Shared settings from `base` combined with one animation's own settings."""
+    overrides = dict(overrides or {})
+    unknown = sorted(set(overrides) - set(ANIMATION_FIELDS))
+    if unknown:
+        raise ValueError("動畫設定包含不支援的項目：" + "、".join(unknown))
+    return replace(_options(base), **overrides, export_animations=(), swing_enabled=False)
+
+
+def normalize_animation_set(animations) -> list[dict]:
+    """Validated list of {"name", "action", "options"} records."""
+    if isinstance(animations, (str, bytes, dict)) or not hasattr(animations, "__iter__"):
+        raise ValueError("動畫清單格式無效。")
+    result, names = [], []
+    for entry in animations:
+        if isinstance(entry, (tuple, list)) and len(entry) == 3:
+            entry = {"name": entry[0], "action": entry[1], "options": entry[2]}
+        if not isinstance(entry, dict):
+            raise ValueError("動畫清單格式無效。")
+        name = validate_animation_name(entry.get("name"), names)
+        action = entry.get("action")
+        if action not in CLIP_ARCS:
+            raise ValueError(f"動畫「{name}」的動作無效。")
+        options = entry.get("options") or {}
+        if isinstance(options, TurnOptions):
+            options = animation_overrides(options)
+        if not isinstance(options, dict):
+            raise ValueError(f"動畫「{name}」的設定格式無效。")
+        unknown = sorted(set(options) - set(ANIMATION_FIELDS))
+        if unknown:
+            raise ValueError(f"動畫「{name}」包含不支援的設定：" + "、".join(unknown))
+        names.append(name)
+        result.append({"name": name, "action": action, "options": dict(options)})
+    if not 1 <= len(result) <= MAX_ANIMATIONS:
+        raise ValueError(f"請保留 1 到 {MAX_ANIMATIONS} 個動畫。")
+    return result
+
+
+def legacy_animation_set(options: TurnOptions | dict | None) -> list[dict]:
+    """The clips an option set exported before animation sets existed."""
+    opts = _options(options)
+    overrides = animation_overrides(opts)
+    return [{"name": clip, "action": clip, "options": dict(overrides)} for clip in exported_animations(opts)]
+
+
+def _needs_safe_fps(opts: TurnOptions) -> bool:
+    return opts.model == "diamond" or coin_shine_active(opts) or opts.z_spin_enabled or opts.swing_enabled
+
+
+def _power_two_safe_fps(skeleton: dict) -> int | None:
+    """Avoid both the editor's near-frame snap zone and reciprocal-FPS noise."""
+    times = animation_key_times(skeleton)
+    for fps in (32, 64, 128):
+        if all(abs(time * fps - round(time * fps)) <= 1e-5 or
+               abs(time * fps - round(time * fps)) >= .011 for time in times):
+            return fps
+    return None
+
+
+def _finalize_skeleton(canonical: dict, safe_fps: bool, version: str, *,
+                       native_safe_42: bool = False) -> dict:
+    if safe_fps and spine_family(version) == "4.0":
         # Tightly sampled effect timelines can amplify even a single Float32
         # frame/time ULP. Power-of-two FPS avoids that rounding
         # round-trip while still rejecting the editor's near-frame snap zone.
-        times = animation_key_times(canonical)
-        chosen = None
-        for fps in (32, 64, 128):
-            if all(abs(time * fps - round(time * fps)) <= 1e-5 or
-                   abs(time * fps - round(time * fps)) >= .011 for time in times):
-                chosen = fps
-                break
-        canonical["skeleton"]["fps"] = chosen or select_native_safe_fps(canonical, opts.spine_version)
-    return convert_skeleton(canonical, opts.spine_version)
+        chosen = _power_two_safe_fps(canonical)
+        canonical["skeleton"]["fps"] = chosen or select_native_safe_fps(canonical, version)
+    result = convert_skeleton(canonical, version)
+    if native_safe_42 and spine_family(version) == "4.2":
+        # 4.2 converts frame labels back to seconds through a Float32 1/FPS.
+        # At 30 FPS an exact .75s draw-order key becomes .7500000596s, so
+        # playback at the authored key still shows the preceding surface.
+        # Apply after schema conversion, which chooses its legacy FPS itself.
+        # Limit this refinement to new swing/mixed-animation-set exports.
+        chosen = _power_two_safe_fps(result)
+        if chosen is None:
+            raise ValueError("此動畫的關鍵格太接近 Spine 4.2 的整數影格，無法安全匯入；請調整動畫長度後重試。")
+        result["skeleton"]["fps"] = chosen
+    return result
+
+
+def _image_digest(image: Image.Image) -> str:
+    import hashlib
+    digest = hashlib.sha256(f"{image.mode}:{image.width}x{image.height}:".encode())
+    digest.update(image.tobytes())
+    return digest.hexdigest()
+
+
+def _apply_draw_order(order: list[str], offsets: list[dict]) -> list[str]:
+    """Spine's draw-order key evaluation, on slot names."""
+    if not offsets:
+        return list(order)
+    index = {name: position for position, name in enumerate(order)}
+    result = [None] * len(order)
+    unchanged = []
+    original = 0
+    for entry in offsets:
+        slot = index[entry["slot"]]
+        while original != slot:
+            unchanged.append(order[original])
+            original += 1
+        result[original + entry["offset"]] = order[original]
+        original += 1
+    unchanged.extend(order[original:])
+    remaining = iter(unchanged)
+    return [name if name is not None else next(remaining) for name in result]
+
+
+def _draw_order_offsets(setup: list[str], order: list[str]) -> list[dict]:
+    positions = {name: index for index, name in enumerate(order)}
+    return [{"slot": name, "offset": positions[name] - index} for index, name in enumerate(setup)]
+
+
+def _merge_canonical(parts: list[dict]) -> tuple[dict, dict]:
+    """Combine single-animation canonical skeletons into one.
+
+    Each part is {"name", "canonical", "images"}. Identical artwork, slots and
+    meshes are shared. A mesh that differs (for example an irregular outline
+    cut along the other axis) is kept beside the first one under a new slot
+    name, and every animation hides the slots that are not its own. Every
+    bone channel, slot colour, visibility and draw order that any animation
+    keys is keyed by all of them, so switching animations at runtime never
+    leaves a value behind from the previous one.
+    """
+    images, image_digests = {}, {}
+    signatures, slot_records, attachments, merged_bases = {}, [], {}, {}
+    bones = set()
+    contributions = []
+    for part in parts:
+        canonical, prepared = part["canonical"], part["images"]
+        path_map = {}
+        for role in ("front", "back", "edge", *prepared.get("generated_texture_names", [])):
+            digest = _image_digest(prepared[role])
+            family = [key for key in images if key == role or key.startswith(role + "-")]
+            match = next((key for key in family if image_digests[key] == digest), None)
+            if match is None:
+                match, serial = role, 2
+                while match in images:
+                    match, serial = f"{role}-{serial}", serial + 1
+                images[match], image_digests[match] = prepared[role], digest
+            path_map[role] = match
+        bones.update(bone["name"] for bone in canonical["bones"])
+        slot_map, own_color, own_base, used = {}, {}, {}, set()
+        skin = canonical["skins"][0]["attachments"]
+        for slot in canonical["slots"]:
+            source = slot["name"]
+            attachment = skin[source][source]
+            signature = (path_map[attachment["path"]], tuple(attachment["uvs"]), tuple(attachment["triangles"]),
+                         attachment["hull"], len(attachment["vertices"]), tuple(attachment["edges"]),
+                         attachment["width"], attachment["height"])
+            target, serial = source, 2
+            while target in signatures and (signatures[target] != signature or target in used):
+                target, serial = f"{source}_alt{serial}", serial + 1
+            if target not in signatures:
+                signatures[target] = signature
+                record = {"name": target, "color": slot["color"]}
+                if "attachment" in slot:
+                    record["attachment"] = target
+                slot_records.append(record)
+                attachments[target] = {target: {**attachment, "path": path_map[attachment["path"]]}}
+                merged_bases[target] = attachment["vertices"]
+            used.add(target)
+            slot_map[source] = target
+            own_color[target] = slot["color"]
+            own_base[target] = attachment["vertices"]
+        contributions.append({"name": part["name"], "canonical": canonical, "slot_map": slot_map,
+                              "own_color": own_color, "own_base": own_base,
+                              "own_order": [slot_map[slot["name"]] for slot in canonical["slots"]]})
+    chain = [name for name in _BONE_CHAIN if name in bones]
+    merged_bones = [{"name": "root"}] + [{"name": name, "parent": chain[index - 1]}
+                                         for index, name in enumerate(chain) if index]
+    for record in slot_records:
+        record["bone"] = chain[-1]
+    slots = [{"name": record["name"], "bone": record["bone"], "color": record["color"],
+              **({"attachment": record["attachment"]} if "attachment" in record else {})}
+             for record in slot_records]
+    setup_order = [slot["name"] for slot in slots]
+    setup_color = {slot["name"]: slot["color"] for slot in slots}
+
+    animations = {}
+    for item in contributions:
+        source = item["canonical"]["animations"][item["name"]]
+        slot_map, own_base = item["slot_map"], item["own_base"]
+        animation = {}
+        deform = {}
+        for source_slot, timelines in source.get("deform", {}).get("default", {}).items():
+            target = slot_map[source_slot]
+            frames = timelines[source_slot]
+            base, merged = own_base[target], merged_bases[target]
+            if base != merged:
+                frames = [{**frame, "vertices": _rounded([value + own - shared for value, own, shared
+                                                          in zip(frame["vertices"], base, merged)])}
+                          for frame in frames]
+            deform[target] = {target: frames}
+        animation["deform"] = {"default": deform}
+        slot_timelines = {}
+        for source_slot, timelines in source.get("slots", {}).items():
+            target = slot_map[source_slot]
+            converted = {}
+            for kind, frames in timelines.items():
+                if kind == "attachment":
+                    frames = [{**frame, "name": target if frame.get("name") else None} for frame in frames]
+                converted[kind] = frames
+            slot_timelines[target] = converted
+        animation["slots"] = slot_timelines
+        if "bones" in source:
+            animation["bones"] = source["bones"]
+        item["animation"] = animation
+        item["draw_order"] = source.get("drawOrder")
+        animations[item["name"]] = animation
+
+    keyed_colors = {slot for item in contributions for slot, timelines in item["animation"]["slots"].items()
+                    if "rgba" in timelines}
+    keyed_channels = {}
+    for item in contributions:
+        for bone, channels in item["animation"].get("bones", {}).items():
+            keyed_channels.setdefault(bone, set()).update(channels)
+    reorder = any(item["draw_order"] for item in contributions) or \
+        any(item["own_order"] != setup_order for item in contributions)
+    for item in contributions:
+        animation, owned = item["animation"], set(item["own_order"])
+        for slot in setup_order:
+            timelines = animation["slots"].setdefault(slot, {})
+            if slot not in owned:
+                timelines.clear()
+                timelines["attachment"] = [{"time": 0.0, "name": None}]
+            elif "rgba" not in timelines and (slot in keyed_colors or item["own_color"][slot] != setup_color[slot]):
+                timelines["rgba"] = [{"time": 0.0, "color": item["own_color"][slot]}]
+            if not timelines:
+                del animation["slots"][slot]
+        bone_timelines = animation.get("bones", {})
+        for bone, channels in keyed_channels.items():
+            for channel in sorted(channels - set(bone_timelines.get(bone, {}))):
+                bone_timelines.setdefault(bone, {})[channel] = [
+                    {"time": 0.0, "value": _IDENTITY_BONE_VALUES[channel]}]
+        if bone_timelines:
+            animation["bones"] = bone_timelines
+        if reorder:
+            foreign = [slot for slot in setup_order if slot not in owned]
+            source_setup = [slot["name"] for slot in item["canonical"]["slots"]]
+            keys = item["draw_order"] or [{"time": 0.0, "offsets": []}]
+            if keys[0]["time"] > 0:
+                keys = [{"time": 0.0, "offsets": []}, *keys]
+            animation["drawOrder"] = [
+                {"time": key["time"], "offsets": _draw_order_offsets(setup_order, foreign + [
+                    item["slot_map"][slot] for slot in _apply_draw_order(source_setup, key.get("offsets", []))])}
+                for key in keys]
+    first = parts[0]["canonical"]["skeleton"]
+    bounds = [part["canonical"]["skeleton"] for part in parts]
+    minimum_x = min(bound["x"] for bound in bounds)
+    minimum_y = min(bound["y"] for bound in bounds)
+    maximum_y = max(bound["y"] + bound["height"] for bound in bounds)
+    canonical = {
+        "skeleton": {**first, "x": minimum_x, "y": minimum_y, "width": -2 * minimum_x,
+                     "height": maximum_y - minimum_y},
+        "bones": merged_bones,
+        "slots": slots,
+        "skins": [{"name": "default", "attachments": attachments}],
+        "animations": animations,
+    }
+    merged_images = {key: image for key, image in images.items()}
+    merged_images["generated_texture_names"] = [key for key in images if key not in ("front", "back", "edge")]
+    return canonical, merged_images
+
+
+def _option_key(opts: TurnOptions) -> str:
+    return repr(sorted(asdict(opts).items()))
+
+
+def build_animation_set(front_path: str | Path, back_path: str | Path | None,
+                        edge_path: str | Path | None, options: TurnOptions | dict | None,
+                        animations) -> dict[str, Any]:
+    """Build one skeleton holding every animation of an animation set.
+
+    `options` supplies the shared settings; each animation record supplies a
+    name, an action (clip key) and its own `ANIMATION_FIELDS`. Returns the
+    converted skeleton, the artwork used, and each animation's resolved
+    options. When every animation shares the same settings the original
+    single-skeleton builder is used, so such files match earlier versions.
+    """
+    records = normalize_animation_set(animations)
+    base = _options(options)
+    prepared_cache, parts = {}, []
+    for record in records:
+        effective = animation_effective_options(base, record["options"])
+        key = _option_key(replace(effective, **{field: getattr(TurnOptions(), field) for field in ANIMATION_FIELDS
+                                                 if field not in ("axis", "coin_shine_enabled")}))
+        if key not in prepared_cache:
+            prepared_cache[key] = prepare_images(front_path, back_path, edge_path, effective)
+        prepared = prepared_cache[key]
+        resolved = resolve_options(prepared, effective)
+        parts.append({"name": record["name"], "action": record["action"], "options": resolved, "images": prepared})
+    actions = [part["action"] for part in parts]
+    reference = replace(parts[0]["options"], export_animations=(), swing_enabled=False)
+    shared = (len(set(actions)) == len(actions) and
+              all(_option_key(replace(part["options"], export_animations=(), swing_enabled=False)) ==
+                  _option_key(reference) for part in parts))
+    if shared:
+        clips, swing = canonical_export_animations(actions)
+        opts = replace(reference, export_animations=clips, swing_enabled=swing)
+        canonical = _build_canonical_skeleton(parts[0]["images"], opts)
+        built = canonical["animations"]
+        canonical["animations"] = {part["name"]: built[part["action"]] for part in parts}
+        skeleton = _finalize_skeleton(canonical, _needs_safe_fps(_options(opts)), opts.spine_version,
+                                      native_safe_42=opts.swing_enabled)
+        images = parts[0]["images"]
+    else:
+        for part in parts:
+            single, swing = canonical_export_animations((part["action"],))
+            opts = replace(part["options"], export_animations=single, swing_enabled=swing)
+            canonical = _build_canonical_skeleton(part["images"], opts)
+            canonical["animations"] = {part["name"]: canonical["animations"][part["action"]]}
+            part["canonical"] = canonical
+        canonical, images = _merge_canonical(parts)
+        safe = any(_needs_safe_fps(_options(replace(part["options"], swing_enabled=part["action"] == "swing_loop")))
+                   for part in parts)
+        skeleton = _finalize_skeleton(canonical, safe, base.spine_version, native_safe_42=True)
+        merged = dict(parts[0]["images"])
+        merged.update(images)
+        images = merged
+    return {"skeleton": skeleton, "images": images, "shared": shared,
+            "animations": [{"name": part["name"], "action": part["action"], "options": part["options"]}
+                           for part in parts]}
+
 
 
 def _pack_atlas(images: dict[str, Any], output: Path, name: str,
@@ -1998,21 +2530,34 @@ def _pack_atlas(images: dict[str, Any], output: Path, name: str,
 
 def build_package(front_path: str | Path, back_path: str | Path | None,
                   edge_path: str | Path | None, output_dir: str | Path,
-                  options: TurnOptions | dict | None = None) -> dict[str, Any]:
-    """Write JSON, relative-path artwork, an atlas, and an honest manifest."""
+                  options: TurnOptions | dict | None = None, animations=None) -> dict[str, Any]:
+    """Write JSON, relative-path artwork, an atlas, and an honest manifest.
+
+    Without `animations` the clips chosen by `options` are written. With an
+    animation set (see `build_animation_set`) every named animation is written
+    into the same skeleton, each with its own motion settings.
+    """
     opts = _options(options)
+    if animations is not None:
+        animation_set = build_animation_set(front_path, back_path, edge_path, opts, animations)
+        opts = animation_set["animations"][0]["options"]
     output = Path(output_dir).resolve()
     output.mkdir(parents=True, exist_ok=True)
     name = re.sub(r"[^\w\-]+", "_", opts.name, flags=re.UNICODE).strip("._") or "coin"
     if len(name) > 80:
         name = name[:80]
-    images = prepare_images(front_path, back_path, edge_path, opts)
-    opts = resolve_options(images, opts)
+    if animations is None:
+        images = prepare_images(front_path, back_path, edge_path, opts)
+        opts = resolve_options(images, opts)
+        skeleton = build_skeleton(images, opts)
+        clips = {key: (key, opts) for key in skeleton["animations"]}
+    else:
+        images, skeleton = animation_set["images"], animation_set["skeleton"]
+        clips = {record["name"]: (record["action"], record["options"]) for record in animation_set["animations"]}
     images_dir = output / "images"
     images_dir.mkdir(exist_ok=True)
     for key in ("front", "back", "edge", *images.get("generated_texture_names", [])):
         images[key].save(images_dir / f"{key}.png")
-    skeleton = build_skeleton(images, opts)
     json_path = output / f"{name}.json"
     json_path.write_text(json.dumps(skeleton, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     atlas_path, page_path = _pack_atlas(images, output, name, opts.spine_version)
@@ -2029,7 +2574,7 @@ def build_package(front_path: str | Path, back_path: str | Path | None,
         "canonical_authoring_version": SPINE_VERSION,
         "authoring_fps": skeleton["skeleton"].get("fps", 30),
         "authoring_fps_policy": (f"Native-safe {spine_family(opts.spine_version)} frame labels selected without changing any key time, duration, curve or geometry"
-                                 if opts.model == "diamond" or coin_shine_active(opts) or opts.z_spin_enabled or spine_family(opts.spine_version) in ("3.8", "4.2")
+                                 if opts.model == "diamond" or coin_shine_active(opts) or opts.z_spin_enabled or opts.swing_enabled or spine_family(opts.spine_version) in ("3.8", "4.2")
                                  else "Canonical authoring FPS retained"),
         "format_conversion": {"3.8": "Combined XY timelines, color timelines and normalized numeric Bezier controls; legacy-compatible atlas header",
                               "4.0": "Canonical native schema; no conversion",
@@ -2037,13 +2582,15 @@ def build_package(front_path: str | Path, back_path: str | Path | None,
         "native_project_created": False,
         "generator": "native unweighted mesh + deform and attachment timelines",
         "options": asdict(opts), "width": images["width"], "height": images["height"],
-        "animations": {key: {"duration": opts.duration if key == "rotate_loop" else opts.duration / 2,
-                             "loop": key == "rotate_loop",
+        "animations": {key: {"duration": clip_duration(clip_opts, action),
+                             "loop": action in LOOP_CLIPS,
+                             **({"action": action, "options": animation_overrides(clip_opts)}
+                                if animations is not None else {}),
                              "timing_seconds": {
-                                 field: getattr(opts, field) * (opts.duration if key == "rotate_loop" else opts.duration / 2)
+                                 field: getattr(clip_opts, field) * clip_duration(clip_opts, action)
                                  for field in ("bounce_start", "bounce_apex", "bounce_land", "bounce_end",
                                                "z_bounce_start", "z_bounce_apex", "z_bounce_end")}}
-                       for key in skeleton["animations"]},
+                       for key, (action, clip_opts) in clips.items()},
         "pivot": [0, 0], "projection": "orthographic with optional uniform virtual-Z magnification", "axis": opts.axis,
         "side_mode": opts.side_mode,
         "side_geometry": {"mode": opts.side_mode,
@@ -2145,10 +2692,9 @@ def build_package(front_path: str | Path, back_path: str | Path | None,
                   "texture_source": "Original front/back artwork; cap/inner UVs use physical XY, outer bevel UVs sample up to one pixel inward",
                   "visibility": "Rotated 3D facet normals; dynamic zero-crossing events are bisected and cached",
                   "cap_topology": "Inset convex hull vertices first; center last; triangle fan",
-                  "geometry_keys": {key: len(_animation_angles(180 if key == "flip_to_front" else 0,
-                                                               180 if key == "flip_to_back" else 360,
-                                                               opts, images["width"], images["height"]))
-                                    for key in skeleton["animations"]}},
+                  "geometry_keys": {key: len(_animation_angles(*CLIP_ARCS[action],
+                                                               clip_opts, images["width"], images["height"]))
+                                    for key, (action, clip_opts) in clips.items()}},
         "raised_region": {"mode": "manual" if opts.raised_contour_points else "automatic",
                           "active": opts.model != "diamond",
                           "manual_points": list(opts.raised_contour_points),

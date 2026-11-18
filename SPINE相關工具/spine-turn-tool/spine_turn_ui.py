@@ -9,6 +9,8 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 
+from spine_turn_ui_style import attach_tooltip
+
 
 class StudioWorkspace:
     """Build the stage, inspector, material cards and persistent export bar."""
@@ -93,14 +95,15 @@ class StudioWorkspace:
                                       bg=self.card, fg=self.text,
                                       insertbackground=self.text, bd=0,
                                       font=("Microsoft JhengHei UI", 10),
-                                      width=18, relief="flat", highlightthickness=1,
+                                      width=14, relief="flat", highlightthickness=1,
                                       highlightbackground=self.line, highlightcolor=self.accent)
         self.project_entry.grid(row=0, column=2, sticky="ew", ipady=7,
                                 padx=(0, 14))
+        self._build_animation_picker()
         self._button(self.header, "開啟", app.open_project,
-                     tooltip="開啟編輯檔  Ctrl+O").grid(row=0, column=3, padx=(0, 6))
+                     tooltip="開啟編輯檔  Ctrl+O").grid(row=0, column=4, padx=(0, 6))
         self._button(self.header, "儲存", app.save_project,
-                     tooltip="儲存編輯檔  Ctrl+S").grid(row=0, column=4, padx=(0, 6))
+                     tooltip="儲存編輯檔  Ctrl+S").grid(row=0, column=5, padx=(0, 6))
         self.examples_button = tk.Menubutton(self.header, text="範例 ▾",
             bg=self.card, fg=self.text, activebackground=self.hover,
             activeforeground=self.text, bd=0, font=self.font, padx=11, pady=6,
@@ -119,7 +122,28 @@ class StudioWorkspace:
                             ("鑽石", "diamond")):
             examples.add_command(label=title, command=lambda value=mode: app.load_demo(value))
         self.examples_button.configure(menu=examples)
-        self.examples_button.grid(row=0, column=5)
+        self.examples_button.grid(row=0, column=6)
+
+    def _build_animation_picker(self):
+        """Current animation: choose, add, copy, rename or delete."""
+        app = self.app
+        picker = tk.Frame(self.header, bg=self.bg)
+        picker.grid(row=0, column=3, sticky="w", padx=(0, 14))
+        self._label(picker, "目前動畫", muted=True).pack(side="left", padx=(0, 7))
+        app.animation_choice_control = ttk.Combobox(picker, textvariable=app.current_animation,
+            values=[entry["name"] for entry in app.animation_entries], state="readonly", width=16)
+        app.animation_choice_control.pack(side="left", padx=(0, 5))
+        attach_tooltip(app.animation_choice_control,
+                       "選擇要編輯的動畫。每個動畫有自己的動作、時間、彈跳、明暗與掃光；外形與厚度所有動畫共用。"
+                       "匯出時全部動畫會放進同一個 Spine 檔。")
+        for text, command, tip in (("＋", app.add_animation, "新增動畫"),
+                                   ("複製", lambda: app.add_animation(copy=True), "複製目前動畫的所有設定"),
+                                   ("改名", app.rename_animation, "重新命名目前動畫"),
+                                   ("刪除", app.delete_animation, "刪除目前動畫")):
+            button = self._button(picker, text, command, small=True, variant="ghost", tooltip=tip)
+            button.pack(side="left", padx=(0, 2))
+            if text == "刪除":
+                app.delete_animation_button = button
 
     def _build_export_bar(self, spine_targets):
         app = self.app
@@ -199,7 +223,7 @@ class StudioWorkspace:
         self.toolbar = tk.Frame(self.stage, bg=self.bg)
         self.toolbar.pack(fill="x", pady=(0, 8))
         self.action_group = tk.Frame(self.toolbar, bg=self.bg)
-        self._label(self.action_group, "預覽", muted=True,
+        self._label(self.action_group, "動作", muted=True,
                     font=("Microsoft JhengHei UI", 8, "bold")).pack(side="left", padx=(0, 7))
         ttk.Combobox(self.action_group, textvariable=app.animation,
                      values=list(animations), state="readonly", width=13).pack(side="left")

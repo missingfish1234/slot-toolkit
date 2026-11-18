@@ -33,6 +33,8 @@ examples/*
 !examples/irregular-v1.10/**/*.spine
 !examples/irregular-v1.10/**/*.spturn
 !examples/irregular-v1.10/*.spturn
+# Generated 1.14 native and runtime samples ship in the verified release ZIP.
+/examples/irregular-v1.10/animation-set-v1.14/
 
 # Retain unit tests and their import closure, not workstation-specific diagnostics.
 tests/*
