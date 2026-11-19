@@ -55,5 +55,8 @@
     "presets",
     "config.json",
     "settings.json"
-  ]
+  ],
+  "size": "2.7 MB（下載）",
+  "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/737077b05ec0c634ba21795d06755c2bf794de4e/releases/tool-spine-particle-studio-1.37.0.zip",
+  "sha256": "e98a5a43337311979306f8cd82717d3b63f810dbbf2593a12020e31e76a326dc"
 }
