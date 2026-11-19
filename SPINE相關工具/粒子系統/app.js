@@ -16,6 +16,9 @@
   const clone = value => JSON.parse(JSON.stringify(value));
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const controls = Array.from(document.querySelectorAll('[data-field]'));
+  const vortexControls = Array.from(document.querySelectorAll('[data-vortex-field]'));
+  const vortexLayoutInputs = Array.from(document.querySelectorAll('[data-vortex-layout]'));
+  const textureStretchInputs = Array.from(document.querySelectorAll('[data-texture-stretch]'));
   const canvas = $('previewCanvas');
   const ctx = canvas.getContext('2d', {alpha: false});
   const handleLayer = $('emitterHandles');
@@ -104,7 +107,10 @@
     if (bonePicker) bonePicker.cancel();
     // Validation precedes assignment. Generated keys are discarded so an older
     // bake can never be exported as if it matched the restored edit state.
-    const nextProject = Core.normalizeProject(state.project);
+    Core.normalizeProject(state.project);
+    // Normalization fills defaults omitted by a new layer. Preserve the exact
+    // authored fields so observing the restored snapshot keeps its redo branch.
+    const nextProject = structuredClone(state.project);
     const nextIntegration = state.integration ? SpineMerge.normalizeSession(state.integration) : null;
     historyRestoring = true;
     try {
@@ -195,6 +201,16 @@
         pixels.data[offset + 3] = r >= 1 ? 0 : Math.round(255 * Math.pow(1 - r, 2.2));
       }
       c.putImageData(pixels, 0, 0);
+    } else if (kind === 'vortex-ribbon') {
+      // The mesh bends this horizontal highlight along the particle's history.
+      const light = c.createLinearGradient(0, 0, 0, 64);
+      for (const [stop, alpha] of [[0, 0], [.24, .1], [.42, .6], [.5, 1], [.58, .6], [.76, .1], [1, 0]]) {
+        light.addColorStop(stop, 'rgba(255,255,255,' + alpha + ')');
+      }
+      c.fillStyle = light; c.fillRect(0, 0, 64, 64);
+      const fade = c.createLinearGradient(0, 0, 64, 0);
+      fade.addColorStop(0, 'transparent'); fade.addColorStop(.45, '#ffffffc0'); fade.addColorStop(1, '#ffffff');
+      c.globalCompositeOperation = 'destination-in'; c.fillStyle = fade; c.fillRect(0, 0, 64, 64);
     } else if (kind === 'trail-arrow') {
       c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(8, 24); c.lineTo(35, 24); c.lineTo(35, 10);
       c.lineTo(60, 32); c.lineTo(35, 54); c.lineTo(35, 40); c.lineTo(8, 40); c.closePath(); c.fill();
@@ -218,7 +234,7 @@
     }
     return {name: kind + '.png', mime: 'image/png', width: 64, height: 64, dataUrl: surface.toDataURL('image/png')};
   }
-  ['glow', 'sparks', 'coins', 'bubbles', 'trail-arrow'].forEach(kind => { builtinImages[kind] = makeTexture(kind); });
+  ['glow', 'sparks', 'coins', 'bubbles', 'trail-arrow', 'vortex-ribbon'].forEach(kind => { builtinImages[kind] = makeTexture(kind); });
   // A horizontal electric streak: bright core, soft blue glow, slight grain so deform reads.
   function makeBoltTexture() {
     const surface = document.createElement('canvas'); surface.width = 256; surface.height = 64;
@@ -565,7 +581,7 @@
       const textureKind = item.shape === 'point' && item.image ? item.image.name.replace(/\.png$/i, '') : '';
       path.setAttribute('d', shapeIcons[textureKind] || shapeIcons[item.shape] || shapeIcons.point); svg.append(path); icon.append(svg);
       const copy = document.createElement('span'); copy.className = 'emitter-copy';
-      const name = document.createElement('span'); name.className = 'emitter-name'; name.textContent = item.name;
+      const name = document.createElement('span'); name.className = 'emitter-name'; name.textContent = item.name; name.title = item.name;
       const anims = animationsOf(item);
       const meta = document.createElement('span'); meta.className = 'emitter-meta'; meta.title = anims ? '用於：' + anims : ''; meta.textContent = item.kind === 'lightning' ? '網格閃電 · ' + item.lightning.bolts + ' 條' + (item.lightning.branches ? ' · 分岔 ' + item.lightning.branches : '') : item.count + ' 顆 · ' + (item.blend === 'additive' ? '加色' : '一般');
       if (anims) meta.textContent += ' · ' + anims;
@@ -574,7 +590,12 @@
       const tags = document.createElement('span'); tags.className = 'emitter-tags';
       if (item.kind === 'lightning') path.setAttribute('d', 'M13 2 5 13h6l-1 9 8-12h-6l1-8Z');
       const type = document.createElement('span'); type.className = 'emitter-type'; type.textContent = item.kind === 'lightning' ? (item.lightning.mode === 'fixed' ? '兩端固定' : '尾端擺動') : item.trail && item.trail.enabled ? item.trail.mode === 'afterimage' ? '殘影拖尾' : '沿路徑拉伸' : item.path && item.path.enabled ? '沿路徑移動' : (shapeNames[item.shape] || '點形') + (['box', 'circle', 'ring'].includes(item.shape) ? emitFrom(item) === 'edge' ? ' · 邊框' : ' · 區域內' : '');
+      if (vortexActive(item)) {
+        type.textContent = item.vortex.mode === 'inward' ? '漩渦收縮' + (item.vortex.lineCount ? ' · ' + item.vortex.lineCount + ' 線' : '') : '漩渦外放';
+        path.setAttribute('d', 'M20 17a9 9 0 1 1 0-10c3 5-1 12-8 11s-7-9-2-11c5-1 7 5 4 6-2 1-3-1-2-2');
+      }
       const color = document.createElement('span'); color.className = 'emitter-color-dot'; color.style.setProperty('--emitter-color', item.colorGradient && item.colorGradient.length ? item.colorGradient[0].color : item.colorStart); color.setAttribute('aria-hidden', 'true');
+      type.title = type.textContent;
       tags.append(type, color); copy.append(name, meta, tags);
       const index = document.createElement('span'); index.className = 'emitter-index'; index.textContent = String(layerIndex + 1).padStart(2, '0'); index.setAttribute('aria-hidden', 'true');
       button.append(icon, copy, index); button.addEventListener('click', () => selectEmitter(item.id));
@@ -734,6 +755,7 @@
       $('textureThumbnail').src = image.dataUrl; $('textureThumbnail').hidden = false;
       $('textureInfo').textContent = (e.image ? e.image.name : '內建柔光') + ' · ' + image.width + ' × ' + image.height + ' px';
     }
+    renderTextureStretch(e);
     renderPathInspector();
     renderTrailInspector();
     renderOutlineInspector();
@@ -741,8 +763,225 @@
     drawCurves();
     if (libraryUi && $('effectLibraryDialog').open) libraryUi.refresh();
   }
+  function textureStretchFor(e) {
+    return e.textureStretch || Core.TEXTURE_STRETCH_DEFAULTS;
+  }
+  function renderTextureStretch(e) {
+    const settings = textureStretchFor(e);
+    $('textureStretchFields').hidden = !settings.enabled;
+    textureStretchInputs.forEach(input => {
+      const key = input.dataset.textureStretch;
+      if (key === 'enabled') input.checked = settings.enabled;
+      else input.value = settings[key];
+      input.disabled = busy || e.kind === 'lightning' || (key !== 'enabled' && !settings.enabled);
+    });
+  }
+  function wireTextureStretch() {
+    textureStretchInputs.forEach(input => {
+      const key = input.dataset.textureStretch;
+      const apply = duringInput => {
+        const e = emitter();
+        if (busy || input.disabled || e.kind === 'lightning') return;
+        const settings = textureStretchFor(e);
+        if (!input.checkValidity() || input.value === '') {
+          if (!duringInput) { renderTextureStretch(e); notify(key === 'angle' ? '素材角度可設為 −180° 到 180°。' : '拉伸時間可設為 0.01 到 2 秒。', true); }
+          return;
+        }
+        const value = key === 'enabled' ? input.checked : input.valueAsNumber;
+        if (value === settings[key]) return;
+        const next = {...e, textureStretch: {...settings, [key]: value}};
+        if (key === 'enabled' && value && e.trail && e.trail.showHead === false) next.trail = {...e.trail, showHead: true};
+        try { Core.normalizeProject({...project, emitters: project.emitters.map(item => item === e ? next : item)}); }
+        catch (error) {
+          if (!duringInput) { renderTextureStretch(e); notify(error.message, true); }
+          return;
+        }
+        e.textureStretch = next.textureStretch;
+        if (next.trail !== e.trail) e.trail = next.trail;
+        changed();
+        if (key === 'enabled') { renderTextureStretch(e); renderTrailInspector(); }
+      };
+      if (input.type === 'number') input.addEventListener('input', () => apply(true));
+      input.addEventListener('change', () => apply(false));
+    });
+  }
   function pathFor(e) { return e.path || PathMath.defaults(); }
+  function addVortexRibbonTexture(e) {
+    if (!e.trail.image) e.trail = {...e.trail, image: builtinImages['vortex-ribbon'], axis: 'x', flipTexture: false};
+  }
+  function restoreVortexLineMinimum(e) {
+    if (vortexActive(e) && e.vortex.mode === 'inward' && e.vortex.lineCount > e.count) e.count = e.vortex.lineCount;
+  }
+  function showVortexLineMinimum(e) {
+    notify('已恢復 ' + e.vortex.lineCount + ' 條收縮線，每線至少 1 顆，共 ' + e.count + ' 顆。');
+  }
+  function renderVortexLines(e) {
+    const inward = vortexActive(e) && e.vortex.mode === 'inward';
+    document.querySelectorAll('[data-vortex-lines]').forEach(group => { group.hidden = !inward; });
+    const grouped = inward && !!e.vortex.lineCount;
+    $('particleCountField').hidden = grouped || e.kind === 'lightning';
+    $('vortexArmsField').hidden = grouped;
+    if (!inward) return;
+    const layout = Core.vortexLineLayout(e);
+    const randomLegacy = !grouped && !e.vortex.arms;
+    const partial = layout.total % layout.lineCount !== 0;
+    const density = partial ? Math.floor(layout.total / layout.lineCount) + '～' + layout.particlesPerLine : String(layout.particlesPerLine);
+    const lineLimit = randomLegacy ? Core.VORTEX_MAX_LINES : Math.max(layout.lineCount, layout.maxLineCount);
+    const linePlaceholder = randomLegacy ? '隨機' : String(layout.lineCount);
+    const densityPlaceholder = randomLegacy ? '—' : density;
+    vortexLayoutInputs.forEach(input => {
+      const lines = input.dataset.vortexLayout === 'lineCount';
+      input.disabled = busy || (!lines && !grouped);
+      input.max = lines ? lineLimit : layout.maxParticlesPerLine;
+      input.placeholder = lines ? linePlaceholder : densityPlaceholder;
+      input.value = grouped && (lines || !partial) ? layout[input.dataset.vortexLayout] : '';
+      input.removeAttribute('aria-invalid');
+    });
+    let summary;
+    if (!grouped) summary = (randomLegacy ? '目前隨機分布' : '目前沿用 ' + e.vortex.arms + ' 條舊版旋臂') + '，共 ' + e.count + ' 顆。輸入收縮線數即可分波發射。';
+    else summary = layout.lineCount + ' 條線 × 每線 ' + density + ' 顆，共 ' + layout.total + ' 顆。';
+    document.querySelectorAll('[data-vortex-layout-hint]').forEach(hint => { hint.textContent = summary; });
+  }
+  function wireVortexLines() {
+    vortexLayoutInputs.forEach(input => {
+      const isLines = input.dataset.vortexLayout === 'lineCount';
+      const apply = duringInput => {
+        const e = emitter();
+        if (busy || input.disabled || !vortexActive(e) || e.vortex.mode !== 'inward') return;
+        const layout = Core.vortexLineLayout(e);
+        const value = input.valueAsNumber;
+        if (input.value === '') { if (!duringInput) renderVortexLines(e); return; }
+        const showError = message => {
+          if (!duringInput) { renderVortexLines(e); notify(message, true); }
+          else {
+            input.setAttribute('aria-invalid', 'true');
+            input.closest('[data-vortex-lines]').querySelector('[data-vortex-layout-hint]').textContent = message;
+          }
+        };
+        if (!input.checkValidity()) {
+          const limit = isLines ? '收縮線數可設 1～' + input.max + ' 條。' : '每線可設 1～' + input.max + ' 顆。';
+          let hint = '請輸入範圍內的整數。';
+          if (isLines && Number(input.max) < Core.VORTEX_MAX_LINES) hint = layout.grouped ? '先減少每線粒子即可增加線數。' : '可先降低粒子總數，再輸入新線數。';
+          showError(limit + '每層最多 400 顆。' + hint);
+          return;
+        }
+        if (layout.grouped && value === layout[input.dataset.vortexLayout] && (isLines || e.count === value * layout.lineCount)) {
+          if (!duringInput || input.hasAttribute('aria-invalid')) renderVortexLines(e);
+          return;
+        }
+        const next = {...e};
+        const lines = isLines ? value : layout.lineCount;
+        let density = isLines ? layout.particlesPerLine : value;
+        if (!layout.grouped && !e.vortex.arms) density = Math.max(1, Math.min(Math.round(e.count / lines), Math.floor(400 / lines)));
+        try {
+          Core.setVortexLineLayout(next, lines, density);
+          Core.normalizeProject({...project, emitters: project.emitters.map(item => item === e ? next : item)});
+        } catch (error) { showError(error.message); return; }
+        e.vortex = next.vortex;
+        e.count = next.count;
+        changed(); renderEmitters(); renderInspector();
+      };
+      input.addEventListener('input', () => apply(true));
+      input.addEventListener('change', () => apply(false));
+    });
+  }
+  function renderVortexJitterHint(e) {
+    if (!vortexActive(e)) return;
+    const extra = previewExtra(), duration = extra ? extra.duration : project.flow.enabled ? project.flow.loop.duration : project.duration;
+    const {maxOffset} = emissionTiming(e, duration);
+    const edge = e.vortex.mode === 'inward' ? '起點沿外圈散開。' : '終點沿外圈散開。';
+    let timing = '調高時間隨機，可讓各粒子在原定發射時段內錯開出發。';
+    if (e.emissionDuration === 0) timing = '發射時間是 0 秒，粒子會同時出發。';
+    else if (e.vortex.timeJitter > 0) {
+      const offset = maxOffset > 0 && maxOffset < .001 ? '不到 1 毫秒' : round3(maxOffset) + ' 秒';
+      timing = '每顆可從原定時間延後，最多 ' + offset + '。';
+    }
+    $('vortexJitterHint').textContent = edge + timing + '固定種子可重播同一組變化。';
+  }
+  function renderVortexInspector(e) {
+    const vortex = e.vortex || Core.VORTEX_DEFAULTS;
+    const enabled = vortex.mode !== 'off', usingPath = enabled && !!(e.path && e.path.enabled);
+    vortexControls.forEach(input => {
+      if (input.type === 'checkbox') input.checked = !!vortex[input.dataset.vortexField];
+      else input.value = vortex[input.dataset.vortexField] ?? input.defaultValue;
+      input.disabled = busy || e.kind === 'lightning' || (!enabled && input.id !== 'vortexMode');
+    });
+    renderVortexLines(e);
+    $('vortexFields').hidden = !enabled;
+    $('vortexJitterFields').hidden = usingPath;
+    renderVortexJitterHint(e);
+    $('vortexInwardFields').hidden = vortex.mode !== 'inward' || usingPath;
+    $('applyVortexInStretch').disabled = busy;
+    $('useVortexMotion').hidden = !usingPath;
+    $('useVortexMotion').disabled = busy;
+    $('trailNoPath').textContent = enabled && !usingPath ? '拖尾跟隨粒子的漩渦軌跡。' : '目前跟隨速度與外力形成拖尾；設定路徑可沿曲線表演。';
+    $('vortexHint').textContent = usingPath ? '目前沿自訂路徑移動。暫停路徑即可播放漩渦。' :
+      (vortex.mode === 'inward' ? '粒子從外圈旋入發射器中心。' : '粒子從發射器中心旋向外圈。') + '生命長度決定移動時間，速度曲線可調整節奏。';
+  }
+  function wireVortex() {
+    wireVortexLines();
+    vortexControls.forEach(input => {
+      const key = input.dataset.vortexField;
+      const apply = duringInput => {
+        if (busy || input.disabled) return;
+        const e = emitter(), previous = e.vortex, previousCount = e.count, vortex = previous || Core.VORTEX_DEFAULTS;
+        if (!input.checkValidity() || input.value === '') {
+          if (!duringInput) input.value = vortex[key] ?? input.defaultValue;
+          return;
+        }
+        const numeric = input.type === 'number' || input.type === 'range';
+        const value = input.type === 'checkbox' ? input.checked : numeric ? input.valueAsNumber : input.value;
+        if (value === (vortex[key] ?? Core.VORTEX_DEFAULTS[key] ?? 0)) return;
+        e.vortex = {...vortex, [key]: value};
+        if (key === 'mode' && value === 'inward') {
+          if (!previous) e.vortex.lineCount = Math.min(12, e.count);
+          restoreVortexLineMinimum(e);
+        }
+        try { Core.normalizeProject(project); }
+        catch (error) {
+          e.count = previousCount;
+          if (previous) e.vortex = previous; else delete e.vortex;
+          if (!duringInput) { renderVortexInspector(e); notify(error.message, true); }
+          return;
+        }
+        changed();
+        if (key === 'mode') { renderEmitters(); renderInspector(); }
+        else if (key === 'arms') renderVortexLines(e);
+        else if (key === 'edgeJitter' || key === 'timeJitter') {
+          vortexControls.forEach(peer => { if (peer !== input && peer.dataset.vortexField === key) peer.value = value; });
+          if (key === 'timeJitter') renderTrailInspector();
+        }
+        if (e.count !== previousCount) showVortexLineMinimum(e);
+      };
+      if (input.type === 'number' || input.type === 'range') input.addEventListener('input', () => apply(true));
+      input.addEventListener('change', () => apply(false));
+    });
+    $('useVortexMotion').addEventListener('click', () => changePath('enabled', false));
+    $('applyVortexInStretch').addEventListener('click', () => {
+      const e = emitter();
+      if (busy || !vortexActive(e) || e.vortex.mode !== 'inward') return;
+      historyBegin('command');
+      try {
+        const next = Core.applyVortexInStretch({...e});
+        addVortexRibbonTexture(next);
+        if (e.vortex.shrinkHead && JSON.stringify(e.trail) === JSON.stringify(next.trail)) return;
+        Core.normalizeProject({...project, emitters: project.emitters.map(item => item === e ? next : item)});
+        e.vortex = next.vortex; e.trail = next.trail;
+        changed(); renderEmitters(); renderInspector();
+        notify('已套用縮頭拉伸。可在「拖尾表演」調整殘留時間與寬度。');
+      } catch (error) { notify(error.message, true); }
+      finally { historyEnd(); }
+    });
+  }
   function trailFor(e) { return e.trail ? Trail.normalize(e.trail) : Trail.defaults(); }
+  function vortexActive(e) { return e.kind !== 'lightning' && !!e.vortex && e.vortex.mode !== 'off' && !(e.path && e.path.enabled); }
+  function emissionTiming(e, duration) {
+    const start = Math.min(e.startDelay || 0, duration);
+    const emissionWindow = Math.min(e.emissionDuration, duration - start);
+    const layout = Core.vortexLineLayout(e), waves = layout.grouped ? layout.particlesPerLine : e.count;
+    const maxOffset = vortexActive(e) ? emissionWindow / waves * (e.vortex.timeJitter || 0) / 100 : 0;
+    return {maxOffset, lastBirth: start + (waves - 1) / waves * emissionWindow + maxOffset};
+  }
   const trailLengthTargets = new WeakMap(), inactiveTrailLengths = new WeakMap();
   const trailLengthPulse = () => [{t: 0, v: 0.15}, {t: 0.4, v: 1}, {t: 1, v: 0.05}];
   function trailLengthTarget() {
@@ -761,6 +1000,11 @@
     $('trailFields').hidden = !active;
     $('trailMode').value = trail.mode;
     $('trailMode').disabled = busy || !active;
+    const trailImage = trail.image || (e.sequence && e.sequence.enabled && e.sequence.frames.length ? e.sequence.frames[0] : e.image) || builtinImages.glow;
+    $('trailTextureThumbnail').src = trailImage.dataUrl;
+    $('trailTextureInfo').textContent = (trail.image ? '獨立素材 · ' + trail.image.name : '沿用粒子素材') + ' · ' + trailImage.width + ' × ' + trailImage.height + ' px';
+    $('trailTextureButton').disabled = $('trailTextureFile').disabled = busy || !active;
+    $('removeTrailTexture').disabled = busy || !active || !trail.image;
     $('enableTrailLength').checked = !!trail.lengthCurve;
     $('enableTrailLength').disabled = busy || !active;
     $('trailLengthFields').hidden = !trail.lengthCurve;
@@ -794,13 +1038,12 @@
     $('trailEditPath').disabled = busy;
     $('trailModeHint').textContent = fullPath ? '整張貼圖從路徑起點鋪到終點，彎曲成連續光帶；生命期間控制整條光帶的顯示與淡出。' : trail.mode === 'stretch' ? '貼圖沿走過的路徑彎曲拉長；寬度跟隨粒子尺寸，尾端逐漸收細。' : '保留粒子走過的影像，越舊越透明；粒子消失後，殘影仍會繼續淡出。';
     $('trailDurationLabel').textContent = fullPath ? '結束後淡出' : '殘留時間';
-    const image = e.sequence && e.sequence.frames.length ? e.sequence.frames[0] : e.image || builtinImages.glow;
+    const image = trailImage;
     const axis = trail.axis === 'auto' ? (image.height > image.width ? 'y' : 'x') : trail.axis;
     $('trailAxisHint').textContent = '目前貼圖 ' + image.width + ' × ' + image.height + '，沿' + (axis === 'y' ? '直向' : '橫向') + '自動切為 ' + Trail.segmentCount(trail) + ' 段網格。原圖保留，不必先手動切 Mesh。';
     let text = active ? (fullPath ? '整條光帶結束後，再淡出 ' : '粒子結束後，拖尾會再淡出 ') + trail.duration + ' 秒。' : '啟用後，讓目前粒子沿移動軌跡拉伸，或留下逐漸消失的殘影。';
     if (active && !project.loop && !project.flow.enabled) {
-      const start = Math.min(e.startDelay || 0, project.duration), count = Math.max(1, e.count);
-      const lastBirth = start + (count - 1) / count * Math.min(e.emissionDuration, project.duration - start);
+      const {lastBirth} = emissionTiming(e, project.duration);
       const life = Math.max(e.life + e.lifeRandom, trail.mode === 'stretch' ? trail.moveDuration || 0 : 0, trail.mode === 'stretch' ? trail.lengthDuration || 0 : 0);
       if (lastBirth + life + trail.duration > project.duration) text += '目前動畫末尾可能截斷拖尾，可加長動畫或縮短發射時間。';
     }
@@ -834,6 +1077,31 @@
     }};
   }
   function wireTrail() {
+    let imageRequest = 0;
+    $('trailTextureButton').addEventListener('click', () => {
+      if (busy || !trailFor(emitter()).enabled || emitter().kind === 'lightning') return;
+      $('trailTextureFile').value = ''; $('trailTextureFile').click();
+    });
+    $('trailTextureFile').addEventListener('change', async event => {
+      const file = event.target.files[0]; event.target.value = ''; if (!file || busy) return;
+      const selected = emitter(), owner = project, generation = textureRequest, request = ++imageRequest;
+      const stale = () => owner !== project || generation !== textureRequest || request !== imageRequest || selected !== emitter() || busy || selected.kind === 'lightning';
+      try {
+        const image = await loadImage(file);
+        if (stale()) return;
+        historyBegin('command');
+        try {
+          if (setTrail({image})) { imageFor(image); notify('已載入拖尾素材「' + image.name + '」，頭部素材保持原樣。'); }
+        } finally { historyEnd(); }
+      } catch (error) { if (!stale()) notify(error.message, true); }
+    });
+    $('removeTrailTexture').addEventListener('click', () => {
+      if (busy || !trailFor(emitter()).enabled || emitter().kind === 'lightning') return;
+      imageRequest++;
+      historyBegin('command');
+      try { if (setTrail({image: null})) notify('拖尾已改為沿用粒子素材。'); }
+      finally { historyEnd(); }
+    });
     $('enableTrail').addEventListener('change', () => setTrail({enabled: $('enableTrail').checked}));
     $('trailMode').addEventListener('change', () => setTrail({mode: $('trailMode').value}));
     $('trailCoverage').addEventListener('change', () => setTrail({coverage: $('trailCoverage').value}));
@@ -1074,6 +1342,7 @@
   }
   function renderPathInspector() {
     const e = emitter(), path = pathFor(e), active = !!path.enabled;
+    renderVortexInspector(e);
     $('enablePath').checked = active; $('pathMotionFields').hidden = !active;
     $('pathSection').classList.toggle('path-inactive', !active);
     $('pathSummary').hidden = !e.path;
@@ -1105,6 +1374,27 @@
     if (alignment) alignment.parentElement.lastChild.textContent = active ? '貼圖朝向路徑切線' : '貼圖朝向移動方向';
     renderPathFacing();
     renderEmissionDirection();
+    const vortex = vortexActive(e);
+    $('adjustPath').textContent = vortex ? '調整漩渦' : '調整路徑';
+    if (vortex) {
+      const areaHint = e.vortex.mode === 'inward' ? '漩渦以發射器位置為中心。可在「數量與生命」調整收縮線數。' : '漩渦以發射器位置為中心，旋臂數控制粒子的分布。';
+      const speedHint = '粒子在生命期間走完漩渦，移動速度與速度隨機暫停作用。';
+      const forceHint = '漩渦運動期間暫停套用風力與重力。';
+      const motionHints = {speed: speedHint, speedRandom: speedHint, wind: forceHint, gravity: forceHint};
+      for (const input of controls) {
+        const key = input.dataset.field;
+        if (!motionHints[key] && !['shape', 'emitFrom', 'width', 'height', 'lineLength', 'lineRotation', 'arcAngle', 'arcRotation', 'directionMode', 'angle', 'spread', 'directionSpread'].includes(key)) continue;
+        input.disabled = true; input.title = motionHints[key] || areaHint;
+      }
+      $('outlineControls').hidden = true;
+      $('emitFromHint').hidden = true;
+      $('emissionPathNotice').hidden = false; $('emissionPathHint').textContent = areaHint;
+      $('emissionDirectionHint').textContent = '在「漩渦運動」可調整旋轉方向。';
+      $('speedModeHint').hidden = false; $('speedModeHint').textContent = speedHint;
+      $('forceModeHint').hidden = false; $('forceModeHint').textContent = forceHint;
+      $('speedCurveHint').textContent = '曲線較高的區段前進較快。整段曲線的比例決定相對節奏，總圈數由漩渦設定決定。整條設為 0 時，粒子停在起點。';
+      if (alignment) alignment.parentElement.lastChild.textContent = '貼圖朝向漩渦切線';
+    }
   }
   function renderEmissionDirection() {
     const e = emitter(), mode = directionMode(e), alongPath = !!(e.path && e.path.enabled);
@@ -1126,12 +1416,14 @@
     $('emissionDirectionHint').textContent = hint;
   }
   function changePath(field, value) {
-    const e = emitter(), prior = e.path;
+    const e = emitter(), prior = e.path, previousCount = e.count;
     try {
       e.path = PathMath.normalize(Object.assign({}, pathFor(e), {[field]: value}));
       if (e.path.enabled) PathMath.compile(e.path);
+      else restoreVortexLineMinimum(e);
       Core.normalizeProject(project); changed(); renderEmitters(); renderInspector();
-    } catch (error) { e.path = prior; renderInspector(); notify(error.message, true); }
+      if (e.count !== previousCount) showVortexLineMinimum(e);
+    } catch (error) { e.path = prior; e.count = previousCount; renderInspector(); notify(error.message, true); }
   }
   function renderGlobals() {
     refreshSpineTarget();
@@ -1168,6 +1460,7 @@
     if (!liveTimer) liveTimer = setTimeout(refreshLive, 35);
     updateBakeStatus();
     if (updateInspector) renderInspector();
+    else renderVortexJitterHint(emitter());
     queueDraft();
   }
   function saveDraftSnapshot(raw) {
@@ -1201,6 +1494,7 @@
     project.emitters.forEach(e => {
       if (e.image) imageFor(e.image);
       if (e.sequence) e.sequence.frames.forEach(imageFor);
+      if (e.trail && e.trail.image) imageFor(e.trail.image);
     });
   }
   function tinted(image, color, dark) {
@@ -1256,6 +1550,12 @@
           ctx.globalAlpha = .25; ctx.beginPath(); ctx.moveTo(0, 0);
           ctx.arc(0, 0, L.length, -(L.angle + L.tailSwing) * Math.PI / 180, -(L.angle - L.tailSwing) * Math.PI / 180); ctx.closePath(); ctx.stroke();
         }
+        ctx.restore(); return;
+      }
+      if (vortexActive(e)) {
+        ctx.strokeStyle = chosen ? '#6cdec7' : '#738194'; ctx.globalAlpha = e.enabled ? (chosen ? .65 : .3) : .2;
+        ctx.lineWidth = (chosen ? 1.4 : 1) / zoom; ctx.setLineDash([5 / zoom, 5 / zoom]);
+        ctx.beginPath(); ctx.arc(0, 0, e.vortex.radius, 0, 2 * Math.PI); ctx.stroke();
         ctx.restore(); return;
       }
       if (e.path && e.path.enabled) {
@@ -1350,7 +1650,7 @@
     }
     const attached = attachedFor();
     (mode === 'live' ? project : snapshot.project).emitters.forEach(e => {
-      if (!e.enabled || !(e.shape === 'outline' || e.path && e.path.enabled) || !e.outline || !e.outline.image || e.outline.showImage === false) return;
+      if (!e.enabled || vortexActive(e) || !(e.shape === 'outline' || e.path && e.path.enabled) || !e.outline || !e.outline.image || e.outline.showImage === false) return;
       const frame = attachedMode() ? attached && attached.emitterFrame(e.id, time) : null; if (attachedMode() && !frame) return;
       const bitmap = imageFor(e.outline.image); if (!bitmap.complete || !bitmap.naturalWidth) return;
       ctx.save(); if (frame) { const m = frame.matrix; ctx.transform(m.a, -m.c, -m.b, m.d, m.x, -m.y); }
@@ -1889,6 +2189,8 @@
   function freshId() { return 'e_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6); }
   const BUILTIN_EFFECTS = [
     {id: 'glow', name: '柔光粒子', description: '柔和光點，適合光塵與氛圍', symbol: '✦', gradient: 'radial-gradient(circle,#fff8dc,#ffc13b 45%,#3a2a12)'},
+    {id: 'vortexIn', name: '漩渦收縮', description: '藍紫星核旋入中心時逐漸縮小，光帶沿旋臂拉長', symbol: '↻', gradient: 'radial-gradient(circle,#d2f2ff,#816ddd 50%,#21193f)'},
+    {id: 'vortexOut', name: '漩渦外放', description: '金色星光從中心旋向外圈，留下短殘影', symbol: '↻', gradient: 'radial-gradient(circle,#fff5c4,#e7a345 50%,#462445)'},
     {id: 'sparks', name: '迸射火花', description: '短促爆發的火花', symbol: '✸', gradient: 'linear-gradient(135deg,#fff2b0,#f34b23 70%,#4a1420)'},
     {id: 'coins', name: '金幣噴發', description: '金幣向上噴出再落下', symbol: '◉', gradient: 'linear-gradient(135deg,#ffe58a,#e8a018 70%,#3a2a12)'},
     {id: 'bubbles', name: '漂浮氣泡', description: '緩慢上飄的氣泡', symbol: '○', gradient: 'linear-gradient(135deg,#f1fcff,#4b99ff 70%,#1b2550)'},
@@ -1933,7 +2235,11 @@
       return e;
     }
     const e = Core.createEmitter(id, names[preset], preset);
-    if (preset !== 'glow') e.image = clone(builtinImages[preset]);
+    if (vortexActive(e)) {
+      e.image = clone(builtinImages.sparks);
+      if (e.vortex.mode === 'inward') addVortexRibbonTexture(e);
+    }
+    else if (preset !== 'glow') e.image = clone(builtinImages[preset]);
     return e;
   }
   // ---- Extra animations (BURN …) ----
@@ -2233,7 +2539,8 @@
         notes = applyPlacement(e, pendingPlacement); Core.normalizeProject(project); integrationChanged();
       }
       changed(); renderEmitters(); renderInspector(); renderGlobals();
-      if (e.trail && e.trail.enabled) { setTab('motion'); expandSectionFor($('pathSection')); expandSectionFor($('trailSection')); $('trailSection').scrollIntoView({block: 'start'}); }
+      if (vortexActive(e)) { setTab('motion'); expandSectionFor($('vortexSection')); $('vortexSection').scrollIntoView({block: 'start'}); }
+      else if (e.trail && e.trail.enabled) { setTab('motion'); expandSectionFor($('pathSection')); expandSectionFor($('trailSection')); $('trailSection').scrollIntoView({block: 'start'}); }
       if (pendingPlacement && attachmentUi) { attachmentUi.refresh(); notify('已在 ' + pendingPlacement.slot + '（骨骼 ' + pendingPlacement.bone + '）新增「' + e.name + '」' + (pendingPlacement.at !== null ? '，' + pendingPlacement.at + ' 秒開始' : '') + (notes.length ? '；' + notes.join('；') : '') + '。'); }
     } finally { historyEnd(); }
   }
@@ -2357,6 +2664,7 @@
           else current.source[current.key] = current.sourceValue;
           current.input.value = current.text;
           if (current.input.dataset.field) syncEmitterPeers(current.input, current.source);
+          if (current.input.dataset.vortexField === 'arms') renderVortexLines(emitter());
           if (current.affectsParticles === false) queueDraft(); else changed();
           mode = current.mode;
           try { if (baked && simulationSignature(Core.normalizeProject(project)) === simulationSignature(baked.project)) bakedRevision = revision; } catch (_) {}
@@ -2374,7 +2682,8 @@
         const rect = input.getBoundingClientRect();
         // Keep the native spinner arrows available at the right edge.
         if (event.clientX >= rect.right - 18) return;
-        const value = input.valueAsNumber; if (!Number.isFinite(value)) return;
+        const value = input.dataset.vortexLayout && input.value === '' ? Core.vortexLineLayout(emitter())[input.dataset.vortexLayout] : input.valueAsNumber;
+        if (!Number.isFinite(value)) return;
         let custom = null;
         if (typeof curveEditor !== 'undefined' && curveEditor) custom = curveEditor.bindingFor(input);
         if (!custom && typeof trailLengthEditor !== 'undefined' && trailLengthEditor) custom = trailLengthEditor.bindingFor(input);
@@ -2386,6 +2695,27 @@
         if (!custom && typeof flowBindingFor === 'function') custom = flowBindingFor(input);
         if (!custom && typeof seedBindingFor === 'function') custom = seedBindingFor(input);
         if (!custom && typeof trailBindingFor === 'function') custom = trailBindingFor(input);
+        if (!custom && input.dataset.textureStretch) {
+          const e = emitter(), original = e.textureStretch;
+          custom = {key: input.dataset.textureStretch, source: textureStretchFor(e), restore() {
+            if (original) e.textureStretch = original; else delete e.textureStretch;
+            renderTextureStretch(e);
+          }};
+        }
+        if (!custom && input.dataset.vortexLayout) {
+          const e = emitter(), original = e.vortex, total = e.count;
+          custom = {key: input.dataset.vortexLayout, source: Core.vortexLineLayout(e), restore() {
+            e.vortex = original; e.count = total; renderInspector();
+          }};
+        }
+        if (!custom && input.dataset.vortexField) {
+          const e = emitter(), original = e.vortex;
+          custom = {key: input.dataset.vortexField, source: original || Core.VORTEX_DEFAULTS, restore() {
+            if (original) e.vortex = original; else delete e.vortex;
+            renderVortexInspector(e);
+            if (input.dataset.vortexField === 'timeJitter') renderTrailInspector();
+          }};
+        }
         const key = custom ? custom.key : input.dataset.field || {duration: 'duration', projectSeed: 'seed'}[input.id]; if (!key) return;
         if (gesture) finish(false);
         const source = custom ? custom.source : input.dataset.field ? emitter() : project;
@@ -2445,6 +2775,8 @@
     wireHistory();
     wireBackgroundJpeg();
     wireEmitterSeed();
+    wireVortex();
+    wireTextureStretch();
     wireTrail();
     pathEditor = window.ParticlePathEditor.mount({getEmitter: emitter, getScene: pathScene, loadOutline: loadPathOutline, onApply: (path, e, reference) => {
       const prior = {path: e.path, outline: e.outline, width: e.width, height: e.height};
@@ -2466,7 +2798,11 @@
       if (busy || !e.alignDirection || !(e.path && e.path.enabled) || !(e.spin || e.spinRandom)) return;
       e.spin = e.spinRandom = 0; changed(); renderInspector();
     });
-    $('adjustPath').addEventListener('click', () => { setTab('motion'); $('pathAdvanced').open = true; expandSectionFor($('pathSection')); $('pathSection').scrollIntoView({block: 'nearest'}); });
+    $('adjustPath').addEventListener('click', () => {
+      const vortex = vortexActive(emitter()), section = $(vortex ? 'vortexSection' : 'pathSection');
+      setTab('motion'); if (!vortex) $('pathAdvanced').open = true;
+      expandSectionFor(section); section.scrollIntoView({block: 'nearest'});
+    });
     $('loadOutline').addEventListener('click', () => $('outlineFile').click());
     $('outlineFile').addEventListener('change', async event => {
       const selected = emitter(), owner = project, threshold = Number($('outlineThreshold').value), includeHoles = $('outlineHoles').checked;
@@ -2537,6 +2873,7 @@
         const previous = e[key]; if (value === previous) return; e[key] = value;
         try { Core.normalizeProject(project); } catch (error) { e[key] = previous; if (!duringInput) { input.value = previous; notify(error.message, true); } return; }
         syncEmitterPeers(input);
+        if (key === 'count') renderVortexLines(e);
         changed(); renderEmitters(); if (key === 'shape' || key === 'emitFrom' || key === 'directionMode') renderInspector(); document.querySelectorAll('[data-readout]').forEach(output => { output.textContent = e[output.dataset.readout]; });
       };
       input.addEventListener('input', () => apply(true));

@@ -5,10 +5,11 @@
   const contourMath = typeof module === 'object' && module.exports ? require('./contour-math.js') : root.ParticleContourMath;
   const lightning = typeof module === 'object' && module.exports ? require('./lightning.js') : root.ParticleLightning;
   const trail = typeof module === 'object' && module.exports ? require('./trail.js') : root.ParticleTrail;
-  var api = factory(curveMath, pathMath, contourMath, lightning, trail);
+  const textureStretch = typeof module === 'object' && module.exports ? require('./texture-stretch.js') : root.ParticleTextureStretch;
+  var api = factory(curveMath, pathMath, contourMath, lightning, trail, textureStretch);
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.ParticleCore = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (CurveMath, PathMath, ContourMath, Lightning, Trail) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (CurveMath, PathMath, ContourMath, Lightning, Trail, TextureStretch) {
   'use strict';
   if (!CurveMath) throw new Error('粒子曲線模組尚未載入，請先載入 curve-math.js。');
   if (!PathMath) throw new Error('粒子路徑模組尚未載入，請先載入 path-math.js。');
@@ -19,7 +20,11 @@
   const EPS = 1e-9;
   const RESET_EPS = 0.0001;
   const MAX_POOL = 1200;
+  const MAX_EMITTER_COUNT = 400;
+  const VORTEX_MAX_LINES = 32;
+  const TEXTURE_STRETCH_DEFAULTS = Object.freeze({enabled: false, angle: 0, duration: .18});
   const MAX_EXPORT_SAMPLES = 2000000;
+  const VORTEX_DEFAULTS = Object.freeze({mode: 'off', radius: 160, turns: 1.25, direction: 'clockwise', arms: 0, shrinkHead: false});
   const BAKE_QUALITIES = Object.freeze(['fine', 'standard', 'compact', 'minimal']);
   const clone = value => JSON.parse(JSON.stringify(value));
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
@@ -71,7 +76,7 @@
   }
 
   function needsRefinement(baked, particle) {
-    return !!particle.lifecycle.path || particle.emitter.alignDirection ||
+    return !!particle.lifecycle.path || !!particle.lifecycle.vortex || particle.emitter.alignDirection ||
       (particle.emitter.separateSizeAxes && activeSizeCurves(particle.emitter).some(points => points.slice(0, -1).some(point => point.curve === 'bezier'))) ||
       (baked.project.bakeQuality !== undefined && baked.project.bakeQuality !== 'standard');
   }
@@ -80,6 +85,36 @@
     if (project.bakeQuality === undefined) return {};
     const profile = qualityProfile(project);
     return {quality: profile.name, qualityLabel: profile.label};
+  }
+
+  function vortexLineLayout(e) {
+    const settings = e.vortex || VORTEX_DEFAULTS;
+    const lineCount = settings.lineCount ?? Math.min(e.count, Math.max(1, settings.arms || 1));
+    const particlesPerLine = Math.ceil(e.count / lineCount);
+    return {lineCount, particlesPerLine, total: e.count,
+      maxParticlesPerLine: Math.floor(MAX_EMITTER_COUNT / lineCount),
+      maxLineCount: Math.min(VORTEX_MAX_LINES, Math.floor(MAX_EMITTER_COUNT / particlesPerLine)),
+      grouped: settings.lineCount !== undefined && settings.mode === 'inward' &&
+        e.kind !== 'lightning' && !(e.path && e.path.enabled)};
+  }
+
+  function setVortexLineLayout(e, lineCount, particlesPerLine = vortexLineLayout(e).particlesPerLine) {
+    if (!Number.isInteger(lineCount) || lineCount < 1 || lineCount > VORTEX_MAX_LINES)
+      fail('收縮線數必須是 1 到 ' + VORTEX_MAX_LINES + ' 的整數。');
+    const perLineLimit = Math.floor(MAX_EMITTER_COUNT / lineCount);
+    if (!Number.isInteger(particlesPerLine) || particlesPerLine < 1 || particlesPerLine > perLineLimit)
+      fail(lineCount + ' 條收縮線的每線粒子數必須是 1 到 ' + perLineLimit + ' 的整數（每層最多 ' + MAX_EMITTER_COUNT + ' 顆）。');
+    e.vortex = {...(e.vortex || VORTEX_DEFAULTS), lineCount};
+    e.count = lineCount * particlesPerLine;
+    return e;
+  }
+
+  function applyVortexInStretch(emitter) {
+    emitter.vortex = {...(emitter.vortex || VORTEX_DEFAULTS), shrinkHead: true};
+    emitter.trail = {...emitter.trail, enabled: true, mode: 'stretch', coverage: 'history', showHead: true,
+      duration: 0.24, segments: 6, width: 0.8, taper: 0.85, opacity: 0.9,
+      lengthCurve: null, moveDuration: null, lengthDuration: null};
+    return emitter;
   }
 
   function createEmitter(id, name, preset) {
@@ -132,6 +167,24 @@
         Object.assign(emitter, {shape: 'ring', width: 160, height: 160, count: 36,
           spread: 360, speed: 20, speedRandom: 5, life: 1.8, size: 10});
         break;
+      case 'vortexIn':
+      case 'vortexOut': {
+        const inward = preset === 'vortexIn';
+        Object.assign(emitter, {count: 30, emissionDuration: inward ? 1.08 : 1.35, life: 1.55, lifeRandom: 0.12,
+          size: inward ? 22 : 14, sizeRandom: 4, colorStart: inward ? '#83aaff' : '#fff3a3', colorEnd: inward ? '#ead5ff' : '#ff7952',
+          vortex: {...VORTEX_DEFAULTS, mode: inward ? 'inward' : 'outward', arms: 3}});
+        if (inward) {
+          setVortexLineLayout(emitter, 12, 4);
+          emitter.sizeCurve = [{t: 0, v: 1}, {t: 1, v: 1}];
+          emitter.alphaCurve = [{t: 0, v: 0}, {t: 0.06, v: 1}, {t: 0.94, v: 1}, {t: 1, v: 0}];
+          applyVortexInStretch(emitter);
+        } else {
+          emitter.sizeCurve = [{t: 0, v: 0.7}, {t: 0.18, v: 1}, {t: 0.82, v: 0.88}, {t: 1, v: 0.5}];
+          emitter.alphaCurve = [{t: 0, v: 0}, {t: 0.06, v: 1}, {t: 0.82, v: 0.9}, {t: 1, v: 0}];
+          emitter.trail = {enabled: true, mode: 'afterimage', duration: 0.12, samples: 3, opacity: 0.65, width: 0.82};
+        }
+        break;
+      }
       case 'confetti':
         Object.assign(emitter, {blend: 'normal', shape: 'box', width: 240, height: 10,
           count: 44, life: 2.5, lifeRandom: 0.4, speed: 140, speedRandom: 50,
@@ -384,7 +437,7 @@
   }
   const fileKey = value => value.normalize('NFC').toLowerCase();
   function planImages(project) {
-    const references = [], byEmitter = new Map(), folders = new Map(), folderKeys = new Set();
+    const references = [], byEmitter = new Map(), byTrail = new Map(), folders = new Map(), folderKeys = new Set();
     const enabled = project.emitters.filter(e => included(project, e));
     // IDs may differ only by case. Allocate Windows-safe folders in sorted ID
     // order so changing visual layer order cannot rename their image paths.
@@ -398,6 +451,10 @@
       const entries = frames.map((image, index) => ({emitterId: e.id, frame: sequence ? index : null, image,
         basename: image ? pngFileName(image.name) : 'particle.png'}));
       references.push(...entries); byEmitter.set(e.id, entries);
+      if (Trail && Trail.active(e) && e.trail.image) {
+        const ref = {emitterId: e.id, role: 'trail', image: e.trail.image, basename: pngFileName(e.trail.image.name)};
+        references.push(ref); byTrail.set(e.id, ref);
+      }
     });
     const counts = new Map(), withinEmitter = new Map();
     const builtinUsed = references.some(ref => !ref.image);
@@ -416,11 +473,11 @@
       const key = fileKey(ref.basename), local = JSON.stringify([ref.emitterId, key]);
       const collision = counts.get(key) > 1 || builtinUsed && key === 'particle.png';
       const directory = collision ? folders.get(ref.emitterId) + '/' +
-        (withinEmitter.get(local) > 1 ? sequenceSuffix(ref.frame) + '/' : '') : '';
+        (withinEmitter.get(local) > 1 ? ref.role === 'trail' ? 'trail/' : sequenceSuffix(ref.frame) + '/' : '') : '';
       ref.asset = {name: directory + ref.basename, width: ref.image.width, height: ref.image.height, dataUrl: ref.image.dataUrl};
       images.push(ref.asset);
     });
-    return {images, byEmitter};
+    return {images, byEmitter, byTrail};
   }
 
   // Attachment events use the same microsecond grid as births and deaths.
@@ -487,10 +544,34 @@
       if (e.shape === 'outline') e.emitFrom = 'edge';
       e.blend = enumValue(source, 'blend', e.blend, ['additive', 'normal'], '混合模式');
       e.motionCurve = enumValue(source, 'motionCurve', e.motionCurve, ['linear', 'easeOut', 'easeIn', 'easeInOut'], '運動曲線');
+      if (source.textureStretch !== undefined) {
+        const settings = source.textureStretch;
+        if (!settings || typeof settings !== 'object' || Array.isArray(settings)) fail('貼圖拉伸設定必須是物件。');
+        e.textureStretch = {
+          enabled: boolean(settings, 'enabled', TEXTURE_STRETCH_DEFAULTS.enabled, '貼圖沿路徑拉伸'),
+          angle: number(settings, 'angle', TEXTURE_STRETCH_DEFAULTS.angle, -180, 180, false, '素材角度'),
+          duration: number(settings, 'duration', TEXTURE_STRETCH_DEFAULTS.duration, .01, 2, false, '貼圖拉伸時間')
+        };
+      }
+      if (source.vortex !== undefined) {
+        const vortex = source.vortex, defaults = VORTEX_DEFAULTS;
+        if (!vortex || typeof vortex !== 'object' || Array.isArray(vortex)) fail('漩渦設定必須是物件。');
+        e.vortex = {
+          mode: enumValue(vortex, 'mode', defaults.mode, ['off', 'inward', 'outward'], '漩渦模式'),
+          radius: number(vortex, 'radius', defaults.radius, 1, 2000, false, '漩渦半徑'),
+          turns: number(vortex, 'turns', defaults.turns, 0, 8, false, '漩渦圈數'),
+          arms: number(vortex, 'arms', defaults.arms, 0, 8, true, '漩渦旋臂數'),
+          direction: enumValue(vortex, 'direction', defaults.direction, ['clockwise', 'counterclockwise'], '漩渦旋向')
+        };
+        if (vortex.shrinkHead !== undefined) e.vortex.shrinkHead = boolean(vortex, 'shrinkHead', defaults.shrinkHead, '依旋心距離縮小頭部');
+        if (vortex.lineCount !== undefined) e.vortex.lineCount = number(vortex, 'lineCount', undefined, 1, VORTEX_MAX_LINES, true, '收縮線數');
+        if (vortex.edgeJitter !== undefined) e.vortex.edgeJitter = number(vortex, 'edgeJitter', 0, 0, 100, false, '漩渦邊緣位置隨機');
+        if (vortex.timeJitter !== undefined) e.vortex.timeJitter = number(vortex, 'timeJitter', 0, 0, 100, false, '漩渦發射時間隨機');
+      }
       const ranges = {
         x: [-4000, 4000], y: [-4000, 4000], width: [0, 2000], height: [0, 2000],
         lineLength: [0, 2000], lineRotation: [-3600, 3600], arcAngle: [1, 360], arcRotation: [-3600, 3600],
-        angle: [-3600, 3600], spread: [0, 360], count: [1, 400], emissionDuration: [0, 30],
+        angle: [-3600, 3600], spread: [0, 360], count: [1, MAX_EMITTER_COUNT], emissionDuration: [0, 30],
         life: [0.05, 10], lifeRandom: [0, 8], speed: [0, 4000], speedRandom: [0, 4000],
         gravity: [-6000, 6000], wind: [-3000, 3000], windAngle: [-3600, 3600],
         size: [0.1, 1000], sizeRandom: [0, 1000], rotation: [-36000, 36000],
@@ -525,9 +606,12 @@
         e.path = PathMath.normalize(source.path);
         if (e.path && e.path.enabled) PathMath.compile(e.path);
       }
+      if (e.vortex && e.count < e.vortex.lineCount && vortexLineLayout(e).grouped)
+        fail('發射器「' + e.name + '」的粒子總數不能少於收縮線數，每條收縮線至少需要一顆粒子。');
       if (source.trail !== undefined) {
         if (!Trail) fail('拖尾模組尚未載入，請先載入 trail.js。');
         e.trail = Trail.normalize(source.trail);
+        if (Object.prototype.hasOwnProperty.call(e.trail, 'image')) e.trail.image = image(e.trail.image, '發射器「' + e.name + '」拖尾');
         if (Trail.active(e) && e.trail.mode === 'stretch' && e.trail.coverage === 'path' && !(e.path && e.path.enabled))
           fail('發射器「' + e.name + '」的整條路徑光帶需要先啟用有效路徑，並設定至少兩個不同的路徑點。');
       }
@@ -565,6 +649,7 @@
     }
     const totalImages = result.emitters.reduce((sum, e) => sum + (e.image ? e.image.dataUrl.length : 0) +
       (e.sequence ? e.sequence.frames.reduce((bytes, frame) => bytes + frame.dataUrl.length, 0) : 0) +
+      (e.trail && e.trail.image ? e.trail.image.dataUrl.length : 0) +
       (e.outline && e.outline.image ? e.outline.image.dataUrl.length : 0), 0) + (result.background.image ? result.background.image.dataUrl.length : 0);
     if (totalImages > 16 * 1024 * 1024) fail('內嵌素材總量超過 16 MiB，請縮小圖片後重試。');
     const emitterIds = result.emitters.map(e => e.id);
@@ -662,6 +747,73 @@
     if (mode === 'easeOut') return 1 - (1 - t) * (1 - t);
     if (mode === 'easeInOut') return t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
     return t;
+  }
+
+  function inwardRadialFactors(e, speedCurve, total) {
+    const {lineCount, turns, direction, mode} = e.vortex;
+    if (mode !== 'inward' || !(lineCount >= 12 && turns > 0 && total > 0)) return null;
+    const peakRate = speedCurve ? Math.max(...speedCurve.sampleTimes.map(speedCurve.sample)) / total : e.motionCurve === 'linear' ? 1 : 2;
+    const trail = Trail && Trail.active(e) && e.trail.mode === 'stretch' ? e.trail : null;
+    const shortestLife = Math.max(.05, e.life - e.lifeRandom, trail?.moveDuration || 0, trail?.lengthDuration || 0);
+    // A dense array of identical, synchronized spokes can look like it turns
+    // backwards when its apparent shift crosses half a gap between frames.
+    // Fade in distinct radial positions before that limit at 20 frames/s.
+    const crossings = lineCount * turns * peakRate / shortestLife;
+    const ramp = clamp((crossings - 8) / 2, 0, 1);
+    if (!ramp) return null;
+    const strength = ramp * ramp * (3 - 2 * ramp);
+    const amplitude = 1.1 + .3 * clamp((lineCount - 16) / 8, 0, 1);
+    const levels = [-1, 1 / 3, 1, -1 / 3];
+    return Array.from({length: lineCount}, (_, line) => {
+      const group = (direction === 'clockwise' ? line : lineCount - 1 - line) % levels.length;
+      return Math.exp(-amplitude * strength * levels[group]);
+    });
+  }
+
+  function compileVortex(e, speedCurve) {
+    const settings = e.vortex;
+    const sweep = settings.turns * TAU * (settings.direction === 'clockwise' ? -1 : 1);
+    const total = speedCurve ? speedCurve.integral(1) : 1;
+    // Seed each quarter turn before midpoint refinement. Even several whole
+    // revolutions inside a single FPS interval must survive Spine export.
+    // All particles share this normalized clock, including delayed trail copies.
+    const radialFactors = inwardRadialFactors(e, speedCurve, total);
+    const sampleTimes = [], segments = Math.max(2, Math.ceil(settings.turns * 4));
+    if (total > 0) for (let index = 1; index < segments; index++) {
+      const target = index / segments;
+      if (!speedCurve && e.motionCurve === 'linear') { sampleTimes.push(target); continue; }
+      let low = 0, high = 1;
+      for (let iteration = 0; iteration < 32; iteration++) {
+        const middle = (low + high) / 2;
+        const progress = speedCurve ? speedCurve.integral(middle) / total : ease(middle, e.motionCurve);
+        if (progress < target) low = middle; else high = middle;
+      }
+      sampleTimes.push((low + high) / 2);
+    }
+    return {sweep, total, sampleTimes, shrinkHead: settings.mode === 'inward' && !!settings.shrinkHead,
+      ...(radialFactors ? {radialFactors} : {})};
+  }
+
+  function vortexPosition(particle, travel) {
+    const vortex = particle.lifecycle.vortex, settings = particle.emitter.vortex;
+    const progress = vortex.total > 0 ? clamp(travel / (particle.life * vortex.total), 0, 1) : 0;
+    const outward = settings.mode === 'outward';
+    let fraction = outward ? progress : 1 - progress, radialSlope = outward ? 1 : -1;
+    if (vortex.radialFactors) {
+      // Stagger only the distance to the center. Every line keeps its angular
+      // spacing and completes all authored turns, including during acceleration.
+      // q = p / (p + (1-p)*k) increases from 0 to 1 for every positive k.
+      const factor = vortex.radialFactors[particle.sourceIndex % vortex.radialFactors.length];
+      const remaining = (1 - progress) * factor, denominator = progress + remaining;
+      fraction = remaining / denominator;
+      radialSlope = -factor / (denominator * denominator);
+    }
+    const angle = particle.direction * DEG + vortex.sweep * progress;
+    const r = settings.radius * fraction;
+    // Differentiate the actual radius and keep the polar angle unwrapped so
+    // aligned sprites turn continuously as the inward trajectory steepens.
+    return {x: r * Math.cos(angle), y: r * Math.sin(angle), radiusFraction: fraction,
+      angle: (angle + Math.atan2(fraction * vortex.sweep, radialSlope)) / DEG};
   }
 
   // Arc angles are actual world polar directions (0 right, 90 up), centered on
@@ -839,14 +991,30 @@
     project.emitters.forEach(e => {
       if (!included(project, e)) return;
       if (e.kind === 'lightning') { lightning.push({emitterId: e.id, seed: emitterSeed(project, e)}); return; }
-      const rand = random(emitterSeed(project, e));
+      const seed = emitterSeed(project, e), rand = random(seed);
       const signed = amplitude => (rand() * 2 - 1) * amplitude;
-      const sampleRing = e.shape === 'ring' ? (e.emitFrom === 'area' ? ringAreaSampler(e) : ringSampler(e)) : null;
-      if (e.shape === 'outline' && !e.outline) fail('發射器「' + e.name + '」尚未載入 PNG 輪廓，請先掃描透明 PNG。');
-      const sampleOutline = e.shape === 'outline' ? ContourMath.compile(e.outline, e.width, e.height) : null;
+      const useVortex = !(e.path && e.path.enabled) && e.vortex && e.vortex.mode !== 'off';
+      const layout = vortexLineLayout(e);
+      const linesPerWave = layout.grouped ? layout.lineCount : 1;
+      const waveCount = layout.grouped ? layout.particlesPerLine : e.count;
+      const arms = layout.grouped ? layout.lineCount : useVortex ? e.vortex.arms : 0;
+      // A separate stream orients the whole spiral without reshuffling size,
+      // lifespan, spin or the free-scatter rays when the arm count is edited.
+      const armOrigin = arms ? random(seed ^ seedHash('vortex-arm-phase'))() * TAU : 0;
+      // Fixed lines reuse their edge offset across waves. Leave a gap even if
+      // adjacent lines both draw the maximum offset toward each other.
+      const edgeRange = useVortex ? (e.vortex.edgeJitter || 0) / 100 * .45 * TAU / (arms || 1) : 0;
+      const edgeRand = random(seed ^ seedHash('vortex-edge-jitter'));
+      const edgeOffsets = edgeRange ? Array.from({length: arms || e.count}, () => (2 * edgeRand() - 1) * edgeRange) : null;
+      // Vortex particles use the emitter origin. Inactive shapes must not
+      // consume random draws or require a contour that will never be sampled.
+      const shape = useVortex ? 'point' : e.shape;
+      const sampleRing = shape === 'ring' ? (e.emitFrom === 'area' ? ringAreaSampler(e) : ringSampler(e)) : null;
+      if (shape === 'outline' && !e.outline) fail('發射器「' + e.name + '」尚未載入 PNG 輪廓，請先掃描透明 PNG。');
+      const sampleOutline = shape === 'outline' ? ContourMath.compile(e.outline, e.width, e.height) : null;
       // Ring historically consumes one shape draw. Its new area radius uses
       // a separate stream so switching location never reshuffles life or motion.
-      const ringRadiusRand = e.shape === 'ring' && e.emitFrom === 'area'
+      const ringRadiusRand = shape === 'ring' && e.emitFrom === 'area'
         ? random(e.randomSeed === undefined ? (project.seed ^ seedHash(e.id + ':ring-area-radius')) >>> 0 :
           (e.randomSeed ^ seedHash('ring-area-radius')) >>> 0) : null;
       const lifecycle = {
@@ -866,13 +1034,17 @@
         });
       }
       if (e.path && e.path.enabled) lifecycle.path = PathMath.compile(e.path);
+      else if (useVortex) lifecycle.vortex = compileVortex(e, lifecycle.speed);
       const sequence = activeSequence(e);
       if (sequence) lifecycle.sequenceMaxDimension = Math.max(...sequence.frames.map(frame => Math.max(frame.width, frame.height)));
       // A separate stream: switching to random images never reshuffles motion.
       const frameRand = sequence && sequence.mode === 'random' && sequence.frames.length > 1
         ? random(e.randomSeed === undefined ? (project.seed ^ seedHash(e.id + ':random-frame')) >>> 0 : (e.randomSeed ^ seedHash('random-frame')) >>> 0) : null;
       let index = 0, clipped = false;
-      for (let sourceIndex = 0; sourceIndex < e.count; sourceIndex++) {
+      const delay = Math.min(e.startDelay || 0, project.duration);
+      const emissionWindow = Math.min(e.emissionDuration, project.duration - delay);
+      const timeRange = useVortex ? emissionWindow / waveCount * ((e.vortex.timeJitter || 0) / 100) : 0;
+      for (let waveIndex = 0; waveIndex < waveCount; waveIndex++) {
         // Use the same microsecond grid as JSON keys so birth/death attachment events
         // cannot slip to the following video frame after decimal quantization.
         const authoredLife = round(clamp(e.life + signed(e.lifeRandom), 0.05, 16));
@@ -891,43 +1063,54 @@
         if (sampleOutline) {
           const point = e.directionMode === 'normal' ? sampleOutline.sampleNormal(rand()) : sampleOutline.sample(rand());
           sx = point.x; sy = point.y; if (e.directionMode === 'normal') sampledNormal = point;
-        } else if (e.shape === 'box') {
+        } else if (shape === 'box') {
           if (e.emitFrom === 'edge') {
             const point = boxEdgePoint(e, rand(), rand()); sx = point.x; sy = point.y; sampledNormal = point;
           } else { sx = signed(e.width / 2); sy = signed(e.height / 2); }
         }
-        else if (e.shape === 'ring') {
+        else if (shape === 'ring') {
           const point = ringRadiusRand ? sampleRing(rand(), ringRadiusRand()) : sampleRing(rand()); sx = point.x; sy = point.y;
-        } else if (e.shape === 'circle') {
+        } else if (shape === 'circle') {
           const polar = rand() * TAU, areaRadius = Math.sqrt(rand());
           const radius = e.emitFrom === 'edge' ? 1 : areaRadius;
           sx = Math.cos(polar) * e.width / 2 * radius; sy = Math.sin(polar) * e.height / 2 * radius;
-        } else if (e.shape === 'line') {
+        } else if (shape === 'line') {
           const distance = signed(e.lineLength / 2);
           sx = Math.cos(e.lineRotation * DEG) * distance; sy = Math.sin(e.lineRotation * DEG) * distance;
-        } else if (e.shape === 'direction') {
+        } else if (shape === 'direction') {
           const distance = signed(e.width / 2);
           sx = -Math.sin(e.angle * DEG) * distance; sy = Math.cos(e.angle * DEG) * distance;
         }
-        const angle = emissionAngle(e, sx, sy, angleDraw, sampledNormal);
-        const randomFrame = frameRand ? Math.min(sequence.frames.length - 1, Math.floor(frameRand() * sequence.frames.length)) : undefined;
-        const delay = Math.min(e.startDelay || 0, project.duration);
-        const birth = round(delay + sourceIndex / e.count * Math.min(e.emissionDuration, project.duration - delay));
+        const waveStart = delay + waveIndex / waveCount * emissionWindow;
+        // Each wave owns a random stream so adding a line to an earlier wave
+        // never reshuffles this wave. Births stay inside their own time slot.
+        const timeRand = timeRange ? random(seed ^ seedHash('vortex-time-jitter:' + waveIndex)) : null;
         const tail = Trail && Trail.active(e) ? e.trail.duration : 0;
-        clipped = clipped || (birth + life + tail > project.duration);
         const cycles = project.loop ? Math.max(1, Math.ceil((life + tail - EPS) / project.duration)) : 1;
         maxPoolCycles = Math.max(maxPoolCycles, cycles);
         longLived = longLived || (project.loop && life > project.duration);
-        generatedParticles++;
-        for (let cycleIndex = 0; cycleIndex < cycles; cycleIndex++) {
-          particles.push({emitterId: e.id, index: index++, sourceIndex, cycleIndex,
-            birth, life, size, spin, sx, sy, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-            ax: e.wind, ay: -e.gravity,
-            direction: angle / DEG, emitter: e, lifecycle, startColor: rgb(e.colorStart), endColor: rgb(e.colorEnd),
-            ...(randomFrame === undefined ? {} : {randomFrame})});
-          if (tail) trailLanes += Trail.lanes(e.trail).length;
+        // Grouped lines are rotated copies of the same wave. Keeping the motion
+        // draws per wave preserves its timing and radius when the number of lines changes.
+        const firstSource = waveIndex * linesPerWave;
+        const waveEnd = Math.min(e.count, firstSource + linesPerWave);
+        for (let sourceIndex = firstSource; sourceIndex < waveEnd; sourceIndex++) {
+          let angle = arms ? armOrigin + (sourceIndex % arms) * TAU / arms :
+            useVortex ? angleDraw * TAU : emissionAngle(e, sx, sy, angleDraw, sampledNormal);
+          if (edgeOffsets) angle += edgeOffsets[arms ? sourceIndex % arms : sourceIndex];
+          const birth = round(waveStart + (timeRand ? timeRand() * timeRange : 0));
+          clipped = clipped || birth + life + tail > project.duration;
+          const randomFrame = frameRand ? Math.min(sequence.frames.length - 1, Math.floor(frameRand() * sequence.frames.length)) : undefined;
+          generatedParticles++;
+          for (let cycleIndex = 0; cycleIndex < cycles; cycleIndex++) {
+            particles.push({emitterId: e.id, index: index++, sourceIndex, cycleIndex,
+              birth, life, size, spin, sx, sy, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+              ax: e.wind, ay: -e.gravity,
+              direction: angle / DEG, emitter: e, lifecycle, startColor: rgb(e.colorStart), endColor: rgb(e.colorEnd),
+              ...(randomFrame === undefined ? {} : {randomFrame})});
+            if (tail) trailLanes += Trail.lanes(e.trail).length;
+          }
+          if (particles.length + trailLanes > MAX_POOL) fail('循環粒子池超過 ' + MAX_POOL + ' 個（包含拖尾）。請減少粒子數／殘影數、縮短壽命／拖尾，或增加動畫長度。');
         }
-        if (particles.length + trailLanes > MAX_POOL) fail('循環粒子池超過 ' + MAX_POOL + ' 個（包含拖尾）。請減少粒子數／殘影數、縮短壽命／拖尾，或增加動畫長度。');
       }
       if (e.startDelay && e.startDelay >= project.duration) warnings.push('「' + e.name + '」開始時間超過動畫長度，粒子會在最後一刻同時出生；請縮短開始時間或加長動畫。');
       else if (e.startDelay && e.startDelay + e.emissionDuration > project.duration) warnings.push('「' + e.name + '」開始時間＋發射時間超過動畫長度；本次發射壓縮在 ' + round(project.duration - e.startDelay) + ' 秒內。');
@@ -1038,9 +1221,10 @@
     const direction = directionEvents(particle).length;
     const sequence = sequenceBoundaryRange(baked, particle);
     const sequenceEvents = Math.max(0, sequence.last - sequence.first + 1);
-    const upper = grid + markers + path.events + path.corners + direction + sequenceEvents;
+    const vortex = particle.lifecycle.vortex;
+    const upper = grid + markers + path.events + path.corners + direction + sequenceEvents + (vortex ? vortex.sampleTimes.length : 0);
     const directionVariation = e.alignDirection ? (particle.lifecycle.path ? (path.events + 2) * 180 :
-      360 * (particle.lifecycle.speed ? particle.lifecycle.speed.sampleTimes.length + 2 : 2)) : 0;
+      vortex ? Math.abs(vortex.sweep) / DEG + 90 : 360 * (particle.lifecycle.speed ? particle.lifecycle.speed.sampleTimes.length + 2 : 2)) : 0;
     const guards = Math.ceil((Math.abs(particle.spin) * baked.duration + directionVariation) / 120);
     return {lower: Math.max(grid, sequenceEvents - 1), upper, guards, rejected: path.rejected};
   }
@@ -1054,10 +1238,10 @@
     for (const [name, phase] of Object.entries(phaseSources)) {
       let phaseLower = 0, phaseUpper = 0;
       for (const particle of phase.particles) {
-        const cost = timelineCost(phase, particle);
+        const cost = stretchedHead(particle) ? trailCost(phase, particle, true) : timelineCost(phase, particle);
         phaseLower += cost.lower; phaseUpper += cost.upper; guards += cost.guards;
         rejected = rejected || cost.rejected;
-        adaptivePossible = adaptivePossible || needsRefinement(phase, particle);
+        adaptivePossible = adaptivePossible || stretchedHead(particle) || needsRefinement(phase, particle);
         if (hasTrail(particle)) {
           const tail = trailCost(phase, particle);
           phaseLower += tail.lower; phaseUpper += tail.upper; rejected = rejected || tail.rejected; adaptivePossible = true;
@@ -1120,7 +1304,7 @@
   // velocity. Preserve that time even if it falls between the FPS grid; a
   // genuine stop/reversal is an angle discontinuity, not a long interpolation.
   function directionEvents(particle) {
-    if (!particle.emitter.alignDirection || particle.lifecycle.path) return [];
+    if (!particle.emitter.alignDirection || particle.lifecycle.path || particle.lifecycle.vortex) return [];
     const accel2 = particle.ax * particle.ax + particle.ay * particle.ay;
     if (accel2 < EPS) return [];
     const result = [], e = particle.emitter, curve = particle.lifecycle.speed;
@@ -1171,34 +1355,38 @@
     const forceTime = speedCurve ? evaluatedAge : travel;
     const speedMultiplier = speedCurve ? speedCurve.sample(speedU) : 1;
     const path = particle.lifecycle.path;
-    const pathPosition = path ? path.sample(pathProgress(particle, evaluatedAge)) : null;
+    const guidedPosition = path ? path.sample(pathProgress(particle, evaluatedAge)) :
+      particle.lifecycle.vortex ? vortexPosition(particle, travel) : null;
+    const pathOffsets = path && e.path.offsets;
     const sizeU = curveProgress(e.sizeCurve, evaluatedAge, particle.life), alphaU = curveProgress(e.alphaCurve, evaluatedAge, particle.life);
     const scaleCurve = particle.lifecycle.sizeLinear ? evalCurve(e.sizeCurve, sizeU) : particle.lifecycle.size.sample(sizeU);
     const sequence = activeSequence(e);
     const frameIndex = sequence ? sequenceFrame(sequence, evaluatedAge, particle) : undefined;
     const frameImage = sequence ? sequence.frames[frameIndex] : e.image;
     const maxDimension = sequence ? particle.lifecycle.sequenceMaxDimension : e.image ? Math.max(e.image.width, e.image.height) : 64;
-    const scale = particle.size / maxDimension * scaleCurve;
+    const shrinkHead = particle.lifecycle.vortex && particle.lifecycle.vortex.shrinkHead;
+    const sizeRatio = particle.size / maxDimension * (shrinkHead ? guidedPosition.radiusFraction : 1);
+    const scale = sizeRatio * scaleCurve;
     function axisScale(axis) {
       if (!e.separateSizeAxes) return scale;
       const points = e['sizeCurve' + axis] || e.sizeCurve;
       const progress = curveProgress(points, evaluatedAge, particle.life);
       const multiplier = particle.lifecycle['size' + axis + 'Linear'] ? evalCurve(points, progress) : particle.lifecycle['size' + axis].sample(progress);
-      return particle.size / maxDimension * multiplier;
+      return sizeRatio * multiplier;
     }
     const scaleX = axisScale('X'), scaleY = axisScale('Y');
     const width = (frameImage ? frameImage.width : 64) * scaleX;
     const height = (frameImage ? frameImage.height : 64) * scaleY;
     let rotation = e.rotation + particle.spin * evaluatedAge;
-    if (e.alignDirection && pathPosition) rotation += pathAngle === undefined ? pathPosition.angle : pathAngle;
+    if (e.alignDirection && guidedPosition) rotation += pathAngle === undefined ? guidedPosition.angle : pathAngle;
     else if (e.alignDirection) {
       const vx = particle.vx * speedMultiplier + particle.ax * forceTime, vy = particle.vy * speedMultiplier + particle.ay * forceTime;
       const angle = Math.abs(vx) + Math.abs(vy) < EPS ? particle.direction : Math.atan2(vy, vx) / DEG;
       rotation += particle.direction + mod(angle - particle.direction + 180, 360) - 180;
     }
     const state = {emitterId: particle.emitterId, index: particle.index,
-      x: pathPosition ? e.x + pathPosition.x + (e.path.offsets ? particle.sx + particle.ax * evaluatedAge * evaluatedAge / 2 : 0) : e.x + particle.sx + particle.vx * travel + particle.ax * forceTime * forceTime / 2,
-      y: pathPosition ? e.y + pathPosition.y + (e.path.offsets ? particle.sy + particle.ay * evaluatedAge * evaluatedAge / 2 : 0) : e.y + particle.sy + particle.vy * travel + particle.ay * forceTime * forceTime / 2,
+      x: guidedPosition ? e.x + guidedPosition.x + (pathOffsets ? particle.sx + particle.ax * evaluatedAge * evaluatedAge / 2 : 0) : e.x + particle.sx + particle.vx * travel + particle.ax * forceTime * forceTime / 2,
+      y: guidedPosition ? e.y + guidedPosition.y + (pathOffsets ? particle.sy + particle.ay * evaluatedAge * evaluatedAge / 2 : 0) : e.y + particle.sy + particle.vy * travel + particle.ay * forceTime * forceTime / 2,
       scale, width, height, rotation,
       color: particle.lifecycle.gradient ? evalGradient(particle.lifecycle.gradient, curveProgress(e.colorGradient, evaluatedAge, particle.life)) : particle.startColor.map((channel, i) => channel + (particle.endColor[i] - channel) * u),
       alpha: alive ? (particle.lifecycle.alphaLinear ? evalCurve(e.alphaCurve, alphaU) : particle.lifecycle.alpha.sample(alphaU)) *
@@ -1220,9 +1408,9 @@
           const state = trailState(baked, particle, lane, t), index = particle.index * stride + lane.index;
           states.push({...state, index, slotName: 'em_' + particle.emitterId + '_p' + index + '_slot'});
         });
-        const head = visibleHeadState(particle, stateAt(baked, particle, t)), index = particle.index * stride + lanes.length;
+        const head = sampleHead(baked, particle, t), index = particle.index * stride + lanes.length;
         states.push({...head, slotName: 'em_' + particle.emitterId + '_p' + index + '_slot'});
-      } else states.push(stateAt(baked, particle, t));
+      } else states.push(sampleHead(baked, particle, t));
     });
     if (baked.lightning) states.push(...lightningStates(baked, t));
     if (baked.particles.some(hasTrail)) {
@@ -1246,8 +1434,28 @@
   function visibleHeadState(particle, state) {
     return hasHiddenTrailHead(particle) ? {...state, alpha: 0} : state;
   }
+  const textureLane = Object.freeze({index: 0, mode: 'stretch', headTexture: true});
+  function stretchedHead(particle) {
+    return !!(particle.emitter.textureStretch && particle.emitter.textureStretch.enabled && !hasHiddenTrailHead(particle));
+  }
+  function textureReference(e) {
+    const sequence = activeSequence(e);
+    return sequence ? sequence.frames[0] : e.image;
+  }
+  function sampleHead(baked, particle, time) {
+    return stretchedHead(particle) ? trailState(baked, particle, textureLane, time) : visibleHeadState(particle, stateAt(baked, particle, time));
+  }
+  function meshSettings(particle, headTexture) {
+    // The main texture shares the history sampling and Spine deform exporter with trails.
+    // Its material, visibility, and slot still belong to the particle head.
+    return headTexture ? {mode: 'stretch', enabled: true, segments: 6, duration: particle.emitter.textureStretch.duration} : particle.emitter.trail;
+  }
   function trailState(baked, particle, lane, time) {
     const age = trailAge(baked, particle, time), e = particle.emitter, path = particle.lifecycle.path;
+    if (lane.headTexture) {
+      return TextureStretch.state(e.textureStretch, textureReference(e), age, particle.life, stateAt(baked, particle, time),
+        value => stateAt(baked, particle, time, undefined, value));
+    }
     const evaluatedAge = clamp(age, 0, Math.max(0, particle.life - 1e-7));
     // Full-path ribbons use the authored geometry rather than the moving
     // particle's history. Optional physical offsets translate the entire mesh.
@@ -1264,7 +1472,21 @@
         y: e.y + point.y + (e.path.offsets ? particle.sy + particle.ay * evaluatedAge * evaluatedAge / 2 : 0)};
     } : undefined;
     return Trail.state(e.trail, lane, age, particle.life,
-      value => stateAt(baked, particle, time, undefined, value), atPath,
+      value => {
+        const state = stateAt(baked, particle, time, undefined, value), material = e.trail.image;
+        if (!material) return state;
+        // Use the same authored particle size/curves with the trail image's
+        // own aspect ratio. A head sequence must not resize or switch this
+        // independent material as its frames advance.
+        const headDimension = activeSequence(e) ? particle.lifecycle.sequenceMaxDimension : e.image ? Math.max(e.image.width, e.image.height) : 64;
+        const factor = headDimension / Math.max(material.width, material.height);
+        const scale = state.scale * factor, scaleX = (state.scaleX === undefined ? state.scale : state.scaleX) * factor;
+        const scaleY = (state.scaleY === undefined ? state.scale : state.scaleY) * factor;
+        const result = {...state, image: material, width: material.width * scaleX, height: material.height * scaleY, scale};
+        if (state.scaleX !== undefined) { result.scaleX = scaleX; result.scaleY = scaleY; }
+        delete result.sequenceFrame;
+        return result;
+      }, atPath,
       particle.lifecycle.trailLength ? particle.lifecycle.trailLength.sample(curveProgress(e.trail.lengthCurve,
         clamp(age, 0, scalarDuration(particle, e.trail.lengthCurve)), scalarDuration(particle, e.trail.lengthCurve))) : 1);
   }
@@ -1326,7 +1548,7 @@
     if (baked.flowPhase && baked.flowPhase.kind === 'in') {
       const basis = baked.flowPhase.basis, basisKeys = sampledTimeline(basis, particle, true);
       const cycles = Math.ceil(duration / basis.duration) + 1;
-      if ((particle.lifecycle.path || particle.emitter.alignDirection || activeSequence(particle.emitter) || particle.emitter.separateSizeAxes) && basisKeys.length * (cycles + 1) > MAX_EXPORT_SAMPLES) fail('進場動畫取樣超過 200 萬，請縮短 In、降低速度，或加長 Loop。');
+      if ((particle.lifecycle.path || particle.lifecycle.vortex || particle.emitter.alignDirection || activeSequence(particle.emitter) || particle.emitter.separateSizeAxes) && basisKeys.length * (cycles + 1) > MAX_EXPORT_SAMPLES) fail('進場動畫取樣超過 200 萬，請縮短 In、降低速度，或加長 Loop。');
       for (let cycle = -cycles; cycle <= 0; cycle++) {
         basisKeys.forEach(key => add(duration + cycle * basis.duration + key.time, key.mandatory, key.stepped, key.rotationStepped, key.pathAngle, key.marks));
       }
@@ -1358,6 +1580,7 @@
       event(0, true); event(particle.life, true);
     }
     curves.filter(points => points !== currentLength).forEach(points => points.forEach((point, index) => lifetimeEvent(point.t, index > 0 && points[index - 1].curve === 'stepped', undefined, scalarDuration(particle, points), curveMarks(points))));
+    if (particle.lifecycle.vortex) particle.lifecycle.vortex.sampleTimes.forEach(t => lifetimeEvent(t, false, false));
     trailClockDurations(particle, history).forEach(clock => lifetimeEvent(1, false, true, clock, ['position', 'rotation', 'scale']));
     if (particle.emitter.colorGradient) particle.emitter.colorGradient.forEach(point => lifetimeEvent(point.t, false, undefined, undefined, ['color']));
     if (!history) {
@@ -1403,9 +1626,9 @@
       const keys = metadata.map(key => ({...key, state: stateAt(baked, particle, key.time, key.pathAngle)}));
       if (!needsRefinement(baked, particle)) return keys;
       const refinement = qualityProfile(baked.project).refinement;
-      // New axis curves need a scale bound even under standard quality. Their
-      // Bezier X handles can concentrate most of the change between FPS keys.
-      const scaleRefinement = refinement.scale === undefined && particle.emitter.separateSizeAxes ?
+      // Axis Beziers and radius-driven contraction can change scale between
+      // FPS keys even under standard quality.
+      const scaleRefinement = refinement.scale === undefined && (particle.emitter.separateSizeAxes || particle.lifecycle.vortex && particle.lifecycle.vortex.shrinkHead) ?
         qualityProfile(baked.project).tolerances.scale / 2 : refinement.scale;
       const refined = [keys[0]];
       function append(first, last, depth) {
@@ -1544,9 +1767,9 @@
   }
 
   function hasTrail(particle) { return !!(Trail && Trail.active(particle.emitter)); }
-  function trailCost(baked, particle) {
-    const settings = particle.emitter.trail, count = Trail.lanes(settings).length;
-    const sequence = activeSequence(particle.emitter);
+  function trailCost(baked, particle, headTexture) {
+    const settings = meshSettings(particle, headTexture), count = Trail.lanes(settings).length;
+    const sequence = settings.image ? null : activeSequence(particle.emitter);
     const grid = Math.ceil(baked.duration * baked.fps) + 1, weight = settings.mode === 'stretch' ? Trail.segmentCount(settings) + 1 : 1;
     const source = timelineCost({...baked, duration: particle.life, loop: false, flowPhase: undefined}, {...particle, birth: 0, cycleIndex: 0});
     const extended = settings.mode === 'stretch' && Trail.maxLength(settings) > 1;
@@ -1554,13 +1777,13 @@
     if (settings.mode === 'stretch') copies = settings.coverage === 'path' ? 2 : (settings.segments + 1) * (extended ? 2 : 1);
     const repeats = baked.flowPhase && baked.flowPhase.kind === 'in' ? Math.ceil(baked.duration / baked.flowPhase.basis.duration) + 2 : 1;
     const switchEndpoints = settings.mode === 'stretch' && sequence && sequence.frames.length > 1 ? 2 : 1;
-    return {lower: grid * count * weight, upper: (grid + source.upper * copies * repeats + 8) * count * weight * switchEndpoints,
+    return {lower: grid * count * weight, upper: (grid + source.upper * copies * repeats + 8) * count * weight * switchEndpoints, guards: 0,
       rejected: source.rejected};
   }
   // Shift authored motion/texture events by the history lag. This retains
   // precise births, deaths, step curves, path corners and sequence switches.
   function trailMetadata(baked, particle, lane) {
-    const settings = particle.emitter.trail, duration = baked.duration, times = new Map();
+    const settings = meshSettings(particle, lane.headTexture), duration = baked.duration, times = new Map();
     function add(time, stepped, mandatory) {
       if (time < -EPS || time > duration + EPS) return;
       const at = round(clamp(time, 0, duration)), previous = times.get(at);
@@ -1584,7 +1807,7 @@
         // The full seed timeline remains at the head. For historical samples,
         // shift authored events and refine between them. Keep dense timing for
         // mixed-size frames because those can cause abrupt width changes.
-        const sequence = activeSequence(particle.emitter), first = sequence && sequence.frames[0];
+        const sequence = settings.image ? null : activeSequence(particle.emitter), first = sequence && sequence.frames[0];
         const changingSize = first && sequence.frames.some(frame => frame.width !== first.width || frame.height !== first.height);
         if (!changingSize) historySource = sampledTimeline(virtual, sourceParticle, true, undefined, true);
         lags = Array.from({length: settings.segments + 1}, (_, i) => settings.duration * i / settings.segments);
@@ -1612,7 +1835,7 @@
     if (sampleBudget.used > MAX_EXPORT_SAMPLES) fail('拖尾匯出取樣超過 200 萬，請減少粒子／殘影數、細緻度或拖尾時間。');
   }
   function trailTimeline(baked, particle, lane, sampleBudget) {
-    const settings = particle.emitter.trail;
+    const settings = meshSettings(particle, lane.headTexture);
     const sampleWeight = lane.mode === 'stretch' ? Trail.segmentCount(settings) + 1 : 1;
     function state(time) {
       spendTrailSamples(sampleBudget, sampleWeight);
@@ -1669,25 +1892,27 @@
   function trailAlphaRefinement(project) {
     return Math.min(0.001, qualityProfile(project).tolerances.alpha / 2);
   }
-  function exportTrail(baked, particle, profile, assets, sampleBudget) {
-    const e = particle.emitter, settings = e.trail, lanes = Trail.lanes(settings), stride = lanes.length + 1;
+  function exportTrail(baked, particle, profile, assets, sampleBudget, headIndex) {
+    const e = particle.emitter, headTexture = headIndex !== undefined, settings = meshSettings(particle, headTexture);
+    const lanes = headTexture ? [textureLane] : Trail.lanes(settings), stride = lanes.length + 1;
     const bones = [], slots = [], attachments = {}, boneTracks = {}, slotTracks = {}, deforms = {};
     const quality = qualityProfile(baked.project), colorTolerance = quality.tolerances.color - 1 / 1020;
     const alphaTolerance = quality.tolerances.alpha - trailAlphaRefinement(baked.project);
     let keyframes = 0, denseKeyframes = 0;
     lanes.forEach(lane => {
-      const index = particle.index * stride + lane.index, boneName = 'em_' + e.id + '_p' + index, slotName = boneName + '_slot';
-      const dense = trailTimeline(baked, particle, lane, sampleBudget), initial = dense[0].state, sequence = activeSequence(e);
-      const attachmentName = s => s.alive ? sequence ? sequenceAttachment(s.sequenceFrame) : 'particle' : null;
+      const index = headTexture ? headIndex : particle.index * stride + lane.index, boneName = 'em_' + e.id + '_p' + index, slotName = boneName + '_slot';
+      const dense = trailTimeline(baked, particle, lane, sampleBudget), initial = dense[0].state, sequence = settings.image ? null : activeSequence(e);
+      const staticName = settings.image ? 'trail_particle' : 'particle';
+      const attachmentName = s => s.alive ? sequence ? sequenceAttachment(s.sequenceFrame) : staticName : null;
       bones.push({name: boneName, parent: 'em_' + e.id});
       slots.push({name: slotName, bone: boneName, color: rgba(initial), attachment: attachmentName(initial) || undefined, blend: e.blend});
       attachments[slotName] = {};
-      const frames = sequence ? sequence.frames : [e.image || {width: 64, height: 64}];
+      const frames = sequence ? sequence.frames : [settings.image || e.image || {width: 64, height: 64}];
       frames.forEach((frame, frameIndex) => {
-        const name = sequence ? sequenceAttachment(frameIndex) : 'particle';
+        const name = sequence ? sequenceAttachment(frameIndex) : staticName;
         const attachment = {type: lane.mode === 'stretch' ? 'mesh' : 'region', path: assets[frameIndex].name.slice(0, -4), width: frame.width, height: frame.height};
         if (lane.mode === 'stretch') {
-          const geometry = Trail.strip(settings.segments, frame, settings);
+          const geometry = headTexture ? TextureStretch.geometry(textureReference(e), e.textureStretch.angle) : Trail.strip(settings.segments, frame, settings);
           Object.assign(attachment, geometry, {vertices: Array(geometry.uvs.length).fill(0)});
         }
         attachments[slotName][name] = attachment;
@@ -1710,7 +1935,7 @@
         const byAttachment = {}, deformWeight = Trail.segmentCount(settings) + 1;
         let active;
         dense.forEach(key => {
-          const name = sequence ? attachmentName(key.state) : 'particle';
+          const name = sequence ? attachmentName(key.state) : staticName;
           if (!active && !name) return;
           const frame = active !== name ? {...key, mandatory: true} : key;
           // Finish the outgoing texture's interpolation at the same time as
@@ -1755,11 +1980,11 @@
 
   function exportSpine(baked, targetVersion, sampleBudget) {
     const needsAdaptive = baked.particles.some(particle => needsRefinement(baked, particle));
-    const needsBudget = needsAdaptive || baked.project.bakeQuality !== undefined || baked.particles.some(particle => activeSequence(particle.emitter) || particle.emitter.separateSizeAxes || hasTrail(particle));
+    const needsBudget = needsAdaptive || baked.project.bakeQuality !== undefined || baked.particles.some(particle => activeSequence(particle.emitter) || particle.emitter.separateSizeAxes || hasTrail(particle) || stretchedHead(particle));
     if (needsBudget && !sampleBudget) {
       let floor = 0;
       for (const particle of baked.particles) {
-        const cost = timelineCost(baked, particle);
+        const cost = stretchedHead(particle) ? trailCost(baked, particle, true) : timelineCost(baked, particle);
         floor += cost.lower;
         if (hasTrail(particle)) floor += trailCost(baked, particle).lower;
         if (cost.rejected || floor > MAX_EXPORT_SAMPLES) fail('動畫匯出取樣成本超過 200 萬，請降低速度、減少粒子數，或縮短動畫。');
@@ -1810,8 +2035,7 @@
       const path = assets[0].name.slice(0, -4);
       baked.particles.filter(particle => particle.emitterId === e.id).forEach(particle => {
         const trail = hasTrail(particle), lanes = trail ? Trail.lanes(e.trail) : [];
-        if (trail) {
-          const part = exportTrail(baked, particle, profile, assets, sampleBudget);
+        function appendMeshOrTrail(part) {
           json.bones.push(...part.bones); json.slots.push(...part.slots); Object.assign(attachments, part.attachments);
           Object.assign(json.animations.effect.bones, part.animation.bones); Object.assign(json.animations.effect.slots, part.animation.slots);
           ['deform', 'attachments'].forEach(group => {
@@ -1822,6 +2046,14 @@
           keyframes += part.keyframes; denseKeyframes += part.denseKeyframes;
         }
         const headIndex = trail ? particle.index * (lanes.length + 1) + lanes.length : particle.index;
+        if (trail) {
+          const trailAsset = imagePlan.byTrail.get(e.id);
+          appendMeshOrTrail(exportTrail(baked, particle, profile, trailAsset ? [trailAsset.asset] : assets, sampleBudget));
+        }
+        if (stretchedHead(particle)) {
+          appendMeshOrTrail(exportTrail(baked, particle, profile, assets, sampleBudget, headIndex));
+          return;
+        }
         const boneName = 'em_' + e.id + '_p' + headIndex, slotName = boneName + '_slot';
         const hiddenHead = hasHiddenTrailHead(particle), initial = visibleHeadState(particle, stateAt(baked, particle, 0));
         json.bones.push({name: boneName, parent: 'em_' + e.id});
@@ -1879,6 +2111,17 @@
       json.animations.effect.bones.root = {translate: [{x: 0, y: 0}, {time: baked.duration, x: 0, y: 0}]};
       keyframes = denseKeyframes = 2;
     }
+    if (profile.family === '3.8') {
+      // 3.8 allocates interpolation data for n-1 segments. Its editor tries
+      // to index past that buffer if the final key declares an outgoing curve.
+      const animation = json.animations.effect;
+      const finishTracks = tracks => {
+        for (const keys of Object.values(tracks)) if (keys.length) delete keys[keys.length - 1].curve;
+      };
+      Object.values(animation.bones).forEach(finishTracks);
+      Object.values(animation.slots).forEach(finishTracks);
+      if (animation.deform) Object.values(animation.deform.default).forEach(finishTracks);
+    }
     const stats = Object.assign({}, baked.stats, {keyframes, denseKeyframes,
       keyReduction: denseKeyframes ? round(1 - keyframes / denseKeyframes) : 0,
       jsonBytes: 0, imageCount: images.length, resetEpsilon: RESET_EPS,
@@ -1897,7 +2140,7 @@
     });
     let floor = 0;
     for (const phase of Object.values(flowBaked.phases)) for (const particle of phase.particles) {
-      const cost = timelineCost(phase, particle);
+      const cost = stretchedHead(particle) ? trailCost(phase, particle, true) : timelineCost(phase, particle);
       floor += cost.lower;
       if (hasTrail(particle)) floor += trailCost(phase, particle).lower;
       if (cost.rejected || floor > MAX_EXPORT_SAMPLES) fail('三段動畫匯出取樣成本估算超過 200 萬，可能使介面暫停。請減少粒子數、縮短 In，或增加 Loop 長度，再重新匯出。');
@@ -1906,7 +2149,7 @@
     // In states. The estimate is deliberately conservative where tiled Loop
     // timestamps overlap the In FPS grid; it is not an exact output-key count.
     function timelineCount(phase, particle) {
-      if (particle.lifecycle.path || particle.emitter.alignDirection || activeSequence(particle.emitter)) return sampledTimeline(phase, particle, true).length;
+      if (particle.lifecycle.path || particle.lifecycle.vortex || particle.emitter.alignDirection || activeSequence(particle.emitter)) return sampledTimeline(phase, particle, true).length;
       const period = phase.duration, times = new Set();
       function add(at) { if (at >= -EPS && at <= period + EPS) times.add(round(clamp(at, 0, period))); }
       add(0); add(period);
@@ -1945,9 +2188,12 @@
       if (hasTrail(loopPhase.particles[index])) {
         for (const phase of Object.values(flowBaked.phases)) estimatedSamples += trailCost(phase, phase.particles[index]).lower;
       }
+      if (stretchedHead(loopPhase.particles[index])) {
+        for (const phase of Object.values(flowBaked.phases)) estimatedSamples += trailCost(phase, phase.particles[index], true).lower;
+      }
       if (estimatedSamples > sampleLimit) fail('三段動畫匯出取樣成本估算超過 200 萬，可能使介面暫停。請減少粒子數、縮短 In，或增加 Loop 長度，再重新匯出。');
     }
-    const sampleBudget = loopPhase.particles.some(particle => needsRefinement(loopPhase, particle) || activeSequence(particle.emitter) || particle.emitter.separateSizeAxes || hasTrail(particle)) || flowBaked.project.bakeQuality !== undefined ? {used: 0} : undefined;
+    const sampleBudget = loopPhase.particles.some(particle => needsRefinement(loopPhase, particle) || activeSequence(particle.emitter) || particle.emitter.separateSizeAxes || hasTrail(particle) || stretchedHead(particle)) || flowBaked.project.bakeQuality !== undefined ? {used: 0} : undefined;
     ['in', 'loop', 'out'].forEach(kind => {
       exported[kind] = exportSpine(flowBaked.phases[kind], targetVersion, sampleBudget);
       if (flowBaked.phases[kind].hiddenEmitters) hidePhaseEmitters(exported[kind], flowBaked.phases[kind].hiddenEmitters);
@@ -2107,5 +2353,6 @@
     return {json, images, stats, manifest};
   }
 
-  return {createProject, createEmitter, normalizeProject, normalizeFlow, phaseLayers, bakeExtra, exportWithExtras, backgroundSize, emitterSeed, bake, bakeFlow, sample, exportSpine, exportFlow, spineProfile, qualityProfile, estimateCost, BAKE_QUALITIES, SPINE_TARGETS};
+  return {vortexLineLayout, setVortexLineLayout, VORTEX_MAX_LINES, TEXTURE_STRETCH_DEFAULTS,
+    createProject, createEmitter, applyVortexInStretch, normalizeProject, normalizeFlow, phaseLayers, bakeExtra, exportWithExtras, backgroundSize, emitterSeed, bake, bakeFlow, sample, exportSpine, exportFlow, spineProfile, qualityProfile, estimateCost, BAKE_QUALITIES, SPINE_TARGETS, VORTEX_DEFAULTS};
 });

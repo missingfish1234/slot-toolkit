@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0b1119">
   <meta name="author" content="小魚骨頭">
-  <title>粒子工作室 · Particle Studio 1.32.3</title>
+  <title>粒子工作室 · Particle Studio 1.37.0</title>
   <style data-bundle="styles.css">
 :root {
   color-scheme: dark;
@@ -18,6 +18,9 @@
   --line-soft: #20303d;
   --text: #e8f0f4;
   --muted: #9cadbd;
+  --ui-emission: #f5c884;
+  --ui-look: #c4b3ff;
+  --ui-motion: #8acefb;
   --dim: #91a5b5;
   --accent: #81e8c6;
   --accent-bright: #a4f5db;
@@ -93,7 +96,7 @@ input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
 input[type=color]::-webkit-color-swatch { border: 0; border-radius: 4px; }
 [hidden], input[type=file][hidden] { display: none !important; }
 h1, h2, h3, p { margin: 0; }
-h1 { font-size: 17px; line-height: 1.3; letter-spacing: .06em; font-weight: 650; }
+h1 { font-size: 22px; line-height: 1.22; letter-spacing: .025em; font-weight: 700; }
 h2 { font-size: 14px; line-height: 1.3; font-weight: 650; }
 h3 { color: #c6d6e0; font-size: 12px; font-weight: 650; letter-spacing: .03em; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
@@ -131,7 +134,7 @@ h3 { color: #c6d6e0; font-size: 12px; font-weight: 650; letter-spacing: .03em; }
 .brand-mark .brand-particle-small { fill: #c0ffe8; }
 .brand-caption { display: block; margin-top: 2px; color: var(--muted); font-size: 9px; letter-spacing: .19em; }
 .brand-release { margin-left: 3px; color: var(--accent); font-family: var(--mono); letter-spacing: 0; }
-.brand-author { display: block; margin-top: 3px; color: var(--amber); font-size: 10px; letter-spacing: .04em; white-space: nowrap; }
+.brand-author { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; letter-spacing: .04em; white-space: nowrap; }
 .version-badge { padding: 4px 7px; color: #adc6ce; border: 1px solid #30434e; border-radius: 6px; font: 9px/1.5 var(--mono); letter-spacing: .02em; white-space: nowrap; margin-left: 4px; }
 .version-control { display: grid; gap: 3px; margin-left: 4px; flex: none; }
 .version-control > span { color: var(--muted); font-size: 9px; padding-left: 2px; }
@@ -163,14 +166,14 @@ h3 { color: #c6d6e0; font-size: 12px; font-weight: 650; letter-spacing: .03em; }
 .flow-transition-note { color: #c7d9df; border-left: 2px solid #657f8f; padding-left: 11px; font-size: 11px; line-height: 1.7; }
 .project-heading { flex: 1; min-width: 110px; max-width: 270px; padding-left: 18px; border-left: 1px solid var(--line); }
 .project-heading > label:not(.sr-only), .project-heading .project-label { display: block; color: var(--muted); font-size: 10px; letter-spacing: .05em; margin-bottom: 1px; }
-.project-caption { display: flex; align-items: center; gap: 5px; margin-bottom: 1px; color: var(--muted); font-size: 10px; letter-spacing: .03em; }
+.project-caption { display: flex; align-items: center; gap: 5px; margin-bottom: 1px; color: var(--muted); font-size: 11px; letter-spacing: .03em; }
 .project-caption svg, .section-eyebrow svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; flex: none; }
-.project-heading input { height: 26px !important; padding: 0 4px !important; color: #deebf2 !important; background: transparent !important; border-color: transparent !important; font-weight: 550; }
+.project-heading input { height: 26px !important; padding: 0 4px !important; color: var(--text) !important; background: transparent !important; border-color: transparent !important; font-size: 16px; font-weight: 650; }
 .project-heading input:hover, .project-heading input:focus-visible { background: #17232c !important; border-color: var(--line) !important; }
 .file-actions { display: flex; align-items: center; gap: 7px; margin-left: auto; flex: none; }
 .quiet-button { background: transparent; border-color: transparent; color: #c2d1dd; }
 .quiet-button:hover:not(:disabled) { background: #1e2d38; border-color: #30424d; }
-.reset-project-button { color: var(--accent); border-color: #386459; white-space: nowrap; }
+.reset-project-button { color: #c1cdd7; border-color: var(--line); white-space: nowrap; }
 .help-dialog.new-project-dialog { width: min(520px, calc(100vw - 28px)); }
 .new-project-dialog .dialog-content { line-height: 1.8; }
 .new-project-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 0 20px 20px; }
@@ -183,6 +186,26 @@ h3 { color: #c6d6e0; font-size: 12px; font-weight: 650; letter-spacing: .03em; }
 .help-button { width: 28px; height: 28px; margin-left: 1px; color: var(--muted); border-radius: 50%; font-size: 14px; }
 .project-bar { min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 18px; background: #0e17217a; flex: none; }
 .project-settings { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.project-settings > .section-eyebrow {
+  padding-right: 14px;
+  border-right: 1px solid #485043;
+  color: var(--ui-emission);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.project-settings > .section-eyebrow svg { width: 17px; height: 17px; }
+.project-settings :is(.inline-control, .checkbox-label) { font-size: 12px; }
+.project-settings .duration-control { color: var(--ui-emission); font-size: 14px; font-weight: 650; }
+#duration {
+  width: 100px;
+  color: #ffe5bd;
+  background: #25221e;
+  border-color: #6c5841;
+  font-size: 15px;
+  font-weight: 650;
+}
+.duration-control .unit-input > span { color: #d6bd9d; font-size: 11px; font-weight: 400; }
 .section-eyebrow { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: .11em; white-space: nowrap; }
 .inline-control { display: flex; align-items: center; gap: 8px; color: #bdccd7; font-size: 11px; white-space: nowrap; }
 .inline-control input:not([type=checkbox]), .inline-control select { width: 76px; height: 29px; font-size: 11px; }
@@ -207,6 +230,7 @@ h3 { color: #c6d6e0; font-size: 12px; font-weight: 650; letter-spacing: .03em; }
 .panel { min-width: 0; background: linear-gradient(150deg,#17233066,transparent 44%), var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 6px 24px #0000001a, inset 0 1px #edf9ff04; overflow: hidden; }
 .panel-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 61px; padding: 11px 14px; border-bottom: 1px solid var(--line-soft); flex: none; }
 .panel-title-group { min-width: 0; }
+.panel-title-group h2 { font-size: 19px; line-height: 1.3; font-weight: 700; letter-spacing: .015em; }
 .panel-eyebrow { display: block; margin-bottom: 4px; color: #93acb9; font-size: 9px; letter-spacing: .14em; font-weight: 600; line-height: 1.2; }
 .panel-header-note { color: var(--muted); font-size: 10px; white-space: nowrap; }
 
@@ -251,7 +275,7 @@ h3 { color: #c6d6e0; font-size: 12px; font-weight: 650; letter-spacing: .03em; }
 /* The transport is a separate surface below the viewport. */
 .preview-panel { display: flex; flex-direction: column; min-height: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; overflow: visible; }
 .preview-header { display: flex; align-items: center; gap: 13px; min-height: 61px; padding: 10px 15px; background: linear-gradient(100deg,#182c34a6,transparent),var(--panel); border: 1px solid var(--line); border-bottom: 0; border-radius: 16px 16px 0 0; flex: none; }
-.preview-header h2 { font-size: 14px; }
+.preview-header h2 { white-space: nowrap; }
 .attach-project-button { height: 28px; padding-inline: 8px; flex: none; font-size: 11px; }
 .attach-project-button svg { width: 13px; height: 13px; }
 .attach-project-button.attached { color: var(--accent); border-color: #416e5d; background: #1c382d; }
@@ -430,12 +454,12 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 .path-point-picker select { width: 70px; height: 29px; }
 .timeline-tracks { margin-top: 8px; }
 .timeline-phase-section { margin-bottom: 8px; }
-.timeline-track-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; color: var(--muted); font-size: 10px; margin: 5px 0; }
+.timeline-track-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; color: #b1c2cf; font-size: 11px; margin: 5px 0; }
 .timeline-phase-strip { display: flex; gap: 5px; }
 .timeline-phase { flex-basis: 0; min-width: 50px; height: 34px; padding: 4px 8px; justify-content: space-between; gap: 6px; background: #12202b; color: #bacfd7; }
 .timeline-phase.active { background: #20443c; border-color: #5cae94; color: #b2ffe6; }
-.timeline-phase-label { font-size: 10px; }
-.timeline-phase-duration { white-space: nowrap; font: 10px var(--mono); }
+.timeline-phase-label { font-size: 12px; font-weight: 650; }
+.timeline-phase-duration { white-space: nowrap; font: 12px var(--mono); }
 .timeline-track-summary { min-width: 0; overflow-wrap: anywhere; }
 .timeline-track-time { font: 10px var(--mono); color: #abdcca; }
 .timeline-track { position: relative; height: 29px; margin: 6px 0; border: 1px solid #354853; border-radius: 5px; background: #172532; }
@@ -877,8 +901,8 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 .emitter-lanes { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--line-soft); }
 .emitter-lanes[hidden] { display: none; }
 .emitter-lanes-heading { display: flex; align-items: center; gap: 10px; min-height: 20px; }
-.emitter-lanes-title { color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .02em; }
-.emitter-lanes-hint { flex: 1; min-width: 0; overflow: hidden; color: #6f8796; font-size: 10px; white-space: nowrap; text-overflow: ellipsis; }
+.emitter-lanes-title { flex: none; color: var(--text); font-size: 13px; font-weight: 650; letter-spacing: .02em; }
+.emitter-lanes-hint { flex: 1; min-width: 0; overflow: hidden; color: var(--muted); font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
 .emitter-lanes-hint[hidden] { display: block; visibility: hidden; }
 .emitter-lanes-toggle { height: 20px; padding: 0 8px; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 6px; font-size: 10px; }
 .emitter-lanes-body { max-height: 128px; margin-top: 5px; overflow-y: auto; }
@@ -1009,6 +1033,53 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 .choice-list { display: grid; gap: 8px; }
 .choice-list button { justify-content: flex-start; text-align: left; overflow-wrap: anywhere; height: auto; min-height: 34px; padding: 6px 12px; }
 
+/* Keep a shared reading order in the editor dialogs, with one accent per task. */
+dialog.help-dialog, dialog.flow-dialog { --dialog-accent: var(--accent); }
+dialog.effect-library-dialog, dialog.background-jpeg-dialog { --dialog-accent: var(--ui-look, #b9a9f9); }
+dialog.flow-dialog { --dialog-accent: var(--ui-emission, #f5c884); }
+dialog.path-dialog, dialog.spine-merge-dialog { --dialog-accent: var(--ui-motion, #8acefb); }
+dialog :is(.dialog-header, .dialog-heading) {
+  background: linear-gradient(100deg, color-mix(in srgb, var(--dialog-accent) 9%, transparent), transparent 78%);
+  border-block-start: 3px solid var(--dialog-accent);
+}
+dialog :is(.dialog-header, .dialog-heading) :is(.section-eyebrow, .eyebrow) {
+  color: var(--dialog-accent); font-size: 10px; font-weight: 700; letter-spacing: .12em;
+}
+dialog.help-dialog :is(.dialog-header, .dialog-heading) h2, dialog.flow-dialog .dialog-header h2 {
+  color: #f4f7fb; font-size: clamp(20px, 1.7vw, 24px); font-weight: 700; line-height: 1.3; letter-spacing: .02em;
+}
+dialog.spine-merge-dialog.docked .dialog-header h2 { font-size: 19px; }
+dialog .dialog-content { font-size: 13px; line-height: 1.65; }
+dialog :is(.spine-form-section, .bake-cost-section, .anim-section-head, .batch-section, .flow-phase-heading) h3,
+dialog .effect-library-group-title {
+  color: var(--dialog-accent); font-size: 16px; font-weight: 700; line-height: 1.45; letter-spacing: .02em;
+}
+dialog .field > span, dialog .effect-library-save > label {
+  color: #e1e9f1; font-size: 13px; font-weight: 600;
+}
+dialog .field input, dialog .field select { font-size: 14px; }
+dialog .field small { color: var(--muted); font-size: 11px; }
+dialog .field-hint, dialog.effect-library-dialog .hint, dialog .help-steps p,
+dialog .flow-transition-note, dialog .flow-phase-heading p { font-size: 12px; line-height: 1.65; }
+dialog .spine-binding-details summary, dialog .help-steps strong { font-size: 14px; font-weight: 650; }
+dialog .bake-cost-metric span, dialog .spine-merge-summary, dialog .spine-merge-feedback { font-size: 12px; }
+dialog .export-save-name { font-size: 16px; }
+dialog .flow-enable-label { font-size: 15px; }
+dialog .flow-phase-heading h3 { color: var(--text); }
+dialog .flow-phase-badge { font-size: 12px; font-weight: 700; }
+dialog .effect-library-group-title {
+  display: flex; align-items: center; gap: 12px; margin: 20px 0 10px;
+}
+dialog .effect-library-group-title::after {
+  content: ""; height: 1px; flex: 1; background: color-mix(in srgb, var(--dialog-accent) 28%, var(--line));
+}
+dialog .effect-library-item-info strong { color: #edf1f8; font-size: 14px; font-weight: 700; }
+dialog .effect-library-item-info > span { font-size: 12px; line-height: 1.45; }
+dialog .effect-library-item[aria-pressed="true"] { border-color: var(--accent); background: #1d3e36; }
+dialog .effect-library-item[aria-pressed="true"] strong { color: var(--accent-bright); }
+dialog .effect-library-selection > strong { font-size: 14px; }
+dialog .effect-library-actions { flex-wrap: wrap; }
+
 /* v1.28 · mesh lightning */
 .lightning-section .lightning-intro { margin-top: 0; }
 .lightning-mode { width: 100%; margin: 4px 0 10px; }
@@ -1044,7 +1115,8 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 
 /* v1.31 · animation tab bar above the canvas: IN / LOOP / OUT / BURN … ＋ */
 .anim-tabs-bar { flex-wrap: wrap; row-gap: 6px; }
-.anim-tabs-label { color: var(--muted); font-size: 10px; letter-spacing: .08em; }
+.anim-tabs-label { color: #d2dfe8; font-size: 12px; font-weight: 650; letter-spacing: .04em; }
+.anim-tabs-bar .anim-tab { font: 600 12px/1.3 var(--font); }
 .anim-tabs { flex-wrap: wrap; }
 .anim-tabs .anim-tab[hidden] { display: none; }
 .extra-tabs { display: contents; }
@@ -1088,6 +1160,117 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 #emitterList .emitter-item > input.emitter-rename { position: absolute; left: 68px; width: calc(100% - 76px); min-width: 0; box-sizing: border-box; top: 7px; height: 24px; padding: 0 7px; font-size: 12px; font-weight: 600; color: var(--text); background: #0d171f; border: 1px solid var(--accent); border-radius: 6px; z-index: 2; }
 .emitter-item.renaming .emitter-name { visibility: hidden; }
 
+/* Keep the editable timeline and layer names legible at compact widths. */
+.brand h1 { font-size: clamp(18px, 1.6vw, 23px); }
+.emitter-sidebar .emitter-name { padding-right: 11px; font-size: 14px; font-weight: 650; }
+.emitter-sidebar .emitter-meta { font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+.emitter-sidebar .emitter-item { padding-bottom: 34px; }
+.emitter-sidebar .emitter-tags {
+  position: absolute;
+  inset: auto 78px 7px 8px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  gap: 4px;
+}
+.emitter-sidebar .emitter-type { font-size: 10.5px; }
+.emitter-sidebar .sidebar-note p { font-size: 11px; }
+.timeline-title { flex: none; color: var(--ui-emission); font-size: 16px; font-weight: 700; line-height: 1.3; }
+.playback-bar .time-label { color: #ffe0b0; font-size: 13px; font-variant-numeric: tabular-nums; }
+@media (max-width: 1000px) {
+  .timeline-title { font-size: 15px; }
+  .playback-bar .time-label { font-size: 12px; }
+}
+@media (max-width: 480px) {
+  .playback-bar { flex-wrap: wrap; justify-content: flex-start; }
+  .playback-bar .time-label { font-size: 11px; }
+}
+
+/* Inspector categories share their accent between the tab, headings and controls. */
+.inspector :is([data-tab="basic"], [data-panel="basic"]) { --category-ink: var(--ui-emission, #f5c884); }
+.inspector :is([data-tab="look"], [data-panel="look"]) { --category-ink: var(--ui-look, #b9a9f9); }
+.inspector :is([data-tab="motion"], [data-panel="motion"]) { --category-ink: var(--ui-motion, #8acefb); }
+.inspector > .panel-header h2 { color: #f2f6f9; font-size: 19px; font-weight: 700; }
+.inspector .inspector-tabs { gap: 5px; }
+.inspector .inspector-tabs [role="tab"] {
+  height: 35px;
+  min-width: 0;
+  color: var(--category-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+.inspector .inspector-tabs [role="tab"] svg { width: 16px; height: 16px; }
+.inspector .inspector-tabs [role="tab"][aria-selected="false"]:hover:not(:disabled) {
+  color: var(--category-ink);
+  background: color-mix(in srgb, var(--category-ink) 12%, #17232e);
+  border-color: color-mix(in srgb, var(--category-ink) 42%, #253442);
+}
+.inspector .inspector-tabs [role="tab"][aria-selected="true"] {
+  color: #141d28;
+  background: var(--category-ink);
+  border-color: var(--category-ink);
+  box-shadow: none;
+  font-weight: 700;
+}
+.inspector .inspector-tabs [role="tab"]:focus-visible { outline-color: #fff; }
+.inspector .inspector-tab-panel .inspector-section {
+  background: #17232e;
+  border-color: #344653;
+}
+.inspector .inspector-section h3 {
+  color: var(--category-ink);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.inspector .inspector-section:not(.collapsed) > :is(h3, .inspector-section-heading) {
+  padding-bottom: 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--category-ink) 20%, #21313d);
+}
+.inspector .inspector-section.collapsed > :is(h3, .inspector-section-heading) { margin-bottom: 0; }
+.inspector .inspector-section .section-icon { width: 17px; height: 17px; color: var(--category-ink); }
+.inspector .section-toggle { color: #b0c0cc; }
+.inspector .inspector-tab-panel .field > span {
+  flex-wrap: wrap;
+  row-gap: 1px;
+  color: #d8e4ec;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.inspector .inspector-tab-panel .field small { color: #a2b4c2; font-size: 10.5px; }
+.inspector .inspector-tab-panel .field :is(input, select) { font-size: 14px; }
+.inspector .inspector-tab-panel .range-field output {
+  color: var(--category-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.inspector .inspector-tab-panel :is(input[type="range"], input[type="checkbox"]) { accent-color: var(--category-ink); }
+.inspector .inspector-tab-panel :is(button, input, select, summary, canvas):focus-visible {
+  outline: 2px solid var(--category-ink);
+  outline-offset: 2px;
+}
+.inspector .inspector-tab-panel .checkbox-label { color: #d8e4ec; font-size: 12px; }
+.inspector .inspector-tab-panel :is(.field-hint, .context-note p) {
+  font-size: 11.5px;
+  line-height: 1.65;
+}
+.inspector .inspector-tab-panel .field-hint:not(.mode-reason, .sequence-texture-info) { color: #aabbc8; }
+.inspector .inspector-tab-panel :is(.look-preset-caption, .curve-header > span, .lightning-subhead, .advanced-options > summary) {
+  color: var(--category-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.inspector .texture-details > span { font-size: 12px; }
+.inspector .inspector-tab-panel .text-button { font-size: 12px; }
+.inspector .inspector-tab-panel :is([data-vortex-lines], #vortexJitterFields) {
+  padding: 10px 9px 0;
+  margin-block: 0 12px;
+  background: color-mix(in srgb, var(--category-ink) 5%, #14212c);
+  border: 1px solid color-mix(in srgb, var(--category-ink) 19%, #25343f);
+  border-radius: 8px;
+}
+
 </style>
 </head>
 <body>
@@ -1095,7 +1278,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     <header class="app-header">
       <div class="brand" aria-label="粒子工作室 Particle Studio">
         <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 36 36"><ellipse class="brand-orbit" cx="18" cy="18" rx="15" ry="9" transform="rotate(-38 18 18)"/><path class="brand-spark" d="m18 6 3.1 8.9L30 18l-8.9 3.1L18 30l-3.1-8.9L6 18l8.9-3.1Z"/><circle class="brand-particle" cx="29" cy="8" r="3"/><circle class="brand-particle-small" cx="7" cy="26" r="1.8"/></svg></span>
-        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.32.3</span></span><span class="brand-author">開發者：小魚骨頭</span></div>
+        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.37.0</span></span><span class="brand-author">開發者：小魚骨頭</span></div>
         <label class="version-control"><span id="spineTargetMode">輸出版本</span><select id="spineVersion" aria-label="Spine 輸出版本" title="選擇 Spine JSON 輸出版本"><option value="3.8.99">SPINE 3.8</option><option value="4.0.56" selected>SPINE 4.0</option><option value="4.2.43">SPINE 4.2</option></select></label>
       </div>
       <div class="project-heading"><span class="project-caption"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h5l2 2h7v10H3Z"/></svg>目前專案</span><label class="sr-only" for="projectName">專案名稱</label><input id="projectName" type="text" value="金色光塵" maxlength="80" spellcheck="false" aria-label="專案名稱"></div>
@@ -1116,7 +1299,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     <div class="project-bar" aria-label="全域動畫設定">
       <div class="project-settings">
         <span class="section-eyebrow"><svg aria-hidden="true" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg>動畫設定</span>
-        <label class="inline-control" for="duration">長度 <span class="unit-input"><input id="duration" type="number" min="0.05" max="30" step="0.01" value="3"><span>秒</span></span></label>
+        <label class="inline-control duration-control" for="duration">動畫長度 <span class="unit-input"><input id="duration" type="number" min="0.05" max="30" step="0.01" value="3"><span>秒</span></span></label>
         <label class="inline-control" for="fps">幀率 <select id="fps"><option value="24">24 FPS</option><option value="30">30 FPS</option><option value="60">60 FPS</option></select></label>
         <label class="checkbox-label" for="loop"><input id="loop" type="checkbox" checked>循環</label>
         <button id="flowSettingsButton" type="button" class="quiet-button flow-settings-button" aria-haspopup="dialog"><span>動畫段落</span></button>
@@ -1127,7 +1310,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 
     <main class="workspace">
       <aside class="emitter-sidebar panel" aria-labelledby="emitterHeading">
-        <div class="panel-header"><div class="panel-title-group"><span class="panel-eyebrow" aria-hidden="true">EFFECT LAYERS</span><h2 id="emitterHeading">發射器</h2></div><span class="panel-header-note">圖層順序</span></div>
+        <div class="panel-header"><div class="panel-title-group"><span class="panel-eyebrow" aria-hidden="true">EFFECT LAYERS</span><h2 id="emitterHeading">發射器圖層</h2></div><span class="panel-header-note">圖層順序</span></div>
         <div class="effect-entry"><button id="effectLibraryButton" type="button" class="add-effect-button" aria-haspopup="dialog" title="開啟效果庫：內建效果與我的效果，可新增為圖層或套用到目前發射器"><span aria-hidden="true">＋</span>新增效果</button><button id="addEmitter" type="button" class="icon-button quick-add-button" title="快速新增柔光粒子" aria-label="快速新增柔光粒子"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12"/></svg></button></div>
         <div id="emitterList" class="emitter-list" aria-label="發射器清單"></div>
         <div class="emitter-actions" aria-label="發射器操作">
@@ -1154,6 +1337,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         </div>
         <section class="timeline-panel" aria-label="播放與時間軸">
           <div class="playback-bar">
+            <h2 class="timeline-title">時間軸</h2>
             <div class="playback-controls"><button id="restartButton" type="button" class="icon-button" title="回到開始" aria-label="回到開始"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M4 4v12 M15 4l-9 6 9 6Z"/></svg></button><button id="framePrev" type="button" class="icon-button" title="前一幀" aria-label="前一幀"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m12 4-7 6 7 6"/></svg></button><button id="playButton" type="button" class="play-button" title="播放或暫停" aria-label="播放或暫停"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m7 4 9 6-9 6Z"/></svg></button><button id="frameNext" type="button" class="icon-button" title="下一幀" aria-label="下一幀"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m8 4 7 6-7 6"/></svg></button></div>
             <output id="timeLabel" class="time-label" for="timeline">0.00 / 3.00 秒</output><span class="timeline-hint"><kbd>Space</kbd> 播放／暫停</span>
           </div>
@@ -1203,7 +1387,15 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
               <div id="shapeDirectionFields" hidden><label class="field full-field"><span>方向散射 <small>° · 0 為沿選定方向</small></span><input id="directionSpread" data-field="directionSpread" type="number" min="0" max="360" step="1" value="0"></label></div>
               <p id="emissionDirectionHint" class="field-hint">0° 向右，90° 向上；散射角控制左右偏移範圍。</p>
             </div>
-            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg><span>數量與生命</span></h3><label class="field full-field range-field" data-particle-only><span>粒子總數 <output data-readout="count">48</output></span><input data-field="count" type="range" min="1" max="400" step="1" value="48"></label><div class="field-row"><label class="field"><span>開始時間 <small>秒</small></span><input data-field="startDelay" type="number" min="0" max="30" step="0.01" value="0" title="這一層延後多久才開始發射；可在時間軸的「圖層時間」直接拖曳"></label><label class="field"><span><span id="emissionDurationLabel">發射時間</span> <small>秒</small></span><input data-field="emissionDuration" type="number" min="0" max="30" step="0.01" value="3" title="從開始時間起，持續發射多久；0 為瞬間爆發"></label></div><div class="field-row" data-particle-only><label class="field"><span>生命長度 <small>秒</small></span><input data-field="life" type="number" min="0.05" max="10" step="0.05" value="1.5"></label><label class="field"><span>生命隨機 <small>± 秒</small></span><input data-field="lifeRandom" type="number" min="0" max="8" step="0.05" value="0.3"></label></div><p class="field-hint" data-particle-only>發射時間為 0 時，所有粒子同時出生。</p></div>
+            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg><span>數量與生命</span></h3>
+              <div data-vortex-lines hidden>
+                <div class="field-row">
+                  <label class="field"><span>收縮線數 <small>條</small></span><input id="emissionVortexLineCount" data-vortex-layout="lineCount" type="number" min="1" max="32" step="1" title="增加線數會在漩渦外圈等距加入新的收縮路徑。"></label>
+                  <label class="field"><span>每線粒子 <small>顆</small></span><input id="emissionVortexParticlesPerLine" data-vortex-layout="particlesPerLine" type="number" min="1" max="400" step="1" title="每條收縮線在發射期間依序出現的粒子數量。"></label>
+                </div>
+                <p class="field-hint" data-vortex-layout-hint aria-live="polite"></p>
+              </div>
+              <label id="particleCountField" class="field full-field range-field"><span>粒子總數 <output data-readout="count">48</output></span><input data-field="count" type="range" min="1" max="400" step="1" value="48"></label><div class="field-row"><label class="field"><span>開始時間 <small>秒</small></span><input data-field="startDelay" type="number" min="0" max="30" step="0.01" value="0" title="這一層延後多久才開始發射；可在時間軸的「圖層時間」直接拖曳"></label><label class="field"><span><span id="emissionDurationLabel">發射時間</span> <small>秒</small></span><input data-field="emissionDuration" type="number" min="0" max="30" step="0.01" value="3" title="從開始時間起，持續發射多久；0 為瞬間爆發"></label></div><div class="field-row" data-particle-only><label class="field"><span>生命長度 <small>秒</small></span><input data-field="life" type="number" min="0.05" max="10" step="0.05" value="1.5"></label><label class="field"><span>生命隨機 <small>± 秒</small></span><input data-field="lifeRandom" type="number" min="0" max="8" step="0.05" value="0.3"></label></div><p class="field-hint" data-particle-only>發射時間為 0 時，所有粒子同時出生。</p></div>
             <div class="inspector-section emitter-seed-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" rx="3"/><path d="M6 6h.01 M10 10h.01 M14 14h.01 M6 14h.01 M14 6h.01"/></svg><span>隨機變化</span></h3>
               <label class="field full-field"><span>發射器種子</span><select id="emitterSeedMode"><option value="project">跟隨專案 · 自動分組</option><option value="custom">自訂此發射器</option></select></label>
               <div class="emitter-seed-row"><label class="field"><span>種子數值</span><input id="emitterRandomSeed" type="number" min="0" max="4294967295" step="1" value="0" aria-label="發射器隨機種子"></label><button id="randomizeEmitterSeed" type="button" class="secondary-button" title="只替目前發射器換一組隨機變化">換一組</button></div>
@@ -1218,6 +1410,16 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
               <input id="textureFile" type="file" accept="image/png,image/jpeg,image/webp" hidden><input id="sequenceTextureFile" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" multiple hidden><input id="randomTextureFile" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" multiple hidden>
               <label id="textureModeField" class="field full-field" hidden><span>貼圖模式</span><select id="textureMode"><option value="single">單張圖片</option><option value="sequence">連續圖動畫 · 依序播放</option><option value="random">多圖隨機 · 每顆隨機一張</option></select></label>
               <div id="sequenceTextureControls" class="sequence-texture-controls" hidden><div id="randomTextureStrip" class="random-texture-strip" hidden></div><div id="sequencePlaybackRow" class="field-row"><label class="field sequence-fps-field"><span>連續圖 FPS <small>張／秒</small></span><input id="sequenceFps" type="number" min="1" max="120" step="1" value="12" aria-label="連續圖 FPS"></label><label class="field"><span>播放方式</span><select id="sequenceMode"><option value="loop">循環播放</option><option value="once">播放一次，停末張</option></select></label></div><p id="sequenceTextureInfo" class="field-hint sequence-texture-info" role="status"></p><p id="sequencePlaybackHint" class="field-hint">每顆粒子出生後從第一張播放；FPS 控制貼圖速度，可與專案幀率不同。</p></div>
+              <div data-particle-only>
+                <label class="checkbox-label standalone-check"><input id="textureStretchEnabled" data-texture-stretch="enabled" type="checkbox" aria-controls="textureStretchFields">貼圖沿路徑拉伸</label>
+                <div id="textureStretchFields" hidden>
+                  <div class="field-row">
+                    <label class="field"><span>素材角度 <small>°</small></span><input id="textureStretchAngle" data-texture-stretch="angle" type="number" min="-180" max="180" step="any" value="0"></label>
+                    <label class="field"><span>拉伸時間 <small>秒</small></span><input id="textureStretchDuration" data-texture-stretch="duration" type="number" min="0.01" max="2" step="0.01" value="0.18"></label>
+                  </div>
+                  <p class="field-hint">0° 讓貼圖長邊沿著路徑，90° 橫過路徑，180° 對調頭尾。拉伸時間越長，貼圖沿走過的軌跡延伸越遠。</p>
+                </div>
+              </div>
               <p class="field-hint">建議使用透明 PNG。連續圖依檔名順序逐張播放；隨機圖讓每顆粒子隨機挑一張。素材會一起儲存與輸出。</p><label class="field full-field"><span>混合方式</span><select data-field="blend"><option value="additive">加色 · 發光</option><option value="normal">一般 · 透明疊加</option></select></label>
             </div>
             <div data-particle-only class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 8V3h5 M12 3h5v5 M17 12v5h-5 M8 17H3v-5"/><path d="M7 9a3 3 0 0 1 5-2 M13 11a3 3 0 0 1-5 2"/></svg><span>尺寸與旋轉</span></h3><div class="field-row"><label class="field"><span>粒子尺寸 <small>px</small></span><input data-field="size" type="number" min="1" max="1000" step="1" value="24"></label><label class="field"><span>尺寸隨機 <small>± px</small></span><input data-field="sizeRandom" type="number" min="0" max="1000" step="1" value="8"></label></div><label class="field full-field"><span>起始旋轉 <small>°</small></span><input data-field="rotation" type="number" min="-36000" max="36000" step="1" value="0"></label><div class="field-row"><label class="field"><span>旋轉速度 <small>°/秒</small></span><input data-field="spin" type="number" min="-3600" max="3600" step="1" value="0"></label><label class="field"><span>旋轉隨機 <small>± °/秒</small></span><input data-field="spinRandom" type="number" min="0" max="3600" step="1" value="30"></label></div><label class="checkbox-label standalone-check"><input data-field="alignDirection" type="checkbox">貼圖朝向移動方向</label></div>
@@ -1278,6 +1480,48 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
           </section>
 
           <section id="panelMotion" class="inspector-tab-panel" data-panel="motion" role="tabpanel" aria-labelledby="tabMotion" hidden>
+            <div id="vortexSection" class="inspector-section" data-particle-only>
+              <h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M17 14a8 8 0 1 1 0-8c2 5-2 10-7 9s-6-8-1-9c4-1 6 4 3 5-1 1-3 0-2-1"/></svg><span>漩渦運動</span></h3>
+              <label class="field full-field"><span>漩渦模式</span><select id="vortexMode" data-vortex-field="mode" aria-controls="vortexFields"><option value="off">關閉</option><option value="inward">向內收縮</option><option value="outward">向外擴散</option></select></label>
+              <div id="vortexFields" hidden>
+                <div data-vortex-lines hidden>
+                  <div class="field-row">
+                    <label class="field"><span>收縮線數 <small>條</small></span><input id="vortexLineCount" data-vortex-layout="lineCount" type="number" min="1" max="32" step="1" title="增加線數會在漩渦外圈等距加入新的收縮路徑。"></label>
+                    <label class="field"><span>每線粒子 <small>顆</small></span><input id="vortexParticlesPerLine" data-vortex-layout="particlesPerLine" type="number" min="1" max="400" step="1" title="每條收縮線在發射期間依序出現的粒子數量。"></label>
+                  </div>
+                  <p class="field-hint" data-vortex-layout-hint aria-live="polite"></p>
+                </div>
+                <div class="field-row">
+                  <label class="field"><span>外圈半徑 <small>px</small></span><input id="vortexRadius" data-vortex-field="radius" type="number" min="1" max="2000" step="1"></label>
+                  <label class="field"><span>旋轉圈數 <small>圈</small></span><input id="vortexTurns" data-vortex-field="turns" type="number" min="0" max="8" step="0.05"></label>
+                </div>
+                <div class="field-row">
+                  <label class="field"><span>旋轉方向</span><select id="vortexDirection" data-vortex-field="direction"><option value="clockwise">順時針</option><option value="counterclockwise">逆時針</option></select></label>
+                  <label id="vortexArmsField" class="field"><span>旋臂數 <small>0 為隨機</small></span><input id="vortexArms" data-vortex-field="arms" type="number" min="0" max="8" step="1"></label>
+                </div>
+                <p id="vortexHint" class="field-hint" role="status"></p>
+                <div id="vortexJitterFields">
+                  <div class="field-row">
+                    <div class="field">
+                      <span><label for="vortexEdgeJitter">外圈位置隨機</label><small>%</small></span>
+                      <input id="vortexEdgeJitter" data-vortex-field="edgeJitter" type="number" min="0" max="100" step="any" value="0" aria-describedby="vortexJitterHint">
+                      <input id="vortexEdgeJitterRange" data-vortex-field="edgeJitter" type="range" min="0" max="100" step="0.1" value="0" aria-label="外圈位置隨機百分比" aria-describedby="vortexJitterHint">
+                    </div>
+                    <div class="field">
+                      <span><label for="vortexTimeJitter">發射時間隨機</label><small>%</small></span>
+                      <input id="vortexTimeJitter" data-vortex-field="timeJitter" type="number" min="0" max="100" step="any" value="0" aria-describedby="vortexJitterHint">
+                      <input id="vortexTimeJitterRange" data-vortex-field="timeJitter" type="range" min="0" max="100" step="0.1" value="0" aria-label="發射時間隨機百分比" aria-describedby="vortexJitterHint">
+                    </div>
+                  </div>
+                  <p id="vortexJitterHint" class="field-hint"></p>
+                </div>
+                <button id="useVortexMotion" type="button" class="text-button" hidden>暫停路徑，播放漩渦</button>
+                <div id="vortexInwardFields" hidden>
+                  <label class="checkbox-label standalone-check" title="依粒子到旋心的距離縮小頭部，與原有尺寸曲線相乘。"><input id="vortexShrinkHead" data-vortex-field="shrinkHead" type="checkbox">頭部隨半徑收縮</label>
+                  <button id="applyVortexInStretch" type="button" class="secondary-button path-edit-button" title="開啟頭部收縮，並沿已走過的漩渦軌跡拉伸拖尾。">套用縮頭拉伸</button>
+                </div>
+              </div>
+            </div>
             <div id="pathSection" class="inspector-section path-section">
               <div class="inspector-section-heading"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 15C3 4 8 3 10 10s7 6 7-5 M14 5h3v3"/></svg><span>路徑與拖尾</span></h3><label class="checkbox-label"><input id="enablePath" type="checkbox">啟用</label></div>
               <button id="editPath" type="button" class="secondary-button path-edit-button" aria-haspopup="dialog">編輯路徑與控制點</button>
@@ -1304,6 +1548,9 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
               <p class="field-hint">保留目前貼圖與路徑，自動切網格鋪成一條光帶。</p>
               <div id="trailFields" hidden>
                 <label class="field full-field"><span>拖尾方式</span><select id="trailMode"><option value="stretch">沿路徑拉伸</option><option value="afterimage">殘影拖尾</option></select></label>
+                <div class="texture-card trail-texture-card"><img id="trailTextureThumbnail" class="texture-thumbnail" alt="目前拖尾素材"><div class="texture-details"><span id="trailTextureInfo" role="status">沿用粒子素材</span><div class="texture-actions"><button id="trailTextureButton" type="button" class="text-button">載入拖尾素材</button><button id="removeTrailTexture" type="button" class="text-button muted">沿用粒子素材</button></div></div></div>
+                <input id="trailTextureFile" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+                <p class="field-hint">可為尾巴另選一張圖片，頭部素材保持原樣；兩種拖尾方式都可使用，素材會一起儲存與輸出。建議使用透明 PNG。</p>
                 <div data-trail-mode="stretch">
                   <label class="field full-field"><span>拉伸範圍</span><select id="trailCoverage"><option value="history">跟隨移動拖尾</option><option value="path">整條路徑鋪圖</option></select></label>
                   <label class="checkbox-label"><input id="trailShowHead" type="checkbox" checked>顯示頭部粒子</label>
@@ -1358,7 +1605,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     </main>
 
     <div id="message" class="app-message" role="alert" hidden></div>
-    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.32.3</span> · 開發者：小魚骨頭</span></footer>
+    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.37.0</span> · 開發者：小魚骨頭</span></footer>
   </div>
 
   <dialog id="backgroundJpegDialog" class="help-dialog background-jpeg-dialog" aria-labelledby="backgroundJpegTitle">
@@ -2461,6 +2708,10 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         throw new Error('拖尾「' + key + '」必須介於 0.01–' + MAX_TIME + ' 秒。');
       result[key] = source[key];
     }
+    // The project normalizer applies the same embedded-PNG validation as the
+    // head image. Keep the optional choice while disabled, and leave legacy
+    // objects byte-for-byte unchanged when no separate image was authored.
+    if (source.image !== undefined && source.image !== null) result.image = source.image;
     return result;
   }
   function maxLength(settings) {
@@ -2567,6 +2818,136 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   }
   function states(settings, age, life, atAge, atPath, lengthFactor) { return lanes(settings).map(lane => state(settings, lane, age, life, atAge, atPath, lengthFactor)); }
   return {MAX_LENGTH, MAX_TIME, DEFAULTS, RANGES, defaults, normalize, maxLength, segmentCount, lengthAt, active, lanes, strip, state, states};
+});
+
+</script>
+  <script data-bundle="texture-stretch.js">
+(function (root, factory) {
+  'use strict';
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  root.ParticleTextureStretch = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  'use strict';
+  const SEGMENTS = 6, EPS = 1e-10;
+  const builtin = {width: 64, height: 64};
+  const meshes = new WeakMap();
+  const clamp = (value, low, high) => Math.max(low, Math.min(value, high));
+
+  function prepare(referenceImage, angle) {
+    const image = referenceImage || builtin;
+    let byAngle = meshes.get(image);
+    if (!byAngle) { byAngle = new Map(); meshes.set(image, byAngle); }
+    const degrees = ((angle % 360) + 360) % 360;
+    if (byAngle.has(degrees)) return byAngle.get(degrees);
+
+    // In world coordinates +Y points up. For a tall image the top of the
+    // texture leads, so the local +X axis starts a quarter turn clockwise.
+    const radians = (degrees - (image.height > image.width ? 90 : 0)) * Math.PI / 180;
+    const cos = Math.abs(Math.cos(radians)) < EPS ? 0 : Math.cos(radians);
+    const sin = Math.abs(Math.sin(radians)) < EPS ? 0 : Math.sin(radians);
+    const extent = Math.abs(image.width * cos) + Math.abs(image.height * sin);
+    const projected = (u, v) => .5 + ((u - .5) * image.width * cos + (v - .5) * image.height * sin) / extent;
+
+    // Slice the original rectangle perpendicular to motion. All intersections
+    // lie on its perimeter; keeping every corner also preserves diagonal tips.
+    const corners = [[0, 0], [1, 0], [1, 1], [0, 1]];
+    const uvs = [], positions = [], triangles = [];
+    for (let edge = 0; edge < 4; edge++) {
+      const [u, v] = corners[edge], [endU, endV] = corners[(edge + 1) % 4];
+      const a = projected(u, v), b = projected(endU, endV);
+      uvs.push(u, v); positions.push(a);
+      if (Math.abs(a - b) <= EPS) continue;
+      const cuts = [];
+      for (let i = 1; i < SEGMENTS; i++) {
+        const q = i / SEGMENTS, t = (q - a) / (b - a);
+        if (t > EPS && t < 1 - EPS) cuts.push({q, t});
+      }
+      cuts.sort((first, second) => first.t - second.t);
+      for (const {q, t} of cuts) {
+        uvs.push(u + (endU - u) * t, v + (endV - v) * t);
+        positions.push(q);
+      }
+    }
+    for (let band = 0; band < SEGMENTS; band++) {
+      const indices = [];
+      for (let j = 0; j < positions.length; j++) {
+        if (positions[j] >= band / SEGMENTS - EPS && positions[j] <= (band + 1) / SEGMENTS + EPS) indices.push(j);
+      }
+      for (let j = 1; j < indices.length - 1; j++) triangles.push(indices[0], indices[j], indices[j + 1]);
+    }
+    const mesh = {uvs, triangles, hull: positions.length};
+    const result = {mesh, cos, sin};
+    byAngle.set(degrees, result);
+    return result;
+  }
+
+  function geometry(referenceImage, angle) { return prepare(referenceImage, angle).mesh; }
+
+  function state(settings, referenceImage, age, life, current, atAge) {
+    const {mesh, cos, sin} = prepare(referenceImage, settings.angle);
+    const headAge = clamp(age, 0, life), span = Math.min(headAge, settings.duration);
+    const points = [], tangents = [], widths = [], heights = [];
+    const frame = current.image || referenceImage || builtin;
+    for (let i = 0; i <= SEGMENTS; i++) {
+      // Tail to head. Use the current frame for the entire surface even when
+      // its history crosses a sequence key with different image dimensions.
+      const p = i === SEGMENTS || span === 0 ? current : atAge(headAge - span * (1 - i / SEGMENTS));
+      const historicalFrame = p.image || referenceImage || builtin;
+      points.push(p);
+      widths.push(p.width * (frame.width / historicalFrame.width));
+      heights.push(p.height * (frame.height / historicalFrame.height));
+    }
+
+    let lastTangent = null;
+    for (let i = 0; i <= SEGMENTS; i++) {
+      const before = points[Math.max(0, i - 1)], after = points[Math.min(SEGMENTS, i + 1)];
+      const dx = after.x - before.x, dy = after.y - before.y, distance = Math.hypot(dx, dy);
+      if (distance > EPS) lastTangent = {x: dx / distance, y: dy / distance};
+      tangents.push(lastTangent);
+    }
+    if (!tangents[0]) {
+      // At birth there is no history yet. A small forward sample gives the
+      // opening pose the same heading as the first moving frame.
+      let heading = tangents.find(Boolean);
+      if (!heading) {
+        const probeAge = Math.min(life, headAge + .0001);
+        const probe = probeAge === headAge ? current : atAge(probeAge);
+        const dx = probe.x - current.x, dy = probe.y - current.y, distance = Math.hypot(dx, dy);
+        const rotation = (current.rotation || 0) * Math.PI / 180;
+        heading = distance > EPS ? {x: dx / distance, y: dy / distance} : {x: Math.cos(rotation), y: Math.sin(rotation)};
+      }
+      for (let i = 0; i <= SEGMENTS && !tangents[i]; i++) tangents[i] = heading;
+    }
+
+    // Retain a full-sized rectangle at rest. Motion adds the sampled path
+    // displacement to each slice; its own width and length follow that age's
+    // head scaling, including independent X/Y curves and inward shrinkage.
+    let width = current.width, height = current.height;
+    let extent = Math.abs(width * cos) + Math.abs(height * sin);
+    if (extent <= EPS) {
+      width = frame.width; height = frame.height;
+      extent = Math.abs(width * cos) + Math.abs(height * sin);
+    }
+    const vertices = [];
+    for (let j = 0; j < mesh.uvs.length; j += 2) {
+      const u = mesh.uvs[j] - .5, v = .5 - mesh.uvs[j + 1];
+      const section = clamp(.5 + (u * width * cos - v * height * sin) / extent, 0, 1) * SEGMENTS;
+      const a = Math.min(Math.floor(section), SEGMENTS - 1), b = a + 1, t = section - a;
+      const tx = tangents[a].x + (tangents[b].x - tangents[a].x) * t;
+      const ty = tangents[a].y + (tangents[b].y - tangents[a].y) * t;
+      const magnitude = Math.hypot(tx, ty);
+      const dx = magnitude > EPS ? tx / magnitude : tangents[b].x;
+      const dy = magnitude > EPS ? ty / magnitude : tangents[b].y;
+      const localX = u * (widths[a] + (widths[b] - widths[a]) * t);
+      const localY = v * (heights[a] + (heights[b] - heights[a]) * t);
+      const along = localX * cos - localY * sin, across = localX * sin + localY * cos;
+      vertices.push(points[a].x + (points[b].x - points[a].x) * t + along * dx - across * dy,
+        points[a].y + (points[b].y - points[a].y) * t + along * dy + across * dx);
+    }
+    return {...current, type: 'mesh', vertices, ...mesh};
+  }
+  return {geometry, state};
 });
 
 </script>
@@ -2683,10 +3064,11 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   const contourMath = typeof module === 'object' && module.exports ? require('./contour-math.js') : root.ParticleContourMath;
   const lightning = typeof module === 'object' && module.exports ? require('./lightning.js') : root.ParticleLightning;
   const trail = typeof module === 'object' && module.exports ? require('./trail.js') : root.ParticleTrail;
-  var api = factory(curveMath, pathMath, contourMath, lightning, trail);
+  const textureStretch = typeof module === 'object' && module.exports ? require('./texture-stretch.js') : root.ParticleTextureStretch;
+  var api = factory(curveMath, pathMath, contourMath, lightning, trail, textureStretch);
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.ParticleCore = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (CurveMath, PathMath, ContourMath, Lightning, Trail) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (CurveMath, PathMath, ContourMath, Lightning, Trail, TextureStretch) {
   'use strict';
   if (!CurveMath) throw new Error('粒子曲線模組尚未載入，請先載入 curve-math.js。');
   if (!PathMath) throw new Error('粒子路徑模組尚未載入，請先載入 path-math.js。');
@@ -2697,7 +3079,11 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   const EPS = 1e-9;
   const RESET_EPS = 0.0001;
   const MAX_POOL = 1200;
+  const MAX_EMITTER_COUNT = 400;
+  const VORTEX_MAX_LINES = 32;
+  const TEXTURE_STRETCH_DEFAULTS = Object.freeze({enabled: false, angle: 0, duration: .18});
   const MAX_EXPORT_SAMPLES = 2000000;
+  const VORTEX_DEFAULTS = Object.freeze({mode: 'off', radius: 160, turns: 1.25, direction: 'clockwise', arms: 0, shrinkHead: false});
   const BAKE_QUALITIES = Object.freeze(['fine', 'standard', 'compact', 'minimal']);
   const clone = value => JSON.parse(JSON.stringify(value));
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
@@ -2749,7 +3135,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   }
 
   function needsRefinement(baked, particle) {
-    return !!particle.lifecycle.path || particle.emitter.alignDirection ||
+    return !!particle.lifecycle.path || !!particle.lifecycle.vortex || particle.emitter.alignDirection ||
       (particle.emitter.separateSizeAxes && activeSizeCurves(particle.emitter).some(points => points.slice(0, -1).some(point => point.curve === 'bezier'))) ||
       (baked.project.bakeQuality !== undefined && baked.project.bakeQuality !== 'standard');
   }
@@ -2758,6 +3144,36 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     if (project.bakeQuality === undefined) return {};
     const profile = qualityProfile(project);
     return {quality: profile.name, qualityLabel: profile.label};
+  }
+
+  function vortexLineLayout(e) {
+    const settings = e.vortex || VORTEX_DEFAULTS;
+    const lineCount = settings.lineCount ?? Math.min(e.count, Math.max(1, settings.arms || 1));
+    const particlesPerLine = Math.ceil(e.count / lineCount);
+    return {lineCount, particlesPerLine, total: e.count,
+      maxParticlesPerLine: Math.floor(MAX_EMITTER_COUNT / lineCount),
+      maxLineCount: Math.min(VORTEX_MAX_LINES, Math.floor(MAX_EMITTER_COUNT / particlesPerLine)),
+      grouped: settings.lineCount !== undefined && settings.mode === 'inward' &&
+        e.kind !== 'lightning' && !(e.path && e.path.enabled)};
+  }
+
+  function setVortexLineLayout(e, lineCount, particlesPerLine = vortexLineLayout(e).particlesPerLine) {
+    if (!Number.isInteger(lineCount) || lineCount < 1 || lineCount > VORTEX_MAX_LINES)
+      fail('收縮線數必須是 1 到 ' + VORTEX_MAX_LINES + ' 的整數。');
+    const perLineLimit = Math.floor(MAX_EMITTER_COUNT / lineCount);
+    if (!Number.isInteger(particlesPerLine) || particlesPerLine < 1 || particlesPerLine > perLineLimit)
+      fail(lineCount + ' 條收縮線的每線粒子數必須是 1 到 ' + perLineLimit + ' 的整數（每層最多 ' + MAX_EMITTER_COUNT + ' 顆）。');
+    e.vortex = {...(e.vortex || VORTEX_DEFAULTS), lineCount};
+    e.count = lineCount * particlesPerLine;
+    return e;
+  }
+
+  function applyVortexInStretch(emitter) {
+    emitter.vortex = {...(emitter.vortex || VORTEX_DEFAULTS), shrinkHead: true};
+    emitter.trail = {...emitter.trail, enabled: true, mode: 'stretch', coverage: 'history', showHead: true,
+      duration: 0.24, segments: 6, width: 0.8, taper: 0.85, opacity: 0.9,
+      lengthCurve: null, moveDuration: null, lengthDuration: null};
+    return emitter;
   }
 
   function createEmitter(id, name, preset) {
@@ -2810,6 +3226,24 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         Object.assign(emitter, {shape: 'ring', width: 160, height: 160, count: 36,
           spread: 360, speed: 20, speedRandom: 5, life: 1.8, size: 10});
         break;
+      case 'vortexIn':
+      case 'vortexOut': {
+        const inward = preset === 'vortexIn';
+        Object.assign(emitter, {count: 30, emissionDuration: inward ? 1.08 : 1.35, life: 1.55, lifeRandom: 0.12,
+          size: inward ? 22 : 14, sizeRandom: 4, colorStart: inward ? '#83aaff' : '#fff3a3', colorEnd: inward ? '#ead5ff' : '#ff7952',
+          vortex: {...VORTEX_DEFAULTS, mode: inward ? 'inward' : 'outward', arms: 3}});
+        if (inward) {
+          setVortexLineLayout(emitter, 12, 4);
+          emitter.sizeCurve = [{t: 0, v: 1}, {t: 1, v: 1}];
+          emitter.alphaCurve = [{t: 0, v: 0}, {t: 0.06, v: 1}, {t: 0.94, v: 1}, {t: 1, v: 0}];
+          applyVortexInStretch(emitter);
+        } else {
+          emitter.sizeCurve = [{t: 0, v: 0.7}, {t: 0.18, v: 1}, {t: 0.82, v: 0.88}, {t: 1, v: 0.5}];
+          emitter.alphaCurve = [{t: 0, v: 0}, {t: 0.06, v: 1}, {t: 0.82, v: 0.9}, {t: 1, v: 0}];
+          emitter.trail = {enabled: true, mode: 'afterimage', duration: 0.12, samples: 3, opacity: 0.65, width: 0.82};
+        }
+        break;
+      }
       case 'confetti':
         Object.assign(emitter, {blend: 'normal', shape: 'box', width: 240, height: 10,
           count: 44, life: 2.5, lifeRandom: 0.4, speed: 140, speedRandom: 50,
@@ -3062,7 +3496,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   }
   const fileKey = value => value.normalize('NFC').toLowerCase();
   function planImages(project) {
-    const references = [], byEmitter = new Map(), folders = new Map(), folderKeys = new Set();
+    const references = [], byEmitter = new Map(), byTrail = new Map(), folders = new Map(), folderKeys = new Set();
     const enabled = project.emitters.filter(e => included(project, e));
     // IDs may differ only by case. Allocate Windows-safe folders in sorted ID
     // order so changing visual layer order cannot rename their image paths.
@@ -3076,6 +3510,10 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       const entries = frames.map((image, index) => ({emitterId: e.id, frame: sequence ? index : null, image,
         basename: image ? pngFileName(image.name) : 'particle.png'}));
       references.push(...entries); byEmitter.set(e.id, entries);
+      if (Trail && Trail.active(e) && e.trail.image) {
+        const ref = {emitterId: e.id, role: 'trail', image: e.trail.image, basename: pngFileName(e.trail.image.name)};
+        references.push(ref); byTrail.set(e.id, ref);
+      }
     });
     const counts = new Map(), withinEmitter = new Map();
     const builtinUsed = references.some(ref => !ref.image);
@@ -3094,11 +3532,11 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       const key = fileKey(ref.basename), local = JSON.stringify([ref.emitterId, key]);
       const collision = counts.get(key) > 1 || builtinUsed && key === 'particle.png';
       const directory = collision ? folders.get(ref.emitterId) + '/' +
-        (withinEmitter.get(local) > 1 ? sequenceSuffix(ref.frame) + '/' : '') : '';
+        (withinEmitter.get(local) > 1 ? ref.role === 'trail' ? 'trail/' : sequenceSuffix(ref.frame) + '/' : '') : '';
       ref.asset = {name: directory + ref.basename, width: ref.image.width, height: ref.image.height, dataUrl: ref.image.dataUrl};
       images.push(ref.asset);
     });
-    return {images, byEmitter};
+    return {images, byEmitter, byTrail};
   }
 
   // Attachment events use the same microsecond grid as births and deaths.
@@ -3165,10 +3603,34 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       if (e.shape === 'outline') e.emitFrom = 'edge';
       e.blend = enumValue(source, 'blend', e.blend, ['additive', 'normal'], '混合模式');
       e.motionCurve = enumValue(source, 'motionCurve', e.motionCurve, ['linear', 'easeOut', 'easeIn', 'easeInOut'], '運動曲線');
+      if (source.textureStretch !== undefined) {
+        const settings = source.textureStretch;
+        if (!settings || typeof settings !== 'object' || Array.isArray(settings)) fail('貼圖拉伸設定必須是物件。');
+        e.textureStretch = {
+          enabled: boolean(settings, 'enabled', TEXTURE_STRETCH_DEFAULTS.enabled, '貼圖沿路徑拉伸'),
+          angle: number(settings, 'angle', TEXTURE_STRETCH_DEFAULTS.angle, -180, 180, false, '素材角度'),
+          duration: number(settings, 'duration', TEXTURE_STRETCH_DEFAULTS.duration, .01, 2, false, '貼圖拉伸時間')
+        };
+      }
+      if (source.vortex !== undefined) {
+        const vortex = source.vortex, defaults = VORTEX_DEFAULTS;
+        if (!vortex || typeof vortex !== 'object' || Array.isArray(vortex)) fail('漩渦設定必須是物件。');
+        e.vortex = {
+          mode: enumValue(vortex, 'mode', defaults.mode, ['off', 'inward', 'outward'], '漩渦模式'),
+          radius: number(vortex, 'radius', defaults.radius, 1, 2000, false, '漩渦半徑'),
+          turns: number(vortex, 'turns', defaults.turns, 0, 8, false, '漩渦圈數'),
+          arms: number(vortex, 'arms', defaults.arms, 0, 8, true, '漩渦旋臂數'),
+          direction: enumValue(vortex, 'direction', defaults.direction, ['clockwise', 'counterclockwise'], '漩渦旋向')
+        };
+        if (vortex.shrinkHead !== undefined) e.vortex.shrinkHead = boolean(vortex, 'shrinkHead', defaults.shrinkHead, '依旋心距離縮小頭部');
+        if (vortex.lineCount !== undefined) e.vortex.lineCount = number(vortex, 'lineCount', undefined, 1, VORTEX_MAX_LINES, true, '收縮線數');
+        if (vortex.edgeJitter !== undefined) e.vortex.edgeJitter = number(vortex, 'edgeJitter', 0, 0, 100, false, '漩渦邊緣位置隨機');
+        if (vortex.timeJitter !== undefined) e.vortex.timeJitter = number(vortex, 'timeJitter', 0, 0, 100, false, '漩渦發射時間隨機');
+      }
       const ranges = {
         x: [-4000, 4000], y: [-4000, 4000], width: [0, 2000], height: [0, 2000],
         lineLength: [0, 2000], lineRotation: [-3600, 3600], arcAngle: [1, 360], arcRotation: [-3600, 3600],
-        angle: [-3600, 3600], spread: [0, 360], count: [1, 400], emissionDuration: [0, 30],
+        angle: [-3600, 3600], spread: [0, 360], count: [1, MAX_EMITTER_COUNT], emissionDuration: [0, 30],
         life: [0.05, 10], lifeRandom: [0, 8], speed: [0, 4000], speedRandom: [0, 4000],
         gravity: [-6000, 6000], wind: [-3000, 3000], windAngle: [-3600, 3600],
         size: [0.1, 1000], sizeRandom: [0, 1000], rotation: [-36000, 36000],
@@ -3203,9 +3665,12 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         e.path = PathMath.normalize(source.path);
         if (e.path && e.path.enabled) PathMath.compile(e.path);
       }
+      if (e.vortex && e.count < e.vortex.lineCount && vortexLineLayout(e).grouped)
+        fail('發射器「' + e.name + '」的粒子總數不能少於收縮線數，每條收縮線至少需要一顆粒子。');
       if (source.trail !== undefined) {
         if (!Trail) fail('拖尾模組尚未載入，請先載入 trail.js。');
         e.trail = Trail.normalize(source.trail);
+        if (Object.prototype.hasOwnProperty.call(e.trail, 'image')) e.trail.image = image(e.trail.image, '發射器「' + e.name + '」拖尾');
         if (Trail.active(e) && e.trail.mode === 'stretch' && e.trail.coverage === 'path' && !(e.path && e.path.enabled))
           fail('發射器「' + e.name + '」的整條路徑光帶需要先啟用有效路徑，並設定至少兩個不同的路徑點。');
       }
@@ -3243,6 +3708,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     }
     const totalImages = result.emitters.reduce((sum, e) => sum + (e.image ? e.image.dataUrl.length : 0) +
       (e.sequence ? e.sequence.frames.reduce((bytes, frame) => bytes + frame.dataUrl.length, 0) : 0) +
+      (e.trail && e.trail.image ? e.trail.image.dataUrl.length : 0) +
       (e.outline && e.outline.image ? e.outline.image.dataUrl.length : 0), 0) + (result.background.image ? result.background.image.dataUrl.length : 0);
     if (totalImages > 16 * 1024 * 1024) fail('內嵌素材總量超過 16 MiB，請縮小圖片後重試。');
     const emitterIds = result.emitters.map(e => e.id);
@@ -3340,6 +3806,73 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     if (mode === 'easeOut') return 1 - (1 - t) * (1 - t);
     if (mode === 'easeInOut') return t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
     return t;
+  }
+
+  function inwardRadialFactors(e, speedCurve, total) {
+    const {lineCount, turns, direction, mode} = e.vortex;
+    if (mode !== 'inward' || !(lineCount >= 12 && turns > 0 && total > 0)) return null;
+    const peakRate = speedCurve ? Math.max(...speedCurve.sampleTimes.map(speedCurve.sample)) / total : e.motionCurve === 'linear' ? 1 : 2;
+    const trail = Trail && Trail.active(e) && e.trail.mode === 'stretch' ? e.trail : null;
+    const shortestLife = Math.max(.05, e.life - e.lifeRandom, trail?.moveDuration || 0, trail?.lengthDuration || 0);
+    // A dense array of identical, synchronized spokes can look like it turns
+    // backwards when its apparent shift crosses half a gap between frames.
+    // Fade in distinct radial positions before that limit at 20 frames/s.
+    const crossings = lineCount * turns * peakRate / shortestLife;
+    const ramp = clamp((crossings - 8) / 2, 0, 1);
+    if (!ramp) return null;
+    const strength = ramp * ramp * (3 - 2 * ramp);
+    const amplitude = 1.1 + .3 * clamp((lineCount - 16) / 8, 0, 1);
+    const levels = [-1, 1 / 3, 1, -1 / 3];
+    return Array.from({length: lineCount}, (_, line) => {
+      const group = (direction === 'clockwise' ? line : lineCount - 1 - line) % levels.length;
+      return Math.exp(-amplitude * strength * levels[group]);
+    });
+  }
+
+  function compileVortex(e, speedCurve) {
+    const settings = e.vortex;
+    const sweep = settings.turns * TAU * (settings.direction === 'clockwise' ? -1 : 1);
+    const total = speedCurve ? speedCurve.integral(1) : 1;
+    // Seed each quarter turn before midpoint refinement. Even several whole
+    // revolutions inside a single FPS interval must survive Spine export.
+    // All particles share this normalized clock, including delayed trail copies.
+    const radialFactors = inwardRadialFactors(e, speedCurve, total);
+    const sampleTimes = [], segments = Math.max(2, Math.ceil(settings.turns * 4));
+    if (total > 0) for (let index = 1; index < segments; index++) {
+      const target = index / segments;
+      if (!speedCurve && e.motionCurve === 'linear') { sampleTimes.push(target); continue; }
+      let low = 0, high = 1;
+      for (let iteration = 0; iteration < 32; iteration++) {
+        const middle = (low + high) / 2;
+        const progress = speedCurve ? speedCurve.integral(middle) / total : ease(middle, e.motionCurve);
+        if (progress < target) low = middle; else high = middle;
+      }
+      sampleTimes.push((low + high) / 2);
+    }
+    return {sweep, total, sampleTimes, shrinkHead: settings.mode === 'inward' && !!settings.shrinkHead,
+      ...(radialFactors ? {radialFactors} : {})};
+  }
+
+  function vortexPosition(particle, travel) {
+    const vortex = particle.lifecycle.vortex, settings = particle.emitter.vortex;
+    const progress = vortex.total > 0 ? clamp(travel / (particle.life * vortex.total), 0, 1) : 0;
+    const outward = settings.mode === 'outward';
+    let fraction = outward ? progress : 1 - progress, radialSlope = outward ? 1 : -1;
+    if (vortex.radialFactors) {
+      // Stagger only the distance to the center. Every line keeps its angular
+      // spacing and completes all authored turns, including during acceleration.
+      // q = p / (p + (1-p)*k) increases from 0 to 1 for every positive k.
+      const factor = vortex.radialFactors[particle.sourceIndex % vortex.radialFactors.length];
+      const remaining = (1 - progress) * factor, denominator = progress + remaining;
+      fraction = remaining / denominator;
+      radialSlope = -factor / (denominator * denominator);
+    }
+    const angle = particle.direction * DEG + vortex.sweep * progress;
+    const r = settings.radius * fraction;
+    // Differentiate the actual radius and keep the polar angle unwrapped so
+    // aligned sprites turn continuously as the inward trajectory steepens.
+    return {x: r * Math.cos(angle), y: r * Math.sin(angle), radiusFraction: fraction,
+      angle: (angle + Math.atan2(fraction * vortex.sweep, radialSlope)) / DEG};
   }
 
   // Arc angles are actual world polar directions (0 right, 90 up), centered on
@@ -3517,14 +4050,30 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     project.emitters.forEach(e => {
       if (!included(project, e)) return;
       if (e.kind === 'lightning') { lightning.push({emitterId: e.id, seed: emitterSeed(project, e)}); return; }
-      const rand = random(emitterSeed(project, e));
+      const seed = emitterSeed(project, e), rand = random(seed);
       const signed = amplitude => (rand() * 2 - 1) * amplitude;
-      const sampleRing = e.shape === 'ring' ? (e.emitFrom === 'area' ? ringAreaSampler(e) : ringSampler(e)) : null;
-      if (e.shape === 'outline' && !e.outline) fail('發射器「' + e.name + '」尚未載入 PNG 輪廓，請先掃描透明 PNG。');
-      const sampleOutline = e.shape === 'outline' ? ContourMath.compile(e.outline, e.width, e.height) : null;
+      const useVortex = !(e.path && e.path.enabled) && e.vortex && e.vortex.mode !== 'off';
+      const layout = vortexLineLayout(e);
+      const linesPerWave = layout.grouped ? layout.lineCount : 1;
+      const waveCount = layout.grouped ? layout.particlesPerLine : e.count;
+      const arms = layout.grouped ? layout.lineCount : useVortex ? e.vortex.arms : 0;
+      // A separate stream orients the whole spiral without reshuffling size,
+      // lifespan, spin or the free-scatter rays when the arm count is edited.
+      const armOrigin = arms ? random(seed ^ seedHash('vortex-arm-phase'))() * TAU : 0;
+      // Fixed lines reuse their edge offset across waves. Leave a gap even if
+      // adjacent lines both draw the maximum offset toward each other.
+      const edgeRange = useVortex ? (e.vortex.edgeJitter || 0) / 100 * .45 * TAU / (arms || 1) : 0;
+      const edgeRand = random(seed ^ seedHash('vortex-edge-jitter'));
+      const edgeOffsets = edgeRange ? Array.from({length: arms || e.count}, () => (2 * edgeRand() - 1) * edgeRange) : null;
+      // Vortex particles use the emitter origin. Inactive shapes must not
+      // consume random draws or require a contour that will never be sampled.
+      const shape = useVortex ? 'point' : e.shape;
+      const sampleRing = shape === 'ring' ? (e.emitFrom === 'area' ? ringAreaSampler(e) : ringSampler(e)) : null;
+      if (shape === 'outline' && !e.outline) fail('發射器「' + e.name + '」尚未載入 PNG 輪廓，請先掃描透明 PNG。');
+      const sampleOutline = shape === 'outline' ? ContourMath.compile(e.outline, e.width, e.height) : null;
       // Ring historically consumes one shape draw. Its new area radius uses
       // a separate stream so switching location never reshuffles life or motion.
-      const ringRadiusRand = e.shape === 'ring' && e.emitFrom === 'area'
+      const ringRadiusRand = shape === 'ring' && e.emitFrom === 'area'
         ? random(e.randomSeed === undefined ? (project.seed ^ seedHash(e.id + ':ring-area-radius')) >>> 0 :
           (e.randomSeed ^ seedHash('ring-area-radius')) >>> 0) : null;
       const lifecycle = {
@@ -3544,13 +4093,17 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         });
       }
       if (e.path && e.path.enabled) lifecycle.path = PathMath.compile(e.path);
+      else if (useVortex) lifecycle.vortex = compileVortex(e, lifecycle.speed);
       const sequence = activeSequence(e);
       if (sequence) lifecycle.sequenceMaxDimension = Math.max(...sequence.frames.map(frame => Math.max(frame.width, frame.height)));
       // A separate stream: switching to random images never reshuffles motion.
       const frameRand = sequence && sequence.mode === 'random' && sequence.frames.length > 1
         ? random(e.randomSeed === undefined ? (project.seed ^ seedHash(e.id + ':random-frame')) >>> 0 : (e.randomSeed ^ seedHash('random-frame')) >>> 0) : null;
       let index = 0, clipped = false;
-      for (let sourceIndex = 0; sourceIndex < e.count; sourceIndex++) {
+      const delay = Math.min(e.startDelay || 0, project.duration);
+      const emissionWindow = Math.min(e.emissionDuration, project.duration - delay);
+      const timeRange = useVortex ? emissionWindow / waveCount * ((e.vortex.timeJitter || 0) / 100) : 0;
+      for (let waveIndex = 0; waveIndex < waveCount; waveIndex++) {
         // Use the same microsecond grid as JSON keys so birth/death attachment events
         // cannot slip to the following video frame after decimal quantization.
         const authoredLife = round(clamp(e.life + signed(e.lifeRandom), 0.05, 16));
@@ -3569,43 +4122,54 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         if (sampleOutline) {
           const point = e.directionMode === 'normal' ? sampleOutline.sampleNormal(rand()) : sampleOutline.sample(rand());
           sx = point.x; sy = point.y; if (e.directionMode === 'normal') sampledNormal = point;
-        } else if (e.shape === 'box') {
+        } else if (shape === 'box') {
           if (e.emitFrom === 'edge') {
             const point = boxEdgePoint(e, rand(), rand()); sx = point.x; sy = point.y; sampledNormal = point;
           } else { sx = signed(e.width / 2); sy = signed(e.height / 2); }
         }
-        else if (e.shape === 'ring') {
+        else if (shape === 'ring') {
           const point = ringRadiusRand ? sampleRing(rand(), ringRadiusRand()) : sampleRing(rand()); sx = point.x; sy = point.y;
-        } else if (e.shape === 'circle') {
+        } else if (shape === 'circle') {
           const polar = rand() * TAU, areaRadius = Math.sqrt(rand());
           const radius = e.emitFrom === 'edge' ? 1 : areaRadius;
           sx = Math.cos(polar) * e.width / 2 * radius; sy = Math.sin(polar) * e.height / 2 * radius;
-        } else if (e.shape === 'line') {
+        } else if (shape === 'line') {
           const distance = signed(e.lineLength / 2);
           sx = Math.cos(e.lineRotation * DEG) * distance; sy = Math.sin(e.lineRotation * DEG) * distance;
-        } else if (e.shape === 'direction') {
+        } else if (shape === 'direction') {
           const distance = signed(e.width / 2);
           sx = -Math.sin(e.angle * DEG) * distance; sy = Math.cos(e.angle * DEG) * distance;
         }
-        const angle = emissionAngle(e, sx, sy, angleDraw, sampledNormal);
-        const randomFrame = frameRand ? Math.min(sequence.frames.length - 1, Math.floor(frameRand() * sequence.frames.length)) : undefined;
-        const delay = Math.min(e.startDelay || 0, project.duration);
-        const birth = round(delay + sourceIndex / e.count * Math.min(e.emissionDuration, project.duration - delay));
+        const waveStart = delay + waveIndex / waveCount * emissionWindow;
+        // Each wave owns a random stream so adding a line to an earlier wave
+        // never reshuffles this wave. Births stay inside their own time slot.
+        const timeRand = timeRange ? random(seed ^ seedHash('vortex-time-jitter:' + waveIndex)) : null;
         const tail = Trail && Trail.active(e) ? e.trail.duration : 0;
-        clipped = clipped || (birth + life + tail > project.duration);
         const cycles = project.loop ? Math.max(1, Math.ceil((life + tail - EPS) / project.duration)) : 1;
         maxPoolCycles = Math.max(maxPoolCycles, cycles);
         longLived = longLived || (project.loop && life > project.duration);
-        generatedParticles++;
-        for (let cycleIndex = 0; cycleIndex < cycles; cycleIndex++) {
-          particles.push({emitterId: e.id, index: index++, sourceIndex, cycleIndex,
-            birth, life, size, spin, sx, sy, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-            ax: e.wind, ay: -e.gravity,
-            direction: angle / DEG, emitter: e, lifecycle, startColor: rgb(e.colorStart), endColor: rgb(e.colorEnd),
-            ...(randomFrame === undefined ? {} : {randomFrame})});
-          if (tail) trailLanes += Trail.lanes(e.trail).length;
+        // Grouped lines are rotated copies of the same wave. Keeping the motion
+        // draws per wave preserves its timing and radius when the number of lines changes.
+        const firstSource = waveIndex * linesPerWave;
+        const waveEnd = Math.min(e.count, firstSource + linesPerWave);
+        for (let sourceIndex = firstSource; sourceIndex < waveEnd; sourceIndex++) {
+          let angle = arms ? armOrigin + (sourceIndex % arms) * TAU / arms :
+            useVortex ? angleDraw * TAU : emissionAngle(e, sx, sy, angleDraw, sampledNormal);
+          if (edgeOffsets) angle += edgeOffsets[arms ? sourceIndex % arms : sourceIndex];
+          const birth = round(waveStart + (timeRand ? timeRand() * timeRange : 0));
+          clipped = clipped || birth + life + tail > project.duration;
+          const randomFrame = frameRand ? Math.min(sequence.frames.length - 1, Math.floor(frameRand() * sequence.frames.length)) : undefined;
+          generatedParticles++;
+          for (let cycleIndex = 0; cycleIndex < cycles; cycleIndex++) {
+            particles.push({emitterId: e.id, index: index++, sourceIndex, cycleIndex,
+              birth, life, size, spin, sx, sy, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+              ax: e.wind, ay: -e.gravity,
+              direction: angle / DEG, emitter: e, lifecycle, startColor: rgb(e.colorStart), endColor: rgb(e.colorEnd),
+              ...(randomFrame === undefined ? {} : {randomFrame})});
+            if (tail) trailLanes += Trail.lanes(e.trail).length;
+          }
+          if (particles.length + trailLanes > MAX_POOL) fail('循環粒子池超過 ' + MAX_POOL + ' 個（包含拖尾）。請減少粒子數／殘影數、縮短壽命／拖尾，或增加動畫長度。');
         }
-        if (particles.length + trailLanes > MAX_POOL) fail('循環粒子池超過 ' + MAX_POOL + ' 個（包含拖尾）。請減少粒子數／殘影數、縮短壽命／拖尾，或增加動畫長度。');
       }
       if (e.startDelay && e.startDelay >= project.duration) warnings.push('「' + e.name + '」開始時間超過動畫長度，粒子會在最後一刻同時出生；請縮短開始時間或加長動畫。');
       else if (e.startDelay && e.startDelay + e.emissionDuration > project.duration) warnings.push('「' + e.name + '」開始時間＋發射時間超過動畫長度；本次發射壓縮在 ' + round(project.duration - e.startDelay) + ' 秒內。');
@@ -3716,9 +4280,10 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     const direction = directionEvents(particle).length;
     const sequence = sequenceBoundaryRange(baked, particle);
     const sequenceEvents = Math.max(0, sequence.last - sequence.first + 1);
-    const upper = grid + markers + path.events + path.corners + direction + sequenceEvents;
+    const vortex = particle.lifecycle.vortex;
+    const upper = grid + markers + path.events + path.corners + direction + sequenceEvents + (vortex ? vortex.sampleTimes.length : 0);
     const directionVariation = e.alignDirection ? (particle.lifecycle.path ? (path.events + 2) * 180 :
-      360 * (particle.lifecycle.speed ? particle.lifecycle.speed.sampleTimes.length + 2 : 2)) : 0;
+      vortex ? Math.abs(vortex.sweep) / DEG + 90 : 360 * (particle.lifecycle.speed ? particle.lifecycle.speed.sampleTimes.length + 2 : 2)) : 0;
     const guards = Math.ceil((Math.abs(particle.spin) * baked.duration + directionVariation) / 120);
     return {lower: Math.max(grid, sequenceEvents - 1), upper, guards, rejected: path.rejected};
   }
@@ -3732,10 +4297,10 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     for (const [name, phase] of Object.entries(phaseSources)) {
       let phaseLower = 0, phaseUpper = 0;
       for (const particle of phase.particles) {
-        const cost = timelineCost(phase, particle);
+        const cost = stretchedHead(particle) ? trailCost(phase, particle, true) : timelineCost(phase, particle);
         phaseLower += cost.lower; phaseUpper += cost.upper; guards += cost.guards;
         rejected = rejected || cost.rejected;
-        adaptivePossible = adaptivePossible || needsRefinement(phase, particle);
+        adaptivePossible = adaptivePossible || stretchedHead(particle) || needsRefinement(phase, particle);
         if (hasTrail(particle)) {
           const tail = trailCost(phase, particle);
           phaseLower += tail.lower; phaseUpper += tail.upper; rejected = rejected || tail.rejected; adaptivePossible = true;
@@ -3798,7 +4363,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   // velocity. Preserve that time even if it falls between the FPS grid; a
   // genuine stop/reversal is an angle discontinuity, not a long interpolation.
   function directionEvents(particle) {
-    if (!particle.emitter.alignDirection || particle.lifecycle.path) return [];
+    if (!particle.emitter.alignDirection || particle.lifecycle.path || particle.lifecycle.vortex) return [];
     const accel2 = particle.ax * particle.ax + particle.ay * particle.ay;
     if (accel2 < EPS) return [];
     const result = [], e = particle.emitter, curve = particle.lifecycle.speed;
@@ -3849,34 +4414,38 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     const forceTime = speedCurve ? evaluatedAge : travel;
     const speedMultiplier = speedCurve ? speedCurve.sample(speedU) : 1;
     const path = particle.lifecycle.path;
-    const pathPosition = path ? path.sample(pathProgress(particle, evaluatedAge)) : null;
+    const guidedPosition = path ? path.sample(pathProgress(particle, evaluatedAge)) :
+      particle.lifecycle.vortex ? vortexPosition(particle, travel) : null;
+    const pathOffsets = path && e.path.offsets;
     const sizeU = curveProgress(e.sizeCurve, evaluatedAge, particle.life), alphaU = curveProgress(e.alphaCurve, evaluatedAge, particle.life);
     const scaleCurve = particle.lifecycle.sizeLinear ? evalCurve(e.sizeCurve, sizeU) : particle.lifecycle.size.sample(sizeU);
     const sequence = activeSequence(e);
     const frameIndex = sequence ? sequenceFrame(sequence, evaluatedAge, particle) : undefined;
     const frameImage = sequence ? sequence.frames[frameIndex] : e.image;
     const maxDimension = sequence ? particle.lifecycle.sequenceMaxDimension : e.image ? Math.max(e.image.width, e.image.height) : 64;
-    const scale = particle.size / maxDimension * scaleCurve;
+    const shrinkHead = particle.lifecycle.vortex && particle.lifecycle.vortex.shrinkHead;
+    const sizeRatio = particle.size / maxDimension * (shrinkHead ? guidedPosition.radiusFraction : 1);
+    const scale = sizeRatio * scaleCurve;
     function axisScale(axis) {
       if (!e.separateSizeAxes) return scale;
       const points = e['sizeCurve' + axis] || e.sizeCurve;
       const progress = curveProgress(points, evaluatedAge, particle.life);
       const multiplier = particle.lifecycle['size' + axis + 'Linear'] ? evalCurve(points, progress) : particle.lifecycle['size' + axis].sample(progress);
-      return particle.size / maxDimension * multiplier;
+      return sizeRatio * multiplier;
     }
     const scaleX = axisScale('X'), scaleY = axisScale('Y');
     const width = (frameImage ? frameImage.width : 64) * scaleX;
     const height = (frameImage ? frameImage.height : 64) * scaleY;
     let rotation = e.rotation + particle.spin * evaluatedAge;
-    if (e.alignDirection && pathPosition) rotation += pathAngle === undefined ? pathPosition.angle : pathAngle;
+    if (e.alignDirection && guidedPosition) rotation += pathAngle === undefined ? guidedPosition.angle : pathAngle;
     else if (e.alignDirection) {
       const vx = particle.vx * speedMultiplier + particle.ax * forceTime, vy = particle.vy * speedMultiplier + particle.ay * forceTime;
       const angle = Math.abs(vx) + Math.abs(vy) < EPS ? particle.direction : Math.atan2(vy, vx) / DEG;
       rotation += particle.direction + mod(angle - particle.direction + 180, 360) - 180;
     }
     const state = {emitterId: particle.emitterId, index: particle.index,
-      x: pathPosition ? e.x + pathPosition.x + (e.path.offsets ? particle.sx + particle.ax * evaluatedAge * evaluatedAge / 2 : 0) : e.x + particle.sx + particle.vx * travel + particle.ax * forceTime * forceTime / 2,
-      y: pathPosition ? e.y + pathPosition.y + (e.path.offsets ? particle.sy + particle.ay * evaluatedAge * evaluatedAge / 2 : 0) : e.y + particle.sy + particle.vy * travel + particle.ay * forceTime * forceTime / 2,
+      x: guidedPosition ? e.x + guidedPosition.x + (pathOffsets ? particle.sx + particle.ax * evaluatedAge * evaluatedAge / 2 : 0) : e.x + particle.sx + particle.vx * travel + particle.ax * forceTime * forceTime / 2,
+      y: guidedPosition ? e.y + guidedPosition.y + (pathOffsets ? particle.sy + particle.ay * evaluatedAge * evaluatedAge / 2 : 0) : e.y + particle.sy + particle.vy * travel + particle.ay * forceTime * forceTime / 2,
       scale, width, height, rotation,
       color: particle.lifecycle.gradient ? evalGradient(particle.lifecycle.gradient, curveProgress(e.colorGradient, evaluatedAge, particle.life)) : particle.startColor.map((channel, i) => channel + (particle.endColor[i] - channel) * u),
       alpha: alive ? (particle.lifecycle.alphaLinear ? evalCurve(e.alphaCurve, alphaU) : particle.lifecycle.alpha.sample(alphaU)) *
@@ -3898,9 +4467,9 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
           const state = trailState(baked, particle, lane, t), index = particle.index * stride + lane.index;
           states.push({...state, index, slotName: 'em_' + particle.emitterId + '_p' + index + '_slot'});
         });
-        const head = visibleHeadState(particle, stateAt(baked, particle, t)), index = particle.index * stride + lanes.length;
+        const head = sampleHead(baked, particle, t), index = particle.index * stride + lanes.length;
         states.push({...head, slotName: 'em_' + particle.emitterId + '_p' + index + '_slot'});
-      } else states.push(stateAt(baked, particle, t));
+      } else states.push(sampleHead(baked, particle, t));
     });
     if (baked.lightning) states.push(...lightningStates(baked, t));
     if (baked.particles.some(hasTrail)) {
@@ -3924,8 +4493,28 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   function visibleHeadState(particle, state) {
     return hasHiddenTrailHead(particle) ? {...state, alpha: 0} : state;
   }
+  const textureLane = Object.freeze({index: 0, mode: 'stretch', headTexture: true});
+  function stretchedHead(particle) {
+    return !!(particle.emitter.textureStretch && particle.emitter.textureStretch.enabled && !hasHiddenTrailHead(particle));
+  }
+  function textureReference(e) {
+    const sequence = activeSequence(e);
+    return sequence ? sequence.frames[0] : e.image;
+  }
+  function sampleHead(baked, particle, time) {
+    return stretchedHead(particle) ? trailState(baked, particle, textureLane, time) : visibleHeadState(particle, stateAt(baked, particle, time));
+  }
+  function meshSettings(particle, headTexture) {
+    // The main texture shares the history sampling and Spine deform exporter with trails.
+    // Its material, visibility, and slot still belong to the particle head.
+    return headTexture ? {mode: 'stretch', enabled: true, segments: 6, duration: particle.emitter.textureStretch.duration} : particle.emitter.trail;
+  }
   function trailState(baked, particle, lane, time) {
     const age = trailAge(baked, particle, time), e = particle.emitter, path = particle.lifecycle.path;
+    if (lane.headTexture) {
+      return TextureStretch.state(e.textureStretch, textureReference(e), age, particle.life, stateAt(baked, particle, time),
+        value => stateAt(baked, particle, time, undefined, value));
+    }
     const evaluatedAge = clamp(age, 0, Math.max(0, particle.life - 1e-7));
     // Full-path ribbons use the authored geometry rather than the moving
     // particle's history. Optional physical offsets translate the entire mesh.
@@ -3942,7 +4531,21 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         y: e.y + point.y + (e.path.offsets ? particle.sy + particle.ay * evaluatedAge * evaluatedAge / 2 : 0)};
     } : undefined;
     return Trail.state(e.trail, lane, age, particle.life,
-      value => stateAt(baked, particle, time, undefined, value), atPath,
+      value => {
+        const state = stateAt(baked, particle, time, undefined, value), material = e.trail.image;
+        if (!material) return state;
+        // Use the same authored particle size/curves with the trail image's
+        // own aspect ratio. A head sequence must not resize or switch this
+        // independent material as its frames advance.
+        const headDimension = activeSequence(e) ? particle.lifecycle.sequenceMaxDimension : e.image ? Math.max(e.image.width, e.image.height) : 64;
+        const factor = headDimension / Math.max(material.width, material.height);
+        const scale = state.scale * factor, scaleX = (state.scaleX === undefined ? state.scale : state.scaleX) * factor;
+        const scaleY = (state.scaleY === undefined ? state.scale : state.scaleY) * factor;
+        const result = {...state, image: material, width: material.width * scaleX, height: material.height * scaleY, scale};
+        if (state.scaleX !== undefined) { result.scaleX = scaleX; result.scaleY = scaleY; }
+        delete result.sequenceFrame;
+        return result;
+      }, atPath,
       particle.lifecycle.trailLength ? particle.lifecycle.trailLength.sample(curveProgress(e.trail.lengthCurve,
         clamp(age, 0, scalarDuration(particle, e.trail.lengthCurve)), scalarDuration(particle, e.trail.lengthCurve))) : 1);
   }
@@ -4004,7 +4607,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     if (baked.flowPhase && baked.flowPhase.kind === 'in') {
       const basis = baked.flowPhase.basis, basisKeys = sampledTimeline(basis, particle, true);
       const cycles = Math.ceil(duration / basis.duration) + 1;
-      if ((particle.lifecycle.path || particle.emitter.alignDirection || activeSequence(particle.emitter) || particle.emitter.separateSizeAxes) && basisKeys.length * (cycles + 1) > MAX_EXPORT_SAMPLES) fail('進場動畫取樣超過 200 萬，請縮短 In、降低速度，或加長 Loop。');
+      if ((particle.lifecycle.path || particle.lifecycle.vortex || particle.emitter.alignDirection || activeSequence(particle.emitter) || particle.emitter.separateSizeAxes) && basisKeys.length * (cycles + 1) > MAX_EXPORT_SAMPLES) fail('進場動畫取樣超過 200 萬，請縮短 In、降低速度，或加長 Loop。');
       for (let cycle = -cycles; cycle <= 0; cycle++) {
         basisKeys.forEach(key => add(duration + cycle * basis.duration + key.time, key.mandatory, key.stepped, key.rotationStepped, key.pathAngle, key.marks));
       }
@@ -4036,6 +4639,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       event(0, true); event(particle.life, true);
     }
     curves.filter(points => points !== currentLength).forEach(points => points.forEach((point, index) => lifetimeEvent(point.t, index > 0 && points[index - 1].curve === 'stepped', undefined, scalarDuration(particle, points), curveMarks(points))));
+    if (particle.lifecycle.vortex) particle.lifecycle.vortex.sampleTimes.forEach(t => lifetimeEvent(t, false, false));
     trailClockDurations(particle, history).forEach(clock => lifetimeEvent(1, false, true, clock, ['position', 'rotation', 'scale']));
     if (particle.emitter.colorGradient) particle.emitter.colorGradient.forEach(point => lifetimeEvent(point.t, false, undefined, undefined, ['color']));
     if (!history) {
@@ -4081,9 +4685,9 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       const keys = metadata.map(key => ({...key, state: stateAt(baked, particle, key.time, key.pathAngle)}));
       if (!needsRefinement(baked, particle)) return keys;
       const refinement = qualityProfile(baked.project).refinement;
-      // New axis curves need a scale bound even under standard quality. Their
-      // Bezier X handles can concentrate most of the change between FPS keys.
-      const scaleRefinement = refinement.scale === undefined && particle.emitter.separateSizeAxes ?
+      // Axis Beziers and radius-driven contraction can change scale between
+      // FPS keys even under standard quality.
+      const scaleRefinement = refinement.scale === undefined && (particle.emitter.separateSizeAxes || particle.lifecycle.vortex && particle.lifecycle.vortex.shrinkHead) ?
         qualityProfile(baked.project).tolerances.scale / 2 : refinement.scale;
       const refined = [keys[0]];
       function append(first, last, depth) {
@@ -4222,9 +4826,9 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   }
 
   function hasTrail(particle) { return !!(Trail && Trail.active(particle.emitter)); }
-  function trailCost(baked, particle) {
-    const settings = particle.emitter.trail, count = Trail.lanes(settings).length;
-    const sequence = activeSequence(particle.emitter);
+  function trailCost(baked, particle, headTexture) {
+    const settings = meshSettings(particle, headTexture), count = Trail.lanes(settings).length;
+    const sequence = settings.image ? null : activeSequence(particle.emitter);
     const grid = Math.ceil(baked.duration * baked.fps) + 1, weight = settings.mode === 'stretch' ? Trail.segmentCount(settings) + 1 : 1;
     const source = timelineCost({...baked, duration: particle.life, loop: false, flowPhase: undefined}, {...particle, birth: 0, cycleIndex: 0});
     const extended = settings.mode === 'stretch' && Trail.maxLength(settings) > 1;
@@ -4232,13 +4836,13 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     if (settings.mode === 'stretch') copies = settings.coverage === 'path' ? 2 : (settings.segments + 1) * (extended ? 2 : 1);
     const repeats = baked.flowPhase && baked.flowPhase.kind === 'in' ? Math.ceil(baked.duration / baked.flowPhase.basis.duration) + 2 : 1;
     const switchEndpoints = settings.mode === 'stretch' && sequence && sequence.frames.length > 1 ? 2 : 1;
-    return {lower: grid * count * weight, upper: (grid + source.upper * copies * repeats + 8) * count * weight * switchEndpoints,
+    return {lower: grid * count * weight, upper: (grid + source.upper * copies * repeats + 8) * count * weight * switchEndpoints, guards: 0,
       rejected: source.rejected};
   }
   // Shift authored motion/texture events by the history lag. This retains
   // precise births, deaths, step curves, path corners and sequence switches.
   function trailMetadata(baked, particle, lane) {
-    const settings = particle.emitter.trail, duration = baked.duration, times = new Map();
+    const settings = meshSettings(particle, lane.headTexture), duration = baked.duration, times = new Map();
     function add(time, stepped, mandatory) {
       if (time < -EPS || time > duration + EPS) return;
       const at = round(clamp(time, 0, duration)), previous = times.get(at);
@@ -4262,7 +4866,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         // The full seed timeline remains at the head. For historical samples,
         // shift authored events and refine between them. Keep dense timing for
         // mixed-size frames because those can cause abrupt width changes.
-        const sequence = activeSequence(particle.emitter), first = sequence && sequence.frames[0];
+        const sequence = settings.image ? null : activeSequence(particle.emitter), first = sequence && sequence.frames[0];
         const changingSize = first && sequence.frames.some(frame => frame.width !== first.width || frame.height !== first.height);
         if (!changingSize) historySource = sampledTimeline(virtual, sourceParticle, true, undefined, true);
         lags = Array.from({length: settings.segments + 1}, (_, i) => settings.duration * i / settings.segments);
@@ -4290,7 +4894,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     if (sampleBudget.used > MAX_EXPORT_SAMPLES) fail('拖尾匯出取樣超過 200 萬，請減少粒子／殘影數、細緻度或拖尾時間。');
   }
   function trailTimeline(baked, particle, lane, sampleBudget) {
-    const settings = particle.emitter.trail;
+    const settings = meshSettings(particle, lane.headTexture);
     const sampleWeight = lane.mode === 'stretch' ? Trail.segmentCount(settings) + 1 : 1;
     function state(time) {
       spendTrailSamples(sampleBudget, sampleWeight);
@@ -4347,25 +4951,27 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   function trailAlphaRefinement(project) {
     return Math.min(0.001, qualityProfile(project).tolerances.alpha / 2);
   }
-  function exportTrail(baked, particle, profile, assets, sampleBudget) {
-    const e = particle.emitter, settings = e.trail, lanes = Trail.lanes(settings), stride = lanes.length + 1;
+  function exportTrail(baked, particle, profile, assets, sampleBudget, headIndex) {
+    const e = particle.emitter, headTexture = headIndex !== undefined, settings = meshSettings(particle, headTexture);
+    const lanes = headTexture ? [textureLane] : Trail.lanes(settings), stride = lanes.length + 1;
     const bones = [], slots = [], attachments = {}, boneTracks = {}, slotTracks = {}, deforms = {};
     const quality = qualityProfile(baked.project), colorTolerance = quality.tolerances.color - 1 / 1020;
     const alphaTolerance = quality.tolerances.alpha - trailAlphaRefinement(baked.project);
     let keyframes = 0, denseKeyframes = 0;
     lanes.forEach(lane => {
-      const index = particle.index * stride + lane.index, boneName = 'em_' + e.id + '_p' + index, slotName = boneName + '_slot';
-      const dense = trailTimeline(baked, particle, lane, sampleBudget), initial = dense[0].state, sequence = activeSequence(e);
-      const attachmentName = s => s.alive ? sequence ? sequenceAttachment(s.sequenceFrame) : 'particle' : null;
+      const index = headTexture ? headIndex : particle.index * stride + lane.index, boneName = 'em_' + e.id + '_p' + index, slotName = boneName + '_slot';
+      const dense = trailTimeline(baked, particle, lane, sampleBudget), initial = dense[0].state, sequence = settings.image ? null : activeSequence(e);
+      const staticName = settings.image ? 'trail_particle' : 'particle';
+      const attachmentName = s => s.alive ? sequence ? sequenceAttachment(s.sequenceFrame) : staticName : null;
       bones.push({name: boneName, parent: 'em_' + e.id});
       slots.push({name: slotName, bone: boneName, color: rgba(initial), attachment: attachmentName(initial) || undefined, blend: e.blend});
       attachments[slotName] = {};
-      const frames = sequence ? sequence.frames : [e.image || {width: 64, height: 64}];
+      const frames = sequence ? sequence.frames : [settings.image || e.image || {width: 64, height: 64}];
       frames.forEach((frame, frameIndex) => {
-        const name = sequence ? sequenceAttachment(frameIndex) : 'particle';
+        const name = sequence ? sequenceAttachment(frameIndex) : staticName;
         const attachment = {type: lane.mode === 'stretch' ? 'mesh' : 'region', path: assets[frameIndex].name.slice(0, -4), width: frame.width, height: frame.height};
         if (lane.mode === 'stretch') {
-          const geometry = Trail.strip(settings.segments, frame, settings);
+          const geometry = headTexture ? TextureStretch.geometry(textureReference(e), e.textureStretch.angle) : Trail.strip(settings.segments, frame, settings);
           Object.assign(attachment, geometry, {vertices: Array(geometry.uvs.length).fill(0)});
         }
         attachments[slotName][name] = attachment;
@@ -4388,7 +4994,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         const byAttachment = {}, deformWeight = Trail.segmentCount(settings) + 1;
         let active;
         dense.forEach(key => {
-          const name = sequence ? attachmentName(key.state) : 'particle';
+          const name = sequence ? attachmentName(key.state) : staticName;
           if (!active && !name) return;
           const frame = active !== name ? {...key, mandatory: true} : key;
           // Finish the outgoing texture's interpolation at the same time as
@@ -4433,11 +5039,11 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
 
   function exportSpine(baked, targetVersion, sampleBudget) {
     const needsAdaptive = baked.particles.some(particle => needsRefinement(baked, particle));
-    const needsBudget = needsAdaptive || baked.project.bakeQuality !== undefined || baked.particles.some(particle => activeSequence(particle.emitter) || particle.emitter.separateSizeAxes || hasTrail(particle));
+    const needsBudget = needsAdaptive || baked.project.bakeQuality !== undefined || baked.particles.some(particle => activeSequence(particle.emitter) || particle.emitter.separateSizeAxes || hasTrail(particle) || stretchedHead(particle));
     if (needsBudget && !sampleBudget) {
       let floor = 0;
       for (const particle of baked.particles) {
-        const cost = timelineCost(baked, particle);
+        const cost = stretchedHead(particle) ? trailCost(baked, particle, true) : timelineCost(baked, particle);
         floor += cost.lower;
         if (hasTrail(particle)) floor += trailCost(baked, particle).lower;
         if (cost.rejected || floor > MAX_EXPORT_SAMPLES) fail('動畫匯出取樣成本超過 200 萬，請降低速度、減少粒子數，或縮短動畫。');
@@ -4488,8 +5094,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       const path = assets[0].name.slice(0, -4);
       baked.particles.filter(particle => particle.emitterId === e.id).forEach(particle => {
         const trail = hasTrail(particle), lanes = trail ? Trail.lanes(e.trail) : [];
-        if (trail) {
-          const part = exportTrail(baked, particle, profile, assets, sampleBudget);
+        function appendMeshOrTrail(part) {
           json.bones.push(...part.bones); json.slots.push(...part.slots); Object.assign(attachments, part.attachments);
           Object.assign(json.animations.effect.bones, part.animation.bones); Object.assign(json.animations.effect.slots, part.animation.slots);
           ['deform', 'attachments'].forEach(group => {
@@ -4500,6 +5105,14 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
           keyframes += part.keyframes; denseKeyframes += part.denseKeyframes;
         }
         const headIndex = trail ? particle.index * (lanes.length + 1) + lanes.length : particle.index;
+        if (trail) {
+          const trailAsset = imagePlan.byTrail.get(e.id);
+          appendMeshOrTrail(exportTrail(baked, particle, profile, trailAsset ? [trailAsset.asset] : assets, sampleBudget));
+        }
+        if (stretchedHead(particle)) {
+          appendMeshOrTrail(exportTrail(baked, particle, profile, assets, sampleBudget, headIndex));
+          return;
+        }
         const boneName = 'em_' + e.id + '_p' + headIndex, slotName = boneName + '_slot';
         const hiddenHead = hasHiddenTrailHead(particle), initial = visibleHeadState(particle, stateAt(baked, particle, 0));
         json.bones.push({name: boneName, parent: 'em_' + e.id});
@@ -4557,6 +5170,17 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       json.animations.effect.bones.root = {translate: [{x: 0, y: 0}, {time: baked.duration, x: 0, y: 0}]};
       keyframes = denseKeyframes = 2;
     }
+    if (profile.family === '3.8') {
+      // 3.8 allocates interpolation data for n-1 segments. Its editor tries
+      // to index past that buffer if the final key declares an outgoing curve.
+      const animation = json.animations.effect;
+      const finishTracks = tracks => {
+        for (const keys of Object.values(tracks)) if (keys.length) delete keys[keys.length - 1].curve;
+      };
+      Object.values(animation.bones).forEach(finishTracks);
+      Object.values(animation.slots).forEach(finishTracks);
+      if (animation.deform) Object.values(animation.deform.default).forEach(finishTracks);
+    }
     const stats = Object.assign({}, baked.stats, {keyframes, denseKeyframes,
       keyReduction: denseKeyframes ? round(1 - keyframes / denseKeyframes) : 0,
       jsonBytes: 0, imageCount: images.length, resetEpsilon: RESET_EPS,
@@ -4575,7 +5199,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     });
     let floor = 0;
     for (const phase of Object.values(flowBaked.phases)) for (const particle of phase.particles) {
-      const cost = timelineCost(phase, particle);
+      const cost = stretchedHead(particle) ? trailCost(phase, particle, true) : timelineCost(phase, particle);
       floor += cost.lower;
       if (hasTrail(particle)) floor += trailCost(phase, particle).lower;
       if (cost.rejected || floor > MAX_EXPORT_SAMPLES) fail('三段動畫匯出取樣成本估算超過 200 萬，可能使介面暫停。請減少粒子數、縮短 In，或增加 Loop 長度，再重新匯出。');
@@ -4584,7 +5208,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     // In states. The estimate is deliberately conservative where tiled Loop
     // timestamps overlap the In FPS grid; it is not an exact output-key count.
     function timelineCount(phase, particle) {
-      if (particle.lifecycle.path || particle.emitter.alignDirection || activeSequence(particle.emitter)) return sampledTimeline(phase, particle, true).length;
+      if (particle.lifecycle.path || particle.lifecycle.vortex || particle.emitter.alignDirection || activeSequence(particle.emitter)) return sampledTimeline(phase, particle, true).length;
       const period = phase.duration, times = new Set();
       function add(at) { if (at >= -EPS && at <= period + EPS) times.add(round(clamp(at, 0, period))); }
       add(0); add(period);
@@ -4623,9 +5247,12 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       if (hasTrail(loopPhase.particles[index])) {
         for (const phase of Object.values(flowBaked.phases)) estimatedSamples += trailCost(phase, phase.particles[index]).lower;
       }
+      if (stretchedHead(loopPhase.particles[index])) {
+        for (const phase of Object.values(flowBaked.phases)) estimatedSamples += trailCost(phase, phase.particles[index], true).lower;
+      }
       if (estimatedSamples > sampleLimit) fail('三段動畫匯出取樣成本估算超過 200 萬，可能使介面暫停。請減少粒子數、縮短 In，或增加 Loop 長度，再重新匯出。');
     }
-    const sampleBudget = loopPhase.particles.some(particle => needsRefinement(loopPhase, particle) || activeSequence(particle.emitter) || particle.emitter.separateSizeAxes || hasTrail(particle)) || flowBaked.project.bakeQuality !== undefined ? {used: 0} : undefined;
+    const sampleBudget = loopPhase.particles.some(particle => needsRefinement(loopPhase, particle) || activeSequence(particle.emitter) || particle.emitter.separateSizeAxes || hasTrail(particle) || stretchedHead(particle)) || flowBaked.project.bakeQuality !== undefined ? {used: 0} : undefined;
     ['in', 'loop', 'out'].forEach(kind => {
       exported[kind] = exportSpine(flowBaked.phases[kind], targetVersion, sampleBudget);
       if (flowBaked.phases[kind].hiddenEmitters) hidePhaseEmitters(exported[kind], flowBaked.phases[kind].hiddenEmitters);
@@ -4785,7 +5412,8 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     return {json, images, stats, manifest};
   }
 
-  return {createProject, createEmitter, normalizeProject, normalizeFlow, phaseLayers, bakeExtra, exportWithExtras, backgroundSize, emitterSeed, bake, bakeFlow, sample, exportSpine, exportFlow, spineProfile, qualityProfile, estimateCost, BAKE_QUALITIES, SPINE_TARGETS};
+  return {vortexLineLayout, setVortexLineLayout, VORTEX_MAX_LINES, TEXTURE_STRETCH_DEFAULTS,
+    createProject, createEmitter, applyVortexInStretch, normalizeProject, normalizeFlow, phaseLayers, bakeExtra, exportWithExtras, backgroundSize, emitterSeed, bake, bakeFlow, sample, exportSpine, exportFlow, spineProfile, qualityProfile, estimateCost, BAKE_QUALITIES, SPINE_TARGETS, VORTEX_DEFAULTS};
 });
 
 </script>
@@ -4913,7 +5541,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   const FORMAT = 'particle-studio-fx-library', MAX_ITEMS = 100, MAX_BYTES = 48 * 1024 * 1024, MAX_ITEM_BYTES = 16 * 1024 * 1024;
   const DATABASE_NAME = 'particle-studio-effects', STORE_NAME = 'library', RECORD_KEY = 'current', FALLBACK_KEY = 'particle-studio-effects-v1';
   const ANCHOR_KEYS = ['id', 'name', 'x', 'y', 'enabled'];
-  const EFFECT_KEYS = new Set(Object.keys(Core.createEmitter()).filter(key => !ANCHOR_KEYS.includes(key)).concat(['directionMode', 'directionSpread', 'emitFrom', 'path', 'outline', 'sequence', 'randomSeed', 'separateSizeAxes', 'sizeCurveX', 'sizeCurveY', 'startDelay', 'kind', 'lightning', 'trail']));
+  const EFFECT_KEYS = new Set(Object.keys(Core.createEmitter()).filter(key => !ANCHOR_KEYS.includes(key)).concat(['directionMode', 'directionSpread', 'emitFrom', 'path', 'outline', 'sequence', 'randomSeed', 'separateSizeAxes', 'sizeCurveX', 'sizeCurveY', 'startDelay', 'kind', 'lightning', 'trail', 'vortex', 'textureStretch']));
   const clone = value => JSON.parse(JSON.stringify(value));
   const object = value => !!value && typeof value === 'object' && !Array.isArray(value);
   const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
@@ -5989,16 +6617,24 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     }
     return names;
   }
-  function particleAliases(entries) {
+  function particleAliases(entries, allowTrail) {
     const keys = Object.keys(entries).sort();
     return (keys.length === 1 && keys[0] === 'particle') ||
+      (allowTrail && keys.length === 1 && keys[0] === 'trail_particle') ||
       (keys.length > 0 && keys.length <= 120 && keys.every((key, index) => key === 'particle_f' + String(index + 1).padStart(4, '0')));
+  }
+  function emitterAssetAliases(entries) {
+    // Separate head and trail slots share one emitter image map. The head
+    // keeps its one image or complete sequence; the optional trail is static.
+    const head = {};
+    Object.keys(entries).filter(key => key !== 'trail_particle').forEach(key => put(head, key, entries[key]));
+    return Object.keys(head).length ? particleAliases(head) : own(entries, 'trail_particle');
   }
   function assetPaths(value, namespace, boneMap) {
     if (!object(value) || Object.keys(value).length > 50000) fail('圖片路徑對應記錄不完整。');
     const result = {};
     Object.keys(value).forEach(emitter => {
-      if (!emitter.startsWith('em_') || !own(boneMap, emitter) || !object(value[emitter]) || !particleAliases(value[emitter])) fail('圖片路徑指定未登記的發射器或不完整連續圖。');
+      if (!emitter.startsWith('em_') || !own(boneMap, emitter) || !object(value[emitter]) || !emitterAssetAliases(value[emitter])) fail('圖片路徑指定未登記的發射器或不完整連續圖。');
       const entries = {};
       Object.keys(value[emitter]).forEach(alias => {
         const path = name(value[emitter][alias], '圖片路徑');
@@ -6024,15 +6660,15 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
     if (!own(manifest.boneMap, 'root')) fail('缺少本工具的粒子根骨骼記錄。');
     if (!object(manifest.attachmentMap)) fail('附件對應記錄不完整。');
     const attachmentMap = {};
+    const hasAssetPaths = own(manifest, 'assetPathMap');
     if (Object.keys(manifest.attachmentMap).length !== Object.keys(manifest.slotMap).length) fail('附件與插槽對應數量不同。');
     Object.keys(manifest.attachmentMap).forEach(slot => {
       if (!own(manifest.slotMap, slot)) fail('附件指定未登記的粒子插槽。');
       const entries = mapping(manifest.attachmentMap[slot], namespace, '附件', false);
-      if (!particleAliases(entries)) fail('附件不是本工具產生的粒子 region 或完整連續圖。');
+      if (!particleAliases(entries, hasAssetPaths)) fail('附件不是本工具產生的粒子 region 或完整連續圖。');
       put(attachmentMap, slot, entries);
     });
     manifest.attachmentMap = attachmentMap;
-    const hasAssetPaths = own(manifest, 'assetPathMap');
     if (rich && ((raw.version === 2 && !hasAssetPaths) || (raw.version === 1 && hasAssetPaths))) fail('圖片路徑記錄與更新格式版本不符。');
     if (hasAssetPaths) manifest.assetPathMap = assetPaths(manifest.assetPathMap, namespace, manifest.boneMap);
     if (manifest.imageDirectory !== namespace) fail('圖片目錄與效果群組不同。');
@@ -6133,13 +6769,18 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
       if (slot.attachment !== undefined && slot.attachment !== null && !expectedAttachments.includes(slot.attachment)) fail('粒子插槽改用了記錄之外的附件：' + slot.name);
     });
     if (own(manifest, 'assetPathMap')) {
-      const usedEmitters = new Set();
+      const usedEmitters = new Map();
       Object.keys(manifest.slotMap).forEach(source => {
         const particle = bones.get(manifest.boneMap[source.slice(0, -5)]), emitter = sourceForBone.get(particle.parent);
-        if (!own(manifest.assetPathMap, emitter) || !same(Object.keys(manifest.assetPathMap[emitter]).sort(), Object.keys(manifest.attachmentMap[source]).sort())) fail('圖片路徑與發射器粒子附件對應不完整。');
-        usedEmitters.add(emitter);
+        const aliases = Object.keys(manifest.attachmentMap[source]);
+        if (!own(manifest.assetPathMap, emitter) || aliases.some(alias => !own(manifest.assetPathMap[emitter], alias))) fail('圖片路徑與發射器粒子附件對應不完整。');
+        if (!usedEmitters.has(emitter)) usedEmitters.set(emitter, new Set());
+        aliases.forEach(alias => usedEmitters.get(emitter).add(alias));
       });
       if (Object.keys(manifest.assetPathMap).length !== usedEmitters.size || Object.keys(manifest.assetPathMap).some(emitter => !usedEmitters.has(emitter))) fail('圖片路徑記錄混入未使用的發射器。');
+      usedEmitters.forEach((aliases, emitter) => {
+        if (!same([...aliases].sort(), Object.keys(manifest.assetPathMap[emitter]).sort())) fail('圖片路徑記錄含有未使用的粒子附件。');
+      });
     }
     const targetNames = targets(manifest), targetSet = new Set(targetNames);
     targetNames.forEach(animation => { if (!own(json.animations || {}, animation)) fail('找不到記錄中的粒子動畫：' + animation); });
@@ -7651,6 +8292,12 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
   const shapes = {point: '點', direction: '方向', line: '線', circle: '圓', ring: '環', box: '矩形', outline: '物件輪廓'};
   const trailSummary = emitter => emitter.trail && emitter.trail.enabled ?
     ' · ' + (emitter.trail.mode === 'afterimage' ? '殘影拖尾' : '沿路徑拉伸') + ' ' + emitter.trail.duration + ' 秒' : '';
+  function motionSummary(emitter) {
+    if (emitter.path && emitter.path.enabled) return ' · 路徑移動';
+    if (emitter.vortex && emitter.vortex.mode === 'inward') return ' · 漩渦收縮';
+    if (emitter.vortex && emitter.vortex.mode === 'outward') return ' · 漩渦外放';
+    return '';
+  }
   function mount(options) {
     options = options || {};
     const doc = options.document || root.document, Library = options.Library || root.ParticleEffectLibrary;
@@ -7740,7 +8387,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         ui.effectLibrarySelectedName.textContent = choice.name;
         const e = choice.emitter;
         ui.effectLibrarySelectedInfo.textContent = (shapes[e.shape] || e.shape) + ' · ' + e.count + ' 顆 · 壽命 ' + e.life + ' 秒' +
-          (e.path && e.path.enabled ? ' · 路徑移動' : '') + trailSummary(e) + (e.sequence && e.sequence.enabled ? (e.sequence.mode === 'random' ? ' · ' + e.sequence.frames.length + ' 張隨機圖' : ' · ' + e.sequence.frames.length + ' 張連續圖 · ' + e.sequence.fps + ' FPS') : e.image ? ' · 自訂 PNG' : '') +
+          motionSummary(e) + trailSummary(e) + (e.sequence && e.sequence.enabled ? (e.sequence.mode === 'random' ? ' · ' + e.sequence.frames.length + ' 張隨機圖' : ' · ' + e.sequence.frames.length + ' 張連續圖 · ' + e.sequence.fps + ' FPS') : e.image ? ' · 自訂 PNG' : '') +
           (e.randomSeed !== undefined ? ' · 種子 ' + e.randomSeed : '') + '。套用後仍可編輯。';
       }
       ui.effectLibraryCount.textContent = '已儲存 ' + templates.length + ' / ' + Library.MAX_ITEMS + ' 組';
@@ -7764,7 +8411,7 @@ body.number-scrubbing, body.number-scrubbing * { cursor: ew-resize !important; u
         } else { const symbol = doc.createElement('span'); symbol.textContent = {point: '✦', direction: '↗', line: '━', circle: '●', ring: '◯', box: '▧', outline: '⬡'}[e.shape] || '✦'; art.append(symbol); }
         const info = doc.createElement('span'); info.className = 'effect-library-item-info';
         const name = doc.createElement('strong'), description = doc.createElement('span'); name.textContent = template.name;
-        description.textContent = (shapes[e.shape] || e.shape) + ' · ' + e.count + ' 顆' + (e.path && e.path.enabled ? ' · 路徑' : '') + trailSummary(e) + (e.sequence && e.sequence.enabled ? (e.sequence.mode === 'random' ? ' · 隨機圖 ' + e.sequence.frames.length + ' 張' : ' · 連續圖 ' + e.sequence.fps + ' FPS') : '');
+        description.textContent = (shapes[e.shape] || e.shape) + ' · ' + e.count + ' 顆' + motionSummary(e) + trailSummary(e) + (e.sequence && e.sequence.enabled ? (e.sequence.mode === 'random' ? ' · 隨機圖 ' + e.sequence.frames.length + ' 張' : ' · 連續圖 ' + e.sequence.fps + ' FPS') : '');
         info.append(name, description); button.append(art, info);
         button.addEventListener('click', () => {
           if (busy) return;
@@ -11468,6 +12115,9 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   const clone = value => JSON.parse(JSON.stringify(value));
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const controls = Array.from(document.querySelectorAll('[data-field]'));
+  const vortexControls = Array.from(document.querySelectorAll('[data-vortex-field]'));
+  const vortexLayoutInputs = Array.from(document.querySelectorAll('[data-vortex-layout]'));
+  const textureStretchInputs = Array.from(document.querySelectorAll('[data-texture-stretch]'));
   const canvas = $('previewCanvas');
   const ctx = canvas.getContext('2d', {alpha: false});
   const handleLayer = $('emitterHandles');
@@ -11556,7 +12206,10 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     if (bonePicker) bonePicker.cancel();
     // Validation precedes assignment. Generated keys are discarded so an older
     // bake can never be exported as if it matched the restored edit state.
-    const nextProject = Core.normalizeProject(state.project);
+    Core.normalizeProject(state.project);
+    // Normalization fills defaults omitted by a new layer. Preserve the exact
+    // authored fields so observing the restored snapshot keeps its redo branch.
+    const nextProject = structuredClone(state.project);
     const nextIntegration = state.integration ? SpineMerge.normalizeSession(state.integration) : null;
     historyRestoring = true;
     try {
@@ -11647,6 +12300,16 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
         pixels.data[offset + 3] = r >= 1 ? 0 : Math.round(255 * Math.pow(1 - r, 2.2));
       }
       c.putImageData(pixels, 0, 0);
+    } else if (kind === 'vortex-ribbon') {
+      // The mesh bends this horizontal highlight along the particle's history.
+      const light = c.createLinearGradient(0, 0, 0, 64);
+      for (const [stop, alpha] of [[0, 0], [.24, .1], [.42, .6], [.5, 1], [.58, .6], [.76, .1], [1, 0]]) {
+        light.addColorStop(stop, 'rgba(255,255,255,' + alpha + ')');
+      }
+      c.fillStyle = light; c.fillRect(0, 0, 64, 64);
+      const fade = c.createLinearGradient(0, 0, 64, 0);
+      fade.addColorStop(0, 'transparent'); fade.addColorStop(.45, '#ffffffc0'); fade.addColorStop(1, '#ffffff');
+      c.globalCompositeOperation = 'destination-in'; c.fillStyle = fade; c.fillRect(0, 0, 64, 64);
     } else if (kind === 'trail-arrow') {
       c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(8, 24); c.lineTo(35, 24); c.lineTo(35, 10);
       c.lineTo(60, 32); c.lineTo(35, 54); c.lineTo(35, 40); c.lineTo(8, 40); c.closePath(); c.fill();
@@ -11670,7 +12333,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     }
     return {name: kind + '.png', mime: 'image/png', width: 64, height: 64, dataUrl: surface.toDataURL('image/png')};
   }
-  ['glow', 'sparks', 'coins', 'bubbles', 'trail-arrow'].forEach(kind => { builtinImages[kind] = makeTexture(kind); });
+  ['glow', 'sparks', 'coins', 'bubbles', 'trail-arrow', 'vortex-ribbon'].forEach(kind => { builtinImages[kind] = makeTexture(kind); });
   // A horizontal electric streak: bright core, soft blue glow, slight grain so deform reads.
   function makeBoltTexture() {
     const surface = document.createElement('canvas'); surface.width = 256; surface.height = 64;
@@ -12017,7 +12680,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       const textureKind = item.shape === 'point' && item.image ? item.image.name.replace(/\.png$/i, '') : '';
       path.setAttribute('d', shapeIcons[textureKind] || shapeIcons[item.shape] || shapeIcons.point); svg.append(path); icon.append(svg);
       const copy = document.createElement('span'); copy.className = 'emitter-copy';
-      const name = document.createElement('span'); name.className = 'emitter-name'; name.textContent = item.name;
+      const name = document.createElement('span'); name.className = 'emitter-name'; name.textContent = item.name; name.title = item.name;
       const anims = animationsOf(item);
       const meta = document.createElement('span'); meta.className = 'emitter-meta'; meta.title = anims ? '用於：' + anims : ''; meta.textContent = item.kind === 'lightning' ? '網格閃電 · ' + item.lightning.bolts + ' 條' + (item.lightning.branches ? ' · 分岔 ' + item.lightning.branches : '') : item.count + ' 顆 · ' + (item.blend === 'additive' ? '加色' : '一般');
       if (anims) meta.textContent += ' · ' + anims;
@@ -12026,7 +12689,12 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       const tags = document.createElement('span'); tags.className = 'emitter-tags';
       if (item.kind === 'lightning') path.setAttribute('d', 'M13 2 5 13h6l-1 9 8-12h-6l1-8Z');
       const type = document.createElement('span'); type.className = 'emitter-type'; type.textContent = item.kind === 'lightning' ? (item.lightning.mode === 'fixed' ? '兩端固定' : '尾端擺動') : item.trail && item.trail.enabled ? item.trail.mode === 'afterimage' ? '殘影拖尾' : '沿路徑拉伸' : item.path && item.path.enabled ? '沿路徑移動' : (shapeNames[item.shape] || '點形') + (['box', 'circle', 'ring'].includes(item.shape) ? emitFrom(item) === 'edge' ? ' · 邊框' : ' · 區域內' : '');
+      if (vortexActive(item)) {
+        type.textContent = item.vortex.mode === 'inward' ? '漩渦收縮' + (item.vortex.lineCount ? ' · ' + item.vortex.lineCount + ' 線' : '') : '漩渦外放';
+        path.setAttribute('d', 'M20 17a9 9 0 1 1 0-10c3 5-1 12-8 11s-7-9-2-11c5-1 7 5 4 6-2 1-3-1-2-2');
+      }
       const color = document.createElement('span'); color.className = 'emitter-color-dot'; color.style.setProperty('--emitter-color', item.colorGradient && item.colorGradient.length ? item.colorGradient[0].color : item.colorStart); color.setAttribute('aria-hidden', 'true');
+      type.title = type.textContent;
       tags.append(type, color); copy.append(name, meta, tags);
       const index = document.createElement('span'); index.className = 'emitter-index'; index.textContent = String(layerIndex + 1).padStart(2, '0'); index.setAttribute('aria-hidden', 'true');
       button.append(icon, copy, index); button.addEventListener('click', () => selectEmitter(item.id));
@@ -12186,6 +12854,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       $('textureThumbnail').src = image.dataUrl; $('textureThumbnail').hidden = false;
       $('textureInfo').textContent = (e.image ? e.image.name : '內建柔光') + ' · ' + image.width + ' × ' + image.height + ' px';
     }
+    renderTextureStretch(e);
     renderPathInspector();
     renderTrailInspector();
     renderOutlineInspector();
@@ -12193,8 +12862,225 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     drawCurves();
     if (libraryUi && $('effectLibraryDialog').open) libraryUi.refresh();
   }
+  function textureStretchFor(e) {
+    return e.textureStretch || Core.TEXTURE_STRETCH_DEFAULTS;
+  }
+  function renderTextureStretch(e) {
+    const settings = textureStretchFor(e);
+    $('textureStretchFields').hidden = !settings.enabled;
+    textureStretchInputs.forEach(input => {
+      const key = input.dataset.textureStretch;
+      if (key === 'enabled') input.checked = settings.enabled;
+      else input.value = settings[key];
+      input.disabled = busy || e.kind === 'lightning' || (key !== 'enabled' && !settings.enabled);
+    });
+  }
+  function wireTextureStretch() {
+    textureStretchInputs.forEach(input => {
+      const key = input.dataset.textureStretch;
+      const apply = duringInput => {
+        const e = emitter();
+        if (busy || input.disabled || e.kind === 'lightning') return;
+        const settings = textureStretchFor(e);
+        if (!input.checkValidity() || input.value === '') {
+          if (!duringInput) { renderTextureStretch(e); notify(key === 'angle' ? '素材角度可設為 −180° 到 180°。' : '拉伸時間可設為 0.01 到 2 秒。', true); }
+          return;
+        }
+        const value = key === 'enabled' ? input.checked : input.valueAsNumber;
+        if (value === settings[key]) return;
+        const next = {...e, textureStretch: {...settings, [key]: value}};
+        if (key === 'enabled' && value && e.trail && e.trail.showHead === false) next.trail = {...e.trail, showHead: true};
+        try { Core.normalizeProject({...project, emitters: project.emitters.map(item => item === e ? next : item)}); }
+        catch (error) {
+          if (!duringInput) { renderTextureStretch(e); notify(error.message, true); }
+          return;
+        }
+        e.textureStretch = next.textureStretch;
+        if (next.trail !== e.trail) e.trail = next.trail;
+        changed();
+        if (key === 'enabled') { renderTextureStretch(e); renderTrailInspector(); }
+      };
+      if (input.type === 'number') input.addEventListener('input', () => apply(true));
+      input.addEventListener('change', () => apply(false));
+    });
+  }
   function pathFor(e) { return e.path || PathMath.defaults(); }
+  function addVortexRibbonTexture(e) {
+    if (!e.trail.image) e.trail = {...e.trail, image: builtinImages['vortex-ribbon'], axis: 'x', flipTexture: false};
+  }
+  function restoreVortexLineMinimum(e) {
+    if (vortexActive(e) && e.vortex.mode === 'inward' && e.vortex.lineCount > e.count) e.count = e.vortex.lineCount;
+  }
+  function showVortexLineMinimum(e) {
+    notify('已恢復 ' + e.vortex.lineCount + ' 條收縮線，每線至少 1 顆，共 ' + e.count + ' 顆。');
+  }
+  function renderVortexLines(e) {
+    const inward = vortexActive(e) && e.vortex.mode === 'inward';
+    document.querySelectorAll('[data-vortex-lines]').forEach(group => { group.hidden = !inward; });
+    const grouped = inward && !!e.vortex.lineCount;
+    $('particleCountField').hidden = grouped || e.kind === 'lightning';
+    $('vortexArmsField').hidden = grouped;
+    if (!inward) return;
+    const layout = Core.vortexLineLayout(e);
+    const randomLegacy = !grouped && !e.vortex.arms;
+    const partial = layout.total % layout.lineCount !== 0;
+    const density = partial ? Math.floor(layout.total / layout.lineCount) + '～' + layout.particlesPerLine : String(layout.particlesPerLine);
+    const lineLimit = randomLegacy ? Core.VORTEX_MAX_LINES : Math.max(layout.lineCount, layout.maxLineCount);
+    const linePlaceholder = randomLegacy ? '隨機' : String(layout.lineCount);
+    const densityPlaceholder = randomLegacy ? '—' : density;
+    vortexLayoutInputs.forEach(input => {
+      const lines = input.dataset.vortexLayout === 'lineCount';
+      input.disabled = busy || (!lines && !grouped);
+      input.max = lines ? lineLimit : layout.maxParticlesPerLine;
+      input.placeholder = lines ? linePlaceholder : densityPlaceholder;
+      input.value = grouped && (lines || !partial) ? layout[input.dataset.vortexLayout] : '';
+      input.removeAttribute('aria-invalid');
+    });
+    let summary;
+    if (!grouped) summary = (randomLegacy ? '目前隨機分布' : '目前沿用 ' + e.vortex.arms + ' 條舊版旋臂') + '，共 ' + e.count + ' 顆。輸入收縮線數即可分波發射。';
+    else summary = layout.lineCount + ' 條線 × 每線 ' + density + ' 顆，共 ' + layout.total + ' 顆。';
+    document.querySelectorAll('[data-vortex-layout-hint]').forEach(hint => { hint.textContent = summary; });
+  }
+  function wireVortexLines() {
+    vortexLayoutInputs.forEach(input => {
+      const isLines = input.dataset.vortexLayout === 'lineCount';
+      const apply = duringInput => {
+        const e = emitter();
+        if (busy || input.disabled || !vortexActive(e) || e.vortex.mode !== 'inward') return;
+        const layout = Core.vortexLineLayout(e);
+        const value = input.valueAsNumber;
+        if (input.value === '') { if (!duringInput) renderVortexLines(e); return; }
+        const showError = message => {
+          if (!duringInput) { renderVortexLines(e); notify(message, true); }
+          else {
+            input.setAttribute('aria-invalid', 'true');
+            input.closest('[data-vortex-lines]').querySelector('[data-vortex-layout-hint]').textContent = message;
+          }
+        };
+        if (!input.checkValidity()) {
+          const limit = isLines ? '收縮線數可設 1～' + input.max + ' 條。' : '每線可設 1～' + input.max + ' 顆。';
+          let hint = '請輸入範圍內的整數。';
+          if (isLines && Number(input.max) < Core.VORTEX_MAX_LINES) hint = layout.grouped ? '先減少每線粒子即可增加線數。' : '可先降低粒子總數，再輸入新線數。';
+          showError(limit + '每層最多 400 顆。' + hint);
+          return;
+        }
+        if (layout.grouped && value === layout[input.dataset.vortexLayout] && (isLines || e.count === value * layout.lineCount)) {
+          if (!duringInput || input.hasAttribute('aria-invalid')) renderVortexLines(e);
+          return;
+        }
+        const next = {...e};
+        const lines = isLines ? value : layout.lineCount;
+        let density = isLines ? layout.particlesPerLine : value;
+        if (!layout.grouped && !e.vortex.arms) density = Math.max(1, Math.min(Math.round(e.count / lines), Math.floor(400 / lines)));
+        try {
+          Core.setVortexLineLayout(next, lines, density);
+          Core.normalizeProject({...project, emitters: project.emitters.map(item => item === e ? next : item)});
+        } catch (error) { showError(error.message); return; }
+        e.vortex = next.vortex;
+        e.count = next.count;
+        changed(); renderEmitters(); renderInspector();
+      };
+      input.addEventListener('input', () => apply(true));
+      input.addEventListener('change', () => apply(false));
+    });
+  }
+  function renderVortexJitterHint(e) {
+    if (!vortexActive(e)) return;
+    const extra = previewExtra(), duration = extra ? extra.duration : project.flow.enabled ? project.flow.loop.duration : project.duration;
+    const {maxOffset} = emissionTiming(e, duration);
+    const edge = e.vortex.mode === 'inward' ? '起點沿外圈散開。' : '終點沿外圈散開。';
+    let timing = '調高時間隨機，可讓各粒子在原定發射時段內錯開出發。';
+    if (e.emissionDuration === 0) timing = '發射時間是 0 秒，粒子會同時出發。';
+    else if (e.vortex.timeJitter > 0) {
+      const offset = maxOffset > 0 && maxOffset < .001 ? '不到 1 毫秒' : round3(maxOffset) + ' 秒';
+      timing = '每顆可從原定時間延後，最多 ' + offset + '。';
+    }
+    $('vortexJitterHint').textContent = edge + timing + '固定種子可重播同一組變化。';
+  }
+  function renderVortexInspector(e) {
+    const vortex = e.vortex || Core.VORTEX_DEFAULTS;
+    const enabled = vortex.mode !== 'off', usingPath = enabled && !!(e.path && e.path.enabled);
+    vortexControls.forEach(input => {
+      if (input.type === 'checkbox') input.checked = !!vortex[input.dataset.vortexField];
+      else input.value = vortex[input.dataset.vortexField] ?? input.defaultValue;
+      input.disabled = busy || e.kind === 'lightning' || (!enabled && input.id !== 'vortexMode');
+    });
+    renderVortexLines(e);
+    $('vortexFields').hidden = !enabled;
+    $('vortexJitterFields').hidden = usingPath;
+    renderVortexJitterHint(e);
+    $('vortexInwardFields').hidden = vortex.mode !== 'inward' || usingPath;
+    $('applyVortexInStretch').disabled = busy;
+    $('useVortexMotion').hidden = !usingPath;
+    $('useVortexMotion').disabled = busy;
+    $('trailNoPath').textContent = enabled && !usingPath ? '拖尾跟隨粒子的漩渦軌跡。' : '目前跟隨速度與外力形成拖尾；設定路徑可沿曲線表演。';
+    $('vortexHint').textContent = usingPath ? '目前沿自訂路徑移動。暫停路徑即可播放漩渦。' :
+      (vortex.mode === 'inward' ? '粒子從外圈旋入發射器中心。' : '粒子從發射器中心旋向外圈。') + '生命長度決定移動時間，速度曲線可調整節奏。';
+  }
+  function wireVortex() {
+    wireVortexLines();
+    vortexControls.forEach(input => {
+      const key = input.dataset.vortexField;
+      const apply = duringInput => {
+        if (busy || input.disabled) return;
+        const e = emitter(), previous = e.vortex, previousCount = e.count, vortex = previous || Core.VORTEX_DEFAULTS;
+        if (!input.checkValidity() || input.value === '') {
+          if (!duringInput) input.value = vortex[key] ?? input.defaultValue;
+          return;
+        }
+        const numeric = input.type === 'number' || input.type === 'range';
+        const value = input.type === 'checkbox' ? input.checked : numeric ? input.valueAsNumber : input.value;
+        if (value === (vortex[key] ?? Core.VORTEX_DEFAULTS[key] ?? 0)) return;
+        e.vortex = {...vortex, [key]: value};
+        if (key === 'mode' && value === 'inward') {
+          if (!previous) e.vortex.lineCount = Math.min(12, e.count);
+          restoreVortexLineMinimum(e);
+        }
+        try { Core.normalizeProject(project); }
+        catch (error) {
+          e.count = previousCount;
+          if (previous) e.vortex = previous; else delete e.vortex;
+          if (!duringInput) { renderVortexInspector(e); notify(error.message, true); }
+          return;
+        }
+        changed();
+        if (key === 'mode') { renderEmitters(); renderInspector(); }
+        else if (key === 'arms') renderVortexLines(e);
+        else if (key === 'edgeJitter' || key === 'timeJitter') {
+          vortexControls.forEach(peer => { if (peer !== input && peer.dataset.vortexField === key) peer.value = value; });
+          if (key === 'timeJitter') renderTrailInspector();
+        }
+        if (e.count !== previousCount) showVortexLineMinimum(e);
+      };
+      if (input.type === 'number' || input.type === 'range') input.addEventListener('input', () => apply(true));
+      input.addEventListener('change', () => apply(false));
+    });
+    $('useVortexMotion').addEventListener('click', () => changePath('enabled', false));
+    $('applyVortexInStretch').addEventListener('click', () => {
+      const e = emitter();
+      if (busy || !vortexActive(e) || e.vortex.mode !== 'inward') return;
+      historyBegin('command');
+      try {
+        const next = Core.applyVortexInStretch({...e});
+        addVortexRibbonTexture(next);
+        if (e.vortex.shrinkHead && JSON.stringify(e.trail) === JSON.stringify(next.trail)) return;
+        Core.normalizeProject({...project, emitters: project.emitters.map(item => item === e ? next : item)});
+        e.vortex = next.vortex; e.trail = next.trail;
+        changed(); renderEmitters(); renderInspector();
+        notify('已套用縮頭拉伸。可在「拖尾表演」調整殘留時間與寬度。');
+      } catch (error) { notify(error.message, true); }
+      finally { historyEnd(); }
+    });
+  }
   function trailFor(e) { return e.trail ? Trail.normalize(e.trail) : Trail.defaults(); }
+  function vortexActive(e) { return e.kind !== 'lightning' && !!e.vortex && e.vortex.mode !== 'off' && !(e.path && e.path.enabled); }
+  function emissionTiming(e, duration) {
+    const start = Math.min(e.startDelay || 0, duration);
+    const emissionWindow = Math.min(e.emissionDuration, duration - start);
+    const layout = Core.vortexLineLayout(e), waves = layout.grouped ? layout.particlesPerLine : e.count;
+    const maxOffset = vortexActive(e) ? emissionWindow / waves * (e.vortex.timeJitter || 0) / 100 : 0;
+    return {maxOffset, lastBirth: start + (waves - 1) / waves * emissionWindow + maxOffset};
+  }
   const trailLengthTargets = new WeakMap(), inactiveTrailLengths = new WeakMap();
   const trailLengthPulse = () => [{t: 0, v: 0.15}, {t: 0.4, v: 1}, {t: 1, v: 0.05}];
   function trailLengthTarget() {
@@ -12213,6 +13099,11 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     $('trailFields').hidden = !active;
     $('trailMode').value = trail.mode;
     $('trailMode').disabled = busy || !active;
+    const trailImage = trail.image || (e.sequence && e.sequence.enabled && e.sequence.frames.length ? e.sequence.frames[0] : e.image) || builtinImages.glow;
+    $('trailTextureThumbnail').src = trailImage.dataUrl;
+    $('trailTextureInfo').textContent = (trail.image ? '獨立素材 · ' + trail.image.name : '沿用粒子素材') + ' · ' + trailImage.width + ' × ' + trailImage.height + ' px';
+    $('trailTextureButton').disabled = $('trailTextureFile').disabled = busy || !active;
+    $('removeTrailTexture').disabled = busy || !active || !trail.image;
     $('enableTrailLength').checked = !!trail.lengthCurve;
     $('enableTrailLength').disabled = busy || !active;
     $('trailLengthFields').hidden = !trail.lengthCurve;
@@ -12246,13 +13137,12 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     $('trailEditPath').disabled = busy;
     $('trailModeHint').textContent = fullPath ? '整張貼圖從路徑起點鋪到終點，彎曲成連續光帶；生命期間控制整條光帶的顯示與淡出。' : trail.mode === 'stretch' ? '貼圖沿走過的路徑彎曲拉長；寬度跟隨粒子尺寸，尾端逐漸收細。' : '保留粒子走過的影像，越舊越透明；粒子消失後，殘影仍會繼續淡出。';
     $('trailDurationLabel').textContent = fullPath ? '結束後淡出' : '殘留時間';
-    const image = e.sequence && e.sequence.frames.length ? e.sequence.frames[0] : e.image || builtinImages.glow;
+    const image = trailImage;
     const axis = trail.axis === 'auto' ? (image.height > image.width ? 'y' : 'x') : trail.axis;
     $('trailAxisHint').textContent = '目前貼圖 ' + image.width + ' × ' + image.height + '，沿' + (axis === 'y' ? '直向' : '橫向') + '自動切為 ' + Trail.segmentCount(trail) + ' 段網格。原圖保留，不必先手動切 Mesh。';
     let text = active ? (fullPath ? '整條光帶結束後，再淡出 ' : '粒子結束後，拖尾會再淡出 ') + trail.duration + ' 秒。' : '啟用後，讓目前粒子沿移動軌跡拉伸，或留下逐漸消失的殘影。';
     if (active && !project.loop && !project.flow.enabled) {
-      const start = Math.min(e.startDelay || 0, project.duration), count = Math.max(1, e.count);
-      const lastBirth = start + (count - 1) / count * Math.min(e.emissionDuration, project.duration - start);
+      const {lastBirth} = emissionTiming(e, project.duration);
       const life = Math.max(e.life + e.lifeRandom, trail.mode === 'stretch' ? trail.moveDuration || 0 : 0, trail.mode === 'stretch' ? trail.lengthDuration || 0 : 0);
       if (lastBirth + life + trail.duration > project.duration) text += '目前動畫末尾可能截斷拖尾，可加長動畫或縮短發射時間。';
     }
@@ -12286,6 +13176,31 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     }};
   }
   function wireTrail() {
+    let imageRequest = 0;
+    $('trailTextureButton').addEventListener('click', () => {
+      if (busy || !trailFor(emitter()).enabled || emitter().kind === 'lightning') return;
+      $('trailTextureFile').value = ''; $('trailTextureFile').click();
+    });
+    $('trailTextureFile').addEventListener('change', async event => {
+      const file = event.target.files[0]; event.target.value = ''; if (!file || busy) return;
+      const selected = emitter(), owner = project, generation = textureRequest, request = ++imageRequest;
+      const stale = () => owner !== project || generation !== textureRequest || request !== imageRequest || selected !== emitter() || busy || selected.kind === 'lightning';
+      try {
+        const image = await loadImage(file);
+        if (stale()) return;
+        historyBegin('command');
+        try {
+          if (setTrail({image})) { imageFor(image); notify('已載入拖尾素材「' + image.name + '」，頭部素材保持原樣。'); }
+        } finally { historyEnd(); }
+      } catch (error) { if (!stale()) notify(error.message, true); }
+    });
+    $('removeTrailTexture').addEventListener('click', () => {
+      if (busy || !trailFor(emitter()).enabled || emitter().kind === 'lightning') return;
+      imageRequest++;
+      historyBegin('command');
+      try { if (setTrail({image: null})) notify('拖尾已改為沿用粒子素材。'); }
+      finally { historyEnd(); }
+    });
     $('enableTrail').addEventListener('change', () => setTrail({enabled: $('enableTrail').checked}));
     $('trailMode').addEventListener('change', () => setTrail({mode: $('trailMode').value}));
     $('trailCoverage').addEventListener('change', () => setTrail({coverage: $('trailCoverage').value}));
@@ -12526,6 +13441,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   }
   function renderPathInspector() {
     const e = emitter(), path = pathFor(e), active = !!path.enabled;
+    renderVortexInspector(e);
     $('enablePath').checked = active; $('pathMotionFields').hidden = !active;
     $('pathSection').classList.toggle('path-inactive', !active);
     $('pathSummary').hidden = !e.path;
@@ -12557,6 +13473,27 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     if (alignment) alignment.parentElement.lastChild.textContent = active ? '貼圖朝向路徑切線' : '貼圖朝向移動方向';
     renderPathFacing();
     renderEmissionDirection();
+    const vortex = vortexActive(e);
+    $('adjustPath').textContent = vortex ? '調整漩渦' : '調整路徑';
+    if (vortex) {
+      const areaHint = e.vortex.mode === 'inward' ? '漩渦以發射器位置為中心。可在「數量與生命」調整收縮線數。' : '漩渦以發射器位置為中心，旋臂數控制粒子的分布。';
+      const speedHint = '粒子在生命期間走完漩渦，移動速度與速度隨機暫停作用。';
+      const forceHint = '漩渦運動期間暫停套用風力與重力。';
+      const motionHints = {speed: speedHint, speedRandom: speedHint, wind: forceHint, gravity: forceHint};
+      for (const input of controls) {
+        const key = input.dataset.field;
+        if (!motionHints[key] && !['shape', 'emitFrom', 'width', 'height', 'lineLength', 'lineRotation', 'arcAngle', 'arcRotation', 'directionMode', 'angle', 'spread', 'directionSpread'].includes(key)) continue;
+        input.disabled = true; input.title = motionHints[key] || areaHint;
+      }
+      $('outlineControls').hidden = true;
+      $('emitFromHint').hidden = true;
+      $('emissionPathNotice').hidden = false; $('emissionPathHint').textContent = areaHint;
+      $('emissionDirectionHint').textContent = '在「漩渦運動」可調整旋轉方向。';
+      $('speedModeHint').hidden = false; $('speedModeHint').textContent = speedHint;
+      $('forceModeHint').hidden = false; $('forceModeHint').textContent = forceHint;
+      $('speedCurveHint').textContent = '曲線較高的區段前進較快。整段曲線的比例決定相對節奏，總圈數由漩渦設定決定。整條設為 0 時，粒子停在起點。';
+      if (alignment) alignment.parentElement.lastChild.textContent = '貼圖朝向漩渦切線';
+    }
   }
   function renderEmissionDirection() {
     const e = emitter(), mode = directionMode(e), alongPath = !!(e.path && e.path.enabled);
@@ -12578,12 +13515,14 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     $('emissionDirectionHint').textContent = hint;
   }
   function changePath(field, value) {
-    const e = emitter(), prior = e.path;
+    const e = emitter(), prior = e.path, previousCount = e.count;
     try {
       e.path = PathMath.normalize(Object.assign({}, pathFor(e), {[field]: value}));
       if (e.path.enabled) PathMath.compile(e.path);
+      else restoreVortexLineMinimum(e);
       Core.normalizeProject(project); changed(); renderEmitters(); renderInspector();
-    } catch (error) { e.path = prior; renderInspector(); notify(error.message, true); }
+      if (e.count !== previousCount) showVortexLineMinimum(e);
+    } catch (error) { e.path = prior; e.count = previousCount; renderInspector(); notify(error.message, true); }
   }
   function renderGlobals() {
     refreshSpineTarget();
@@ -12620,6 +13559,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     if (!liveTimer) liveTimer = setTimeout(refreshLive, 35);
     updateBakeStatus();
     if (updateInspector) renderInspector();
+    else renderVortexJitterHint(emitter());
     queueDraft();
   }
   function saveDraftSnapshot(raw) {
@@ -12653,6 +13593,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     project.emitters.forEach(e => {
       if (e.image) imageFor(e.image);
       if (e.sequence) e.sequence.frames.forEach(imageFor);
+      if (e.trail && e.trail.image) imageFor(e.trail.image);
     });
   }
   function tinted(image, color, dark) {
@@ -12708,6 +13649,12 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
           ctx.globalAlpha = .25; ctx.beginPath(); ctx.moveTo(0, 0);
           ctx.arc(0, 0, L.length, -(L.angle + L.tailSwing) * Math.PI / 180, -(L.angle - L.tailSwing) * Math.PI / 180); ctx.closePath(); ctx.stroke();
         }
+        ctx.restore(); return;
+      }
+      if (vortexActive(e)) {
+        ctx.strokeStyle = chosen ? '#6cdec7' : '#738194'; ctx.globalAlpha = e.enabled ? (chosen ? .65 : .3) : .2;
+        ctx.lineWidth = (chosen ? 1.4 : 1) / zoom; ctx.setLineDash([5 / zoom, 5 / zoom]);
+        ctx.beginPath(); ctx.arc(0, 0, e.vortex.radius, 0, 2 * Math.PI); ctx.stroke();
         ctx.restore(); return;
       }
       if (e.path && e.path.enabled) {
@@ -12802,7 +13749,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     }
     const attached = attachedFor();
     (mode === 'live' ? project : snapshot.project).emitters.forEach(e => {
-      if (!e.enabled || !(e.shape === 'outline' || e.path && e.path.enabled) || !e.outline || !e.outline.image || e.outline.showImage === false) return;
+      if (!e.enabled || vortexActive(e) || !(e.shape === 'outline' || e.path && e.path.enabled) || !e.outline || !e.outline.image || e.outline.showImage === false) return;
       const frame = attachedMode() ? attached && attached.emitterFrame(e.id, time) : null; if (attachedMode() && !frame) return;
       const bitmap = imageFor(e.outline.image); if (!bitmap.complete || !bitmap.naturalWidth) return;
       ctx.save(); if (frame) { const m = frame.matrix; ctx.transform(m.a, -m.c, -m.b, m.d, m.x, -m.y); }
@@ -13341,6 +14288,8 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   function freshId() { return 'e_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6); }
   const BUILTIN_EFFECTS = [
     {id: 'glow', name: '柔光粒子', description: '柔和光點，適合光塵與氛圍', symbol: '✦', gradient: 'radial-gradient(circle,#fff8dc,#ffc13b 45%,#3a2a12)'},
+    {id: 'vortexIn', name: '漩渦收縮', description: '藍紫星核旋入中心時逐漸縮小，光帶沿旋臂拉長', symbol: '↻', gradient: 'radial-gradient(circle,#d2f2ff,#816ddd 50%,#21193f)'},
+    {id: 'vortexOut', name: '漩渦外放', description: '金色星光從中心旋向外圈，留下短殘影', symbol: '↻', gradient: 'radial-gradient(circle,#fff5c4,#e7a345 50%,#462445)'},
     {id: 'sparks', name: '迸射火花', description: '短促爆發的火花', symbol: '✸', gradient: 'linear-gradient(135deg,#fff2b0,#f34b23 70%,#4a1420)'},
     {id: 'coins', name: '金幣噴發', description: '金幣向上噴出再落下', symbol: '◉', gradient: 'linear-gradient(135deg,#ffe58a,#e8a018 70%,#3a2a12)'},
     {id: 'bubbles', name: '漂浮氣泡', description: '緩慢上飄的氣泡', symbol: '○', gradient: 'linear-gradient(135deg,#f1fcff,#4b99ff 70%,#1b2550)'},
@@ -13385,7 +14334,11 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       return e;
     }
     const e = Core.createEmitter(id, names[preset], preset);
-    if (preset !== 'glow') e.image = clone(builtinImages[preset]);
+    if (vortexActive(e)) {
+      e.image = clone(builtinImages.sparks);
+      if (e.vortex.mode === 'inward') addVortexRibbonTexture(e);
+    }
+    else if (preset !== 'glow') e.image = clone(builtinImages[preset]);
     return e;
   }
   // ---- Extra animations (BURN …) ----
@@ -13685,7 +14638,8 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
         notes = applyPlacement(e, pendingPlacement); Core.normalizeProject(project); integrationChanged();
       }
       changed(); renderEmitters(); renderInspector(); renderGlobals();
-      if (e.trail && e.trail.enabled) { setTab('motion'); expandSectionFor($('pathSection')); expandSectionFor($('trailSection')); $('trailSection').scrollIntoView({block: 'start'}); }
+      if (vortexActive(e)) { setTab('motion'); expandSectionFor($('vortexSection')); $('vortexSection').scrollIntoView({block: 'start'}); }
+      else if (e.trail && e.trail.enabled) { setTab('motion'); expandSectionFor($('pathSection')); expandSectionFor($('trailSection')); $('trailSection').scrollIntoView({block: 'start'}); }
       if (pendingPlacement && attachmentUi) { attachmentUi.refresh(); notify('已在 ' + pendingPlacement.slot + '（骨骼 ' + pendingPlacement.bone + '）新增「' + e.name + '」' + (pendingPlacement.at !== null ? '，' + pendingPlacement.at + ' 秒開始' : '') + (notes.length ? '；' + notes.join('；') : '') + '。'); }
     } finally { historyEnd(); }
   }
@@ -13809,6 +14763,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
           else current.source[current.key] = current.sourceValue;
           current.input.value = current.text;
           if (current.input.dataset.field) syncEmitterPeers(current.input, current.source);
+          if (current.input.dataset.vortexField === 'arms') renderVortexLines(emitter());
           if (current.affectsParticles === false) queueDraft(); else changed();
           mode = current.mode;
           try { if (baked && simulationSignature(Core.normalizeProject(project)) === simulationSignature(baked.project)) bakedRevision = revision; } catch (_) {}
@@ -13826,7 +14781,8 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
         const rect = input.getBoundingClientRect();
         // Keep the native spinner arrows available at the right edge.
         if (event.clientX >= rect.right - 18) return;
-        const value = input.valueAsNumber; if (!Number.isFinite(value)) return;
+        const value = input.dataset.vortexLayout && input.value === '' ? Core.vortexLineLayout(emitter())[input.dataset.vortexLayout] : input.valueAsNumber;
+        if (!Number.isFinite(value)) return;
         let custom = null;
         if (typeof curveEditor !== 'undefined' && curveEditor) custom = curveEditor.bindingFor(input);
         if (!custom && typeof trailLengthEditor !== 'undefined' && trailLengthEditor) custom = trailLengthEditor.bindingFor(input);
@@ -13838,6 +14794,27 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
         if (!custom && typeof flowBindingFor === 'function') custom = flowBindingFor(input);
         if (!custom && typeof seedBindingFor === 'function') custom = seedBindingFor(input);
         if (!custom && typeof trailBindingFor === 'function') custom = trailBindingFor(input);
+        if (!custom && input.dataset.textureStretch) {
+          const e = emitter(), original = e.textureStretch;
+          custom = {key: input.dataset.textureStretch, source: textureStretchFor(e), restore() {
+            if (original) e.textureStretch = original; else delete e.textureStretch;
+            renderTextureStretch(e);
+          }};
+        }
+        if (!custom && input.dataset.vortexLayout) {
+          const e = emitter(), original = e.vortex, total = e.count;
+          custom = {key: input.dataset.vortexLayout, source: Core.vortexLineLayout(e), restore() {
+            e.vortex = original; e.count = total; renderInspector();
+          }};
+        }
+        if (!custom && input.dataset.vortexField) {
+          const e = emitter(), original = e.vortex;
+          custom = {key: input.dataset.vortexField, source: original || Core.VORTEX_DEFAULTS, restore() {
+            if (original) e.vortex = original; else delete e.vortex;
+            renderVortexInspector(e);
+            if (input.dataset.vortexField === 'timeJitter') renderTrailInspector();
+          }};
+        }
         const key = custom ? custom.key : input.dataset.field || {duration: 'duration', projectSeed: 'seed'}[input.id]; if (!key) return;
         if (gesture) finish(false);
         const source = custom ? custom.source : input.dataset.field ? emitter() : project;
@@ -13897,6 +14874,8 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     wireHistory();
     wireBackgroundJpeg();
     wireEmitterSeed();
+    wireVortex();
+    wireTextureStretch();
     wireTrail();
     pathEditor = window.ParticlePathEditor.mount({getEmitter: emitter, getScene: pathScene, loadOutline: loadPathOutline, onApply: (path, e, reference) => {
       const prior = {path: e.path, outline: e.outline, width: e.width, height: e.height};
@@ -13918,7 +14897,11 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       if (busy || !e.alignDirection || !(e.path && e.path.enabled) || !(e.spin || e.spinRandom)) return;
       e.spin = e.spinRandom = 0; changed(); renderInspector();
     });
-    $('adjustPath').addEventListener('click', () => { setTab('motion'); $('pathAdvanced').open = true; expandSectionFor($('pathSection')); $('pathSection').scrollIntoView({block: 'nearest'}); });
+    $('adjustPath').addEventListener('click', () => {
+      const vortex = vortexActive(emitter()), section = $(vortex ? 'vortexSection' : 'pathSection');
+      setTab('motion'); if (!vortex) $('pathAdvanced').open = true;
+      expandSectionFor(section); section.scrollIntoView({block: 'nearest'});
+    });
     $('loadOutline').addEventListener('click', () => $('outlineFile').click());
     $('outlineFile').addEventListener('change', async event => {
       const selected = emitter(), owner = project, threshold = Number($('outlineThreshold').value), includeHoles = $('outlineHoles').checked;
@@ -13989,6 +14972,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
         const previous = e[key]; if (value === previous) return; e[key] = value;
         try { Core.normalizeProject(project); } catch (error) { e[key] = previous; if (!duringInput) { input.value = previous; notify(error.message, true); } return; }
         syncEmitterPeers(input);
+        if (key === 'count') renderVortexLines(e);
         changed(); renderEmitters(); if (key === 'shape' || key === 'emitFrom' || key === 'directionMode') renderInspector(); document.querySelectorAll('[data-readout]').forEach(output => { output.textContent = e[output.dataset.readout]; });
       };
       input.addEventListener('input', () => apply(true));

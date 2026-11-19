@@ -48,6 +48,10 @@
         throw new Error('拖尾「' + key + '」必須介於 0.01–' + MAX_TIME + ' 秒。');
       result[key] = source[key];
     }
+    // The project normalizer applies the same embedded-PNG validation as the
+    // head image. Keep the optional choice while disabled, and leave legacy
+    // objects byte-for-byte unchanged when no separate image was authored.
+    if (source.image !== undefined && source.image !== null) result.image = source.image;
     return result;
   }
   function maxLength(settings) {

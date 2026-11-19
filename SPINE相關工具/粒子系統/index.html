@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0b1119">
   <meta name="author" content="小魚骨頭">
-  <title>粒子工作室 · Particle Studio 1.32.3</title>
+  <title>粒子工作室 · Particle Studio 1.37.0</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
     <header class="app-header">
       <div class="brand" aria-label="粒子工作室 Particle Studio">
         <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 36 36"><ellipse class="brand-orbit" cx="18" cy="18" rx="15" ry="9" transform="rotate(-38 18 18)"/><path class="brand-spark" d="m18 6 3.1 8.9L30 18l-8.9 3.1L18 30l-3.1-8.9L6 18l8.9-3.1Z"/><circle class="brand-particle" cx="29" cy="8" r="3"/><circle class="brand-particle-small" cx="7" cy="26" r="1.8"/></svg></span>
-        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.32.3</span></span><span class="brand-author">開發者：小魚骨頭</span></div>
+        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.37.0</span></span><span class="brand-author">開發者：小魚骨頭</span></div>
         <label class="version-control"><span id="spineTargetMode">輸出版本</span><select id="spineVersion" aria-label="Spine 輸出版本" title="選擇 Spine JSON 輸出版本"><option value="3.8.99">SPINE 3.8</option><option value="4.0.56" selected>SPINE 4.0</option><option value="4.2.43">SPINE 4.2</option></select></label>
       </div>
       <div class="project-heading"><span class="project-caption"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h5l2 2h7v10H3Z"/></svg>目前專案</span><label class="sr-only" for="projectName">專案名稱</label><input id="projectName" type="text" value="金色光塵" maxlength="80" spellcheck="false" aria-label="專案名稱"></div>
@@ -35,7 +35,7 @@
     <div class="project-bar" aria-label="全域動畫設定">
       <div class="project-settings">
         <span class="section-eyebrow"><svg aria-hidden="true" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg>動畫設定</span>
-        <label class="inline-control" for="duration">長度 <span class="unit-input"><input id="duration" type="number" min="0.05" max="30" step="0.01" value="3"><span>秒</span></span></label>
+        <label class="inline-control duration-control" for="duration">動畫長度 <span class="unit-input"><input id="duration" type="number" min="0.05" max="30" step="0.01" value="3"><span>秒</span></span></label>
         <label class="inline-control" for="fps">幀率 <select id="fps"><option value="24">24 FPS</option><option value="30">30 FPS</option><option value="60">60 FPS</option></select></label>
         <label class="checkbox-label" for="loop"><input id="loop" type="checkbox" checked>循環</label>
         <button id="flowSettingsButton" type="button" class="quiet-button flow-settings-button" aria-haspopup="dialog"><span>動畫段落</span></button>
@@ -46,7 +46,7 @@
 
     <main class="workspace">
       <aside class="emitter-sidebar panel" aria-labelledby="emitterHeading">
-        <div class="panel-header"><div class="panel-title-group"><span class="panel-eyebrow" aria-hidden="true">EFFECT LAYERS</span><h2 id="emitterHeading">發射器</h2></div><span class="panel-header-note">圖層順序</span></div>
+        <div class="panel-header"><div class="panel-title-group"><span class="panel-eyebrow" aria-hidden="true">EFFECT LAYERS</span><h2 id="emitterHeading">發射器圖層</h2></div><span class="panel-header-note">圖層順序</span></div>
         <div class="effect-entry"><button id="effectLibraryButton" type="button" class="add-effect-button" aria-haspopup="dialog" title="開啟效果庫：內建效果與我的效果，可新增為圖層或套用到目前發射器"><span aria-hidden="true">＋</span>新增效果</button><button id="addEmitter" type="button" class="icon-button quick-add-button" title="快速新增柔光粒子" aria-label="快速新增柔光粒子"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12"/></svg></button></div>
         <div id="emitterList" class="emitter-list" aria-label="發射器清單"></div>
         <div class="emitter-actions" aria-label="發射器操作">
@@ -73,6 +73,7 @@
         </div>
         <section class="timeline-panel" aria-label="播放與時間軸">
           <div class="playback-bar">
+            <h2 class="timeline-title">時間軸</h2>
             <div class="playback-controls"><button id="restartButton" type="button" class="icon-button" title="回到開始" aria-label="回到開始"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M4 4v12 M15 4l-9 6 9 6Z"/></svg></button><button id="framePrev" type="button" class="icon-button" title="前一幀" aria-label="前一幀"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m12 4-7 6 7 6"/></svg></button><button id="playButton" type="button" class="play-button" title="播放或暫停" aria-label="播放或暫停"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m7 4 9 6-9 6Z"/></svg></button><button id="frameNext" type="button" class="icon-button" title="下一幀" aria-label="下一幀"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m8 4 7 6-7 6"/></svg></button></div>
             <output id="timeLabel" class="time-label" for="timeline">0.00 / 3.00 秒</output><span class="timeline-hint"><kbd>Space</kbd> 播放／暫停</span>
           </div>
@@ -122,7 +123,15 @@
               <div id="shapeDirectionFields" hidden><label class="field full-field"><span>方向散射 <small>° · 0 為沿選定方向</small></span><input id="directionSpread" data-field="directionSpread" type="number" min="0" max="360" step="1" value="0"></label></div>
               <p id="emissionDirectionHint" class="field-hint">0° 向右，90° 向上；散射角控制左右偏移範圍。</p>
             </div>
-            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg><span>數量與生命</span></h3><label class="field full-field range-field" data-particle-only><span>粒子總數 <output data-readout="count">48</output></span><input data-field="count" type="range" min="1" max="400" step="1" value="48"></label><div class="field-row"><label class="field"><span>開始時間 <small>秒</small></span><input data-field="startDelay" type="number" min="0" max="30" step="0.01" value="0" title="這一層延後多久才開始發射；可在時間軸的「圖層時間」直接拖曳"></label><label class="field"><span><span id="emissionDurationLabel">發射時間</span> <small>秒</small></span><input data-field="emissionDuration" type="number" min="0" max="30" step="0.01" value="3" title="從開始時間起，持續發射多久；0 為瞬間爆發"></label></div><div class="field-row" data-particle-only><label class="field"><span>生命長度 <small>秒</small></span><input data-field="life" type="number" min="0.05" max="10" step="0.05" value="1.5"></label><label class="field"><span>生命隨機 <small>± 秒</small></span><input data-field="lifeRandom" type="number" min="0" max="8" step="0.05" value="0.3"></label></div><p class="field-hint" data-particle-only>發射時間為 0 時，所有粒子同時出生。</p></div>
+            <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg><span>數量與生命</span></h3>
+              <div data-vortex-lines hidden>
+                <div class="field-row">
+                  <label class="field"><span>收縮線數 <small>條</small></span><input id="emissionVortexLineCount" data-vortex-layout="lineCount" type="number" min="1" max="32" step="1" title="增加線數會在漩渦外圈等距加入新的收縮路徑。"></label>
+                  <label class="field"><span>每線粒子 <small>顆</small></span><input id="emissionVortexParticlesPerLine" data-vortex-layout="particlesPerLine" type="number" min="1" max="400" step="1" title="每條收縮線在發射期間依序出現的粒子數量。"></label>
+                </div>
+                <p class="field-hint" data-vortex-layout-hint aria-live="polite"></p>
+              </div>
+              <label id="particleCountField" class="field full-field range-field"><span>粒子總數 <output data-readout="count">48</output></span><input data-field="count" type="range" min="1" max="400" step="1" value="48"></label><div class="field-row"><label class="field"><span>開始時間 <small>秒</small></span><input data-field="startDelay" type="number" min="0" max="30" step="0.01" value="0" title="這一層延後多久才開始發射；可在時間軸的「圖層時間」直接拖曳"></label><label class="field"><span><span id="emissionDurationLabel">發射時間</span> <small>秒</small></span><input data-field="emissionDuration" type="number" min="0" max="30" step="0.01" value="3" title="從開始時間起，持續發射多久；0 為瞬間爆發"></label></div><div class="field-row" data-particle-only><label class="field"><span>生命長度 <small>秒</small></span><input data-field="life" type="number" min="0.05" max="10" step="0.05" value="1.5"></label><label class="field"><span>生命隨機 <small>± 秒</small></span><input data-field="lifeRandom" type="number" min="0" max="8" step="0.05" value="0.3"></label></div><p class="field-hint" data-particle-only>發射時間為 0 時，所有粒子同時出生。</p></div>
             <div class="inspector-section emitter-seed-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" rx="3"/><path d="M6 6h.01 M10 10h.01 M14 14h.01 M6 14h.01 M14 6h.01"/></svg><span>隨機變化</span></h3>
               <label class="field full-field"><span>發射器種子</span><select id="emitterSeedMode"><option value="project">跟隨專案 · 自動分組</option><option value="custom">自訂此發射器</option></select></label>
               <div class="emitter-seed-row"><label class="field"><span>種子數值</span><input id="emitterRandomSeed" type="number" min="0" max="4294967295" step="1" value="0" aria-label="發射器隨機種子"></label><button id="randomizeEmitterSeed" type="button" class="secondary-button" title="只替目前發射器換一組隨機變化">換一組</button></div>
@@ -137,6 +146,16 @@
               <input id="textureFile" type="file" accept="image/png,image/jpeg,image/webp" hidden><input id="sequenceTextureFile" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" multiple hidden><input id="randomTextureFile" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" multiple hidden>
               <label id="textureModeField" class="field full-field" hidden><span>貼圖模式</span><select id="textureMode"><option value="single">單張圖片</option><option value="sequence">連續圖動畫 · 依序播放</option><option value="random">多圖隨機 · 每顆隨機一張</option></select></label>
               <div id="sequenceTextureControls" class="sequence-texture-controls" hidden><div id="randomTextureStrip" class="random-texture-strip" hidden></div><div id="sequencePlaybackRow" class="field-row"><label class="field sequence-fps-field"><span>連續圖 FPS <small>張／秒</small></span><input id="sequenceFps" type="number" min="1" max="120" step="1" value="12" aria-label="連續圖 FPS"></label><label class="field"><span>播放方式</span><select id="sequenceMode"><option value="loop">循環播放</option><option value="once">播放一次，停末張</option></select></label></div><p id="sequenceTextureInfo" class="field-hint sequence-texture-info" role="status"></p><p id="sequencePlaybackHint" class="field-hint">每顆粒子出生後從第一張播放；FPS 控制貼圖速度，可與專案幀率不同。</p></div>
+              <div data-particle-only>
+                <label class="checkbox-label standalone-check"><input id="textureStretchEnabled" data-texture-stretch="enabled" type="checkbox" aria-controls="textureStretchFields">貼圖沿路徑拉伸</label>
+                <div id="textureStretchFields" hidden>
+                  <div class="field-row">
+                    <label class="field"><span>素材角度 <small>°</small></span><input id="textureStretchAngle" data-texture-stretch="angle" type="number" min="-180" max="180" step="any" value="0"></label>
+                    <label class="field"><span>拉伸時間 <small>秒</small></span><input id="textureStretchDuration" data-texture-stretch="duration" type="number" min="0.01" max="2" step="0.01" value="0.18"></label>
+                  </div>
+                  <p class="field-hint">0° 讓貼圖長邊沿著路徑，90° 橫過路徑，180° 對調頭尾。拉伸時間越長，貼圖沿走過的軌跡延伸越遠。</p>
+                </div>
+              </div>
               <p class="field-hint">建議使用透明 PNG。連續圖依檔名順序逐張播放；隨機圖讓每顆粒子隨機挑一張。素材會一起儲存與輸出。</p><label class="field full-field"><span>混合方式</span><select data-field="blend"><option value="additive">加色 · 發光</option><option value="normal">一般 · 透明疊加</option></select></label>
             </div>
             <div data-particle-only class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 8V3h5 M12 3h5v5 M17 12v5h-5 M8 17H3v-5"/><path d="M7 9a3 3 0 0 1 5-2 M13 11a3 3 0 0 1-5 2"/></svg><span>尺寸與旋轉</span></h3><div class="field-row"><label class="field"><span>粒子尺寸 <small>px</small></span><input data-field="size" type="number" min="1" max="1000" step="1" value="24"></label><label class="field"><span>尺寸隨機 <small>± px</small></span><input data-field="sizeRandom" type="number" min="0" max="1000" step="1" value="8"></label></div><label class="field full-field"><span>起始旋轉 <small>°</small></span><input data-field="rotation" type="number" min="-36000" max="36000" step="1" value="0"></label><div class="field-row"><label class="field"><span>旋轉速度 <small>°/秒</small></span><input data-field="spin" type="number" min="-3600" max="3600" step="1" value="0"></label><label class="field"><span>旋轉隨機 <small>± °/秒</small></span><input data-field="spinRandom" type="number" min="0" max="3600" step="1" value="30"></label></div><label class="checkbox-label standalone-check"><input data-field="alignDirection" type="checkbox">貼圖朝向移動方向</label></div>
@@ -197,6 +216,48 @@
           </section>
 
           <section id="panelMotion" class="inspector-tab-panel" data-panel="motion" role="tabpanel" aria-labelledby="tabMotion" hidden>
+            <div id="vortexSection" class="inspector-section" data-particle-only>
+              <h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M17 14a8 8 0 1 1 0-8c2 5-2 10-7 9s-6-8-1-9c4-1 6 4 3 5-1 1-3 0-2-1"/></svg><span>漩渦運動</span></h3>
+              <label class="field full-field"><span>漩渦模式</span><select id="vortexMode" data-vortex-field="mode" aria-controls="vortexFields"><option value="off">關閉</option><option value="inward">向內收縮</option><option value="outward">向外擴散</option></select></label>
+              <div id="vortexFields" hidden>
+                <div data-vortex-lines hidden>
+                  <div class="field-row">
+                    <label class="field"><span>收縮線數 <small>條</small></span><input id="vortexLineCount" data-vortex-layout="lineCount" type="number" min="1" max="32" step="1" title="增加線數會在漩渦外圈等距加入新的收縮路徑。"></label>
+                    <label class="field"><span>每線粒子 <small>顆</small></span><input id="vortexParticlesPerLine" data-vortex-layout="particlesPerLine" type="number" min="1" max="400" step="1" title="每條收縮線在發射期間依序出現的粒子數量。"></label>
+                  </div>
+                  <p class="field-hint" data-vortex-layout-hint aria-live="polite"></p>
+                </div>
+                <div class="field-row">
+                  <label class="field"><span>外圈半徑 <small>px</small></span><input id="vortexRadius" data-vortex-field="radius" type="number" min="1" max="2000" step="1"></label>
+                  <label class="field"><span>旋轉圈數 <small>圈</small></span><input id="vortexTurns" data-vortex-field="turns" type="number" min="0" max="8" step="0.05"></label>
+                </div>
+                <div class="field-row">
+                  <label class="field"><span>旋轉方向</span><select id="vortexDirection" data-vortex-field="direction"><option value="clockwise">順時針</option><option value="counterclockwise">逆時針</option></select></label>
+                  <label id="vortexArmsField" class="field"><span>旋臂數 <small>0 為隨機</small></span><input id="vortexArms" data-vortex-field="arms" type="number" min="0" max="8" step="1"></label>
+                </div>
+                <p id="vortexHint" class="field-hint" role="status"></p>
+                <div id="vortexJitterFields">
+                  <div class="field-row">
+                    <div class="field">
+                      <span><label for="vortexEdgeJitter">外圈位置隨機</label><small>%</small></span>
+                      <input id="vortexEdgeJitter" data-vortex-field="edgeJitter" type="number" min="0" max="100" step="any" value="0" aria-describedby="vortexJitterHint">
+                      <input id="vortexEdgeJitterRange" data-vortex-field="edgeJitter" type="range" min="0" max="100" step="0.1" value="0" aria-label="外圈位置隨機百分比" aria-describedby="vortexJitterHint">
+                    </div>
+                    <div class="field">
+                      <span><label for="vortexTimeJitter">發射時間隨機</label><small>%</small></span>
+                      <input id="vortexTimeJitter" data-vortex-field="timeJitter" type="number" min="0" max="100" step="any" value="0" aria-describedby="vortexJitterHint">
+                      <input id="vortexTimeJitterRange" data-vortex-field="timeJitter" type="range" min="0" max="100" step="0.1" value="0" aria-label="發射時間隨機百分比" aria-describedby="vortexJitterHint">
+                    </div>
+                  </div>
+                  <p id="vortexJitterHint" class="field-hint"></p>
+                </div>
+                <button id="useVortexMotion" type="button" class="text-button" hidden>暫停路徑，播放漩渦</button>
+                <div id="vortexInwardFields" hidden>
+                  <label class="checkbox-label standalone-check" title="依粒子到旋心的距離縮小頭部，與原有尺寸曲線相乘。"><input id="vortexShrinkHead" data-vortex-field="shrinkHead" type="checkbox">頭部隨半徑收縮</label>
+                  <button id="applyVortexInStretch" type="button" class="secondary-button path-edit-button" title="開啟頭部收縮，並沿已走過的漩渦軌跡拉伸拖尾。">套用縮頭拉伸</button>
+                </div>
+              </div>
+            </div>
             <div id="pathSection" class="inspector-section path-section">
               <div class="inspector-section-heading"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M3 15C3 4 8 3 10 10s7 6 7-5 M14 5h3v3"/></svg><span>路徑與拖尾</span></h3><label class="checkbox-label"><input id="enablePath" type="checkbox">啟用</label></div>
               <button id="editPath" type="button" class="secondary-button path-edit-button" aria-haspopup="dialog">編輯路徑與控制點</button>
@@ -223,6 +284,9 @@
               <p class="field-hint">保留目前貼圖與路徑，自動切網格鋪成一條光帶。</p>
               <div id="trailFields" hidden>
                 <label class="field full-field"><span>拖尾方式</span><select id="trailMode"><option value="stretch">沿路徑拉伸</option><option value="afterimage">殘影拖尾</option></select></label>
+                <div class="texture-card trail-texture-card"><img id="trailTextureThumbnail" class="texture-thumbnail" alt="目前拖尾素材"><div class="texture-details"><span id="trailTextureInfo" role="status">沿用粒子素材</span><div class="texture-actions"><button id="trailTextureButton" type="button" class="text-button">載入拖尾素材</button><button id="removeTrailTexture" type="button" class="text-button muted">沿用粒子素材</button></div></div></div>
+                <input id="trailTextureFile" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+                <p class="field-hint">可為尾巴另選一張圖片，頭部素材保持原樣；兩種拖尾方式都可使用，素材會一起儲存與輸出。建議使用透明 PNG。</p>
                 <div data-trail-mode="stretch">
                   <label class="field full-field"><span>拉伸範圍</span><select id="trailCoverage"><option value="history">跟隨移動拖尾</option><option value="path">整條路徑鋪圖</option></select></label>
                   <label class="checkbox-label"><input id="trailShowHead" type="checkbox" checked>顯示頭部粒子</label>
@@ -277,7 +341,7 @@
     </main>
 
     <div id="message" class="app-message" role="alert" hidden></div>
-    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.32.3</span> · 開發者：小魚骨頭</span></footer>
+    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.37.0</span> · 開發者：小魚骨頭</span></footer>
   </div>
 
   <dialog id="backgroundJpegDialog" class="help-dialog background-jpeg-dialog" aria-labelledby="backgroundJpegTitle">
@@ -355,6 +419,7 @@
   <script src="contour-math.js"></script>
   <script src="lightning.js"></script>
   <script src="trail.js"></script>
+  <script src="texture-stretch.js"></script>
   <script src="background-jpeg.js"></script>
   <script src="core.js"></script>
   <script src="look-presets.js"></script>

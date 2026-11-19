@@ -58,16 +58,24 @@
     }
     return names;
   }
-  function particleAliases(entries) {
+  function particleAliases(entries, allowTrail) {
     const keys = Object.keys(entries).sort();
     return (keys.length === 1 && keys[0] === 'particle') ||
+      (allowTrail && keys.length === 1 && keys[0] === 'trail_particle') ||
       (keys.length > 0 && keys.length <= 120 && keys.every((key, index) => key === 'particle_f' + String(index + 1).padStart(4, '0')));
+  }
+  function emitterAssetAliases(entries) {
+    // Separate head and trail slots share one emitter image map. The head
+    // keeps its one image or complete sequence; the optional trail is static.
+    const head = {};
+    Object.keys(entries).filter(key => key !== 'trail_particle').forEach(key => put(head, key, entries[key]));
+    return Object.keys(head).length ? particleAliases(head) : own(entries, 'trail_particle');
   }
   function assetPaths(value, namespace, boneMap) {
     if (!object(value) || Object.keys(value).length > 50000) fail('圖片路徑對應記錄不完整。');
     const result = {};
     Object.keys(value).forEach(emitter => {
-      if (!emitter.startsWith('em_') || !own(boneMap, emitter) || !object(value[emitter]) || !particleAliases(value[emitter])) fail('圖片路徑指定未登記的發射器或不完整連續圖。');
+      if (!emitter.startsWith('em_') || !own(boneMap, emitter) || !object(value[emitter]) || !emitterAssetAliases(value[emitter])) fail('圖片路徑指定未登記的發射器或不完整連續圖。');
       const entries = {};
       Object.keys(value[emitter]).forEach(alias => {
         const path = name(value[emitter][alias], '圖片路徑');
@@ -93,15 +101,15 @@
     if (!own(manifest.boneMap, 'root')) fail('缺少本工具的粒子根骨骼記錄。');
     if (!object(manifest.attachmentMap)) fail('附件對應記錄不完整。');
     const attachmentMap = {};
+    const hasAssetPaths = own(manifest, 'assetPathMap');
     if (Object.keys(manifest.attachmentMap).length !== Object.keys(manifest.slotMap).length) fail('附件與插槽對應數量不同。');
     Object.keys(manifest.attachmentMap).forEach(slot => {
       if (!own(manifest.slotMap, slot)) fail('附件指定未登記的粒子插槽。');
       const entries = mapping(manifest.attachmentMap[slot], namespace, '附件', false);
-      if (!particleAliases(entries)) fail('附件不是本工具產生的粒子 region 或完整連續圖。');
+      if (!particleAliases(entries, hasAssetPaths)) fail('附件不是本工具產生的粒子 region 或完整連續圖。');
       put(attachmentMap, slot, entries);
     });
     manifest.attachmentMap = attachmentMap;
-    const hasAssetPaths = own(manifest, 'assetPathMap');
     if (rich && ((raw.version === 2 && !hasAssetPaths) || (raw.version === 1 && hasAssetPaths))) fail('圖片路徑記錄與更新格式版本不符。');
     if (hasAssetPaths) manifest.assetPathMap = assetPaths(manifest.assetPathMap, namespace, manifest.boneMap);
     if (manifest.imageDirectory !== namespace) fail('圖片目錄與效果群組不同。');
@@ -202,13 +210,18 @@
       if (slot.attachment !== undefined && slot.attachment !== null && !expectedAttachments.includes(slot.attachment)) fail('粒子插槽改用了記錄之外的附件：' + slot.name);
     });
     if (own(manifest, 'assetPathMap')) {
-      const usedEmitters = new Set();
+      const usedEmitters = new Map();
       Object.keys(manifest.slotMap).forEach(source => {
         const particle = bones.get(manifest.boneMap[source.slice(0, -5)]), emitter = sourceForBone.get(particle.parent);
-        if (!own(manifest.assetPathMap, emitter) || !same(Object.keys(manifest.assetPathMap[emitter]).sort(), Object.keys(manifest.attachmentMap[source]).sort())) fail('圖片路徑與發射器粒子附件對應不完整。');
-        usedEmitters.add(emitter);
+        const aliases = Object.keys(manifest.attachmentMap[source]);
+        if (!own(manifest.assetPathMap, emitter) || aliases.some(alias => !own(manifest.assetPathMap[emitter], alias))) fail('圖片路徑與發射器粒子附件對應不完整。');
+        if (!usedEmitters.has(emitter)) usedEmitters.set(emitter, new Set());
+        aliases.forEach(alias => usedEmitters.get(emitter).add(alias));
       });
       if (Object.keys(manifest.assetPathMap).length !== usedEmitters.size || Object.keys(manifest.assetPathMap).some(emitter => !usedEmitters.has(emitter))) fail('圖片路徑記錄混入未使用的發射器。');
+      usedEmitters.forEach((aliases, emitter) => {
+        if (!same([...aliases].sort(), Object.keys(manifest.assetPathMap[emitter]).sort())) fail('圖片路徑記錄含有未使用的粒子附件。');
+      });
     }
     const targetNames = targets(manifest), targetSet = new Set(targetNames);
     targetNames.forEach(animation => { if (!own(json.animations || {}, animation)) fail('找不到記錄中的粒子動畫：' + animation); });
