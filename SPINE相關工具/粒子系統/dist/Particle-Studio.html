@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0b1119">
   <meta name="author" content="小魚骨頭">
-  <title>粒子工作室 · Particle Studio 1.37.0</title>
+  <title>粒子工作室 · Particle Studio 1.37.1</title>
   <style data-bundle="styles.css">
 :root {
   color-scheme: dark;
@@ -1278,7 +1278,7 @@ dialog .effect-library-actions { flex-wrap: wrap; }
     <header class="app-header">
       <div class="brand" aria-label="粒子工作室 Particle Studio">
         <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 36 36"><ellipse class="brand-orbit" cx="18" cy="18" rx="15" ry="9" transform="rotate(-38 18 18)"/><path class="brand-spark" d="m18 6 3.1 8.9L30 18l-8.9 3.1L18 30l-3.1-8.9L6 18l8.9-3.1Z"/><circle class="brand-particle" cx="29" cy="8" r="3"/><circle class="brand-particle-small" cx="7" cy="26" r="1.8"/></svg></span>
-        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.37.0</span></span><span class="brand-author">開發者：小魚骨頭</span></div>
+        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.37.1</span></span><span class="brand-author">開發者：小魚骨頭</span></div>
         <label class="version-control"><span id="spineTargetMode">輸出版本</span><select id="spineVersion" aria-label="Spine 輸出版本" title="選擇 Spine JSON 輸出版本"><option value="3.8.99">SPINE 3.8</option><option value="4.0.56" selected>SPINE 4.0</option><option value="4.2.43">SPINE 4.2</option></select></label>
       </div>
       <div class="project-heading"><span class="project-caption"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h5l2 2h7v10H3Z"/></svg>目前專案</span><label class="sr-only" for="projectName">專案名稱</label><input id="projectName" type="text" value="金色光塵" maxlength="80" spellcheck="false" aria-label="專案名稱"></div>
@@ -1605,7 +1605,7 @@ dialog .effect-library-actions { flex-wrap: wrap; }
     </main>
 
     <div id="message" class="app-message" role="alert" hidden></div>
-    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.37.0</span> · 開發者：小魚骨頭</span></footer>
+    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.37.1</span> · 開發者：小魚骨頭</span></footer>
   </div>
 
   <dialog id="backgroundJpegDialog" class="help-dialog background-jpeg-dialog" aria-labelledby="backgroundJpegTitle">
@@ -2673,6 +2673,7 @@ dialog .effect-library-actions { flex-wrap: wrap; }
   const RANGES = {duration: [.05, 3], samples: [2, 24, true], segments: [4, 32, true], opacity: [0, 1], width: [.1, 4], taper: [0, 1]};
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const compiledLengths = new WeakMap();
+  const previewStrips = new WeakMap();
   function defaults() { return {...DEFAULTS}; }
   function normalize(raw) {
     const source = raw === undefined ? {} : raw;
@@ -2754,7 +2755,20 @@ dialog .effect-library-actions { flex-wrap: wrap; }
     for (let i = 0; i < segments; i++) triangles.push(i, bottom(i), i + 1, i + 1, bottom(i), bottom(i + 1));
     return {uvs, triangles, hull: (segments + 1) * 2};
   }
-  function state(settings, lane, age, life, atAge, atPath, lengthFactor) {
+  function previewStrip(settings, image) {
+    // A baked emitter is immutable, but a sequence can switch between
+    // landscape and portrait images. Their strip UVs use opposite axes.
+    let orientations = previewStrips.get(settings);
+    if (!orientations) { orientations = new Map(); previewStrips.set(settings, orientations); }
+    const horizontal = horizontalAxis(image, settings);
+    if (!orientations.has(horizontal)) {
+      const result = strip(settings.segments, image, settings);
+      Object.freeze(result.uvs); Object.freeze(result.triangles);
+      orientations.set(horizontal, result);
+    }
+    return orientations.get(horizontal);
+  }
+  function state(settings, lane, age, life, atAge, atPath, lengthFactor, previewOnly) {
     if (lane.mode === 'afterimage') {
       const source = atAge(age - lane.delay), fade = Math.pow(1 - lane.delay / (settings.duration + settings.duration / settings.samples), 1.3);
       const historyAge = age - lane.delay, edge = Math.min(life / 2, settings.duration / settings.samples);
@@ -2769,15 +2783,25 @@ dialog .effect-library-actions { flex-wrap: wrap; }
     if (wholePath && typeof atPath !== 'function') throw new Error('整條路徑光帶需要先啟用有效路徑，並設定至少兩個不同的路徑點。');
     const length = lengthFactor === undefined ? lengthAt(settings, age, life) : clamp(lengthFactor, 0, MAX_LENGTH);
     const segments = segmentCount(settings);
-    const points = [], widths = [], sources = [], current = wholePath ? atAge(clamp(age, 0, Math.max(0, life - 1e-7))) : null;
+    const lastAge = Math.max(0, life - 1e-7);
+    let firstState, lastState;
+    function history(sampleAge) {
+      if (sampleAge <= 0) return firstState || (firstState = atAge(0));
+      if (sampleAge >= lastAge) return lastState || (lastState = atAge(lastAge));
+      return atAge(sampleAge);
+    }
+    const points = [], widths = [], current = wholePath ? history(age) : null;
+    let head, maxAlpha = 0;
     for (let i = 0; i <= segments; i++) {
       const t = i / segments, historyAge = age - t * settings.duration * length;
-      const source = wholePath ? current : atAge(clamp(historyAge, 0, Math.max(0, life - 1e-7)));
-      sources.push(source); points.push(wholePath ? atPath(t * length) : {x: source.x, y: source.y});
+      const source = wholePath ? current : history(historyAge);
+      if (i === 0) head = source;
+      maxAlpha = Math.max(maxAlpha, source.alpha);
+      points.push(wholePath ? atPath(t * length) : source);
       // Length changes move longitudinal samples only. Keep the original
       // width envelope so shortening never also narrows the ribbon.
       const widthAge = age - t * settings.duration;
-      const widthSource = wholePath || length === 1 ? source : atAge(clamp(widthAge, 0, Math.max(0, life - 1e-7)));
+      const widthSource = wholePath || length === 1 ? source : history(widthAge);
       const thickness = wholePath ? (horizontalAxis(source.image, settings) ? source.height : source.width) : Math.min(widthSource.width, widthSource.height);
       // Keep ribbon geometry continuous at birth/death. A hard zero-width
       // cutoff can select opposite sides of a floating-point Spine key time.
@@ -2785,11 +2809,17 @@ dialog .effect-library-actions { flex-wrap: wrap; }
       const decay = wholePath ? 1 : clamp(1 - Math.max(0, widthAge - life) / settings.duration, 0, 1);
       widths.push(Math.max(0, thickness) * settings.width / 2 * (1 - settings.taper * t) * growth * decay);
     }
-    const top = [], bottom = [];
+    const top = [], bottom = [], angle = head.rotation * Math.PI / 180;
+    let fallbackNormal, lastFallback = -2;
     for (let i = 0; i < points.length; i++) {
       const a = points[Math.max(0, i - 1)], b = points[Math.min(segments, i + 1)];
       let tx = b.x - a.x, ty = b.y - a.y, distance = Math.hypot(tx, ty);
-      if (distance <= 1e-8) {
+      let nx, ny;
+      if (distance <= 1e-8 && lastFallback === i - 1 && points[i].x === points[i - 1].x && points[i].y === points[i - 1].y) {
+        // Consecutive coincident points have the same nearest distinct
+        // neighbors. Avoid rescanning an entire stationary run per vertex.
+        nx = fallbackNormal.x; ny = fallbackNormal.y; lastFallback = i;
+      } else if (distance <= 1e-8) {
         // Clamping at a birth/death endpoint repeats positions. Search for a
         // real history tangent instead of flipping to the head's direction.
         let before = null, after = null;
@@ -2798,17 +2828,20 @@ dialog .effect-library-actions { flex-wrap: wrap; }
         const first = before || points[i], last = after || points[i];
         tx = last.x - first.x; ty = last.y - first.y; distance = Math.hypot(tx, ty);
         if (distance <= 1e-8 && after) { tx = after.x - points[i].x; ty = after.y - points[i].y; distance = Math.hypot(tx, ty); }
+        nx = distance > 1e-8 ? -ty / distance : Math.sin(angle);
+        ny = distance > 1e-8 ? tx / distance : -Math.cos(angle);
+        fallbackNormal = {x: nx, y: ny}; lastFallback = i;
+      } else {
+        nx = -ty / distance; ny = tx / distance;
       }
-      const angle = sources[0].rotation * Math.PI / 180;
-      const nx = distance > 1e-8 ? -ty / distance : Math.sin(angle), ny = distance > 1e-8 ? tx / distance : -Math.cos(angle);
       top.push(points[i].x + nx * widths[i], points[i].y + ny * widths[i]);
       bottom.push(points[i].x - nx * widths[i], points[i].y - ny * widths[i]);
     }
     const vertices = top.slice();
     for (let i = segments; i >= 0; i--) vertices.push(bottom[i * 2], bottom[i * 2 + 1]);
-    const head = sources[0], geometry = strip(settings.segments, head.image, settings);
+    const geometry = previewOnly && Object.isFrozen(settings) ? previewStrip(settings, head.image) : strip(settings.segments, head.image, settings);
     const fade = clamp(1 - Math.max(0, age - life) / settings.duration, 0, 1);
-    const alpha = length <= 1e-9 || age < 0 || age >= life + settings.duration ? 0 : (wholePath ? head.alpha : Math.max(...sources.map(s => s.alpha))) * settings.opacity * fade;
+    const alpha = length <= 1e-9 || age < 0 || age >= life + settings.duration ? 0 : maxAlpha * settings.opacity * fade;
     return {type: 'mesh', isTrail: true, trailMode: 'stretch', trailIndex: lane.index,
       emitterId: head.emitterId, index: head.index, x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
       y: points.reduce((sum, p) => sum + p.y, 0) / points.length, width: 0, height: 0, rotation: 0, scale: 1,
@@ -3347,8 +3380,33 @@ dialog .effect-library-actions { flex-wrap: wrap; }
     return points;
   }
 
-  // Only embedded PNGs are accepted. Inspect the IHDR instead of trusting saved dimensions.
+  // Assets usually survive many edits to unrelated parameters. Cache the verified
+  // bytes and dimensions, but return a separate, editable record to every caller.
+  const verifiedImages = new WeakMap();
   function image(raw, label) {
+    return checkedImage(raw, label, false);
+  }
+  function backgroundImage(raw) {
+    return checkedImage(raw, '背景', !!raw && raw.mime === 'image/jpeg');
+  }
+  function checkedImage(raw, label, jpeg) {
+    const cached = verifiedImages.get(raw);
+    let verified;
+    if (cached && cached.mime === (jpeg ? 'image/jpeg' : 'image/png') && cached.mime === raw.mime &&
+        cached.width === raw.width && cached.height === raw.height && cached.dataUrl === raw.dataUrl) {
+      verified = cached;
+    } else {
+      verified = jpeg ? readJpeg(raw) : readPng(raw, label);
+      if (!verified) return null;
+      verifiedImages.set(raw, verified);
+    }
+    const result = {...verified, name: text(raw, 'name', jpeg ? 'background.jpg' : 'image.png', 160, label + '檔名')};
+    verifiedImages.set(result, verified);
+    return result;
+  }
+
+  // Only embedded PNGs are accepted. Inspect the IHDR instead of trusting saved dimensions.
+  function readPng(raw, label) {
     if (raw === undefined || raw === null) return null;
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) fail(label + '素材格式不正確。');
     const width = number(raw, 'width', undefined, 1, 2048, true, label + '寬度');
@@ -3378,8 +3436,8 @@ dialog .effect-library-actions { flex-wrap: wrap; }
 
   // JPEG is a reference-background format only. Particle and outline assets
   // continue to use the original PNG validator and export contract.
-  function backgroundImage(raw) {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw) || raw.mime !== 'image/jpeg') return image(raw, '背景');
+  function readJpeg(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) fail('背景素材格式不正確。');
     const width = number(raw, 'width', undefined, 1, 8192, true, '背景寬度');
     const height = number(raw, 'height', undefined, 1, 8192, true, '背景高度');
     if (width * height > 16 * 1024 * 1024) fail('背景 JPEG 不能超過 1600 萬（16 Mi）像素。');
@@ -4457,27 +4515,57 @@ dialog .effect-library-actions { flex-wrap: wrap; }
   }
 
   function sample(baked, time) {
+    return sampleStates(baked, time, false);
+  }
+  function sampleVisible(baked, time, excludedEmitterIds) {
+    return sampleStates(baked, time, true, excludedEmitterIds);
+  }
+  function drawable(state) {
+    return state.alpha > .0001 && (state.type === 'mesh' || state.width > 0 && state.height > 0);
+  }
+  function sampleStates(baked, time, visibleOnly, excludedEmitterIds) {
     if (typeof time !== 'number' || !Number.isFinite(time)) fail('預覽時間必須是有限數值。');
     const t = baked.loop ? mod(time, baked.duration) : clamp(time, 0, baked.duration);
     const states = [];
+    const hidden = baked.hiddenEmitters ? new Set(baked.hiddenEmitters) : null;
+    const skipEmitter = id => hidden && hidden.has(id) || excludedEmitterIds && excludedEmitterIds.has(id);
+    let lastTrail, lanes;
     baked.particles.forEach(particle => {
-      if (Trail && Trail.active(particle.emitter)) {
-        const settings = particle.emitter.trail, lanes = Trail.lanes(settings), stride = lanes.length + 1;
-        lanes.forEach(lane => {
-          const state = trailState(baked, particle, lane, t), index = particle.index * stride + lane.index;
-          states.push({...state, index, slotName: 'em_' + particle.emitterId + '_p' + index + '_slot'});
-        });
-        const head = sampleHead(baked, particle, t), index = particle.index * stride + lanes.length;
-        states.push({...head, slotName: 'em_' + particle.emitterId + '_p' + index + '_slot'});
-      } else states.push(sampleHead(baked, particle, t));
+      if (visibleOnly && skipEmitter(particle.emitterId)) return;
+      const age = visibleOnly ? trailAge(baked, particle, t) : 0;
+      const settings = hasTrail(particle) ? particle.emitter.trail : null;
+      let headIndex;
+      if (settings) {
+        if (settings !== lastTrail) { lanes = Trail.lanes(settings); lastTrail = settings; }
+        const base = particle.index * (lanes.length + 1);
+        // A tail can remain visible after the head dies. Each afterimage
+        // has its own birth and death; a ribbon keeps the whole history.
+        if (!visibleOnly || settings.opacity > 0 && age >= 0 && (settings.mode === 'afterimage' || age < particle.life + settings.duration)) {
+          for (const lane of lanes) {
+            if (visibleOnly && lane.mode === 'afterimage' && (age - lane.delay <= 0 || age - lane.delay >= particle.life)) continue;
+            const state = trailState(baked, particle, lane, t, visibleOnly);
+            if (visibleOnly && !drawable(state)) continue;
+            const index = base + lane.index;
+            states.push({...state, index, slotName: 'em_' + particle.emitterId + '_p' + index + '_slot'});
+          }
+        }
+        headIndex = base + lanes.length;
+      }
+      if (visibleOnly && (age < -EPS || age >= particle.life - EPS || hasHiddenTrailHead(particle))) return;
+      const head = sampleHead(baked, particle, t);
+      if (!visibleOnly || drawable(head)) {
+        states.push(settings ? {...head, slotName: 'em_' + particle.emitterId + '_p' + headIndex + '_slot'} : head);
+      }
     });
-    if (baked.lightning) states.push(...lightningStates(baked, t));
+    if (baked.lightning) {
+      const bolts = lightningStates(baked, t, visibleOnly ? skipEmitter : null);
+      for (const bolt of bolts) if (!visibleOnly || drawable(bolt)) states.push(bolt);
+    }
     if (baked.particles.some(hasTrail)) {
       const order = new Map(baked.project.emitters.map((e, index) => [e.id, index]));
       states.sort((a, b) => order.get(b.emitterId) - order.get(a.emitterId));
     }
-    if (baked.hiddenEmitters) {
-      const hidden = new Set(baked.hiddenEmitters);
+    if (!visibleOnly && hidden) {
       return states.map(state => hidden.has(state.emitterId) && state.alpha > 0 ? Object.assign({}, state, {alpha: 0}) : state);
     }
     return states;
@@ -4509,7 +4597,7 @@ dialog .effect-library-actions { flex-wrap: wrap; }
     // Its material, visibility, and slot still belong to the particle head.
     return headTexture ? {mode: 'stretch', enabled: true, segments: 6, duration: particle.emitter.textureStretch.duration} : particle.emitter.trail;
   }
-  function trailState(baked, particle, lane, time) {
+  function trailState(baked, particle, lane, time, previewOnly) {
     const age = trailAge(baked, particle, time), e = particle.emitter, path = particle.lifecycle.path;
     if (lane.headTexture) {
       return TextureStretch.state(e.textureStretch, textureReference(e), age, particle.life, stateAt(baked, particle, time),
@@ -4547,7 +4635,7 @@ dialog .effect-library-actions { flex-wrap: wrap; }
         return result;
       }, atPath,
       particle.lifecycle.trailLength ? particle.lifecycle.trailLength.sample(curveProgress(e.trail.lengthCurve,
-        clamp(age, 0, scalarDuration(particle, e.trail.lengthCurve)), scalarDuration(particle, e.trail.lengthCurve))) : 1);
+        clamp(age, 0, scalarDuration(particle, e.trail.lengthCurve)), scalarDuration(particle, e.trail.lengthCurve))) : 1, previewOnly);
   }
   function lightningEmitter(baked, item) {
     const e = baked.project.emitters.find(emitter => emitter.id === item.emitterId);
@@ -4555,9 +4643,10 @@ dialog .effect-library-actions { flex-wrap: wrap; }
     return e;
   }
   // Mesh states with vertices in the emitter parent's space (emitter origin added).
-  function lightningStates(baked, t) {
+  function lightningStates(baked, t, skipEmitter) {
     const result = [];
     baked.lightning.forEach(item => {
+      if (skipEmitter && skipEmitter(item.emitterId)) return;
       const e = lightningEmitter(baked, item);
       Lightning.states({settings: e.lightning, seed: item.seed, duration: baked.duration, loop: baked.loop, startDelay: e.startDelay || 0,
         activeDuration: e.emissionDuration, flow: baked.flowPhase ? baked.flowPhase.kind : null, time: t, color: rgb(e.colorStart),
@@ -5413,7 +5502,7 @@ dialog .effect-library-actions { flex-wrap: wrap; }
   }
 
   return {vortexLineLayout, setVortexLineLayout, VORTEX_MAX_LINES, TEXTURE_STRETCH_DEFAULTS,
-    createProject, createEmitter, applyVortexInStretch, normalizeProject, normalizeFlow, phaseLayers, bakeExtra, exportWithExtras, backgroundSize, emitterSeed, bake, bakeFlow, sample, exportSpine, exportFlow, spineProfile, qualityProfile, estimateCost, BAKE_QUALITIES, SPINE_TARGETS, VORTEX_DEFAULTS};
+    createProject, createEmitter, applyVortexInStretch, normalizeProject, normalizeFlow, phaseLayers, bakeExtra, exportWithExtras, backgroundSize, emitterSeed, bake, bakeFlow, sample, sampleVisible, exportSpine, exportFlow, spineProfile, qualityProfile, estimateCost, BAKE_QUALITIES, SPINE_TARGETS, VORTEX_DEFAULTS};
 });
 
 </script>
@@ -12124,6 +12213,8 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   const handles = new Map();
   const imageCache = new Map();
   const tintCache = new Map();
+  const tintSources = new Map();
+  let tintPixels = 0;
   const imageIds = new WeakMap();
   let nextImageId = 1;
   let curveEditor = null, trailLengthEditor = null, gradientEditor = null, lookPresetsUi = null, libraryUi = null, timelineView = null, pathEditor = null, attachmentUi = null, assetsUi = null, textureUi = null;
@@ -12149,7 +12240,8 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   let revision = 0, bakedRevision = -1, bakeError = '';
   let mode = 'live', playing = true, time = 0;
   let zoom = 1, panX = 0, panY = 40, stageW = 1, stageH = 1;
-  let liveTimer = null, draftTimer = null, messageTimer = null;
+  let liveRefreshPending = false, previewDirty = true;
+  let draftTimer = null, messageTimer = null;
   let interaction = null, busy = false, initialized = false;
   let resettingProject = false, initialInterface = null;
   let draftWrite = Promise.resolve();
@@ -12197,7 +12289,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     historyGroup = null; history.end(historyState()); updateHistoryStatus();
   }
   function integrationChanged() {
-    if (priorAssets !== (integration && integration.assets) || priorSource !== (integration && integration.json)) { imageCache.clear(); tintCache.clear(); }
+    if (priorAssets !== (integration && integration.assets) || priorSource !== (integration && integration.json)) clearImageCaches();
     priorAssets = integration && integration.assets; priorSource = integration && integration.json;
     attachedCache.clear(); queueDraft(); updateBakeStatus();
   }
@@ -12213,13 +12305,13 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     const nextIntegration = state.integration ? SpineMerge.normalizeSession(state.integration) : null;
     historyRestoring = true;
     try {
-      clearTimeout(liveTimer); liveTimer = null;
+      liveRefreshPending = false;
       outlineRequest++; backgroundRequest++; textureRequest++; projectRequest++;
       project = nextProject; integration = nextIntegration;
       selectedId = project.emitters.some(e => e.id === state.selectedId) ? state.selectedId : project.emitters[0].id;
       revision++; bakedRevision = -1; bakeError = ''; mode = 'live'; stopSequence();
       baked = null; flowBaked = null; exported = null; exportedMain = null; bakedExtras = null; bakedPreview = null;
-      liveBake = null; liveFlowBake = null; attachedCache.clear(); imageCache.clear(); tintCache.clear(); pathGizmoCache.clear();
+      liveBake = null; liveFlowBake = null; attachedCache.clear(); clearImageCaches(); pathGizmoCache.clear();
       priorAssets = integration && integration.assets; priorSource = integration && integration.json;
       refreshLive(); renderGlobals(); renderEmitters(); renderInspector();
       if (attachmentUi) attachmentUi.refresh(); if (assetsUi) assetsUi.refresh();
@@ -12609,7 +12701,18 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
 
   function updateBakeStatus() {
     refreshSpineTarget();
+    updateBakeIndicator();
+    if (batchUi) batchUi.refresh();
+    if (attachmentUi) attachmentUi.refresh();
+    if (assetsUi) assetsUi.refresh();
     refreshFlowUi();
+    refreshAttachmentPreview();
+    renderEmitterSeed();
+    renderBakeCheck();
+    renderPathFacing();
+    renderTrailInspector();
+  }
+  function updateBakeIndicator() {
     const status = $('bakeStatus');
     status.classList.remove('dirty', 'baked', 'failed');
     const dot = document.createElement('span'); dot.className = 'status-dot'; dot.setAttribute('aria-hidden', 'true');
@@ -12630,18 +12733,10 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     $('modeLive').setAttribute('aria-pressed', String(mode === 'live'));
     $('modeBaked').classList.toggle('active', mode === 'baked');
     $('modeBaked').setAttribute('aria-pressed', String(mode === 'baked'));
-    if (batchUi) batchUi.refresh();
     $('exportButton').querySelector('span').textContent = integration && integration.settings.enabled !== false ? '輸出追加包' : '輸出 Spine';
-    if (attachmentUi) attachmentUi.refresh();
-    if (assetsUi) assetsUi.refresh();
-    refreshFlowUi();
-    refreshAttachmentPreview();
-    renderEmitterSeed();
-    renderBakeCheck();
-    renderPathFacing();
-    renderTrailInspector();
   }
   function renderEmitters() {
+    previewDirty = true;
     const list = $('emitterList'); list.replaceChildren();
     const note = $('layerListNote');
     if (note) {
@@ -12743,6 +12838,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   }
   function moveInteraction(event) {
     if (!interaction) return;
+    previewDirty = true;
     const dx = event.clientX - interaction.x, dy = event.clientY - interaction.y;
     if (interaction.type === 'pan') { panX = interaction.originalX + dx; panY = interaction.originalY + dy; return; }
     const e = interaction.e;
@@ -12897,7 +12993,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
         }
         e.textureStretch = next.textureStretch;
         if (next.trail !== e.trail) e.trail = next.trail;
-        changed();
+        changed({parameterOnly: true});
         if (key === 'enabled') { renderTextureStretch(e); renderTrailInspector(); }
       };
       if (input.type === 'number') input.addEventListener('input', () => apply(true));
@@ -13043,7 +13139,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
           if (!duringInput) { renderVortexInspector(e); notify(error.message, true); }
           return;
         }
-        changed();
+        changed({parameterOnly: key !== 'mode'});
         if (key === 'mode') { renderEmitters(); renderInspector(); }
         else if (key === 'arms') renderVortexLines(e);
         else if (key === 'edgeJitter' || key === 'timeJitter') {
@@ -13100,7 +13196,8 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     $('trailMode').value = trail.mode;
     $('trailMode').disabled = busy || !active;
     const trailImage = trail.image || (e.sequence && e.sequence.enabled && e.sequence.frames.length ? e.sequence.frames[0] : e.image) || builtinImages.glow;
-    $('trailTextureThumbnail').src = trailImage.dataUrl;
+    const thumbnail = $('trailTextureThumbnail');
+    if (thumbnail.src !== trailImage.dataUrl) thumbnail.src = trailImage.dataUrl;
     $('trailTextureInfo').textContent = (trail.image ? '獨立素材 · ' + trail.image.name : '沿用粒子素材') + ' · ' + trailImage.width + ' × ' + trailImage.height + ' px';
     $('trailTextureButton').disabled = $('trailTextureFile').disabled = busy || !active;
     $('removeTrailTexture').disabled = busy || !active || !trail.image;
@@ -13163,7 +13260,10 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       if (!duringInput) { renderTrailInspector(); notify(error.message, true); }
       return false;
     }
-    changed(); renderEmitters(); renderPathInspector(); renderTrailInspector(); drawCurves(); return true;
+    changed({parameterOnly: true});
+    if ('enabled' in patch || 'mode' in patch) renderEmitters();
+    if ('enabled' in patch || 'mode' in patch || 'moveDuration' in patch) renderPathInspector();
+    renderTrailInspector(); drawCurves(); return true;
   }
   function trailBindingFor(input) {
     const key = input.dataset.tfield || {trailMoveDuration: 'moveDuration', trailLengthDuration: 'lengthDuration'}[input.id];
@@ -13334,7 +13434,9 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     e.lightning = {...previous, ...patch};
     try { Core.normalizeProject(project); }
     catch (error) { e.lightning = previous; if (!duringInput) { notify(error.message, true); renderInspector(); } return false; }
-    changed(); renderEmitters(); renderLightningInspector(e);
+    changed({parameterOnly: true});
+    if ('mode' in patch || 'bolts' in patch || 'branches' in patch) renderEmitters();
+    renderLightningInspector(e);
     return true;
   }
   function wireLightningInspector() {
@@ -13542,7 +13644,8 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     refreshFlowUi();
   }
   function refreshLive() {
-    clearTimeout(liveTimer); liveTimer = null;
+    liveRefreshPending = false;
+    previewDirty = true;
     preloadParticleImages();
     try {
       liveFlowBake = project.flow.enabled ? Core.bakeFlow(project) : null;
@@ -13553,13 +13656,15 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     renderExtraUi();
     refreshFlowUi(); refreshAttachmentPreview();
   }
-  function changed(updateInspector) {
+  function changed({parameterOnly = false} = {}) {
     stopSequence();
     revision++; bakeError = ''; mode = 'live';
-    if (!liveTimer) liveTimer = setTimeout(refreshLive, 35);
-    updateBakeStatus();
-    if (updateInspector) renderInspector();
-    else renderVortexJitterHint(emitter());
+    liveRefreshPending = true;
+    if (parameterOnly) {
+      updateBakeIndicator();
+      renderBakeCheck();
+    } else updateBakeStatus();
+    renderVortexJitterHint(emitter());
     queueDraft();
   }
   function saveDraftSnapshot(raw) {
@@ -13568,6 +13673,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     return pending;
   }
   function queueDraft() {
+    previewDirty = true;
     recordHistory();
     if (!initialized) return;
     clearTimeout(draftTimer);
@@ -13583,7 +13689,9 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   function imageFor(image) {
     const data = image ? image.dataUrl : builtinImages.glow.dataUrl;
     if (imageCache.has(data)) return imageCache.get(data);
-    const element = new Image(); element.src = data; imageIds.set(element, nextImageId++);
+    const element = new Image();
+    element.addEventListener('load', () => { previewDirty = true; }, {once: true});
+    element.src = data; imageIds.set(element, nextImageId++);
     imageCache.set(data, element);
     // Keep every image of the current rig; cycling through a 20-image cache
     // prevented rigs with many slots from finishing image decoding.
@@ -13596,6 +13704,22 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       if (e.trail && e.trail.image) imageFor(e.trail.image);
     });
   }
+  function clearImageCaches() {
+    imageCache.clear(); tintCache.clear(); tintSources.clear(); tintPixels = 0;
+  }
+  function tintSourcePixels(source) {
+    if (tintSources.has(source)) return tintSources.get(source);
+    const surface = document.createElement('canvas');
+    const scale = Math.min(1, 384 / Math.max(source.naturalWidth, source.naturalHeight));
+    surface.width = Math.max(1, Math.round(source.naturalWidth * scale));
+    surface.height = Math.max(1, Math.round(source.naturalHeight * scale));
+    const c = surface.getContext('2d');
+    c.drawImage(source, 0, 0, surface.width, surface.height);
+    const original = c.getImageData(0, 0, surface.width, surface.height);
+    tintSources.set(source, original);
+    if (tintSources.size > 8) tintSources.delete(tintSources.keys().next().value);
+    return original;
+  }
   function tinted(image, color, dark) {
     const source = imageFor(image);
     if (!source.complete || !source.naturalWidth) return null;
@@ -13603,26 +13727,38 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     if (channels.every(value => value === 255) && (!dark || dark.every(value => value === 0)) && !(image && image.pma)) return source;
     const shadows = dark ? dark.map(value => Math.round(clamp(value, 0, 1) * 255)) : [0, 0, 0];
     const key = imageIds.get(source) + ':' + channels.join(',') + ':' + shadows.join(',') + ':' + !!(image && image.pma);
-    if (tintCache.has(key)) return tintCache.get(key);
+    if (tintCache.has(key)) {
+      const cached = tintCache.get(key);
+      tintCache.delete(key); tintCache.set(key, cached);
+      return cached;
+    }
+    const original = tintSourcePixels(source);
     const surface = document.createElement('canvas');
-    const scale = Math.min(1, 384 / Math.max(source.naturalWidth, source.naturalHeight));
-    surface.width = Math.max(1, Math.round(source.naturalWidth * scale)); surface.height = Math.max(1, Math.round(source.naturalHeight * scale));
+    surface.width = original.width; surface.height = original.height;
     const c = surface.getContext('2d');
-    c.drawImage(source, 0, 0, surface.width, surface.height);
-    const pixels = c.getImageData(0, 0, surface.width, surface.height);
+    const pixels = c.createImageData(surface.width, surface.height);
     for (let offset = 0; offset < pixels.data.length; offset += 4) {
-      const unpremultiply = image && image.pma && pixels.data[offset + 3] ? 255 / pixels.data[offset + 3] : 1;
+      const alpha = original.data[offset + 3];
+      pixels.data[offset + 3] = alpha;
+      const unpremultiply = image && image.pma && alpha ? 255 / alpha : 1;
       for (let channel = 0; channel < 3; channel++) {
-        const light = Math.min(255, pixels.data[offset + channel] * unpremultiply);
+        const light = Math.min(255, original.data[offset + channel] * unpremultiply);
         pixels.data[offset + channel] = Math.round((light * channels[channel] + (255 - light) * shadows[channel]) / 255);
       }
     }
     c.putImageData(pixels, 0, 0);
     tintCache.set(key, surface);
-    if (tintCache.size > 80) tintCache.delete(tintCache.keys().next().value);
+    tintPixels += surface.width * surface.height;
+    // Allow more gradient colors for small particles within the old worst-case pixel budget.
+    while (tintCache.size > 512 || tintPixels > 80 * 384 * 384) {
+      const oldest = tintCache.keys().next().value, evicted = tintCache.get(oldest);
+      tintPixels -= evicted.width * evicted.height;
+      tintCache.delete(oldest);
+    }
     return surface;
   }
   function resize() {
+    previewDirty = true;
     const rect = canvas.getBoundingClientRect();
     stageW = Math.max(1, rect.width); stageH = Math.max(1, rect.height);
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -13756,13 +13892,14 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       ctx.translate(e.x, -e.y); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = .75;
       ctx.drawImage(bitmap, -e.width / 2, -e.height / 2, e.width, e.height); ctx.restore();
     });
-    const particles = attached ? attached.sample(time) : mode === 'baked' && bakedPreview && !previewExtra() ? bakedPreview.sample(time) : Core.sample(snapshot, time); let visible = 0;
-    const offsets = new Map(), hiddenEmitters = new Set(), previewMuted = previewMutedIds();
+    const offsets = new Map(), previewMuted = previewMutedIds(), excludedEmitters = new Set(previewMuted);
     if (mode === 'live') snapshot.project.emitters.forEach(old => {
       const current = project.emitters.find(e => e.id === old.id);
-      if (!current || !current.enabled) hiddenEmitters.add(old.id);
-      else offsets.set(old.id, {x: current.x - old.x, y: current.y - old.y});
+      if (!current || !current.enabled) excludedEmitters.add(old.id);
+      else if (current.x !== old.x || current.y !== old.y) offsets.set(old.id, {x: current.x - old.x, y: current.y - old.y});
     });
+    const particles = attached ? attached.sample(time) : mode === 'baked' && bakedPreview && !previewExtra() ? bakedPreview.sample(time) : Core.sampleVisible(snapshot, time, excludedEmitters);
+    let visible = 0;
     for (const p of particles) {
       if (previewMuted.size && previewMuted.has(particleEmitterId(p))) continue;
       if (attached) {
@@ -13778,14 +13915,13 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
         ctx.restore();
         continue;
       }
-      if (hiddenEmitters.has(p.emitterId)) continue;
       if (p.type === 'mesh') {
         if (p.alpha <= 0.0001) continue;
         const texture = tinted(p.image, p.color); if (!texture) continue;
         const offset = offsets.get(p.emitterId);
-        const state = offset ? {...p, vertices: p.vertices.map((value, i) => value + (i % 2 ? offset.y : offset.x))} : p;
         ctx.save(); ctx.scale(1, -1);
-        if (window.ParticleSpineCanvasRenderer.draw(ctx, state, texture)) visible++;
+        if (offset) ctx.translate(offset.x, offset.y);
+        if (window.ParticleSpineCanvasRenderer.draw(ctx, p, texture)) visible++;
         ctx.restore(); continue;
       }
       if (p.alpha <= 0.0001 || p.width <= 0 || p.height <= 0) continue;
@@ -13912,14 +14048,17 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     if (emitterLanes) emitterLanes.refresh();
   }
   function updatePlayButton() {
+    previewDirty = true;
     $('playButton').setAttribute('aria-label', playing ? '暫停' : '播放');
     $('playButton').innerHTML = playing ? '<svg aria-hidden="true" viewBox="0 0 20 20"><path d="M6 4h3v12H6z M12 4h3v12h-3z"/></svg>' : '<svg aria-hidden="true" viewBox="0 0 20 20"><path d="m7 4 9 6-9 6Z"/></svg>';
   }
   let previousTime = 0;
   function animate(stamp) {
     const delta = previousTime ? Math.min(0.08, (stamp - previousTime) / 1000) : 0; previousTime = stamp;
+    if (liveRefreshPending) refreshLive();
     const snapshot = activeBake();
-    if (playing && snapshot && !document.hidden) {
+    const advancing = playing && snapshot && !document.hidden;
+    if (advancing) {
       if (attachedMode() && !attachedFor()) { playing = false; updatePlayButton(); }
       else {
       const group = currentFlowBake();
@@ -13940,7 +14079,11 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       }
       }
     }
-    syncTimeline(); draw(); requestAnimationFrame(animate);
+    if (!document.hidden && (advancing || previewDirty)) {
+      previewDirty = false;
+      syncTimeline(); draw();
+    }
+    requestAnimationFrame(animate);
   }
 
   function drawCurves() {
@@ -14677,8 +14820,9 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       nextPreview = compileBakedPreview(nextMainExport, nextBaked, nextFlow, nextPhase);
     }
     integration = parsed.integration || null;
+    liveRefreshPending = false;
     previewHidden.clear(); soloId = null;
-    imageCache.clear(); tintCache.clear();
+    clearImageCaches();
     attachedCache.clear();
     project = parsed.project; liveFlowBake = nextLiveFlow; liveBake = nextLive; liveError = nextError; flowBaked = nextFlow; baked = nextBaked; exported = nextExport; exportedMain = nextMainExport; bakedExtras = nextExtras; previewExtraId = null; liveExtraBake = null; bakedPreview = nextPreview; selectedId = project.emitters[0].id;
     preloadParticleImages();
@@ -14724,8 +14868,9 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       if (libraryUi) libraryUi.close();
       if (textureUi) textureUi.invalidate();
       document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
-      clearTimeout(liveTimer); clearTimeout(draftTimer); clearTimeout(messageTimer);
-      liveTimer = draftTimer = messageTimer = null;
+      liveRefreshPending = false;
+      clearTimeout(draftTimer); clearTimeout(messageTimer);
+      draftTimer = messageTimer = null;
       projectRequest++;
       interaction = null; pathGizmoCache.clear(); updateBaseCache = null;
       priorAssets = priorSource = null;
@@ -14973,7 +15118,13 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
         try { Core.normalizeProject(project); } catch (error) { e[key] = previous; if (!duringInput) { input.value = previous; notify(error.message, true); } return; }
         syncEmitterPeers(input);
         if (key === 'count') renderVortexLines(e);
-        changed(); renderEmitters(); if (key === 'shape' || key === 'emitFrom' || key === 'directionMode') renderInspector(); document.querySelectorAll('[data-readout]').forEach(output => { output.textContent = e[output.dataset.readout]; });
+        const layerLabelChanged = ['name', 'count', 'blend', 'shape', 'emitFrom', 'colorStart'].includes(key);
+        changed({parameterOnly: !layerLabelChanged});
+        if (layerLabelChanged) renderEmitters();
+        if (key === 'shape' || key === 'emitFrom' || key === 'directionMode') renderInspector();
+        else if (['alignDirection', 'spin', 'spinRandom'].includes(key)) renderPathFacing();
+        else if (['life', 'lifeRandom', 'startDelay', 'emissionDuration'].includes(key)) renderTrailInspector();
+        document.querySelectorAll('[data-readout]').forEach(output => { output.textContent = e[output.dataset.readout]; });
       };
       input.addEventListener('input', () => apply(true));
       input.addEventListener('change', () => apply(false));
@@ -15168,6 +15319,9 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     },
     onEnd: () => { historyEnd(); }});
     canvas.addEventListener('contextmenu', event => event.preventDefault());
+    for (const event of ['pointermove', 'pointerleave']) canvas.addEventListener(event, () => {
+      if ((bonePicker && bonePicker.active) || (artPicker && artPicker.active)) previewDirty = true;
+    });
     canvas.addEventListener('pointerdown', event => {
       if (![0, 1, 2].includes(event.button)) return;
       interaction = {type: 'pan', x: event.clientX, y: event.clientY, originalX: panX, originalY: panY};
@@ -15268,6 +15422,12 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   const Folder = window.ParticleSpineFolder, ArtPicker = window.ParticleArtPicker, Assist = window.ParticleAttachAssist;
   let folderState = null, artPicker = null, artPending = null, pendingPlacement = null, artBelow = false;
   let markerCache = {json: null, name: null, markers: []};
+  const rigInfoBySource = new WeakMap();
+  function rigInfo(json) {
+    // Imported rig data is replace-only. Parameter changes leave the rig intact.
+    if (!rigInfoBySource.has(json)) rigInfoBySource.set(json, SpineMerge.inspect(json));
+    return rigInfoBySource.get(json);
+  }
   function setOwn(target, key, value) { Object.defineProperty(target, key, {value, enumerable: true, writable: true, configurable: true}); }
   function round3(value) { return Math.round(value * 1000) / 1000; }
   function modalOpen() { return Array.from(document.querySelectorAll('dialog')).some(dialog => dialog.open && dialog.matches(':modal')); }
@@ -15287,7 +15447,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   }
   function originalAnimation(name) {
     const base = effectiveIntegration(); if (!base) return null;
-    try { return SpineMerge.inspect(base.json).animations.find(item => item.name === name) || null; } catch (_) { return null; }
+    try { return rigInfo(base.json).animations.find(item => item.name === name) || null; } catch (_) { return null; }
   }
   function timelineMarkers(attached) {
     if (!attached) return [];
@@ -15311,7 +15471,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     const items = [];
     if (!loaded) items.push(['todo', '原骨架', '開啟原工程資料夾，或把資料夾拖進視窗']);
     else {
-      let info = null; try { info = SpineMerge.inspect(effectiveIntegration().json); } catch (_) { info = null; }
+      let info = null; try { info = rigInfo(effectiveIntegration().json); } catch (_) { info = null; }
       items.push(['ok', '原骨架', integration.fileName + (info ? ' · Spine ' + info.version + ' · ' + info.animations.length + ' 個動畫' : '') + (integration.update && integration.update.mode === 'replace' ? ' · 更新上次的粒子' : '')]);
       const images = integration.assets ? integration.assets.images.length : 0, missing = attached ? attached.metadata.missingAssets.length : 0;
       items.push([images && !missing ? 'ok' : 'warn', '角色圖片', images ? images + ' 張' + (integration.assets.atlas ? '（圖集）' : '') + (missing ? ' · ' + missing + ' 個路徑未匹配' : ' · 完整') : '未載入，只顯示骨架']);
@@ -15522,7 +15682,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     if (!bone) throw new Error('找不到骨骼 ' + hit.item.boneName + '。');
     const local = AttachmentPreview.inverseDelta(bone.matrix, {x: hit.world.x - bone.matrix.x, y: hit.world.y - bone.matrix.y});
     if (!local) throw new Error('骨骼 ' + bone.name + ' 的縮放為 0，無法掛接；請點選其他圖片。');
-    const slots = SpineMerge.inspect(effectiveIntegration().json).slots.map(slot => slot.name);
+    const slots = rigInfo(effectiveIntegration().json).slots.map(slot => slot.name);
     return {owner: project, json: integration.json, bone: bone.name, slot: hit.item.slotName, x: Math.round(local.x * 100) / 100, y: Math.round(local.y * 100) / 100,
       layer: Assist.layerNextTo(slots, hit.item.slotName, artBelow), at: useTime && !project.flow.enabled ? round3(time) : null};
   }

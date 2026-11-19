@@ -288,8 +288,33 @@
     return points;
   }
 
-  // Only embedded PNGs are accepted. Inspect the IHDR instead of trusting saved dimensions.
+  // Assets usually survive many edits to unrelated parameters. Cache the verified
+  // bytes and dimensions, but return a separate, editable record to every caller.
+  const verifiedImages = new WeakMap();
   function image(raw, label) {
+    return checkedImage(raw, label, false);
+  }
+  function backgroundImage(raw) {
+    return checkedImage(raw, '背景', !!raw && raw.mime === 'image/jpeg');
+  }
+  function checkedImage(raw, label, jpeg) {
+    const cached = verifiedImages.get(raw);
+    let verified;
+    if (cached && cached.mime === (jpeg ? 'image/jpeg' : 'image/png') && cached.mime === raw.mime &&
+        cached.width === raw.width && cached.height === raw.height && cached.dataUrl === raw.dataUrl) {
+      verified = cached;
+    } else {
+      verified = jpeg ? readJpeg(raw) : readPng(raw, label);
+      if (!verified) return null;
+      verifiedImages.set(raw, verified);
+    }
+    const result = {...verified, name: text(raw, 'name', jpeg ? 'background.jpg' : 'image.png', 160, label + '檔名')};
+    verifiedImages.set(result, verified);
+    return result;
+  }
+
+  // Only embedded PNGs are accepted. Inspect the IHDR instead of trusting saved dimensions.
+  function readPng(raw, label) {
     if (raw === undefined || raw === null) return null;
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) fail(label + '素材格式不正確。');
     const width = number(raw, 'width', undefined, 1, 2048, true, label + '寬度');
@@ -319,8 +344,8 @@
 
   // JPEG is a reference-background format only. Particle and outline assets
   // continue to use the original PNG validator and export contract.
-  function backgroundImage(raw) {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw) || raw.mime !== 'image/jpeg') return image(raw, '背景');
+  function readJpeg(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) fail('背景素材格式不正確。');
     const width = number(raw, 'width', undefined, 1, 8192, true, '背景寬度');
     const height = number(raw, 'height', undefined, 1, 8192, true, '背景高度');
     if (width * height > 16 * 1024 * 1024) fail('背景 JPEG 不能超過 1600 萬（16 Mi）像素。');
@@ -1398,27 +1423,57 @@
   }
 
   function sample(baked, time) {
+    return sampleStates(baked, time, false);
+  }
+  function sampleVisible(baked, time, excludedEmitterIds) {
+    return sampleStates(baked, time, true, excludedEmitterIds);
+  }
+  function drawable(state) {
+    return state.alpha > .0001 && (state.type === 'mesh' || state.width > 0 && state.height > 0);
+  }
+  function sampleStates(baked, time, visibleOnly, excludedEmitterIds) {
     if (typeof time !== 'number' || !Number.isFinite(time)) fail('預覽時間必須是有限數值。');
     const t = baked.loop ? mod(time, baked.duration) : clamp(time, 0, baked.duration);
     const states = [];
+    const hidden = baked.hiddenEmitters ? new Set(baked.hiddenEmitters) : null;
+    const skipEmitter = id => hidden && hidden.has(id) || excludedEmitterIds && excludedEmitterIds.has(id);
+    let lastTrail, lanes;
     baked.particles.forEach(particle => {
-      if (Trail && Trail.active(particle.emitter)) {
-        const settings = particle.emitter.trail, lanes = Trail.lanes(settings), stride = lanes.length + 1;
-        lanes.forEach(lane => {
-          const state = trailState(baked, particle, lane, t), index = particle.index * stride + lane.index;
-          states.push({...state, index, slotName: 'em_' + particle.emitterId + '_p' + index + '_slot'});
-        });
-        const head = sampleHead(baked, particle, t), index = particle.index * stride + lanes.length;
-        states.push({...head, slotName: 'em_' + particle.emitterId + '_p' + index + '_slot'});
-      } else states.push(sampleHead(baked, particle, t));
+      if (visibleOnly && skipEmitter(particle.emitterId)) return;
+      const age = visibleOnly ? trailAge(baked, particle, t) : 0;
+      const settings = hasTrail(particle) ? particle.emitter.trail : null;
+      let headIndex;
+      if (settings) {
+        if (settings !== lastTrail) { lanes = Trail.lanes(settings); lastTrail = settings; }
+        const base = particle.index * (lanes.length + 1);
+        // A tail can remain visible after the head dies. Each afterimage
+        // has its own birth and death; a ribbon keeps the whole history.
+        if (!visibleOnly || settings.opacity > 0 && age >= 0 && (settings.mode === 'afterimage' || age < particle.life + settings.duration)) {
+          for (const lane of lanes) {
+            if (visibleOnly && lane.mode === 'afterimage' && (age - lane.delay <= 0 || age - lane.delay >= particle.life)) continue;
+            const state = trailState(baked, particle, lane, t, visibleOnly);
+            if (visibleOnly && !drawable(state)) continue;
+            const index = base + lane.index;
+            states.push({...state, index, slotName: 'em_' + particle.emitterId + '_p' + index + '_slot'});
+          }
+        }
+        headIndex = base + lanes.length;
+      }
+      if (visibleOnly && (age < -EPS || age >= particle.life - EPS || hasHiddenTrailHead(particle))) return;
+      const head = sampleHead(baked, particle, t);
+      if (!visibleOnly || drawable(head)) {
+        states.push(settings ? {...head, slotName: 'em_' + particle.emitterId + '_p' + headIndex + '_slot'} : head);
+      }
     });
-    if (baked.lightning) states.push(...lightningStates(baked, t));
+    if (baked.lightning) {
+      const bolts = lightningStates(baked, t, visibleOnly ? skipEmitter : null);
+      for (const bolt of bolts) if (!visibleOnly || drawable(bolt)) states.push(bolt);
+    }
     if (baked.particles.some(hasTrail)) {
       const order = new Map(baked.project.emitters.map((e, index) => [e.id, index]));
       states.sort((a, b) => order.get(b.emitterId) - order.get(a.emitterId));
     }
-    if (baked.hiddenEmitters) {
-      const hidden = new Set(baked.hiddenEmitters);
+    if (!visibleOnly && hidden) {
       return states.map(state => hidden.has(state.emitterId) && state.alpha > 0 ? Object.assign({}, state, {alpha: 0}) : state);
     }
     return states;
@@ -1450,7 +1505,7 @@
     // Its material, visibility, and slot still belong to the particle head.
     return headTexture ? {mode: 'stretch', enabled: true, segments: 6, duration: particle.emitter.textureStretch.duration} : particle.emitter.trail;
   }
-  function trailState(baked, particle, lane, time) {
+  function trailState(baked, particle, lane, time, previewOnly) {
     const age = trailAge(baked, particle, time), e = particle.emitter, path = particle.lifecycle.path;
     if (lane.headTexture) {
       return TextureStretch.state(e.textureStretch, textureReference(e), age, particle.life, stateAt(baked, particle, time),
@@ -1488,7 +1543,7 @@
         return result;
       }, atPath,
       particle.lifecycle.trailLength ? particle.lifecycle.trailLength.sample(curveProgress(e.trail.lengthCurve,
-        clamp(age, 0, scalarDuration(particle, e.trail.lengthCurve)), scalarDuration(particle, e.trail.lengthCurve))) : 1);
+        clamp(age, 0, scalarDuration(particle, e.trail.lengthCurve)), scalarDuration(particle, e.trail.lengthCurve))) : 1, previewOnly);
   }
   function lightningEmitter(baked, item) {
     const e = baked.project.emitters.find(emitter => emitter.id === item.emitterId);
@@ -1496,9 +1551,10 @@
     return e;
   }
   // Mesh states with vertices in the emitter parent's space (emitter origin added).
-  function lightningStates(baked, t) {
+  function lightningStates(baked, t, skipEmitter) {
     const result = [];
     baked.lightning.forEach(item => {
+      if (skipEmitter && skipEmitter(item.emitterId)) return;
       const e = lightningEmitter(baked, item);
       Lightning.states({settings: e.lightning, seed: item.seed, duration: baked.duration, loop: baked.loop, startDelay: e.startDelay || 0,
         activeDuration: e.emissionDuration, flow: baked.flowPhase ? baked.flowPhase.kind : null, time: t, color: rgb(e.colorStart),
@@ -2354,5 +2410,5 @@
   }
 
   return {vortexLineLayout, setVortexLineLayout, VORTEX_MAX_LINES, TEXTURE_STRETCH_DEFAULTS,
-    createProject, createEmitter, applyVortexInStretch, normalizeProject, normalizeFlow, phaseLayers, bakeExtra, exportWithExtras, backgroundSize, emitterSeed, bake, bakeFlow, sample, exportSpine, exportFlow, spineProfile, qualityProfile, estimateCost, BAKE_QUALITIES, SPINE_TARGETS, VORTEX_DEFAULTS};
+    createProject, createEmitter, applyVortexInStretch, normalizeProject, normalizeFlow, phaseLayers, bakeExtra, exportWithExtras, backgroundSize, emitterSeed, bake, bakeFlow, sample, sampleVisible, exportSpine, exportFlow, spineProfile, qualityProfile, estimateCost, BAKE_QUALITIES, SPINE_TARGETS, VORTEX_DEFAULTS};
 });

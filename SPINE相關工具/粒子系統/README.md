@@ -1,4 +1,4 @@
-# SPINE 粒子系統（Particle Studio）v1.37.0
+# SPINE 粒子系統（Particle Studio）v1.37.1
 
 開發者：小魚骨頭
 

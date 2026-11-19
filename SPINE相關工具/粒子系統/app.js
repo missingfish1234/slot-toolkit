@@ -25,6 +25,8 @@
   const handles = new Map();
   const imageCache = new Map();
   const tintCache = new Map();
+  const tintSources = new Map();
+  let tintPixels = 0;
   const imageIds = new WeakMap();
   let nextImageId = 1;
   let curveEditor = null, trailLengthEditor = null, gradientEditor = null, lookPresetsUi = null, libraryUi = null, timelineView = null, pathEditor = null, attachmentUi = null, assetsUi = null, textureUi = null;
@@ -50,7 +52,8 @@
   let revision = 0, bakedRevision = -1, bakeError = '';
   let mode = 'live', playing = true, time = 0;
   let zoom = 1, panX = 0, panY = 40, stageW = 1, stageH = 1;
-  let liveTimer = null, draftTimer = null, messageTimer = null;
+  let liveRefreshPending = false, previewDirty = true;
+  let draftTimer = null, messageTimer = null;
   let interaction = null, busy = false, initialized = false;
   let resettingProject = false, initialInterface = null;
   let draftWrite = Promise.resolve();
@@ -98,7 +101,7 @@
     historyGroup = null; history.end(historyState()); updateHistoryStatus();
   }
   function integrationChanged() {
-    if (priorAssets !== (integration && integration.assets) || priorSource !== (integration && integration.json)) { imageCache.clear(); tintCache.clear(); }
+    if (priorAssets !== (integration && integration.assets) || priorSource !== (integration && integration.json)) clearImageCaches();
     priorAssets = integration && integration.assets; priorSource = integration && integration.json;
     attachedCache.clear(); queueDraft(); updateBakeStatus();
   }
@@ -114,13 +117,13 @@
     const nextIntegration = state.integration ? SpineMerge.normalizeSession(state.integration) : null;
     historyRestoring = true;
     try {
-      clearTimeout(liveTimer); liveTimer = null;
+      liveRefreshPending = false;
       outlineRequest++; backgroundRequest++; textureRequest++; projectRequest++;
       project = nextProject; integration = nextIntegration;
       selectedId = project.emitters.some(e => e.id === state.selectedId) ? state.selectedId : project.emitters[0].id;
       revision++; bakedRevision = -1; bakeError = ''; mode = 'live'; stopSequence();
       baked = null; flowBaked = null; exported = null; exportedMain = null; bakedExtras = null; bakedPreview = null;
-      liveBake = null; liveFlowBake = null; attachedCache.clear(); imageCache.clear(); tintCache.clear(); pathGizmoCache.clear();
+      liveBake = null; liveFlowBake = null; attachedCache.clear(); clearImageCaches(); pathGizmoCache.clear();
       priorAssets = integration && integration.assets; priorSource = integration && integration.json;
       refreshLive(); renderGlobals(); renderEmitters(); renderInspector();
       if (attachmentUi) attachmentUi.refresh(); if (assetsUi) assetsUi.refresh();
@@ -510,7 +513,18 @@
 
   function updateBakeStatus() {
     refreshSpineTarget();
+    updateBakeIndicator();
+    if (batchUi) batchUi.refresh();
+    if (attachmentUi) attachmentUi.refresh();
+    if (assetsUi) assetsUi.refresh();
     refreshFlowUi();
+    refreshAttachmentPreview();
+    renderEmitterSeed();
+    renderBakeCheck();
+    renderPathFacing();
+    renderTrailInspector();
+  }
+  function updateBakeIndicator() {
     const status = $('bakeStatus');
     status.classList.remove('dirty', 'baked', 'failed');
     const dot = document.createElement('span'); dot.className = 'status-dot'; dot.setAttribute('aria-hidden', 'true');
@@ -531,18 +545,10 @@
     $('modeLive').setAttribute('aria-pressed', String(mode === 'live'));
     $('modeBaked').classList.toggle('active', mode === 'baked');
     $('modeBaked').setAttribute('aria-pressed', String(mode === 'baked'));
-    if (batchUi) batchUi.refresh();
     $('exportButton').querySelector('span').textContent = integration && integration.settings.enabled !== false ? '輸出追加包' : '輸出 Spine';
-    if (attachmentUi) attachmentUi.refresh();
-    if (assetsUi) assetsUi.refresh();
-    refreshFlowUi();
-    refreshAttachmentPreview();
-    renderEmitterSeed();
-    renderBakeCheck();
-    renderPathFacing();
-    renderTrailInspector();
   }
   function renderEmitters() {
+    previewDirty = true;
     const list = $('emitterList'); list.replaceChildren();
     const note = $('layerListNote');
     if (note) {
@@ -644,6 +650,7 @@
   }
   function moveInteraction(event) {
     if (!interaction) return;
+    previewDirty = true;
     const dx = event.clientX - interaction.x, dy = event.clientY - interaction.y;
     if (interaction.type === 'pan') { panX = interaction.originalX + dx; panY = interaction.originalY + dy; return; }
     const e = interaction.e;
@@ -798,7 +805,7 @@
         }
         e.textureStretch = next.textureStretch;
         if (next.trail !== e.trail) e.trail = next.trail;
-        changed();
+        changed({parameterOnly: true});
         if (key === 'enabled') { renderTextureStretch(e); renderTrailInspector(); }
       };
       if (input.type === 'number') input.addEventListener('input', () => apply(true));
@@ -944,7 +951,7 @@
           if (!duringInput) { renderVortexInspector(e); notify(error.message, true); }
           return;
         }
-        changed();
+        changed({parameterOnly: key !== 'mode'});
         if (key === 'mode') { renderEmitters(); renderInspector(); }
         else if (key === 'arms') renderVortexLines(e);
         else if (key === 'edgeJitter' || key === 'timeJitter') {
@@ -1001,7 +1008,8 @@
     $('trailMode').value = trail.mode;
     $('trailMode').disabled = busy || !active;
     const trailImage = trail.image || (e.sequence && e.sequence.enabled && e.sequence.frames.length ? e.sequence.frames[0] : e.image) || builtinImages.glow;
-    $('trailTextureThumbnail').src = trailImage.dataUrl;
+    const thumbnail = $('trailTextureThumbnail');
+    if (thumbnail.src !== trailImage.dataUrl) thumbnail.src = trailImage.dataUrl;
     $('trailTextureInfo').textContent = (trail.image ? '獨立素材 · ' + trail.image.name : '沿用粒子素材') + ' · ' + trailImage.width + ' × ' + trailImage.height + ' px';
     $('trailTextureButton').disabled = $('trailTextureFile').disabled = busy || !active;
     $('removeTrailTexture').disabled = busy || !active || !trail.image;
@@ -1064,7 +1072,10 @@
       if (!duringInput) { renderTrailInspector(); notify(error.message, true); }
       return false;
     }
-    changed(); renderEmitters(); renderPathInspector(); renderTrailInspector(); drawCurves(); return true;
+    changed({parameterOnly: true});
+    if ('enabled' in patch || 'mode' in patch) renderEmitters();
+    if ('enabled' in patch || 'mode' in patch || 'moveDuration' in patch) renderPathInspector();
+    renderTrailInspector(); drawCurves(); return true;
   }
   function trailBindingFor(input) {
     const key = input.dataset.tfield || {trailMoveDuration: 'moveDuration', trailLengthDuration: 'lengthDuration'}[input.id];
@@ -1235,7 +1246,9 @@
     e.lightning = {...previous, ...patch};
     try { Core.normalizeProject(project); }
     catch (error) { e.lightning = previous; if (!duringInput) { notify(error.message, true); renderInspector(); } return false; }
-    changed(); renderEmitters(); renderLightningInspector(e);
+    changed({parameterOnly: true});
+    if ('mode' in patch || 'bolts' in patch || 'branches' in patch) renderEmitters();
+    renderLightningInspector(e);
     return true;
   }
   function wireLightningInspector() {
@@ -1443,7 +1456,8 @@
     refreshFlowUi();
   }
   function refreshLive() {
-    clearTimeout(liveTimer); liveTimer = null;
+    liveRefreshPending = false;
+    previewDirty = true;
     preloadParticleImages();
     try {
       liveFlowBake = project.flow.enabled ? Core.bakeFlow(project) : null;
@@ -1454,13 +1468,15 @@
     renderExtraUi();
     refreshFlowUi(); refreshAttachmentPreview();
   }
-  function changed(updateInspector) {
+  function changed({parameterOnly = false} = {}) {
     stopSequence();
     revision++; bakeError = ''; mode = 'live';
-    if (!liveTimer) liveTimer = setTimeout(refreshLive, 35);
-    updateBakeStatus();
-    if (updateInspector) renderInspector();
-    else renderVortexJitterHint(emitter());
+    liveRefreshPending = true;
+    if (parameterOnly) {
+      updateBakeIndicator();
+      renderBakeCheck();
+    } else updateBakeStatus();
+    renderVortexJitterHint(emitter());
     queueDraft();
   }
   function saveDraftSnapshot(raw) {
@@ -1469,6 +1485,7 @@
     return pending;
   }
   function queueDraft() {
+    previewDirty = true;
     recordHistory();
     if (!initialized) return;
     clearTimeout(draftTimer);
@@ -1484,7 +1501,9 @@
   function imageFor(image) {
     const data = image ? image.dataUrl : builtinImages.glow.dataUrl;
     if (imageCache.has(data)) return imageCache.get(data);
-    const element = new Image(); element.src = data; imageIds.set(element, nextImageId++);
+    const element = new Image();
+    element.addEventListener('load', () => { previewDirty = true; }, {once: true});
+    element.src = data; imageIds.set(element, nextImageId++);
     imageCache.set(data, element);
     // Keep every image of the current rig; cycling through a 20-image cache
     // prevented rigs with many slots from finishing image decoding.
@@ -1497,6 +1516,22 @@
       if (e.trail && e.trail.image) imageFor(e.trail.image);
     });
   }
+  function clearImageCaches() {
+    imageCache.clear(); tintCache.clear(); tintSources.clear(); tintPixels = 0;
+  }
+  function tintSourcePixels(source) {
+    if (tintSources.has(source)) return tintSources.get(source);
+    const surface = document.createElement('canvas');
+    const scale = Math.min(1, 384 / Math.max(source.naturalWidth, source.naturalHeight));
+    surface.width = Math.max(1, Math.round(source.naturalWidth * scale));
+    surface.height = Math.max(1, Math.round(source.naturalHeight * scale));
+    const c = surface.getContext('2d');
+    c.drawImage(source, 0, 0, surface.width, surface.height);
+    const original = c.getImageData(0, 0, surface.width, surface.height);
+    tintSources.set(source, original);
+    if (tintSources.size > 8) tintSources.delete(tintSources.keys().next().value);
+    return original;
+  }
   function tinted(image, color, dark) {
     const source = imageFor(image);
     if (!source.complete || !source.naturalWidth) return null;
@@ -1504,26 +1539,38 @@
     if (channels.every(value => value === 255) && (!dark || dark.every(value => value === 0)) && !(image && image.pma)) return source;
     const shadows = dark ? dark.map(value => Math.round(clamp(value, 0, 1) * 255)) : [0, 0, 0];
     const key = imageIds.get(source) + ':' + channels.join(',') + ':' + shadows.join(',') + ':' + !!(image && image.pma);
-    if (tintCache.has(key)) return tintCache.get(key);
+    if (tintCache.has(key)) {
+      const cached = tintCache.get(key);
+      tintCache.delete(key); tintCache.set(key, cached);
+      return cached;
+    }
+    const original = tintSourcePixels(source);
     const surface = document.createElement('canvas');
-    const scale = Math.min(1, 384 / Math.max(source.naturalWidth, source.naturalHeight));
-    surface.width = Math.max(1, Math.round(source.naturalWidth * scale)); surface.height = Math.max(1, Math.round(source.naturalHeight * scale));
+    surface.width = original.width; surface.height = original.height;
     const c = surface.getContext('2d');
-    c.drawImage(source, 0, 0, surface.width, surface.height);
-    const pixels = c.getImageData(0, 0, surface.width, surface.height);
+    const pixels = c.createImageData(surface.width, surface.height);
     for (let offset = 0; offset < pixels.data.length; offset += 4) {
-      const unpremultiply = image && image.pma && pixels.data[offset + 3] ? 255 / pixels.data[offset + 3] : 1;
+      const alpha = original.data[offset + 3];
+      pixels.data[offset + 3] = alpha;
+      const unpremultiply = image && image.pma && alpha ? 255 / alpha : 1;
       for (let channel = 0; channel < 3; channel++) {
-        const light = Math.min(255, pixels.data[offset + channel] * unpremultiply);
+        const light = Math.min(255, original.data[offset + channel] * unpremultiply);
         pixels.data[offset + channel] = Math.round((light * channels[channel] + (255 - light) * shadows[channel]) / 255);
       }
     }
     c.putImageData(pixels, 0, 0);
     tintCache.set(key, surface);
-    if (tintCache.size > 80) tintCache.delete(tintCache.keys().next().value);
+    tintPixels += surface.width * surface.height;
+    // Allow more gradient colors for small particles within the old worst-case pixel budget.
+    while (tintCache.size > 512 || tintPixels > 80 * 384 * 384) {
+      const oldest = tintCache.keys().next().value, evicted = tintCache.get(oldest);
+      tintPixels -= evicted.width * evicted.height;
+      tintCache.delete(oldest);
+    }
     return surface;
   }
   function resize() {
+    previewDirty = true;
     const rect = canvas.getBoundingClientRect();
     stageW = Math.max(1, rect.width); stageH = Math.max(1, rect.height);
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -1657,13 +1704,14 @@
       ctx.translate(e.x, -e.y); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = .75;
       ctx.drawImage(bitmap, -e.width / 2, -e.height / 2, e.width, e.height); ctx.restore();
     });
-    const particles = attached ? attached.sample(time) : mode === 'baked' && bakedPreview && !previewExtra() ? bakedPreview.sample(time) : Core.sample(snapshot, time); let visible = 0;
-    const offsets = new Map(), hiddenEmitters = new Set(), previewMuted = previewMutedIds();
+    const offsets = new Map(), previewMuted = previewMutedIds(), excludedEmitters = new Set(previewMuted);
     if (mode === 'live') snapshot.project.emitters.forEach(old => {
       const current = project.emitters.find(e => e.id === old.id);
-      if (!current || !current.enabled) hiddenEmitters.add(old.id);
-      else offsets.set(old.id, {x: current.x - old.x, y: current.y - old.y});
+      if (!current || !current.enabled) excludedEmitters.add(old.id);
+      else if (current.x !== old.x || current.y !== old.y) offsets.set(old.id, {x: current.x - old.x, y: current.y - old.y});
     });
+    const particles = attached ? attached.sample(time) : mode === 'baked' && bakedPreview && !previewExtra() ? bakedPreview.sample(time) : Core.sampleVisible(snapshot, time, excludedEmitters);
+    let visible = 0;
     for (const p of particles) {
       if (previewMuted.size && previewMuted.has(particleEmitterId(p))) continue;
       if (attached) {
@@ -1679,14 +1727,13 @@
         ctx.restore();
         continue;
       }
-      if (hiddenEmitters.has(p.emitterId)) continue;
       if (p.type === 'mesh') {
         if (p.alpha <= 0.0001) continue;
         const texture = tinted(p.image, p.color); if (!texture) continue;
         const offset = offsets.get(p.emitterId);
-        const state = offset ? {...p, vertices: p.vertices.map((value, i) => value + (i % 2 ? offset.y : offset.x))} : p;
         ctx.save(); ctx.scale(1, -1);
-        if (window.ParticleSpineCanvasRenderer.draw(ctx, state, texture)) visible++;
+        if (offset) ctx.translate(offset.x, offset.y);
+        if (window.ParticleSpineCanvasRenderer.draw(ctx, p, texture)) visible++;
         ctx.restore(); continue;
       }
       if (p.alpha <= 0.0001 || p.width <= 0 || p.height <= 0) continue;
@@ -1813,14 +1860,17 @@
     if (emitterLanes) emitterLanes.refresh();
   }
   function updatePlayButton() {
+    previewDirty = true;
     $('playButton').setAttribute('aria-label', playing ? '暫停' : '播放');
     $('playButton').innerHTML = playing ? '<svg aria-hidden="true" viewBox="0 0 20 20"><path d="M6 4h3v12H6z M12 4h3v12h-3z"/></svg>' : '<svg aria-hidden="true" viewBox="0 0 20 20"><path d="m7 4 9 6-9 6Z"/></svg>';
   }
   let previousTime = 0;
   function animate(stamp) {
     const delta = previousTime ? Math.min(0.08, (stamp - previousTime) / 1000) : 0; previousTime = stamp;
+    if (liveRefreshPending) refreshLive();
     const snapshot = activeBake();
-    if (playing && snapshot && !document.hidden) {
+    const advancing = playing && snapshot && !document.hidden;
+    if (advancing) {
       if (attachedMode() && !attachedFor()) { playing = false; updatePlayButton(); }
       else {
       const group = currentFlowBake();
@@ -1841,7 +1891,11 @@
       }
       }
     }
-    syncTimeline(); draw(); requestAnimationFrame(animate);
+    if (!document.hidden && (advancing || previewDirty)) {
+      previewDirty = false;
+      syncTimeline(); draw();
+    }
+    requestAnimationFrame(animate);
   }
 
   function drawCurves() {
@@ -2578,8 +2632,9 @@
       nextPreview = compileBakedPreview(nextMainExport, nextBaked, nextFlow, nextPhase);
     }
     integration = parsed.integration || null;
+    liveRefreshPending = false;
     previewHidden.clear(); soloId = null;
-    imageCache.clear(); tintCache.clear();
+    clearImageCaches();
     attachedCache.clear();
     project = parsed.project; liveFlowBake = nextLiveFlow; liveBake = nextLive; liveError = nextError; flowBaked = nextFlow; baked = nextBaked; exported = nextExport; exportedMain = nextMainExport; bakedExtras = nextExtras; previewExtraId = null; liveExtraBake = null; bakedPreview = nextPreview; selectedId = project.emitters[0].id;
     preloadParticleImages();
@@ -2625,8 +2680,9 @@
       if (libraryUi) libraryUi.close();
       if (textureUi) textureUi.invalidate();
       document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
-      clearTimeout(liveTimer); clearTimeout(draftTimer); clearTimeout(messageTimer);
-      liveTimer = draftTimer = messageTimer = null;
+      liveRefreshPending = false;
+      clearTimeout(draftTimer); clearTimeout(messageTimer);
+      draftTimer = messageTimer = null;
       projectRequest++;
       interaction = null; pathGizmoCache.clear(); updateBaseCache = null;
       priorAssets = priorSource = null;
@@ -2874,7 +2930,13 @@
         try { Core.normalizeProject(project); } catch (error) { e[key] = previous; if (!duringInput) { input.value = previous; notify(error.message, true); } return; }
         syncEmitterPeers(input);
         if (key === 'count') renderVortexLines(e);
-        changed(); renderEmitters(); if (key === 'shape' || key === 'emitFrom' || key === 'directionMode') renderInspector(); document.querySelectorAll('[data-readout]').forEach(output => { output.textContent = e[output.dataset.readout]; });
+        const layerLabelChanged = ['name', 'count', 'blend', 'shape', 'emitFrom', 'colorStart'].includes(key);
+        changed({parameterOnly: !layerLabelChanged});
+        if (layerLabelChanged) renderEmitters();
+        if (key === 'shape' || key === 'emitFrom' || key === 'directionMode') renderInspector();
+        else if (['alignDirection', 'spin', 'spinRandom'].includes(key)) renderPathFacing();
+        else if (['life', 'lifeRandom', 'startDelay', 'emissionDuration'].includes(key)) renderTrailInspector();
+        document.querySelectorAll('[data-readout]').forEach(output => { output.textContent = e[output.dataset.readout]; });
       };
       input.addEventListener('input', () => apply(true));
       input.addEventListener('change', () => apply(false));
@@ -3069,6 +3131,9 @@
     },
     onEnd: () => { historyEnd(); }});
     canvas.addEventListener('contextmenu', event => event.preventDefault());
+    for (const event of ['pointermove', 'pointerleave']) canvas.addEventListener(event, () => {
+      if ((bonePicker && bonePicker.active) || (artPicker && artPicker.active)) previewDirty = true;
+    });
     canvas.addEventListener('pointerdown', event => {
       if (![0, 1, 2].includes(event.button)) return;
       interaction = {type: 'pan', x: event.clientX, y: event.clientY, originalX: panX, originalY: panY};
@@ -3169,6 +3234,12 @@
   const Folder = window.ParticleSpineFolder, ArtPicker = window.ParticleArtPicker, Assist = window.ParticleAttachAssist;
   let folderState = null, artPicker = null, artPending = null, pendingPlacement = null, artBelow = false;
   let markerCache = {json: null, name: null, markers: []};
+  const rigInfoBySource = new WeakMap();
+  function rigInfo(json) {
+    // Imported rig data is replace-only. Parameter changes leave the rig intact.
+    if (!rigInfoBySource.has(json)) rigInfoBySource.set(json, SpineMerge.inspect(json));
+    return rigInfoBySource.get(json);
+  }
   function setOwn(target, key, value) { Object.defineProperty(target, key, {value, enumerable: true, writable: true, configurable: true}); }
   function round3(value) { return Math.round(value * 1000) / 1000; }
   function modalOpen() { return Array.from(document.querySelectorAll('dialog')).some(dialog => dialog.open && dialog.matches(':modal')); }
@@ -3188,7 +3259,7 @@
   }
   function originalAnimation(name) {
     const base = effectiveIntegration(); if (!base) return null;
-    try { return SpineMerge.inspect(base.json).animations.find(item => item.name === name) || null; } catch (_) { return null; }
+    try { return rigInfo(base.json).animations.find(item => item.name === name) || null; } catch (_) { return null; }
   }
   function timelineMarkers(attached) {
     if (!attached) return [];
@@ -3212,7 +3283,7 @@
     const items = [];
     if (!loaded) items.push(['todo', '原骨架', '開啟原工程資料夾，或把資料夾拖進視窗']);
     else {
-      let info = null; try { info = SpineMerge.inspect(effectiveIntegration().json); } catch (_) { info = null; }
+      let info = null; try { info = rigInfo(effectiveIntegration().json); } catch (_) { info = null; }
       items.push(['ok', '原骨架', integration.fileName + (info ? ' · Spine ' + info.version + ' · ' + info.animations.length + ' 個動畫' : '') + (integration.update && integration.update.mode === 'replace' ? ' · 更新上次的粒子' : '')]);
       const images = integration.assets ? integration.assets.images.length : 0, missing = attached ? attached.metadata.missingAssets.length : 0;
       items.push([images && !missing ? 'ok' : 'warn', '角色圖片', images ? images + ' 張' + (integration.assets.atlas ? '（圖集）' : '') + (missing ? ' · ' + missing + ' 個路徑未匹配' : ' · 完整') : '未載入，只顯示骨架']);
@@ -3423,7 +3494,7 @@
     if (!bone) throw new Error('找不到骨骼 ' + hit.item.boneName + '。');
     const local = AttachmentPreview.inverseDelta(bone.matrix, {x: hit.world.x - bone.matrix.x, y: hit.world.y - bone.matrix.y});
     if (!local) throw new Error('骨骼 ' + bone.name + ' 的縮放為 0，無法掛接；請點選其他圖片。');
-    const slots = SpineMerge.inspect(effectiveIntegration().json).slots.map(slot => slot.name);
+    const slots = rigInfo(effectiveIntegration().json).slots.map(slot => slot.name);
     return {owner: project, json: integration.json, bone: bone.name, slot: hit.item.slotName, x: Math.round(local.x * 100) / 100, y: Math.round(local.y * 100) / 100,
       layer: Assist.layerNextTo(slots, hit.item.slotName, artBelow), at: useTime && !project.flow.enabled ? round3(time) : null};
   }

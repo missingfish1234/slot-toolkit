@@ -13,6 +13,7 @@
   const RANGES = {duration: [.05, 3], samples: [2, 24, true], segments: [4, 32, true], opacity: [0, 1], width: [.1, 4], taper: [0, 1]};
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const compiledLengths = new WeakMap();
+  const previewStrips = new WeakMap();
   function defaults() { return {...DEFAULTS}; }
   function normalize(raw) {
     const source = raw === undefined ? {} : raw;
@@ -94,7 +95,20 @@
     for (let i = 0; i < segments; i++) triangles.push(i, bottom(i), i + 1, i + 1, bottom(i), bottom(i + 1));
     return {uvs, triangles, hull: (segments + 1) * 2};
   }
-  function state(settings, lane, age, life, atAge, atPath, lengthFactor) {
+  function previewStrip(settings, image) {
+    // A baked emitter is immutable, but a sequence can switch between
+    // landscape and portrait images. Their strip UVs use opposite axes.
+    let orientations = previewStrips.get(settings);
+    if (!orientations) { orientations = new Map(); previewStrips.set(settings, orientations); }
+    const horizontal = horizontalAxis(image, settings);
+    if (!orientations.has(horizontal)) {
+      const result = strip(settings.segments, image, settings);
+      Object.freeze(result.uvs); Object.freeze(result.triangles);
+      orientations.set(horizontal, result);
+    }
+    return orientations.get(horizontal);
+  }
+  function state(settings, lane, age, life, atAge, atPath, lengthFactor, previewOnly) {
     if (lane.mode === 'afterimage') {
       const source = atAge(age - lane.delay), fade = Math.pow(1 - lane.delay / (settings.duration + settings.duration / settings.samples), 1.3);
       const historyAge = age - lane.delay, edge = Math.min(life / 2, settings.duration / settings.samples);
@@ -109,15 +123,25 @@
     if (wholePath && typeof atPath !== 'function') throw new Error('整條路徑光帶需要先啟用有效路徑，並設定至少兩個不同的路徑點。');
     const length = lengthFactor === undefined ? lengthAt(settings, age, life) : clamp(lengthFactor, 0, MAX_LENGTH);
     const segments = segmentCount(settings);
-    const points = [], widths = [], sources = [], current = wholePath ? atAge(clamp(age, 0, Math.max(0, life - 1e-7))) : null;
+    const lastAge = Math.max(0, life - 1e-7);
+    let firstState, lastState;
+    function history(sampleAge) {
+      if (sampleAge <= 0) return firstState || (firstState = atAge(0));
+      if (sampleAge >= lastAge) return lastState || (lastState = atAge(lastAge));
+      return atAge(sampleAge);
+    }
+    const points = [], widths = [], current = wholePath ? history(age) : null;
+    let head, maxAlpha = 0;
     for (let i = 0; i <= segments; i++) {
       const t = i / segments, historyAge = age - t * settings.duration * length;
-      const source = wholePath ? current : atAge(clamp(historyAge, 0, Math.max(0, life - 1e-7)));
-      sources.push(source); points.push(wholePath ? atPath(t * length) : {x: source.x, y: source.y});
+      const source = wholePath ? current : history(historyAge);
+      if (i === 0) head = source;
+      maxAlpha = Math.max(maxAlpha, source.alpha);
+      points.push(wholePath ? atPath(t * length) : source);
       // Length changes move longitudinal samples only. Keep the original
       // width envelope so shortening never also narrows the ribbon.
       const widthAge = age - t * settings.duration;
-      const widthSource = wholePath || length === 1 ? source : atAge(clamp(widthAge, 0, Math.max(0, life - 1e-7)));
+      const widthSource = wholePath || length === 1 ? source : history(widthAge);
       const thickness = wholePath ? (horizontalAxis(source.image, settings) ? source.height : source.width) : Math.min(widthSource.width, widthSource.height);
       // Keep ribbon geometry continuous at birth/death. A hard zero-width
       // cutoff can select opposite sides of a floating-point Spine key time.
@@ -125,11 +149,17 @@
       const decay = wholePath ? 1 : clamp(1 - Math.max(0, widthAge - life) / settings.duration, 0, 1);
       widths.push(Math.max(0, thickness) * settings.width / 2 * (1 - settings.taper * t) * growth * decay);
     }
-    const top = [], bottom = [];
+    const top = [], bottom = [], angle = head.rotation * Math.PI / 180;
+    let fallbackNormal, lastFallback = -2;
     for (let i = 0; i < points.length; i++) {
       const a = points[Math.max(0, i - 1)], b = points[Math.min(segments, i + 1)];
       let tx = b.x - a.x, ty = b.y - a.y, distance = Math.hypot(tx, ty);
-      if (distance <= 1e-8) {
+      let nx, ny;
+      if (distance <= 1e-8 && lastFallback === i - 1 && points[i].x === points[i - 1].x && points[i].y === points[i - 1].y) {
+        // Consecutive coincident points have the same nearest distinct
+        // neighbors. Avoid rescanning an entire stationary run per vertex.
+        nx = fallbackNormal.x; ny = fallbackNormal.y; lastFallback = i;
+      } else if (distance <= 1e-8) {
         // Clamping at a birth/death endpoint repeats positions. Search for a
         // real history tangent instead of flipping to the head's direction.
         let before = null, after = null;
@@ -138,17 +168,20 @@
         const first = before || points[i], last = after || points[i];
         tx = last.x - first.x; ty = last.y - first.y; distance = Math.hypot(tx, ty);
         if (distance <= 1e-8 && after) { tx = after.x - points[i].x; ty = after.y - points[i].y; distance = Math.hypot(tx, ty); }
+        nx = distance > 1e-8 ? -ty / distance : Math.sin(angle);
+        ny = distance > 1e-8 ? tx / distance : -Math.cos(angle);
+        fallbackNormal = {x: nx, y: ny}; lastFallback = i;
+      } else {
+        nx = -ty / distance; ny = tx / distance;
       }
-      const angle = sources[0].rotation * Math.PI / 180;
-      const nx = distance > 1e-8 ? -ty / distance : Math.sin(angle), ny = distance > 1e-8 ? tx / distance : -Math.cos(angle);
       top.push(points[i].x + nx * widths[i], points[i].y + ny * widths[i]);
       bottom.push(points[i].x - nx * widths[i], points[i].y - ny * widths[i]);
     }
     const vertices = top.slice();
     for (let i = segments; i >= 0; i--) vertices.push(bottom[i * 2], bottom[i * 2 + 1]);
-    const head = sources[0], geometry = strip(settings.segments, head.image, settings);
+    const geometry = previewOnly && Object.isFrozen(settings) ? previewStrip(settings, head.image) : strip(settings.segments, head.image, settings);
     const fade = clamp(1 - Math.max(0, age - life) / settings.duration, 0, 1);
-    const alpha = length <= 1e-9 || age < 0 || age >= life + settings.duration ? 0 : (wholePath ? head.alpha : Math.max(...sources.map(s => s.alpha))) * settings.opacity * fade;
+    const alpha = length <= 1e-9 || age < 0 || age >= life + settings.duration ? 0 : maxAlpha * settings.opacity * fade;
     return {type: 'mesh', isTrail: true, trailMode: 'stretch', trailIndex: lane.index,
       emitterId: head.emitterId, index: head.index, x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
       y: points.reduce((sum, p) => sum + p.y, 0) / points.length, width: 0, height: 0, rotation: 0, scale: 1,
