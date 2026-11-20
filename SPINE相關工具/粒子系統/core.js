@@ -591,7 +591,10 @@
         if (vortex.shrinkHead !== undefined) e.vortex.shrinkHead = boolean(vortex, 'shrinkHead', defaults.shrinkHead, '依旋心距離縮小頭部');
         if (vortex.lineCount !== undefined) e.vortex.lineCount = number(vortex, 'lineCount', undefined, 1, VORTEX_MAX_LINES, true, '收縮線數');
         if (vortex.edgeJitter !== undefined) e.vortex.edgeJitter = number(vortex, 'edgeJitter', 0, 0, 100, false, '漩渦邊緣位置隨機');
+        if (vortex.radiusJitter !== undefined) e.vortex.radiusJitter = number(vortex, 'radiusJitter', 0, 0, 100, false, '漩渦出生半徑隨機');
         if (vortex.timeJitter !== undefined) e.vortex.timeJitter = number(vortex, 'timeJitter', 0, 0, 100, false, '漩渦發射時間隨機');
+        if (vortex.endlessLoop !== undefined) e.vortex.endlessLoop = boolean(vortex, 'endlessLoop', false, '漩渦持續補入');
+        if (vortex.loopCount !== undefined) e.vortex.loopCount = number(vortex, 'loopCount', undefined, 1, MAX_EMITTER_COUNT, true, '漩渦每圈補入粒子數');
       }
       const ranges = {
         x: [-4000, 4000], y: [-4000, 4000], width: [0, 2000], height: [0, 2000],
@@ -795,14 +798,14 @@
     });
   }
 
-  function compileVortex(e, speedCurve) {
+  function compileVortex(e, speedCurve, synchronizedLines) {
     const settings = e.vortex;
     const sweep = settings.turns * TAU * (settings.direction === 'clockwise' ? -1 : 1);
     const total = speedCurve ? speedCurve.integral(1) : 1;
     // Seed each quarter turn before midpoint refinement. Even several whole
     // revolutions inside a single FPS interval must survive Spine export.
     // All particles share this normalized clock, including delayed trail copies.
-    const radialFactors = inwardRadialFactors(e, speedCurve, total);
+    const radialFactors = synchronizedLines ? inwardRadialFactors(e, speedCurve, total) : null;
     const sampleTimes = [], segments = Math.max(2, Math.ceil(settings.turns * 4));
     if (total > 0) for (let index = 1; index < segments; index++) {
       const target = index / segments;
@@ -834,7 +837,9 @@
       radialSlope = -factor / (denominator * denominator);
     }
     const angle = particle.direction * DEG + vortex.sweep * progress;
-    const r = settings.radius * fraction;
+    // A particle's chosen starting radius scales the whole trajectory.
+    // Both tangent components get the same scale, so its angle is unchanged.
+    const r = (particle.vortexRadius ?? settings.radius) * fraction;
     // Differentiate the actual radius and keep the polar angle unwrapped so
     // aligned sprites turn continuously as the inward trajectory steepens.
     return {x: r * Math.cos(angle), y: r * Math.sin(angle), radiusFraction: fraction,
@@ -1007,6 +1012,55 @@
     ].filter(value => value != null)));
   }
 
+  // Positions around a circle in units of the average gap. Vary consecutive
+  // gaps themselves so clusters can cross the old evenly spaced cell boundaries.
+  function irregularLoopPositions(count, rand, maxGap, seamAge = Infinity) {
+    const weights = Array.from({length: count}, () => rand() ** 2);
+    const mean = weights.reduce((sum, w) => sum + w, 0) / count;
+    const min = Math.min(...weights), max = Math.max(...weights);
+    const scale = max > min ? Math.min(.88 / (mean - min), (maxGap - 1) / (max - mean)) : 0;
+    const gaps = weights.map(w => 1 + (w - mean) * scale);
+    const seamGap = gaps[count - 1];
+    // Carry the last birth over the loop boundary while keeping its original
+    // gap to the first birth, including sparse cases with a very short life.
+    let position = seamGap - Math.min(seamGap * (.15 + .7 * rand()), seamAge);
+    return gaps.map(gap => {
+      const start = position;
+      position += gap;
+      return start;
+    });
+  }
+  function endlessVortexSchedule(emitter, seed, duration) {
+    const angles = random(seed ^ seedHash('endless-vortex-angles'));
+    const times = random(seed ^ seedHash('endless-vortex-times'));
+    const settings = emitter.vortex, count = settings.loopCount ?? emitter.count;
+    const sectors = Array.from({length: count}, (_, i) => i);
+    // Shuffle angular order independently of the timing pattern.
+    for (let i = count - 1; i > 0; i--) {
+      const other = Math.floor(angles() * (i + 1));
+      [sectors[i], sectors[other]] = [sectors[other], sectors[i]];
+    }
+    const origin = angles() * TAU;
+    const edgeSpread = (settings.edgeJitter || 0) / 100, timeSpread = (settings.timeJitter || 0) / 100;
+    const radiusSpread = (settings.radiusJitter || 0) / 100;
+    const radii = random(seed ^ seedHash('endless-vortex-radii'));
+    const edgePositions = edgeSpread && irregularLoopPositions(count, random(seed ^ seedHash('endless-vortex-edge-gaps')), 2.65);
+    const lifeInGaps = Math.max(.05, emitter.life - emitter.lifeRandom) * count / duration;
+    // If there are enough particles for continuous coverage, keep the longest
+    // interval within the shortest lifetime. Sparse layers retain their count.
+    const maxTimeGap = lifeInGaps >= 1 ? clamp(lifeInGaps * .95, 1, 2.65) : 2.65;
+    const timePositions = timeSpread && irregularLoopPositions(count, random(seed ^ seedHash('endless-vortex-time-gaps')),
+      maxTimeGap, lifeInGaps * .35);
+    return sectors.map((sector, index) => {
+      let angle = sector + .5 + (angles() - .5) * .5;
+      let time = index + .5 + (times() - .5) * .5;
+      if (edgeSpread) angle += (edgePositions[sector] - angle) * edgeSpread;
+      if (timeSpread) time += (timePositions[index] - time) * timeSpread;
+      return {angle: origin + angle * TAU / count, birth: time * duration / count,
+        ...(radiusSpread ? {radius: settings.radius * (1 + (2 * radii() - 1) * radiusSpread)} : {})};
+    });
+  }
+
   function bake(raw) {
     const project = normalizeProject(raw);
     const particles = [];
@@ -1019,16 +1073,19 @@
       const seed = emitterSeed(project, e), rand = random(seed);
       const signed = amplitude => (rand() * 2 - 1) * amplitude;
       const useVortex = !(e.path && e.path.enabled) && e.vortex && e.vortex.mode !== 'off';
+      const endless = project.loop && useVortex && e.vortex.mode === 'inward' && e.vortex.endlessLoop ?
+        endlessVortexSchedule(e, seed, project.duration) : null;
+      const count = endless ? endless.length : e.count;
       const layout = vortexLineLayout(e);
-      const linesPerWave = layout.grouped ? layout.lineCount : 1;
-      const waveCount = layout.grouped ? layout.particlesPerLine : e.count;
+      const linesPerWave = layout.grouped && !endless ? layout.lineCount : 1;
+      const waveCount = Math.ceil(count / linesPerWave);
       const arms = layout.grouped ? layout.lineCount : useVortex ? e.vortex.arms : 0;
       // A separate stream orients the whole spiral without reshuffling size,
       // lifespan, spin or the free-scatter rays when the arm count is edited.
       const armOrigin = arms ? random(seed ^ seedHash('vortex-arm-phase'))() * TAU : 0;
       // Fixed lines reuse their edge offset across waves. Leave a gap even if
       // adjacent lines both draw the maximum offset toward each other.
-      const edgeRange = useVortex ? (e.vortex.edgeJitter || 0) / 100 * .45 * TAU / (arms || 1) : 0;
+      const edgeRange = useVortex && !endless ? (e.vortex.edgeJitter || 0) / 100 * .45 * TAU / (arms || 1) : 0;
       const edgeRand = random(seed ^ seedHash('vortex-edge-jitter'));
       const edgeOffsets = edgeRange ? Array.from({length: arms || e.count}, () => (2 * edgeRand() - 1) * edgeRange) : null;
       // Vortex particles use the emitter origin. Inactive shapes must not
@@ -1059,7 +1116,7 @@
         });
       }
       if (e.path && e.path.enabled) lifecycle.path = PathMath.compile(e.path);
-      else if (useVortex) lifecycle.vortex = compileVortex(e, lifecycle.speed);
+      else if (useVortex) lifecycle.vortex = compileVortex(e, lifecycle.speed, !endless);
       const sequence = activeSequence(e);
       if (sequence) lifecycle.sequenceMaxDimension = Math.max(...sequence.frames.map(frame => Math.max(frame.width, frame.height)));
       // A separate stream: switching to random images never reshuffles motion.
@@ -1068,7 +1125,7 @@
       let index = 0, clipped = false;
       const delay = Math.min(e.startDelay || 0, project.duration);
       const emissionWindow = Math.min(e.emissionDuration, project.duration - delay);
-      const timeRange = useVortex ? emissionWindow / waveCount * ((e.vortex.timeJitter || 0) / 100) : 0;
+      const timeRange = useVortex && !endless ? emissionWindow / waveCount * ((e.vortex.timeJitter || 0) / 100) : 0;
       for (let waveIndex = 0; waveIndex < waveCount; waveIndex++) {
         // Use the same microsecond grid as JSON keys so birth/death attachment events
         // cannot slip to the following video frame after decimal quantization.
@@ -1117,12 +1174,16 @@
         // Grouped lines are rotated copies of the same wave. Keeping the motion
         // draws per wave preserves its timing and radius when the number of lines changes.
         const firstSource = waveIndex * linesPerWave;
-        const waveEnd = Math.min(e.count, firstSource + linesPerWave);
+        const waveEnd = Math.min(count, firstSource + linesPerWave);
         for (let sourceIndex = firstSource; sourceIndex < waveEnd; sourceIndex++) {
-          let angle = arms ? armOrigin + (sourceIndex % arms) * TAU / arms :
+          let angle = endless ? endless[sourceIndex].angle : arms ? armOrigin + (sourceIndex % arms) * TAU / arms :
             useVortex ? angleDraw * TAU : emissionAngle(e, sx, sy, angleDraw, sampledNormal);
           if (edgeOffsets) angle += edgeOffsets[arms ? sourceIndex % arms : sourceIndex];
-          const birth = round(waveStart + (timeRand ? timeRand() * timeRange : 0));
+          let birthTime = endless ? endless[sourceIndex].birth : waveStart + (timeRand ? timeRand() * timeRange : 0);
+          // The last particle comes from the preceding cycle at time zero.
+          // Even a sparse layer starts mid-flight without adding any births.
+          if (endless && sourceIndex === count - 1) birthTime = Math.max(birthTime, project.duration - life * .35);
+          const birth = round(birthTime);
           clipped = clipped || birth + life + tail > project.duration;
           const randomFrame = frameRand ? Math.min(sequence.frames.length - 1, Math.floor(frameRand() * sequence.frames.length)) : undefined;
           generatedParticles++;
@@ -1131,15 +1192,18 @@
               birth, life, size, spin, sx, sy, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
               ax: e.wind, ay: -e.gravity,
               direction: angle / DEG, emitter: e, lifecycle, startColor: rgb(e.colorStart), endColor: rgb(e.colorEnd),
+              ...(endless && endless[sourceIndex].radius !== undefined ? {vortexRadius: endless[sourceIndex].radius} : {}),
               ...(randomFrame === undefined ? {} : {randomFrame})});
             if (tail) trailLanes += Trail.lanes(e.trail).length;
           }
           if (particles.length + trailLanes > MAX_POOL) fail('循環粒子池超過 ' + MAX_POOL + ' 個（包含拖尾）。請減少粒子數／殘影數、縮短壽命／拖尾，或增加動畫長度。');
         }
       }
-      if (e.startDelay && e.startDelay >= project.duration) warnings.push('「' + e.name + '」開始時間超過動畫長度，粒子會在最後一刻同時出生；請縮短開始時間或加長動畫。');
-      else if (e.startDelay && e.startDelay + e.emissionDuration > project.duration) warnings.push('「' + e.name + '」開始時間＋發射時間超過動畫長度；本次發射壓縮在 ' + round(project.duration - e.startDelay) + ' 秒內。');
-      else if (e.emissionDuration > project.duration) warnings.push('「' + e.name + '」發射時間超過動畫長度；本次烘焙採用 ' + project.duration + ' 秒。');
+      if (!endless) {
+        if (e.startDelay && e.startDelay >= project.duration) warnings.push('「' + e.name + '」開始時間超過動畫長度，粒子會在最後一刻同時出生；請縮短開始時間或加長動畫。');
+        else if (e.startDelay && e.startDelay + e.emissionDuration > project.duration) warnings.push('「' + e.name + '」開始時間＋發射時間超過動畫長度；本次發射壓縮在 ' + round(project.duration - e.startDelay) + ' 秒內。');
+        else if (e.emissionDuration > project.duration) warnings.push('「' + e.name + '」發射時間超過動畫長度；本次烘焙採用 ' + project.duration + ' 秒。');
+      }
       if (!project.loop && clipped) warnings.push('「' + e.name + '」部分粒子會在動畫結尾截斷。');
       const hiddenHead = Trail && Trail.active(e) && e.trail.mode === 'stretch' && e.trail.showHead === false;
       if (!hiddenHead && e.alphaCurve[e.alphaCurve.length - 1].v !== 0) warnings.push('「' + e.name + '」透明度曲線尾值不為 0；粒子壽命結束時會立即隱藏。');

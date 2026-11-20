@@ -10,7 +10,8 @@
     ' · ' + (emitter.trail.mode === 'afterimage' ? '殘影拖尾' : '沿路徑拉伸') + ' ' + emitter.trail.duration + ' 秒' : '';
   function motionSummary(emitter) {
     if (emitter.path && emitter.path.enabled) return ' · 路徑移動';
-    if (emitter.vortex && emitter.vortex.mode === 'inward') return ' · 漩渦收縮';
+    if (emitter.vortex && emitter.vortex.mode === 'inward') return emitter.vortex.endlessLoop ?
+      ' · 無盡漩渦 LOOP ' + (emitter.vortex.loopCount ?? emitter.count) + ' 顆／輪' : ' · 漩渦收縮';
     if (emitter.vortex && emitter.vortex.mode === 'outward') return ' · 漩渦外放';
     return '';
   }

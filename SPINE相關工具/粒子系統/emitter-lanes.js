@@ -14,6 +14,7 @@
 
   function layout(emitter, duration) {
     const span = Math.max(1e-6, finite(duration, 1));
+    if (emitter.endlessLoop) return {delay: 0, window: span, tailEnd: span, start: 0, width: 1, tail: 1};
     const delay = clamp(finite(emitter.startDelay, 0), 0, span);
     const window = clamp(finite(emitter.emissionDuration, 0), 0, span - delay);
     const authoredLife = Math.max(0, finite(emitter.life, 0)) + Math.max(0, finite(emitter.lifeRandom, 0));
@@ -78,7 +79,7 @@
           if (event.button !== 0) return;
           event.preventDefault(); event.stopPropagation();
           const current = (getContext() || {}).emitters || [];
-          const target = current.find(item => item.id === emitter.id); if (!target) return;
+          const target = current.find(item => item.id === emitter.id); if (!target || target.endlessLoop) return;
           if (typeof onSelect === 'function') onSelect(emitter.id);
           drag = {id: emitter.id, kind, x: event.clientX, width: lane.getBoundingClientRect().width || 1,
             delay: finite(target.startDelay, 0), emission: finite(target.emissionDuration, 0), pointerId: event.pointerId, moved: false};
@@ -112,13 +113,13 @@
           const step = {ArrowLeft: -1, ArrowRight: 1}[event.key]; if (!step) return;
           event.preventDefault(); event.stopPropagation();
           const context = getContext() || {}, fps = finite(context.fps, 30), duration = finite(context.duration, 1);
-          const target = (context.emitters || []).find(item => item.id === emitter.id); if (!target) return;
+          const target = (context.emitters || []).find(item => item.id === emitter.id); if (!target || target.endlessLoop) return;
           const amount = (event.shiftKey ? 10 : 1) / fps;
           if (typeof onBegin === 'function') onBegin(emitter.id);
           if (typeof onChange === 'function') onChange(emitter.id, {startDelay: clamp(round(finite(target.startDelay, 0) + step * amount), 0, Math.max(0, round(duration - 1 / fps)))});
           if (typeof onEnd === 'function') onEnd(emitter.id, true, false);
         });
-        rows.set(emitter.id, {row, dot, name, bar, tail, label});
+        rows.set(emitter.id, {row, dot, name, bar, tail, label, handle});
       });
       track.append(playhead);
       body.append(track);
@@ -150,8 +151,12 @@
         view.tail.style.left = (box.start * 100) + '%';
         view.tail.style.width = (box.tail * 100) + '%';
         view.tail.style.setProperty('--lane-color', emitter.color || '#81e8c6');
-        const text = emitter.name + '：開始 ' + box.delay.toFixed(2) + ' 秒，發射 ' + box.window.toFixed(2) + ' 秒，粒子最晚到 ' + box.tailEnd.toFixed(2) + ' 秒';
-        view.bar.title = text + '。拖曳移動，拖右端改長度，方向鍵逐幀';
+        const text = emitter.endlessLoop ? emitter.name + '：無盡漩渦持續發射整個循環，週期 ' + duration + ' 秒' :
+          emitter.name + '：開始 ' + box.delay.toFixed(2) + ' 秒，發射 ' + box.window.toFixed(2) + ' 秒，粒子最晚到 ' + box.tailEnd.toFixed(2) + ' 秒';
+        view.handle.hidden = !!emitter.endlessLoop;
+        view.bar.setAttribute('aria-disabled', String(!!emitter.endlessLoop));
+        view.bar.style.cursor = emitter.endlessLoop ? 'default' : '';
+        view.bar.title = emitter.endlessLoop ? text : text + '。拖曳移動，拖右端改長度，方向鍵逐幀';
         view.bar.setAttribute('aria-label', text);
         view.bar.setAttribute('aria-valuemin', '0'); view.bar.setAttribute('aria-valuemax', String(duration));
         view.bar.setAttribute('aria-valuenow', String(box.delay));

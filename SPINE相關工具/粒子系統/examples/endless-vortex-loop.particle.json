@@ -1,0 +1,173 @@
+{
+  "format": "particle-studio-project",
+  "schemaVersion": 1,
+  "project": {
+    "format": "particle-studio",
+    "schemaVersion": 1,
+    "name": "金綠星流 · 外圈散布",
+    "fps": 30,
+    "spineVersion": "4.0.56",
+    "duration": 2,
+    "loop": true,
+    "flow": {
+      "enabled": true,
+      "in": {
+        "name": "IN",
+        "duration": 1
+      },
+      "loop": {
+        "name": "LOOP",
+        "duration": 2
+      },
+      "out": {
+        "name": "OUT",
+        "duration": 1
+      }
+    },
+    "seed": 209816,
+    "emitters": [
+      {
+        "id": "gold",
+        "name": "金綠向心流",
+        "enabled": true,
+        "x": 0,
+        "y": 0,
+        "shape": "point",
+        "width": 120,
+        "height": 120,
+        "lineLength": 120,
+        "lineRotation": 0,
+        "arcAngle": 360,
+        "arcRotation": 90,
+        "angle": 90,
+        "spread": 80,
+        "count": 32,
+        "emissionDuration": 0,
+        "life": 1.16,
+        "lifeRandom": 0.17,
+        "speed": 80,
+        "speedRandom": 20,
+        "gravity": 0,
+        "wind": 0,
+        "windAngle": 0,
+        "size": 37,
+        "sizeRandom": 4,
+        "rotation": 0,
+        "spin": 0,
+        "spinRandom": 0,
+        "alignDirection": false,
+        "blend": "additive",
+        "colorStart": "#d6f3c8",
+        "colorEnd": "#f5d991",
+        "motionCurve": "linear",
+        "sizeCurve": [
+          {
+            "t": 0,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 1
+          }
+        ],
+        "alphaCurve": [
+          {
+            "t": 0,
+            "v": 0
+          },
+          {
+            "t": 0.06,
+            "v": 1
+          },
+          {
+            "t": 0.94,
+            "v": 1
+          },
+          {
+            "t": 1,
+            "v": 0
+          }
+        ],
+        "speedCurve": null,
+        "inactiveSpeedCurve": null,
+        "colorGradient": [
+          {
+            "t": 0,
+            "color": "#bce9bf"
+          },
+          {
+            "t": 0.36,
+            "color": "#f6fad9"
+          },
+          {
+            "t": 0.78,
+            "color": "#ffe49e"
+          },
+          {
+            "t": 1,
+            "color": "#ffefaf"
+          }
+        ],
+        "image": {
+          "name": "jade-gold-head.png",
+          "mime": "image/png",
+          "width": 32,
+          "height": 32,
+          "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABjklEQVR42u2WsU7DMBCGv0uiRtB2grIw8wBd2OG9eYEufQSmTmFLi2Vq+xhqiotSmpZUFVIsnTL4nPt99/93FvfyzCVXxoVXD6AHcHEAxQln5MC+nguANHwlCaqnAClOCJ5FawIQomnc0y4ASMKXDMjjuSLhUABcNJ8AOQjimAxk0b+MNkjOO+ADsNHcnrIcDUCS4HkMfA0yQmSMZFebAgSDag26bCjJr3wojpBrvL2MyPI7ivKevJwA4G2FswuCB9THDIQEwJ85INF3gMiYorzn+vaR4WQKwKqa8/42Y20MqiaWYd0VB2SHA5JdkZcThpMpNw9PWy9bv+LsAg1Fg0r+dydMCeXQYPC2YlXNtx6rao63FRpMUn/tqg98/WgjNdUaZxe8v82w9esOCVXrKEfXJYC00VjQJcHD2hicXTTI0CZZ+HMJNAHg4883UlM1kXBNjci3LUPbDGiSBf3Oxq+tWLskofy4UUh0vm8Y0SUH0umWDpqmcdw6+LHvgbbzXs/9IlL6R2kPoAfQ4foEiFfOGVHTNw8AAAAASUVORK5CYII="
+        },
+        "vortex": {
+          "mode": "inward",
+          "radius": 160,
+          "turns": 0.68,
+          "direction": "clockwise",
+          "arms": 3,
+          "shrinkHead": true,
+          "lineCount": 32,
+          "edgeJitter": 78,
+          "timeJitter": 85,
+          "endlessLoop": true,
+          "radiusJitter": 25
+        },
+        "trail": {
+          "enabled": true,
+          "mode": "stretch",
+          "coverage": "history",
+          "showHead": true,
+          "duration": 0.32,
+          "segments": 12,
+          "width": 1.5,
+          "taper": 0.76,
+          "opacity": 0.98,
+          "lengthCurve": null,
+          "moveDuration": null,
+          "lengthDuration": null,
+          "image": {
+            "name": "jade-gold-ribbon.png",
+            "mime": "image/png",
+            "width": 80,
+            "height": 64,
+            "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABACAYAAACNx/A2AAAFdklEQVR42u2cbXLjKBCGXxB2nExq9usSe/G90V5jk5mp7CSRZbE/hKwG09BIKHGiVZUKS8ZK9OhtumlA6s+//4LblKCMfaZb7FzqfK3vpXVK6nF1ewAdgCOAzggvEIOnFoBTK8KsBTv3PyoAMIIfc/BU4g/VUKdacHNrPxwWYAwcB0+iwtrnrgG4BaDHA8OA4yQ77jqhwNLjawEtPW+lJqwS4HJmrBYAlUBaA24JQJ0DWAIyB00KswbIuWBLgLIAVUJdFJqOmDEYNa4N9T3U7QNUZeqj8HQGWg7YHIi1YC8B3edMOOd5dQKgEkAqUeVSyGsA7wE0RIE2FefEoIUApRClgGo3C0vhhvVO5P6LTZjCbAq6fTkwtYGuCfzkKVBPClRCcCkFloB8a8C1oHdeG6gvTVjiPBryFJYAfCu4NcEf3b0PJtz4AGMwdaYdTHX7JNmc0izQXLC1QO88EzYDQCUIX3RCgSqTsZmrVDUTTq0yds54Ctyhl4QvITxaohLItQDXhtl6CtzjlPK+OjDhJlCgFoCTnKvZDNSCyX23cyocFHjrAywxX5NwOkqoyhy8JcpdouIU2FcP4B26VC4whEbhGUaBcyDWgFsbMPe9D/DeHnPmG1MeBTgH4jVCloJ8IZ4Y5itaaa9jhLdz+z6SmcnlDt8L8lLQoQnvzwB/HQBSBYbeliqOwtsTb6QZcHPA6kogS+tKnd8rgJszwN/wmjJfwyjvhlwklSuUgJ2rXr2ykrm6LwBuHQuY3y8Bhk4jBu7gSsPkCLUAqi4EWwK6FG5J/VcAd2eAfwwAR7o6UN+47wnAg3sCh8CRxBINuhCsFmTA14CuC+A+A/hCFPiSUmCovhHerXsKJtJm6gKoJeotUbD0nAR6ePzTAdwPbaBtOXgp9d25iximeycFWgPwHNhL4D8BuD8D/GXywimIOwaiCbp1TQIiB7QpgPneoDWAR0+B9zhyyYOGCV1GiAcSUDYJkFKgcxQrBToHMv1Mt69EPDCHqS+c6oGEcWAYC3IAG8bE54Kco1YpUOn2hUQgMGZKZyExFsz1ShrBrgvKueauZzYDc7YdTeVp/L8t2kznM7SktG4MlH7u3ajUiQyuxKY+0F0nynGMtQ9U1jOq6a/AhI/u/nsAMC9Dlw4RUBRYh2lW5ri3rv7WnMi/rjfSAYB5GgLqUDUUHAW2I/kw477fWhjzwwXTA8DvQziDCLxQeW0woKI3Gkh/cypsAcA8qn0OXhvAoN5ri125B9cbGQA+4JBS4DGYxhFO89piMuHBU+A/uKHelzqPjsBrIwD7jaazRhM+OgXecArURIWKmeq6xYTqd+dEBoCPlwBtRIVd5EJ2oyn9J5cTHAB+m7wwIgFzDB5V4hYHlcY48AQA5gf2sTjQMjBjALc2rPnsfMIA8EntuG5YrEdSQ2WfYWD9eAb4c5ombSMgU/BqKesjTu3ozn3h56kvjIQZKwbmFicXtR7A1gcIBp4O4I2l3eD0tqMH8DglG2wknRWCVAHEfoMTLMf2z7p8oKIL6HJmTCFio1N8Oy8feOIz27E2MFSbfcM26ZommU8K7H2AVuBIcouxt7DMYVIgAWiJqjiINdT10RfadGSoA8byuf8cyJoK+0hLvTrPhO2lCStmcAmZdwhsZbHhicTE0dWaNLazGZhbXO4aKjBpwmHZk6B6DXP7CAuuT14bGAEW/tAGC41pucUl/yzAlArD4z7iQOxGXjohAshZdh8MNlsGnv3Erz2JAgy7cioDtA96Iwh+z8H8DC/eodNdLhRoC0Dk6kvOpa59ra9+6mkkkjJhxYQ1qbqxUAgJmEgo1CZuwr7jy8eSCuTgSCBCCBIZs86p0WZu2ArAWMi2rAn/B1burS7oMQCzAAAAAElFTkSuQmCC"
+          },
+          "axis": "x",
+          "flipTexture": false
+        }
+      }
+    ],
+    "background": {
+      "color": "#101826",
+      "image": null,
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    }
+  },
+  "bakedProject": null,
+  "view": {
+    "time": 0.68,
+    "mode": "live",
+    "zoom": 1,
+    "panX": 0,
+    "panY": 0,
+    "phase": "loop"
+  }
+}

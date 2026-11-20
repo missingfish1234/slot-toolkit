@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0b1119">
   <meta name="author" content="小魚骨頭">
-  <title>粒子工作室 · Particle Studio 1.37.1</title>
+  <title>粒子工作室 · Particle Studio 1.39.0</title>
   <style data-bundle="styles.css">
 :root {
   color-scheme: dark;
@@ -1278,7 +1278,7 @@ dialog .effect-library-actions { flex-wrap: wrap; }
     <header class="app-header">
       <div class="brand" aria-label="粒子工作室 Particle Studio">
         <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 36 36"><ellipse class="brand-orbit" cx="18" cy="18" rx="15" ry="9" transform="rotate(-38 18 18)"/><path class="brand-spark" d="m18 6 3.1 8.9L30 18l-8.9 3.1L18 30l-3.1-8.9L6 18l8.9-3.1Z"/><circle class="brand-particle" cx="29" cy="8" r="3"/><circle class="brand-particle-small" cx="7" cy="26" r="1.8"/></svg></span>
-        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.37.1</span></span><span class="brand-author">開發者：小魚骨頭</span></div>
+        <div><h1>粒子工作室</h1><span class="brand-caption">PARTICLE STUDIO <span class="brand-release">1.39.0</span></span><span class="brand-author">開發者：小魚骨頭</span></div>
         <label class="version-control"><span id="spineTargetMode">輸出版本</span><select id="spineVersion" aria-label="Spine 輸出版本" title="選擇 Spine JSON 輸出版本"><option value="3.8.99">SPINE 3.8</option><option value="4.0.56" selected>SPINE 4.0</option><option value="4.2.43">SPINE 4.2</option></select></label>
       </div>
       <div class="project-heading"><span class="project-caption"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h5l2 2h7v10H3Z"/></svg>目前專案</span><label class="sr-only" for="projectName">專案名稱</label><input id="projectName" type="text" value="金色光塵" maxlength="80" spellcheck="false" aria-label="專案名稱"></div>
@@ -1388,6 +1388,17 @@ dialog .effect-library-actions { flex-wrap: wrap; }
               <p id="emissionDirectionHint" class="field-hint">0° 向右，90° 向上；散射角控制左右偏移範圍。</p>
             </div>
             <div class="inspector-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg><span>數量與生命</span></h3>
+              <div data-vortex-loop-controls hidden>
+                <label class="checkbox-label standalone-check"><input id="emissionEndlessLoop" data-vortex-field="endlessLoop" type="checkbox" aria-describedby="emissionEndlessHint">無盡漩渦 LOOP</label>
+                <label class="field full-field" data-vortex-loop-setting hidden><span>每輪粒子數 <small>顆</small></span><input id="emissionEndlessCount" data-vortex-field="loopCount" type="number" min="1" max="400" step="1" aria-describedby="emissionEndlessHint" title="每輪可發射 1～400 顆。清空可恢復沿用一般發射的粒子數量。"></label>
+                <div class="field full-field" data-vortex-loop-setting hidden>
+                  <span><label for="emissionRadiusJitter">外圈半徑浮動</label><small>± %</small></span>
+                  <input id="emissionRadiusJitter" data-vortex-field="radiusJitter" type="number" min="0" max="100" step="any" value="0" aria-describedby="emissionBirthRadii" title="以虛線圈為基準，每顆粒子會從圈內或圈外不同距離出生。0% 時都從虛線上出生。">
+                  <input id="emissionRadiusJitterRange" data-vortex-field="radiusJitter" type="range" min="0" max="100" step="0.1" value="0" aria-label="外圈半徑浮動百分比" aria-describedby="emissionBirthRadii">
+                  <output id="emissionBirthRadii" class="field-hint" for="emissionRadiusJitter emissionRadiusJitterRange" data-vortex-birth-radii></output>
+                </div>
+                <p id="emissionEndlessHint" class="field-hint" data-vortex-loop-hint></p>
+              </div>
               <div data-vortex-lines hidden>
                 <div class="field-row">
                   <label class="field"><span>收縮線數 <small>條</small></span><input id="emissionVortexLineCount" data-vortex-layout="lineCount" type="number" min="1" max="32" step="1" title="增加線數會在漩渦外圈等距加入新的收縮路徑。"></label>
@@ -1395,7 +1406,7 @@ dialog .effect-library-actions { flex-wrap: wrap; }
                 </div>
                 <p class="field-hint" data-vortex-layout-hint aria-live="polite"></p>
               </div>
-              <label id="particleCountField" class="field full-field range-field"><span>粒子總數 <output data-readout="count">48</output></span><input data-field="count" type="range" min="1" max="400" step="1" value="48"></label><div class="field-row"><label class="field"><span>開始時間 <small>秒</small></span><input data-field="startDelay" type="number" min="0" max="30" step="0.01" value="0" title="這一層延後多久才開始發射；可在時間軸的「圖層時間」直接拖曳"></label><label class="field"><span><span id="emissionDurationLabel">發射時間</span> <small>秒</small></span><input data-field="emissionDuration" type="number" min="0" max="30" step="0.01" value="3" title="從開始時間起，持續發射多久；0 為瞬間爆發"></label></div><div class="field-row" data-particle-only><label class="field"><span>生命長度 <small>秒</small></span><input data-field="life" type="number" min="0.05" max="10" step="0.05" value="1.5"></label><label class="field"><span>生命隨機 <small>± 秒</small></span><input data-field="lifeRandom" type="number" min="0" max="8" step="0.05" value="0.3"></label></div><p class="field-hint" data-particle-only>發射時間為 0 時，所有粒子同時出生。</p></div>
+              <label id="particleCountField" class="field full-field range-field"><span>粒子總數 <output data-readout="count">48</output></span><input data-field="count" type="range" min="1" max="400" step="1" value="48"></label><div id="emissionTimingFields" class="field-row"><label class="field"><span>開始時間 <small>秒</small></span><input data-field="startDelay" type="number" min="0" max="30" step="0.01" value="0" title="這一層延後多久才開始發射；可在時間軸的「圖層時間」直接拖曳"></label><label class="field"><span><span id="emissionDurationLabel">發射時間</span> <small>秒</small></span><input data-field="emissionDuration" type="number" min="0" max="30" step="0.01" value="3" title="從開始時間起，持續發射多久；0 為瞬間爆發"></label></div><div class="field-row" data-particle-only><label class="field"><span>生命長度 <small>秒</small></span><input data-field="life" type="number" min="0.05" max="10" step="0.05" value="1.5"></label><label class="field"><span>生命隨機 <small>± 秒</small></span><input data-field="lifeRandom" type="number" min="0" max="8" step="0.05" value="0.3"></label></div><p id="emissionTimingHint" class="field-hint">發射時間為 0 時，所有粒子同時出生。</p></div>
             <div class="inspector-section emitter-seed-section"><h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" rx="3"/><path d="M6 6h.01 M10 10h.01 M14 14h.01 M6 14h.01 M14 6h.01"/></svg><span>隨機變化</span></h3>
               <label class="field full-field"><span>發射器種子</span><select id="emitterSeedMode"><option value="project">跟隨專案 · 自動分組</option><option value="custom">自訂此發射器</option></select></label>
               <div class="emitter-seed-row"><label class="field"><span>種子數值</span><input id="emitterRandomSeed" type="number" min="0" max="4294967295" step="1" value="0" aria-label="發射器隨機種子"></label><button id="randomizeEmitterSeed" type="button" class="secondary-button" title="只替目前發射器換一組隨機變化">換一組</button></div>
@@ -1484,6 +1495,17 @@ dialog .effect-library-actions { flex-wrap: wrap; }
               <h3><svg class="section-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M17 14a8 8 0 1 1 0-8c2 5-2 10-7 9s-6-8-1-9c4-1 6 4 3 5-1 1-3 0-2-1"/></svg><span>漩渦運動</span></h3>
               <label class="field full-field"><span>漩渦模式</span><select id="vortexMode" data-vortex-field="mode" aria-controls="vortexFields"><option value="off">關閉</option><option value="inward">向內收縮</option><option value="outward">向外擴散</option></select></label>
               <div id="vortexFields" hidden>
+                <div data-vortex-loop-controls hidden>
+                  <label class="checkbox-label standalone-check"><input id="vortexEndlessLoop" data-vortex-field="endlessLoop" type="checkbox" aria-describedby="vortexEndlessHint">無盡漩渦 LOOP</label>
+                  <label class="field full-field" data-vortex-loop-setting hidden><span>每輪粒子數 <small>顆</small></span><input id="vortexEndlessCount" data-vortex-field="loopCount" type="number" min="1" max="400" step="1" aria-describedby="vortexEndlessHint" title="每輪可發射 1～400 顆。清空可恢復沿用一般發射的粒子數量。"></label>
+                  <div class="field full-field" data-vortex-loop-setting hidden>
+                    <span><label for="vortexRadiusJitter">外圈半徑浮動</label><small>± %</small></span>
+                    <input id="vortexRadiusJitter" data-vortex-field="radiusJitter" type="number" min="0" max="100" step="any" value="0" aria-describedby="vortexBirthRadii" title="以虛線圈為基準，每顆粒子會從圈內或圈外不同距離出生。0% 時都從虛線上出生。">
+                    <input id="vortexRadiusJitterRange" data-vortex-field="radiusJitter" type="range" min="0" max="100" step="0.1" value="0" aria-label="外圈半徑浮動百分比" aria-describedby="vortexBirthRadii">
+                    <output id="vortexBirthRadii" class="field-hint" for="vortexRadiusJitter vortexRadiusJitterRange" data-vortex-birth-radii></output>
+                  </div>
+                  <p id="vortexEndlessHint" class="field-hint" data-vortex-loop-hint></p>
+                </div>
                 <div data-vortex-lines hidden>
                   <div class="field-row">
                     <label class="field"><span>收縮線數 <small>條</small></span><input id="vortexLineCount" data-vortex-layout="lineCount" type="number" min="1" max="32" step="1" title="增加線數會在漩渦外圈等距加入新的收縮路徑。"></label>
@@ -1605,7 +1627,7 @@ dialog .effect-library-actions { flex-wrap: wrap; }
     </main>
 
     <div id="message" class="app-message" role="alert" hidden></div>
-    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.37.1</span> · 開發者：小魚骨頭</span></footer>
+    <footer class="status-bar"><span id="appStatus" role="status" aria-live="polite">正在初始化…</span><span id="stats" class="stats">—</span><span class="offline-indicator"><span class="status-dot" aria-hidden="true"></span>本機工作區 <span class="footer-release">v1.39.0</span> · 開發者：小魚骨頭</span></footer>
   </div>
 
   <dialog id="backgroundJpegDialog" class="help-dialog background-jpeg-dialog" aria-labelledby="backgroundJpegTitle">
@@ -3683,7 +3705,10 @@ dialog .effect-library-actions { flex-wrap: wrap; }
         if (vortex.shrinkHead !== undefined) e.vortex.shrinkHead = boolean(vortex, 'shrinkHead', defaults.shrinkHead, '依旋心距離縮小頭部');
         if (vortex.lineCount !== undefined) e.vortex.lineCount = number(vortex, 'lineCount', undefined, 1, VORTEX_MAX_LINES, true, '收縮線數');
         if (vortex.edgeJitter !== undefined) e.vortex.edgeJitter = number(vortex, 'edgeJitter', 0, 0, 100, false, '漩渦邊緣位置隨機');
+        if (vortex.radiusJitter !== undefined) e.vortex.radiusJitter = number(vortex, 'radiusJitter', 0, 0, 100, false, '漩渦出生半徑隨機');
         if (vortex.timeJitter !== undefined) e.vortex.timeJitter = number(vortex, 'timeJitter', 0, 0, 100, false, '漩渦發射時間隨機');
+        if (vortex.endlessLoop !== undefined) e.vortex.endlessLoop = boolean(vortex, 'endlessLoop', false, '漩渦持續補入');
+        if (vortex.loopCount !== undefined) e.vortex.loopCount = number(vortex, 'loopCount', undefined, 1, MAX_EMITTER_COUNT, true, '漩渦每圈補入粒子數');
       }
       const ranges = {
         x: [-4000, 4000], y: [-4000, 4000], width: [0, 2000], height: [0, 2000],
@@ -3887,14 +3912,14 @@ dialog .effect-library-actions { flex-wrap: wrap; }
     });
   }
 
-  function compileVortex(e, speedCurve) {
+  function compileVortex(e, speedCurve, synchronizedLines) {
     const settings = e.vortex;
     const sweep = settings.turns * TAU * (settings.direction === 'clockwise' ? -1 : 1);
     const total = speedCurve ? speedCurve.integral(1) : 1;
     // Seed each quarter turn before midpoint refinement. Even several whole
     // revolutions inside a single FPS interval must survive Spine export.
     // All particles share this normalized clock, including delayed trail copies.
-    const radialFactors = inwardRadialFactors(e, speedCurve, total);
+    const radialFactors = synchronizedLines ? inwardRadialFactors(e, speedCurve, total) : null;
     const sampleTimes = [], segments = Math.max(2, Math.ceil(settings.turns * 4));
     if (total > 0) for (let index = 1; index < segments; index++) {
       const target = index / segments;
@@ -3926,7 +3951,9 @@ dialog .effect-library-actions { flex-wrap: wrap; }
       radialSlope = -factor / (denominator * denominator);
     }
     const angle = particle.direction * DEG + vortex.sweep * progress;
-    const r = settings.radius * fraction;
+    // A particle's chosen starting radius scales the whole trajectory.
+    // Both tangent components get the same scale, so its angle is unchanged.
+    const r = (particle.vortexRadius ?? settings.radius) * fraction;
     // Differentiate the actual radius and keep the polar angle unwrapped so
     // aligned sprites turn continuously as the inward trajectory steepens.
     return {x: r * Math.cos(angle), y: r * Math.sin(angle), radiusFraction: fraction,
@@ -4099,6 +4126,55 @@ dialog .effect-library-actions { flex-wrap: wrap; }
     ].filter(value => value != null)));
   }
 
+  // Positions around a circle in units of the average gap. Vary consecutive
+  // gaps themselves so clusters can cross the old evenly spaced cell boundaries.
+  function irregularLoopPositions(count, rand, maxGap, seamAge = Infinity) {
+    const weights = Array.from({length: count}, () => rand() ** 2);
+    const mean = weights.reduce((sum, w) => sum + w, 0) / count;
+    const min = Math.min(...weights), max = Math.max(...weights);
+    const scale = max > min ? Math.min(.88 / (mean - min), (maxGap - 1) / (max - mean)) : 0;
+    const gaps = weights.map(w => 1 + (w - mean) * scale);
+    const seamGap = gaps[count - 1];
+    // Carry the last birth over the loop boundary while keeping its original
+    // gap to the first birth, including sparse cases with a very short life.
+    let position = seamGap - Math.min(seamGap * (.15 + .7 * rand()), seamAge);
+    return gaps.map(gap => {
+      const start = position;
+      position += gap;
+      return start;
+    });
+  }
+  function endlessVortexSchedule(emitter, seed, duration) {
+    const angles = random(seed ^ seedHash('endless-vortex-angles'));
+    const times = random(seed ^ seedHash('endless-vortex-times'));
+    const settings = emitter.vortex, count = settings.loopCount ?? emitter.count;
+    const sectors = Array.from({length: count}, (_, i) => i);
+    // Shuffle angular order independently of the timing pattern.
+    for (let i = count - 1; i > 0; i--) {
+      const other = Math.floor(angles() * (i + 1));
+      [sectors[i], sectors[other]] = [sectors[other], sectors[i]];
+    }
+    const origin = angles() * TAU;
+    const edgeSpread = (settings.edgeJitter || 0) / 100, timeSpread = (settings.timeJitter || 0) / 100;
+    const radiusSpread = (settings.radiusJitter || 0) / 100;
+    const radii = random(seed ^ seedHash('endless-vortex-radii'));
+    const edgePositions = edgeSpread && irregularLoopPositions(count, random(seed ^ seedHash('endless-vortex-edge-gaps')), 2.65);
+    const lifeInGaps = Math.max(.05, emitter.life - emitter.lifeRandom) * count / duration;
+    // If there are enough particles for continuous coverage, keep the longest
+    // interval within the shortest lifetime. Sparse layers retain their count.
+    const maxTimeGap = lifeInGaps >= 1 ? clamp(lifeInGaps * .95, 1, 2.65) : 2.65;
+    const timePositions = timeSpread && irregularLoopPositions(count, random(seed ^ seedHash('endless-vortex-time-gaps')),
+      maxTimeGap, lifeInGaps * .35);
+    return sectors.map((sector, index) => {
+      let angle = sector + .5 + (angles() - .5) * .5;
+      let time = index + .5 + (times() - .5) * .5;
+      if (edgeSpread) angle += (edgePositions[sector] - angle) * edgeSpread;
+      if (timeSpread) time += (timePositions[index] - time) * timeSpread;
+      return {angle: origin + angle * TAU / count, birth: time * duration / count,
+        ...(radiusSpread ? {radius: settings.radius * (1 + (2 * radii() - 1) * radiusSpread)} : {})};
+    });
+  }
+
   function bake(raw) {
     const project = normalizeProject(raw);
     const particles = [];
@@ -4111,16 +4187,19 @@ dialog .effect-library-actions { flex-wrap: wrap; }
       const seed = emitterSeed(project, e), rand = random(seed);
       const signed = amplitude => (rand() * 2 - 1) * amplitude;
       const useVortex = !(e.path && e.path.enabled) && e.vortex && e.vortex.mode !== 'off';
+      const endless = project.loop && useVortex && e.vortex.mode === 'inward' && e.vortex.endlessLoop ?
+        endlessVortexSchedule(e, seed, project.duration) : null;
+      const count = endless ? endless.length : e.count;
       const layout = vortexLineLayout(e);
-      const linesPerWave = layout.grouped ? layout.lineCount : 1;
-      const waveCount = layout.grouped ? layout.particlesPerLine : e.count;
+      const linesPerWave = layout.grouped && !endless ? layout.lineCount : 1;
+      const waveCount = Math.ceil(count / linesPerWave);
       const arms = layout.grouped ? layout.lineCount : useVortex ? e.vortex.arms : 0;
       // A separate stream orients the whole spiral without reshuffling size,
       // lifespan, spin or the free-scatter rays when the arm count is edited.
       const armOrigin = arms ? random(seed ^ seedHash('vortex-arm-phase'))() * TAU : 0;
       // Fixed lines reuse their edge offset across waves. Leave a gap even if
       // adjacent lines both draw the maximum offset toward each other.
-      const edgeRange = useVortex ? (e.vortex.edgeJitter || 0) / 100 * .45 * TAU / (arms || 1) : 0;
+      const edgeRange = useVortex && !endless ? (e.vortex.edgeJitter || 0) / 100 * .45 * TAU / (arms || 1) : 0;
       const edgeRand = random(seed ^ seedHash('vortex-edge-jitter'));
       const edgeOffsets = edgeRange ? Array.from({length: arms || e.count}, () => (2 * edgeRand() - 1) * edgeRange) : null;
       // Vortex particles use the emitter origin. Inactive shapes must not
@@ -4151,7 +4230,7 @@ dialog .effect-library-actions { flex-wrap: wrap; }
         });
       }
       if (e.path && e.path.enabled) lifecycle.path = PathMath.compile(e.path);
-      else if (useVortex) lifecycle.vortex = compileVortex(e, lifecycle.speed);
+      else if (useVortex) lifecycle.vortex = compileVortex(e, lifecycle.speed, !endless);
       const sequence = activeSequence(e);
       if (sequence) lifecycle.sequenceMaxDimension = Math.max(...sequence.frames.map(frame => Math.max(frame.width, frame.height)));
       // A separate stream: switching to random images never reshuffles motion.
@@ -4160,7 +4239,7 @@ dialog .effect-library-actions { flex-wrap: wrap; }
       let index = 0, clipped = false;
       const delay = Math.min(e.startDelay || 0, project.duration);
       const emissionWindow = Math.min(e.emissionDuration, project.duration - delay);
-      const timeRange = useVortex ? emissionWindow / waveCount * ((e.vortex.timeJitter || 0) / 100) : 0;
+      const timeRange = useVortex && !endless ? emissionWindow / waveCount * ((e.vortex.timeJitter || 0) / 100) : 0;
       for (let waveIndex = 0; waveIndex < waveCount; waveIndex++) {
         // Use the same microsecond grid as JSON keys so birth/death attachment events
         // cannot slip to the following video frame after decimal quantization.
@@ -4209,12 +4288,16 @@ dialog .effect-library-actions { flex-wrap: wrap; }
         // Grouped lines are rotated copies of the same wave. Keeping the motion
         // draws per wave preserves its timing and radius when the number of lines changes.
         const firstSource = waveIndex * linesPerWave;
-        const waveEnd = Math.min(e.count, firstSource + linesPerWave);
+        const waveEnd = Math.min(count, firstSource + linesPerWave);
         for (let sourceIndex = firstSource; sourceIndex < waveEnd; sourceIndex++) {
-          let angle = arms ? armOrigin + (sourceIndex % arms) * TAU / arms :
+          let angle = endless ? endless[sourceIndex].angle : arms ? armOrigin + (sourceIndex % arms) * TAU / arms :
             useVortex ? angleDraw * TAU : emissionAngle(e, sx, sy, angleDraw, sampledNormal);
           if (edgeOffsets) angle += edgeOffsets[arms ? sourceIndex % arms : sourceIndex];
-          const birth = round(waveStart + (timeRand ? timeRand() * timeRange : 0));
+          let birthTime = endless ? endless[sourceIndex].birth : waveStart + (timeRand ? timeRand() * timeRange : 0);
+          // The last particle comes from the preceding cycle at time zero.
+          // Even a sparse layer starts mid-flight without adding any births.
+          if (endless && sourceIndex === count - 1) birthTime = Math.max(birthTime, project.duration - life * .35);
+          const birth = round(birthTime);
           clipped = clipped || birth + life + tail > project.duration;
           const randomFrame = frameRand ? Math.min(sequence.frames.length - 1, Math.floor(frameRand() * sequence.frames.length)) : undefined;
           generatedParticles++;
@@ -4223,15 +4306,18 @@ dialog .effect-library-actions { flex-wrap: wrap; }
               birth, life, size, spin, sx, sy, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
               ax: e.wind, ay: -e.gravity,
               direction: angle / DEG, emitter: e, lifecycle, startColor: rgb(e.colorStart), endColor: rgb(e.colorEnd),
+              ...(endless && endless[sourceIndex].radius !== undefined ? {vortexRadius: endless[sourceIndex].radius} : {}),
               ...(randomFrame === undefined ? {} : {randomFrame})});
             if (tail) trailLanes += Trail.lanes(e.trail).length;
           }
           if (particles.length + trailLanes > MAX_POOL) fail('循環粒子池超過 ' + MAX_POOL + ' 個（包含拖尾）。請減少粒子數／殘影數、縮短壽命／拖尾，或增加動畫長度。');
         }
       }
-      if (e.startDelay && e.startDelay >= project.duration) warnings.push('「' + e.name + '」開始時間超過動畫長度，粒子會在最後一刻同時出生；請縮短開始時間或加長動畫。');
-      else if (e.startDelay && e.startDelay + e.emissionDuration > project.duration) warnings.push('「' + e.name + '」開始時間＋發射時間超過動畫長度；本次發射壓縮在 ' + round(project.duration - e.startDelay) + ' 秒內。');
-      else if (e.emissionDuration > project.duration) warnings.push('「' + e.name + '」發射時間超過動畫長度；本次烘焙採用 ' + project.duration + ' 秒。');
+      if (!endless) {
+        if (e.startDelay && e.startDelay >= project.duration) warnings.push('「' + e.name + '」開始時間超過動畫長度，粒子會在最後一刻同時出生；請縮短開始時間或加長動畫。');
+        else if (e.startDelay && e.startDelay + e.emissionDuration > project.duration) warnings.push('「' + e.name + '」開始時間＋發射時間超過動畫長度；本次發射壓縮在 ' + round(project.duration - e.startDelay) + ' 秒內。');
+        else if (e.emissionDuration > project.duration) warnings.push('「' + e.name + '」發射時間超過動畫長度；本次烘焙採用 ' + project.duration + ' 秒。');
+      }
       if (!project.loop && clipped) warnings.push('「' + e.name + '」部分粒子會在動畫結尾截斷。');
       const hiddenHead = Trail && Trail.active(e) && e.trail.mode === 'stretch' && e.trail.showHead === false;
       if (!hiddenHead && e.alphaCurve[e.alphaCurve.length - 1].v !== 0) warnings.push('「' + e.name + '」透明度曲線尾值不為 0；粒子壽命結束時會立即隱藏。');
@@ -8383,7 +8469,8 @@ dialog .effect-library-actions { flex-wrap: wrap; }
     ' · ' + (emitter.trail.mode === 'afterimage' ? '殘影拖尾' : '沿路徑拉伸') + ' ' + emitter.trail.duration + ' 秒' : '';
   function motionSummary(emitter) {
     if (emitter.path && emitter.path.enabled) return ' · 路徑移動';
-    if (emitter.vortex && emitter.vortex.mode === 'inward') return ' · 漩渦收縮';
+    if (emitter.vortex && emitter.vortex.mode === 'inward') return emitter.vortex.endlessLoop ?
+      ' · 無盡漩渦 LOOP ' + (emitter.vortex.loopCount ?? emitter.count) + ' 顆／輪' : ' · 漩渦收縮';
     if (emitter.vortex && emitter.vortex.mode === 'outward') return ' · 漩渦外放';
     return '';
   }
@@ -11889,6 +11976,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
 
   function layout(emitter, duration) {
     const span = Math.max(1e-6, finite(duration, 1));
+    if (emitter.endlessLoop) return {delay: 0, window: span, tailEnd: span, start: 0, width: 1, tail: 1};
     const delay = clamp(finite(emitter.startDelay, 0), 0, span);
     const window = clamp(finite(emitter.emissionDuration, 0), 0, span - delay);
     const authoredLife = Math.max(0, finite(emitter.life, 0)) + Math.max(0, finite(emitter.lifeRandom, 0));
@@ -11953,7 +12041,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
           if (event.button !== 0) return;
           event.preventDefault(); event.stopPropagation();
           const current = (getContext() || {}).emitters || [];
-          const target = current.find(item => item.id === emitter.id); if (!target) return;
+          const target = current.find(item => item.id === emitter.id); if (!target || target.endlessLoop) return;
           if (typeof onSelect === 'function') onSelect(emitter.id);
           drag = {id: emitter.id, kind, x: event.clientX, width: lane.getBoundingClientRect().width || 1,
             delay: finite(target.startDelay, 0), emission: finite(target.emissionDuration, 0), pointerId: event.pointerId, moved: false};
@@ -11987,13 +12075,13 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
           const step = {ArrowLeft: -1, ArrowRight: 1}[event.key]; if (!step) return;
           event.preventDefault(); event.stopPropagation();
           const context = getContext() || {}, fps = finite(context.fps, 30), duration = finite(context.duration, 1);
-          const target = (context.emitters || []).find(item => item.id === emitter.id); if (!target) return;
+          const target = (context.emitters || []).find(item => item.id === emitter.id); if (!target || target.endlessLoop) return;
           const amount = (event.shiftKey ? 10 : 1) / fps;
           if (typeof onBegin === 'function') onBegin(emitter.id);
           if (typeof onChange === 'function') onChange(emitter.id, {startDelay: clamp(round(finite(target.startDelay, 0) + step * amount), 0, Math.max(0, round(duration - 1 / fps)))});
           if (typeof onEnd === 'function') onEnd(emitter.id, true, false);
         });
-        rows.set(emitter.id, {row, dot, name, bar, tail, label});
+        rows.set(emitter.id, {row, dot, name, bar, tail, label, handle});
       });
       track.append(playhead);
       body.append(track);
@@ -12025,8 +12113,12 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
         view.tail.style.left = (box.start * 100) + '%';
         view.tail.style.width = (box.tail * 100) + '%';
         view.tail.style.setProperty('--lane-color', emitter.color || '#81e8c6');
-        const text = emitter.name + '：開始 ' + box.delay.toFixed(2) + ' 秒，發射 ' + box.window.toFixed(2) + ' 秒，粒子最晚到 ' + box.tailEnd.toFixed(2) + ' 秒';
-        view.bar.title = text + '。拖曳移動，拖右端改長度，方向鍵逐幀';
+        const text = emitter.endlessLoop ? emitter.name + '：無盡漩渦持續發射整個循環，週期 ' + duration + ' 秒' :
+          emitter.name + '：開始 ' + box.delay.toFixed(2) + ' 秒，發射 ' + box.window.toFixed(2) + ' 秒，粒子最晚到 ' + box.tailEnd.toFixed(2) + ' 秒';
+        view.handle.hidden = !!emitter.endlessLoop;
+        view.bar.setAttribute('aria-disabled', String(!!emitter.endlessLoop));
+        view.bar.style.cursor = emitter.endlessLoop ? 'default' : '';
+        view.bar.title = emitter.endlessLoop ? text : text + '。拖曳移動，拖右端改長度，方向鍵逐幀';
         view.bar.setAttribute('aria-label', text);
         view.bar.setAttribute('aria-valuemin', '0'); view.bar.setAttribute('aria-valuemax', String(duration));
         view.bar.setAttribute('aria-valuenow', String(box.delay));
@@ -12627,6 +12719,12 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     $('flowSettingsButton').querySelector('span').textContent = (project.flow.enabled ? 'In / Loop / Out' : '動畫段落') + (extraCount ? ' ＋' + extraCount : '');
     $('flowBake').textContent = project.flow.enabled ? '更新三段烘焙' : '更新烘焙';
     renderPreviewAnimSelect();
+    renderVortexLoopControls(emitter());
+    const list = $('emitterList'), loopView = String(previewLoops(extra));
+    if (list.dataset.loopView !== loopView) {
+      list.dataset.loopView = loopView;
+      project.emitters.filter(e => e.vortex && e.vortex.endlessLoop).forEach(refreshVortexRow);
+    }
   }
   function selectPhase(kind, keepPlaying) {
     phase = kind; time = 0;
@@ -12738,6 +12836,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   function renderEmitters() {
     previewDirty = true;
     const list = $('emitterList'); list.replaceChildren();
+    list.dataset.loopView = String(previewLoops());
     const note = $('layerListNote');
     if (note) {
       note.replaceChildren();
@@ -12777,15 +12876,14 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       const copy = document.createElement('span'); copy.className = 'emitter-copy';
       const name = document.createElement('span'); name.className = 'emitter-name'; name.textContent = item.name; name.title = item.name;
       const anims = animationsOf(item);
-      const meta = document.createElement('span'); meta.className = 'emitter-meta'; meta.title = anims ? '用於：' + anims : ''; meta.textContent = item.kind === 'lightning' ? '網格閃電 · ' + item.lightning.bolts + ' 條' + (item.lightning.branches ? ' · 分岔 ' + item.lightning.branches : '') : item.count + ' 顆 · ' + (item.blend === 'additive' ? '加色' : '一般');
-      if (anims) meta.textContent += ' · ' + anims;
+      const meta = document.createElement('span'); meta.className = 'emitter-meta'; meta.title = anims ? '用於：' + anims : ''; meta.textContent = layerSummary(item, anims);
       row.classList.toggle('layer-unused', anims === UNUSED_LAYER);
       if (anims === UNUSED_LAYER) meta.title = '這個圖層沒有加入任何動畫，輸出和播放都看不到。切到要用的動畫分頁，在下方一列勾選它。';
       const tags = document.createElement('span'); tags.className = 'emitter-tags';
       if (item.kind === 'lightning') path.setAttribute('d', 'M13 2 5 13h6l-1 9 8-12h-6l1-8Z');
       const type = document.createElement('span'); type.className = 'emitter-type'; type.textContent = item.kind === 'lightning' ? (item.lightning.mode === 'fixed' ? '兩端固定' : '尾端擺動') : item.trail && item.trail.enabled ? item.trail.mode === 'afterimage' ? '殘影拖尾' : '沿路徑拉伸' : item.path && item.path.enabled ? '沿路徑移動' : (shapeNames[item.shape] || '點形') + (['box', 'circle', 'ring'].includes(item.shape) ? emitFrom(item) === 'edge' ? ' · 邊框' : ' · 區域內' : '');
       if (vortexActive(item)) {
-        type.textContent = item.vortex.mode === 'inward' ? '漩渦收縮' + (item.vortex.lineCount ? ' · ' + item.vortex.lineCount + ' 線' : '') : '漩渦外放';
+        type.textContent = vortexLayerLabel(item);
         path.setAttribute('d', 'M20 17a9 9 0 1 1 0-10c3 5-1 12-8 11s-7-9-2-11c5-1 7 5 4 6-2 1-3-1-2-2');
       }
       const color = document.createElement('span'); color.className = 'emitter-color-dot'; color.style.setProperty('--emitter-color', item.colorGradient && item.colorGradient.length ? item.colorGradient[0].color : item.colorStart); color.setAttribute('aria-hidden', 'true');
@@ -13010,14 +13108,77 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   function showVortexLineMinimum(e) {
     notify('已恢復 ' + e.vortex.lineCount + ' 條收縮線，每線至少 1 顆，共 ' + e.count + ' 顆。');
   }
-  function renderVortexLines(e) {
+  function previewLoops(extra = previewExtra()) { return extra ? extra.loop : project.flow.enabled || project.loop; }
+  function endlessVortexActive(e, extra = previewExtra()) {
+    return vortexActive(e) && e.vortex.mode === 'inward' && !!e.vortex.endlessLoop && previewLoops(extra);
+  }
+  function layerSummary(e, anims) {
+    let text;
+    if (e.kind === 'lightning') text = '網格閃電 · ' + e.lightning.bolts + ' 條' + (e.lightning.branches ? ' · 分岔 ' + e.lightning.branches : '');
+    else {
+      const count = endlessVortexActive(e) ? (e.vortex.loopCount ?? e.count) + ' 顆／輪' : e.count + ' 顆';
+      text = count + ' · ' + (e.blend === 'additive' ? '加色' : '一般');
+    }
+    return text + (anims ? ' · ' + anims : '');
+  }
+  function vortexLayerLabel(e) {
+    if (e.vortex.mode === 'outward') return '漩渦外放';
+    if (endlessVortexActive(e)) return '無盡漩渦 LOOP';
+    return '漩渦收縮' + (e.vortex.lineCount ? ' · ' + e.vortex.lineCount + ' 線' : '');
+  }
+  function refreshVortexRow(e) {
+    if (!vortexActive(e)) return;
+    const row = Array.from($('emitterList').children).find(node => node.dataset.emitterId === e.id);
+    if (!row) return;
+    row.querySelector('.emitter-meta').textContent = layerSummary(e, animationsOf(e));
+    const type = row.querySelector('.emitter-type'); type.title = type.textContent = vortexLayerLabel(e);
+  }
+  function renderVortexLoopControls(e) {
     const inward = vortexActive(e) && e.vortex.mode === 'inward';
-    document.querySelectorAll('[data-vortex-lines]').forEach(group => { group.hidden = !inward; });
     const grouped = inward && !!e.vortex.lineCount;
-    $('particleCountField').hidden = grouped || e.kind === 'lightning';
-    $('vortexArmsField').hidden = grouped;
+    const extra = previewExtra(), endless = endlessVortexActive(e, extra);
+    document.querySelectorAll('[data-vortex-loop-controls]').forEach(group => { group.hidden = !inward; });
+    document.querySelectorAll('[data-vortex-lines]').forEach(group => { group.hidden = !inward || endless; });
+    $('vortexArmsField').hidden = grouped || endless;
+    $('emissionTimingFields').hidden = endless;
+    $('emissionTimingHint').hidden = endless || e.kind === 'lightning';
+    $('particleCountField').hidden = grouped || endless || e.kind === 'lightning';
+    document.querySelectorAll('[data-vortex-loop-setting]').forEach(field => { field.hidden = !endless; });
+    if (!inward) return;
+    const density = e.vortex.loopCount ?? e.count;
+    vortexControls.forEach(input => {
+      const key = input.dataset.vortexField;
+      if (key !== 'loopCount' && key !== 'radiusJitter') return;
+      input.disabled = busy || !endless;
+      if (document.activeElement !== input) input.value = key === 'loopCount' ? density : e.vortex.radiusJitter ?? 0;
+    });
+    const flow = !extra && project.flow.enabled;
+    const duration = extra ? extra.duration : flow ? project.flow.loop.duration : project.duration;
+    let hint = '讓粒子從外圈不同位置錯開旋入，跨過循環接點時繼續移動。';
+    if (endless) {
+      renderVortexBirthRadii(e);
+      hint = '每輪 ' + duration + ' 秒分散發射 ' + density + ' 顆，從外圈各處接續旋入。可增加每輪粒子數或延長生命，讓畫面更密。';
+    } else if (e.vortex.endlessLoop) {
+      hint = extra ? '這段是單次動畫，沿用原有收縮線與發射時間。勾選此動畫的「循環」即可預覽無盡漩渦。' :
+        '這段是單次動畫，沿用原有收縮線與發射時間。勾選工具列的「循環」即可預覽無盡漩渦。';
+    }
+    document.querySelectorAll('[data-vortex-loop-hint]').forEach(node => { node.textContent = hint; });
+    renderVortexJitterHint(e);
+  }
+  function renderVortexBirthRadii(e) {
+    const radius = e.vortex.radius, spread = radius * (e.vortex.radiusJitter || 0) / 100;
+    const range = spread ? round3(radius - spread) + '–' + round3(radius + spread) + ' px' : radius + ' px';
+    const label = spread ? '出生半徑 ' + range + '（虛線圈 ' + radius + ' px）' : '出生半徑 ' + range + '（虛線圈上）';
+    document.querySelectorAll('[data-vortex-birth-radii]').forEach(output => {
+      if (output.value !== label) output.value = label;
+    });
+  }
+  function renderVortexLines(e) {
+    renderVortexLoopControls(e);
+    const inward = vortexActive(e) && e.vortex.mode === 'inward';
     if (!inward) return;
     const layout = Core.vortexLineLayout(e);
+    const grouped = layout.grouped;
     const randomLegacy = !grouped && !e.vortex.arms;
     const partial = layout.total % layout.lineCount !== 0;
     const density = partial ? Math.floor(layout.total / layout.lineCount) + '～' + layout.particlesPerLine : String(layout.particlesPerLine);
@@ -13082,6 +13243,10 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
   }
   function renderVortexJitterHint(e) {
     if (!vortexActive(e)) return;
+    if (endlessVortexActive(e)) {
+      $('vortexJitterHint').textContent = '「外圈位置隨機」調高時，出生方位更容易聚在同一側；「發射時間隨機」調高時，粒子出現的間隔更不均勻。';
+      return;
+    }
     const extra = previewExtra(), duration = extra ? extra.duration : project.flow.enabled ? project.flow.loop.duration : project.duration;
     const {maxOffset} = emissionTiming(e, duration);
     const edge = e.vortex.mode === 'inward' ? '起點沿外圈散開。' : '終點沿外圈散開。';
@@ -13098,8 +13263,10 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     const enabled = vortex.mode !== 'off', usingPath = enabled && !!(e.path && e.path.enabled);
     vortexControls.forEach(input => {
       if (input.type === 'checkbox') input.checked = !!vortex[input.dataset.vortexField];
-      else input.value = vortex[input.dataset.vortexField] ?? input.defaultValue;
+      else if (input.dataset.vortexField !== 'loopCount') input.value = vortex[input.dataset.vortexField] ?? input.defaultValue;
       input.disabled = busy || e.kind === 'lightning' || (!enabled && input.id !== 'vortexMode');
+      if (input.dataset.vortexField === 'endlessLoop') input.disabled = busy || !vortexActive(e) || vortex.mode !== 'inward';
+      if (input.dataset.vortexField === 'loopCount' || input.dataset.vortexField === 'radiusJitter') input.disabled = busy || !endlessVortexActive(e);
     });
     renderVortexLines(e);
     $('vortexFields').hidden = !enabled;
@@ -13120,14 +13287,28 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       const apply = duringInput => {
         if (busy || input.disabled) return;
         const e = emitter(), previous = e.vortex, previousCount = e.count, vortex = previous || Core.VORTEX_DEFAULTS;
+        if (key === 'loopCount' && input.value === '') {
+          if (duringInput) return;
+          if (vortex.loopCount !== undefined) {
+            e.vortex = {...vortex}; delete e.vortex.loopCount;
+            changed({parameterOnly: true});
+          }
+          input.value = e.count;
+          renderVortexLoopControls(e);
+          refreshVortexRow(e);
+          return;
+        }
         if (!input.checkValidity() || input.value === '') {
-          if (!duringInput) input.value = vortex[key] ?? input.defaultValue;
+          if (!duringInput) input.value = vortex[key] ?? (key === 'loopCount' ? e.count : input.defaultValue);
           return;
         }
         const numeric = input.type === 'number' || input.type === 'range';
         const value = input.type === 'checkbox' ? input.checked : numeric ? input.valueAsNumber : input.value;
         if (value === (vortex[key] ?? Core.VORTEX_DEFAULTS[key] ?? 0)) return;
         e.vortex = {...vortex, [key]: value};
+        if (key === 'endlessLoop' && value && vortex.endlessLoop === undefined && vortex.radiusJitter === undefined) {
+          e.vortex.radiusJitter = 18;
+        }
         if (key === 'mode' && value === 'inward') {
           if (!previous) e.vortex.lineCount = Math.min(12, e.count);
           restoreVortexLineMinimum(e);
@@ -13140,11 +13321,14 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
           return;
         }
         changed({parameterOnly: key !== 'mode'});
-        if (key === 'mode') { renderEmitters(); renderInspector(); }
+        if (key === 'mode' || key === 'endlessLoop') { renderEmitters(); renderInspector(); }
+        else if (key === 'loopCount') { renderVortexLoopControls(e); refreshVortexRow(e); }
         else if (key === 'arms') renderVortexLines(e);
-        else if (key === 'edgeJitter' || key === 'timeJitter') {
+        else if (key === 'radius' && endlessVortexActive(e)) renderVortexBirthRadii(e);
+        else if (key === 'edgeJitter' || key === 'timeJitter' || key === 'radiusJitter') {
           vortexControls.forEach(peer => { if (peer !== input && peer.dataset.vortexField === key) peer.value = value; });
           if (key === 'timeJitter') renderTrailInspector();
+          if (key === 'radiusJitter') renderVortexBirthRadii(e);
         }
         if (e.count !== previousCount) showVortexLineMinimum(e);
       };
@@ -13578,7 +13762,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     const vortex = vortexActive(e);
     $('adjustPath').textContent = vortex ? '調整漩渦' : '調整路徑';
     if (vortex) {
-      const areaHint = e.vortex.mode === 'inward' ? '漩渦以發射器位置為中心。可在「數量與生命」調整收縮線數。' : '漩渦以發射器位置為中心，旋臂數控制粒子的分布。';
+      const areaHint = e.vortex.mode === 'inward' ? '漩渦以發射器位置為中心。「數量與生命」可調整粒子分布。' : '漩渦以發射器位置為中心，旋臂數控制粒子的分布。';
       const speedHint = '粒子在生命期間走完漩渦，移動速度與速度隨機暫停作用。';
       const forceHint = '漩渦運動期間暫停套用風力與重力。';
       const motionHints = {speed: speedHint, speedRandom: speedHint, wind: forceHint, gravity: forceHint};
@@ -13766,7 +13950,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawCurves();
   }
-  function drawGizmos(source) {
+  function drawGizmos(source, looping) {
     const attached = attachedFor();
     ctx.save(); ctx.globalCompositeOperation = 'source-over';
     source.emitters.forEach(e => {
@@ -13788,9 +13972,15 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
         ctx.restore(); return;
       }
       if (vortexActive(e)) {
+        ctx.beginPath(); ctx.arc(0, 0, e.vortex.radius, 0, 2 * Math.PI);
+        if (chosen && e.enabled && looping && e.vortex.mode === 'inward' && e.vortex.endlessLoop && e.vortex.radiusJitter > 0) {
+          ctx.setLineDash([]); ctx.strokeStyle = '#6cdec7'; ctx.globalAlpha = .075;
+          ctx.lineWidth = 2 * e.vortex.radius * e.vortex.radiusJitter / 100;
+          ctx.stroke();
+        }
         ctx.strokeStyle = chosen ? '#6cdec7' : '#738194'; ctx.globalAlpha = e.enabled ? (chosen ? .65 : .3) : .2;
         ctx.lineWidth = (chosen ? 1.4 : 1) / zoom; ctx.setLineDash([5 / zoom, 5 / zoom]);
-        ctx.beginPath(); ctx.arc(0, 0, e.vortex.radius, 0, 2 * Math.PI); ctx.stroke();
+        ctx.stroke();
         ctx.restore(); return;
       }
       if (e.path && e.path.enabled) {
@@ -13935,7 +14125,7 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
     if (attached && showBones && !(bonePicker && bonePicker.active)) drawBones(attached);
     if (bonePicker && bonePicker.active) bonePicker.draw(ctx);
     else if (artPicker && (artPicker.active || artPicker.selected)) artPicker.draw(ctx, zoom);
-    else drawGizmos(mode === 'live' ? project : snapshot.project);
+    else drawGizmos(mode === 'live' ? project : snapshot.project, snapshot.loop || !!snapshot.flowPhase);
     ctx.restore();
     const statistics = mode === 'baked' && exported ? exported.stats : snapshot.stats;
     $('stats').textContent = (previewMuted.size ? (soloId ? '單獨顯示 · ' : '預覽隱藏 ' + previewMuted.size + ' 層 · ') : '') + '可見 ' + visible + ' · 骨骼 ' + statistics.bones + (statistics.keyframes ? ' · KEY ' + statistics.keyframes.toLocaleString() + ' · JSON ' + (statistics.jsonBytes / 1024).toFixed(0) + ' KB' : ' · ' + snapshot.fps + ' FPS 烘焙');
@@ -15306,12 +15496,12 @@ Object.defineProperty(api,"sources",{value:{"3.8":{"file":"3.8.core.min.js","lic
       return {duration, fps: project.fps, time: local, selectedId,
         emitters: project.emitters.map(e => ({id: e.id, name: e.name, enabled: e.enabled,
           muted: muted.has(e.id) || (extra ? !extra.layers.includes(e.id) : project.flow.enabled ? !inPhase(e, phase) : !inMain(e)),
-          startDelay: e.startDelay || 0, emissionDuration: e.emissionDuration, life: e.life, lifeRandom: e.lifeRandom, trail: e.trail,
+          endlessLoop: endlessVortexActive(e, extra), startDelay: e.startDelay || 0, emissionDuration: e.emissionDuration, life: e.life, lifeRandom: e.lifeRandom, trail: e.trail,
           color: e.colorGradient && e.colorGradient.length ? e.colorGradient[Math.floor(e.colorGradient.length / 2)].color : e.colorStart}))};
     }, onSelect: id => { if (id !== selectedId) selectEmitter(id); },
     onBegin: () => { if (!busy) historyBegin('command'); },
     onChange: (id, patch) => {
-      const e = project.emitters.find(item => item.id === id); if (!e || busy) return;
+      const e = project.emitters.find(item => item.id === id); if (!e || busy || endlessVortexActive(e)) return;
       const prior = {startDelay: e.startDelay, emissionDuration: e.emissionDuration};
       Object.assign(e, patch); if (e.startDelay === 0) delete e.startDelay;
       try { Core.normalizeProject(project); } catch (error) { Object.assign(e, prior); if (prior.startDelay === undefined) delete e.startDelay; notify(error.message, true); return; }

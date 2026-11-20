@@ -439,6 +439,12 @@
     $('flowSettingsButton').querySelector('span').textContent = (project.flow.enabled ? 'In / Loop / Out' : '動畫段落') + (extraCount ? ' ＋' + extraCount : '');
     $('flowBake').textContent = project.flow.enabled ? '更新三段烘焙' : '更新烘焙';
     renderPreviewAnimSelect();
+    renderVortexLoopControls(emitter());
+    const list = $('emitterList'), loopView = String(previewLoops(extra));
+    if (list.dataset.loopView !== loopView) {
+      list.dataset.loopView = loopView;
+      project.emitters.filter(e => e.vortex && e.vortex.endlessLoop).forEach(refreshVortexRow);
+    }
   }
   function selectPhase(kind, keepPlaying) {
     phase = kind; time = 0;
@@ -550,6 +556,7 @@
   function renderEmitters() {
     previewDirty = true;
     const list = $('emitterList'); list.replaceChildren();
+    list.dataset.loopView = String(previewLoops());
     const note = $('layerListNote');
     if (note) {
       note.replaceChildren();
@@ -589,15 +596,14 @@
       const copy = document.createElement('span'); copy.className = 'emitter-copy';
       const name = document.createElement('span'); name.className = 'emitter-name'; name.textContent = item.name; name.title = item.name;
       const anims = animationsOf(item);
-      const meta = document.createElement('span'); meta.className = 'emitter-meta'; meta.title = anims ? '用於：' + anims : ''; meta.textContent = item.kind === 'lightning' ? '網格閃電 · ' + item.lightning.bolts + ' 條' + (item.lightning.branches ? ' · 分岔 ' + item.lightning.branches : '') : item.count + ' 顆 · ' + (item.blend === 'additive' ? '加色' : '一般');
-      if (anims) meta.textContent += ' · ' + anims;
+      const meta = document.createElement('span'); meta.className = 'emitter-meta'; meta.title = anims ? '用於：' + anims : ''; meta.textContent = layerSummary(item, anims);
       row.classList.toggle('layer-unused', anims === UNUSED_LAYER);
       if (anims === UNUSED_LAYER) meta.title = '這個圖層沒有加入任何動畫，輸出和播放都看不到。切到要用的動畫分頁，在下方一列勾選它。';
       const tags = document.createElement('span'); tags.className = 'emitter-tags';
       if (item.kind === 'lightning') path.setAttribute('d', 'M13 2 5 13h6l-1 9 8-12h-6l1-8Z');
       const type = document.createElement('span'); type.className = 'emitter-type'; type.textContent = item.kind === 'lightning' ? (item.lightning.mode === 'fixed' ? '兩端固定' : '尾端擺動') : item.trail && item.trail.enabled ? item.trail.mode === 'afterimage' ? '殘影拖尾' : '沿路徑拉伸' : item.path && item.path.enabled ? '沿路徑移動' : (shapeNames[item.shape] || '點形') + (['box', 'circle', 'ring'].includes(item.shape) ? emitFrom(item) === 'edge' ? ' · 邊框' : ' · 區域內' : '');
       if (vortexActive(item)) {
-        type.textContent = item.vortex.mode === 'inward' ? '漩渦收縮' + (item.vortex.lineCount ? ' · ' + item.vortex.lineCount + ' 線' : '') : '漩渦外放';
+        type.textContent = vortexLayerLabel(item);
         path.setAttribute('d', 'M20 17a9 9 0 1 1 0-10c3 5-1 12-8 11s-7-9-2-11c5-1 7 5 4 6-2 1-3-1-2-2');
       }
       const color = document.createElement('span'); color.className = 'emitter-color-dot'; color.style.setProperty('--emitter-color', item.colorGradient && item.colorGradient.length ? item.colorGradient[0].color : item.colorStart); color.setAttribute('aria-hidden', 'true');
@@ -822,14 +828,77 @@
   function showVortexLineMinimum(e) {
     notify('已恢復 ' + e.vortex.lineCount + ' 條收縮線，每線至少 1 顆，共 ' + e.count + ' 顆。');
   }
-  function renderVortexLines(e) {
+  function previewLoops(extra = previewExtra()) { return extra ? extra.loop : project.flow.enabled || project.loop; }
+  function endlessVortexActive(e, extra = previewExtra()) {
+    return vortexActive(e) && e.vortex.mode === 'inward' && !!e.vortex.endlessLoop && previewLoops(extra);
+  }
+  function layerSummary(e, anims) {
+    let text;
+    if (e.kind === 'lightning') text = '網格閃電 · ' + e.lightning.bolts + ' 條' + (e.lightning.branches ? ' · 分岔 ' + e.lightning.branches : '');
+    else {
+      const count = endlessVortexActive(e) ? (e.vortex.loopCount ?? e.count) + ' 顆／輪' : e.count + ' 顆';
+      text = count + ' · ' + (e.blend === 'additive' ? '加色' : '一般');
+    }
+    return text + (anims ? ' · ' + anims : '');
+  }
+  function vortexLayerLabel(e) {
+    if (e.vortex.mode === 'outward') return '漩渦外放';
+    if (endlessVortexActive(e)) return '無盡漩渦 LOOP';
+    return '漩渦收縮' + (e.vortex.lineCount ? ' · ' + e.vortex.lineCount + ' 線' : '');
+  }
+  function refreshVortexRow(e) {
+    if (!vortexActive(e)) return;
+    const row = Array.from($('emitterList').children).find(node => node.dataset.emitterId === e.id);
+    if (!row) return;
+    row.querySelector('.emitter-meta').textContent = layerSummary(e, animationsOf(e));
+    const type = row.querySelector('.emitter-type'); type.title = type.textContent = vortexLayerLabel(e);
+  }
+  function renderVortexLoopControls(e) {
     const inward = vortexActive(e) && e.vortex.mode === 'inward';
-    document.querySelectorAll('[data-vortex-lines]').forEach(group => { group.hidden = !inward; });
     const grouped = inward && !!e.vortex.lineCount;
-    $('particleCountField').hidden = grouped || e.kind === 'lightning';
-    $('vortexArmsField').hidden = grouped;
+    const extra = previewExtra(), endless = endlessVortexActive(e, extra);
+    document.querySelectorAll('[data-vortex-loop-controls]').forEach(group => { group.hidden = !inward; });
+    document.querySelectorAll('[data-vortex-lines]').forEach(group => { group.hidden = !inward || endless; });
+    $('vortexArmsField').hidden = grouped || endless;
+    $('emissionTimingFields').hidden = endless;
+    $('emissionTimingHint').hidden = endless || e.kind === 'lightning';
+    $('particleCountField').hidden = grouped || endless || e.kind === 'lightning';
+    document.querySelectorAll('[data-vortex-loop-setting]').forEach(field => { field.hidden = !endless; });
+    if (!inward) return;
+    const density = e.vortex.loopCount ?? e.count;
+    vortexControls.forEach(input => {
+      const key = input.dataset.vortexField;
+      if (key !== 'loopCount' && key !== 'radiusJitter') return;
+      input.disabled = busy || !endless;
+      if (document.activeElement !== input) input.value = key === 'loopCount' ? density : e.vortex.radiusJitter ?? 0;
+    });
+    const flow = !extra && project.flow.enabled;
+    const duration = extra ? extra.duration : flow ? project.flow.loop.duration : project.duration;
+    let hint = '讓粒子從外圈不同位置錯開旋入，跨過循環接點時繼續移動。';
+    if (endless) {
+      renderVortexBirthRadii(e);
+      hint = '每輪 ' + duration + ' 秒分散發射 ' + density + ' 顆，從外圈各處接續旋入。可增加每輪粒子數或延長生命，讓畫面更密。';
+    } else if (e.vortex.endlessLoop) {
+      hint = extra ? '這段是單次動畫，沿用原有收縮線與發射時間。勾選此動畫的「循環」即可預覽無盡漩渦。' :
+        '這段是單次動畫，沿用原有收縮線與發射時間。勾選工具列的「循環」即可預覽無盡漩渦。';
+    }
+    document.querySelectorAll('[data-vortex-loop-hint]').forEach(node => { node.textContent = hint; });
+    renderVortexJitterHint(e);
+  }
+  function renderVortexBirthRadii(e) {
+    const radius = e.vortex.radius, spread = radius * (e.vortex.radiusJitter || 0) / 100;
+    const range = spread ? round3(radius - spread) + '–' + round3(radius + spread) + ' px' : radius + ' px';
+    const label = spread ? '出生半徑 ' + range + '（虛線圈 ' + radius + ' px）' : '出生半徑 ' + range + '（虛線圈上）';
+    document.querySelectorAll('[data-vortex-birth-radii]').forEach(output => {
+      if (output.value !== label) output.value = label;
+    });
+  }
+  function renderVortexLines(e) {
+    renderVortexLoopControls(e);
+    const inward = vortexActive(e) && e.vortex.mode === 'inward';
     if (!inward) return;
     const layout = Core.vortexLineLayout(e);
+    const grouped = layout.grouped;
     const randomLegacy = !grouped && !e.vortex.arms;
     const partial = layout.total % layout.lineCount !== 0;
     const density = partial ? Math.floor(layout.total / layout.lineCount) + '～' + layout.particlesPerLine : String(layout.particlesPerLine);
@@ -894,6 +963,10 @@
   }
   function renderVortexJitterHint(e) {
     if (!vortexActive(e)) return;
+    if (endlessVortexActive(e)) {
+      $('vortexJitterHint').textContent = '「外圈位置隨機」調高時，出生方位更容易聚在同一側；「發射時間隨機」調高時，粒子出現的間隔更不均勻。';
+      return;
+    }
     const extra = previewExtra(), duration = extra ? extra.duration : project.flow.enabled ? project.flow.loop.duration : project.duration;
     const {maxOffset} = emissionTiming(e, duration);
     const edge = e.vortex.mode === 'inward' ? '起點沿外圈散開。' : '終點沿外圈散開。';
@@ -910,8 +983,10 @@
     const enabled = vortex.mode !== 'off', usingPath = enabled && !!(e.path && e.path.enabled);
     vortexControls.forEach(input => {
       if (input.type === 'checkbox') input.checked = !!vortex[input.dataset.vortexField];
-      else input.value = vortex[input.dataset.vortexField] ?? input.defaultValue;
+      else if (input.dataset.vortexField !== 'loopCount') input.value = vortex[input.dataset.vortexField] ?? input.defaultValue;
       input.disabled = busy || e.kind === 'lightning' || (!enabled && input.id !== 'vortexMode');
+      if (input.dataset.vortexField === 'endlessLoop') input.disabled = busy || !vortexActive(e) || vortex.mode !== 'inward';
+      if (input.dataset.vortexField === 'loopCount' || input.dataset.vortexField === 'radiusJitter') input.disabled = busy || !endlessVortexActive(e);
     });
     renderVortexLines(e);
     $('vortexFields').hidden = !enabled;
@@ -932,14 +1007,28 @@
       const apply = duringInput => {
         if (busy || input.disabled) return;
         const e = emitter(), previous = e.vortex, previousCount = e.count, vortex = previous || Core.VORTEX_DEFAULTS;
+        if (key === 'loopCount' && input.value === '') {
+          if (duringInput) return;
+          if (vortex.loopCount !== undefined) {
+            e.vortex = {...vortex}; delete e.vortex.loopCount;
+            changed({parameterOnly: true});
+          }
+          input.value = e.count;
+          renderVortexLoopControls(e);
+          refreshVortexRow(e);
+          return;
+        }
         if (!input.checkValidity() || input.value === '') {
-          if (!duringInput) input.value = vortex[key] ?? input.defaultValue;
+          if (!duringInput) input.value = vortex[key] ?? (key === 'loopCount' ? e.count : input.defaultValue);
           return;
         }
         const numeric = input.type === 'number' || input.type === 'range';
         const value = input.type === 'checkbox' ? input.checked : numeric ? input.valueAsNumber : input.value;
         if (value === (vortex[key] ?? Core.VORTEX_DEFAULTS[key] ?? 0)) return;
         e.vortex = {...vortex, [key]: value};
+        if (key === 'endlessLoop' && value && vortex.endlessLoop === undefined && vortex.radiusJitter === undefined) {
+          e.vortex.radiusJitter = 18;
+        }
         if (key === 'mode' && value === 'inward') {
           if (!previous) e.vortex.lineCount = Math.min(12, e.count);
           restoreVortexLineMinimum(e);
@@ -952,11 +1041,14 @@
           return;
         }
         changed({parameterOnly: key !== 'mode'});
-        if (key === 'mode') { renderEmitters(); renderInspector(); }
+        if (key === 'mode' || key === 'endlessLoop') { renderEmitters(); renderInspector(); }
+        else if (key === 'loopCount') { renderVortexLoopControls(e); refreshVortexRow(e); }
         else if (key === 'arms') renderVortexLines(e);
-        else if (key === 'edgeJitter' || key === 'timeJitter') {
+        else if (key === 'radius' && endlessVortexActive(e)) renderVortexBirthRadii(e);
+        else if (key === 'edgeJitter' || key === 'timeJitter' || key === 'radiusJitter') {
           vortexControls.forEach(peer => { if (peer !== input && peer.dataset.vortexField === key) peer.value = value; });
           if (key === 'timeJitter') renderTrailInspector();
+          if (key === 'radiusJitter') renderVortexBirthRadii(e);
         }
         if (e.count !== previousCount) showVortexLineMinimum(e);
       };
@@ -1390,7 +1482,7 @@
     const vortex = vortexActive(e);
     $('adjustPath').textContent = vortex ? '調整漩渦' : '調整路徑';
     if (vortex) {
-      const areaHint = e.vortex.mode === 'inward' ? '漩渦以發射器位置為中心。可在「數量與生命」調整收縮線數。' : '漩渦以發射器位置為中心，旋臂數控制粒子的分布。';
+      const areaHint = e.vortex.mode === 'inward' ? '漩渦以發射器位置為中心。「數量與生命」可調整粒子分布。' : '漩渦以發射器位置為中心，旋臂數控制粒子的分布。';
       const speedHint = '粒子在生命期間走完漩渦，移動速度與速度隨機暫停作用。';
       const forceHint = '漩渦運動期間暫停套用風力與重力。';
       const motionHints = {speed: speedHint, speedRandom: speedHint, wind: forceHint, gravity: forceHint};
@@ -1578,7 +1670,7 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawCurves();
   }
-  function drawGizmos(source) {
+  function drawGizmos(source, looping) {
     const attached = attachedFor();
     ctx.save(); ctx.globalCompositeOperation = 'source-over';
     source.emitters.forEach(e => {
@@ -1600,9 +1692,15 @@
         ctx.restore(); return;
       }
       if (vortexActive(e)) {
+        ctx.beginPath(); ctx.arc(0, 0, e.vortex.radius, 0, 2 * Math.PI);
+        if (chosen && e.enabled && looping && e.vortex.mode === 'inward' && e.vortex.endlessLoop && e.vortex.radiusJitter > 0) {
+          ctx.setLineDash([]); ctx.strokeStyle = '#6cdec7'; ctx.globalAlpha = .075;
+          ctx.lineWidth = 2 * e.vortex.radius * e.vortex.radiusJitter / 100;
+          ctx.stroke();
+        }
         ctx.strokeStyle = chosen ? '#6cdec7' : '#738194'; ctx.globalAlpha = e.enabled ? (chosen ? .65 : .3) : .2;
         ctx.lineWidth = (chosen ? 1.4 : 1) / zoom; ctx.setLineDash([5 / zoom, 5 / zoom]);
-        ctx.beginPath(); ctx.arc(0, 0, e.vortex.radius, 0, 2 * Math.PI); ctx.stroke();
+        ctx.stroke();
         ctx.restore(); return;
       }
       if (e.path && e.path.enabled) {
@@ -1747,7 +1845,7 @@
     if (attached && showBones && !(bonePicker && bonePicker.active)) drawBones(attached);
     if (bonePicker && bonePicker.active) bonePicker.draw(ctx);
     else if (artPicker && (artPicker.active || artPicker.selected)) artPicker.draw(ctx, zoom);
-    else drawGizmos(mode === 'live' ? project : snapshot.project);
+    else drawGizmos(mode === 'live' ? project : snapshot.project, snapshot.loop || !!snapshot.flowPhase);
     ctx.restore();
     const statistics = mode === 'baked' && exported ? exported.stats : snapshot.stats;
     $('stats').textContent = (previewMuted.size ? (soloId ? '單獨顯示 · ' : '預覽隱藏 ' + previewMuted.size + ' 層 · ') : '') + '可見 ' + visible + ' · 骨骼 ' + statistics.bones + (statistics.keyframes ? ' · KEY ' + statistics.keyframes.toLocaleString() + ' · JSON ' + (statistics.jsonBytes / 1024).toFixed(0) + ' KB' : ' · ' + snapshot.fps + ' FPS 烘焙');
@@ -3118,12 +3216,12 @@
       return {duration, fps: project.fps, time: local, selectedId,
         emitters: project.emitters.map(e => ({id: e.id, name: e.name, enabled: e.enabled,
           muted: muted.has(e.id) || (extra ? !extra.layers.includes(e.id) : project.flow.enabled ? !inPhase(e, phase) : !inMain(e)),
-          startDelay: e.startDelay || 0, emissionDuration: e.emissionDuration, life: e.life, lifeRandom: e.lifeRandom, trail: e.trail,
+          endlessLoop: endlessVortexActive(e, extra), startDelay: e.startDelay || 0, emissionDuration: e.emissionDuration, life: e.life, lifeRandom: e.lifeRandom, trail: e.trail,
           color: e.colorGradient && e.colorGradient.length ? e.colorGradient[Math.floor(e.colorGradient.length / 2)].color : e.colorStart}))};
     }, onSelect: id => { if (id !== selectedId) selectEmitter(id); },
     onBegin: () => { if (!busy) historyBegin('command'); },
     onChange: (id, patch) => {
-      const e = project.emitters.find(item => item.id === id); if (!e || busy) return;
+      const e = project.emitters.find(item => item.id === id); if (!e || busy || endlessVortexActive(e)) return;
       const prior = {startDelay: e.startDelay, emissionDuration: e.emissionDuration};
       Object.assign(e, patch); if (e.startDelay === 0) delete e.startDelay;
       try { Core.normalizeProject(project); } catch (error) { Object.assign(e, prior); if (prior.startDelay === undefined) delete e.startDelay; notify(error.message, true); return; }
