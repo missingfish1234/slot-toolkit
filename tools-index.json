@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-19",
+  "updatedAt": "2026-11-20",
   "tools": [
     {
       "id": "cocos-creator-38-rolling-score-tester",
@@ -506,7 +506,7 @@
       "name": "SPINE 粒子系統（Particle Studio）",
       "category": "SPINE相關工具",
       "description": "離線編排漩渦粒子、整條路徑光帶、殘影拖尾與網格閃電，可掛接既有骨架、寫回原工程，並批次輸出 Spine 3.8／4.0／4.2。",
-      "version": "1.37.1",
+      "version": "1.39.0",
       "path": "SPINE相關工具/粒子系統",
       "entry": "dist/Particle-Studio.html",
       "icon": "",
@@ -517,9 +517,11 @@
         "特效",
         "離線網頁工具"
       ],
-      "updatedAt": "2026-11-19",
+      "updatedAt": "2026-11-20",
       "size": "2.7 MB（下載）",
       "changelog": [
+        "v1.39.0 無盡漩渦新增「外圈半徑浮動」，可讓每顆粒子從參考圓的內側或外側出發。調高外圈位置與發射時間的隨機值，能讓粒子的方位和出發間隔更疏密不一。",
+        "v1.38.0 漩渦收縮新增「無盡漩渦 LOOP」。粒子在整個循環內從外圈不同方位錯開旋入，跨過首尾的粒子和拖尾會接續播放。",
         "v1.37.1 改善多圖層、漩渦與拖尾的即時預覽。連續拖動參數時，每次畫面更新使用最新設定；暫停時只在畫面有變動時重畫。",
         "v1.37.0 重新整理介面字級與分類色。發射用暖金、外觀用淡紫、運動用天藍。動畫長度和時間軸更醒目，圖層清單、效果庫及動畫段落也有清楚的標題與欄位層級。",
         "v1.36.0 漩渦新增「外圈位置隨機」與「發射時間隨機」。各線可從不同外圈方位旋入，各顆粒子可在同一波內錯開出發，向外擴散也可使用。",
@@ -552,8 +554,8 @@
         "v1.22.0：輸出保留圖片原檔名。",
         "v1.9.0：加入工具包與管理器，可離線啟動粒子工作室。"
       ],
-      "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/73c0f03f85c611995015420d2931224dcd4d3901/releases/tool-spine-particle-studio-1.37.1.zip",
-      "sha256": "e79306367b98dfaf7045ae68486f7026238c36e39310c7ab5c687dc8be597f37",
+      "downloadUrl": "https://raw.githubusercontent.com/missingfish1234/slot-toolkit/34f5e3bc374f5dcad7896008fb162427336c2f71/releases/tool-spine-particle-studio-1.39.0.zip",
+      "sha256": "a0319f1891471e9effa99d615a41d01531e5d808171f6b570d39ffaaa0c406d2",
       "kind": "網頁工具",
       "preservePaths": [
         "user-data",
